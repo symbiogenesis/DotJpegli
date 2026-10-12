@@ -12,6 +12,7 @@ internal readonly ref struct PixelSource
     private readonly SourceType sourceType;
     private readonly bool bgr;
     private readonly bool ycbcr;
+    private readonly bool xyb;
     private readonly JpegColorSpace colorSpace;
 
     internal PixelSource(ReadOnlySpan<byte> pixels, PixelLayout layout)
@@ -20,13 +21,14 @@ internal readonly ref struct PixelSource
         sourceType = SourceType.Byte;
         ComponentsPerPixel = layout switch
         {
-            PixelLayout.Rgb24 or PixelLayout.Bgr24 or PixelLayout.YCbCr24 => 3,
+            PixelLayout.Rgb24 or PixelLayout.Bgr24 or PixelLayout.YCbCr24 or PixelLayout.Xyb24 => 3,
             PixelLayout.Rgba32 or PixelLayout.Bgra32 => 4,
             PixelLayout.Gray8 => 1,
             _ => throw new ArgumentOutOfRangeException(nameof(layout))
         };
         bgr = layout is PixelLayout.Bgr24 or PixelLayout.Bgra32;
         ycbcr = layout == PixelLayout.YCbCr24;
+        xyb = layout == PixelLayout.Xyb24;
     }
 
     internal PixelSource(ReadOnlySpan<ushort> pixels, PixelComponentLayout layout)
@@ -36,6 +38,7 @@ internal readonly ref struct PixelSource
         ComponentsPerPixel = GetComponentCount(layout);
         bgr = layout is PixelComponentLayout.Bgr or PixelComponentLayout.Bgra;
         ycbcr = layout == PixelComponentLayout.YCbCr;
+        xyb = layout == PixelComponentLayout.Xyb;
     }
 
     internal PixelSource(ReadOnlySpan<float> pixels, PixelComponentLayout layout)
@@ -45,14 +48,18 @@ internal readonly ref struct PixelSource
         ComponentsPerPixel = GetComponentCount(layout);
         bgr = layout is PixelComponentLayout.Bgr or PixelComponentLayout.Bgra;
         ycbcr = layout == PixelComponentLayout.YCbCr;
+        xyb = layout == PixelComponentLayout.Xyb;
     }
 
     internal int ComponentsPerPixel { get; }
     private bool IsGrayscaleInput => ComponentsPerPixel == 1;
     internal JpegColorSpace ColorSpace => colorSpace == JpegColorSpace.Automatic
-        ? (IsGrayscaleInput ? JpegColorSpace.Grayscale : JpegColorSpace.YCbCr) : colorSpace;
+        ? (xyb ? JpegColorSpace.Xyb : IsGrayscaleInput ? JpegColorSpace.Grayscale : JpegColorSpace.YCbCr) : colorSpace;
     internal bool IsGrayscale => ColorSpace == JpegColorSpace.Grayscale;
-    internal bool IsRgb => ColorSpace == JpegColorSpace.Rgb;
+    // XYB is carried in an RGB JPEG: identifiers, entropy selectors and AQ rules
+    // are shared, while sampling defaults and quantization matrices differ.
+    internal bool IsRgb => ColorSpace is JpegColorSpace.Rgb or JpegColorSpace.Xyb;
+    internal bool IsXyb => ColorSpace == JpegColorSpace.Xyb;
     internal int AnalysisComponent => IsRgb ? 1 : 0;
 
     private PixelSource(PixelSource source, JpegColorSpace colorSpace)
@@ -63,12 +70,17 @@ internal readonly ref struct PixelSource
         sourceType = source.sourceType;
         bgr = source.bgr;
         ycbcr = source.ycbcr;
+        xyb = source.xyb;
         ComponentsPerPixel = source.ComponentsPerPixel;
         this.colorSpace = colorSpace;
     }
 
     internal PixelSource WithColorSpace(JpegColorSpace outputColorSpace)
     {
+        if ((xyb && outputColorSpace is not (JpegColorSpace.Automatic or JpegColorSpace.Xyb))
+            || (!xyb && outputColorSpace == JpegColorSpace.Xyb))
+            throw new ArgumentException("XYB output requires already scaled XYB input, which cannot be converted to another output color space.",
+                nameof(JpegliEncoderOptions.ColorSpace));
         if (outputColorSpace == JpegColorSpace.Rgb && ycbcr)
             throw new ArgumentException("Direct YCbCr input cannot be converted to RGB output.",
                 nameof(JpegliEncoderOptions.ColorSpace));
@@ -148,7 +160,7 @@ internal readonly ref struct PixelSource
 
     private static int GetComponentCount(PixelComponentLayout layout) => layout switch
     {
-        PixelComponentLayout.Rgb or PixelComponentLayout.Bgr or PixelComponentLayout.YCbCr => 3,
+        PixelComponentLayout.Rgb or PixelComponentLayout.Bgr or PixelComponentLayout.YCbCr or PixelComponentLayout.Xyb => 3,
         PixelComponentLayout.Rgba or PixelComponentLayout.Bgra => 4,
         PixelComponentLayout.Gray => 1,
         _ => throw new ArgumentOutOfRangeException(nameof(layout))

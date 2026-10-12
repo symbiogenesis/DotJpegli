@@ -309,7 +309,7 @@ public sealed class EncoderStandardQuantizationTests
     public void TypedPaddedLayoutsAndIgnoredAlphaMatchTheirCompactSource(int kind)
     {
         const int width = 19, height = 17;
-        foreach (PixelComponentLayout layout in Enum.GetValues<PixelComponentLayout>())
+        foreach (PixelComponentLayout layout in Enum.GetValues<PixelComponentLayout>().Where(layout => layout != PixelComponentLayout.Xyb))
         {
             PixelComponentLayout compactLayout = layout is PixelComponentLayout.Gray or PixelComponentLayout.YCbCr
                 ? layout : PixelComponentLayout.Rgb;

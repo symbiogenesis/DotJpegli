@@ -5,7 +5,8 @@ namespace DotJpegli;
 /// <summary>
 /// Encodes byte, 16-bit or floating-point RGB, grayscale or YCbCr pixels
 /// to eight-bit baseline or progressive grayscale, YCbCr or RGB JPEG.
-/// Includes spatial adaptive quantization; XYB remains pending.
+/// Also accepts already scaled XYB input with a matching caller-supplied ICC profile.
+/// Includes spatial adaptive quantization; RGB-to-XYB conversion remains pending.
 /// </summary>
 public static class JpegliEncoder
 {
@@ -40,7 +41,7 @@ public static class JpegliEncoder
         => EncodeCore(output, new PixelSource(pixels, layout), width, height, options, stride, cancellationToken);
 
     /// <summary>
-    /// Encodes gamma-encoded RGB/grayscale or full-range JPEG YCbCr 16-bit samples.
+    /// Encodes gamma-encoded RGB/grayscale, full-range JPEG YCbCr or already scaled XYB 16-bit samples.
     /// Values 0..65535 map to JPEG sample units 0..255; neutral YCbCr chroma is 32896.
     /// Fractional precision is retained until quantization; output JPEG sample precision is eight bits.
     /// </summary>
@@ -55,7 +56,7 @@ public static class JpegliEncoder
     }
 
     /// <summary>
-    /// Writes an eight-bit JPEG from gamma-encoded RGB/grayscale or full-range JPEG YCbCr 16-bit samples
+    /// Writes an eight-bit JPEG from RGB/grayscale, full-range JPEG YCbCr or already scaled XYB 16-bit samples
     /// without closing or seeking the stream.
     /// Source pixels must remain unchanged until encoding returns. Cancellation or I/O errors may leave partial output.
     /// </summary>
@@ -66,7 +67,7 @@ public static class JpegliEncoder
         => EncodeCore(output, new PixelSource(pixels, layout), width, height, options, stride, cancellationToken);
 
     /// <summary>
-    /// Encodes gamma-encoded RGB/grayscale or full-range JPEG YCbCr floating-point samples.
+    /// Encodes gamma-encoded RGB/grayscale, full-range JPEG YCbCr or already scaled XYB floating-point samples.
     /// Consumed samples must be finite and in 0..1 by default; neutral YCbCr chroma is 128f / 255f.
     /// AllowOutOfRangeFloatSamples permits out-of-range values that fit eight-bit JPEG coefficients.
     /// Alpha, row padding and trailing elements are ignored. This API does not apply a linear-light or HDR transform.
@@ -83,7 +84,7 @@ public static class JpegliEncoder
     }
 
     /// <summary>
-    /// Writes an eight-bit JPEG from RGB/grayscale or full-range JPEG YCbCr floating-point samples
+    /// Writes an eight-bit JPEG from RGB/grayscale, full-range JPEG YCbCr or already scaled XYB floating-point samples
     /// without closing or seeking the stream.
     /// Samples must be in 0..1 unless AllowOutOfRangeFloatSamples is enabled.
     /// Consumed samples are validated before output. Source pixels must remain unchanged until encoding returns.
@@ -104,6 +105,9 @@ public static class JpegliEncoder
         options ??= new JpegliEncoderOptions();
         options.Validate();
         pixels = pixels.WithColorSpace(options.ColorSpace);
+        if (pixels.IsXyb && options.IccProfile.IsEmpty)
+            throw new ArgumentException("Scaled XYB encoding requires an ICC profile describing the stored channels.",
+                nameof(JpegliEncoderOptions.IccProfile));
         if (width is < 1 or > 65535)
             throw new ArgumentOutOfRangeException(nameof(width), "JPEG dimensions must be between 1 and 65535.");
         if (height is < 1 or > 65535)
@@ -128,10 +132,12 @@ public static class JpegliEncoder
 
         bool grayscale = pixels.IsGrayscale;
         bool rgb = pixels.IsRgb;
+        bool xyb = pixels.IsXyb;
         int componentCount = grayscale ? 1 : 3;
         JpegSamplingFactors sampling = grayscale
             ? JpegSamplingFactors.FromSubsampling(ChromaSubsampling.None)
-            : options.SamplingFactors ?? JpegSamplingFactors.FromSubsampling(rgb ? ChromaSubsampling.None : options.Subsampling);
+            : options.SamplingFactors ?? (xyb ? new JpegSamplingFactors(new(2, 2), new(2, 2), new(1, 1))
+                : JpegSamplingFactors.FromSubsampling(rgb ? ChromaSubsampling.None : options.Subsampling));
         // Quantization's sampling arguments select the upstream 4:2:0 table
         // compensation. Asymmetric schemes use uncompensated tables even when
         // the luma factors are 2x2.
@@ -140,7 +146,9 @@ public static class JpegliEncoder
         var tables = new ushort[componentCount][];
         for (int component = 0; component < componentCount; component++)
         {
-            if (rgb)
+            if (xyb)
+                tables[component] = XybQuantization.CreateTableForDistance(distance, component);
+            else if (rgb)
                 tables[component] = component == 0 ? Quantization.CreateStandardTableForDistance(distance, 0) : tables[0];
             else if (options.UseStandardQuantizationTables)
                 tables[component] = component == 2 ? tables[1] : Quantization.CreateStandardTableForDistance(distance, component);
@@ -234,7 +242,7 @@ public static class JpegliEncoder
 
         cancellationToken.ThrowIfCancellationRequested();
         JpegMarkerWriter.WriteHeaders(output, width, height, sampling, tables, dcTables, acTables,
-            options, extendedXmp, cancellationToken, rgb: rgb);
+            options, extendedXmp, cancellationToken, rgb: rgb, xyb: xyb);
         JpegMarkerWriter.WriteScanHeader(output, componentCount, options.Progressive,
             successiveLow: options.ProgressiveRefinementBits, rgb: rgb);
         var bits = new BitWriter(output);

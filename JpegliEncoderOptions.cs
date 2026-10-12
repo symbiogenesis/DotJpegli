@@ -8,7 +8,8 @@ public sealed record JpegliEncoderOptions
 {
     /// <summary>
     /// Color space stored in the JPEG. Automatic (the default) writes grayscale
-    /// for grayscale input and YCbCr for color input, preserving existing bytes.
+    /// for grayscale input, XYB for scaled XYB input, and YCbCr for other color input,
+    /// preserving existing bytes.
     /// Grayscale converts RGB to luminance or uses Y from direct YCbCr input.
     /// YCbCr adds neutral chroma to grayscale input. Rgb keeps RGB components or
     /// replicates grayscale; direct YCbCr-to-RGB conversion is not supported.
@@ -17,7 +18,11 @@ public sealed record JpegliEncoderOptions
     /// and transfer-function hints. It defaults to full resolution, ignoring the
     /// Subsampling preset; custom SamplingFactors map Luma/Cb/Cr to R/G/B.
     /// Adaptive RGB quantization analyzes green and disables itself if green is
-    /// subsampled. RGB JPEG reader support varies. This does not apply an ICC transform.
+    /// subsampled. Xyb requires already scaled XYB input and a nonempty matching
+    /// IccProfile; no conversion to or from another color space is supported.
+    /// It uses RGB identifiers with three perceptual XYB tables and defaults to
+    /// X/Y factors 2x2 and B-minus-Y factors 1x1. Its adaptive analysis uses Y.
+    /// RGB/XYB JPEG reader support varies. This does not apply an ICC transform.
     /// </summary>
     public JpegColorSpace ColorSpace { get; init; }
 
@@ -38,7 +43,8 @@ public sealed record JpegliEncoderOptions
     /// <summary>
     /// Use the conventional JPEG Annex K luma and shared chroma quantization matrices.
     /// False (the default) uses Jpegli's perceptual matrices for grayscale and YCbCr.
-    /// RGB output always uses one shared Annex K luma matrix. Quality still maps to Jpegli
+    /// RGB output always uses one shared Annex K luma matrix; XYB always uses its three
+    /// perceptual matrices. Quality still maps to Jpegli
     /// distance, and an explicit Distance still overrides it; the standard matrices use
     /// the pinned upstream's linear scaling from that distance without 4:2:0 compensation.
     /// Values are clamped to baseline JPEG's 1..255 range before integer conversion,
@@ -55,7 +61,7 @@ public sealed record JpegliEncoderOptions
     /// 18 (HLG) tune Jpegli's perceptual quantization and adaptive coefficient
     /// thresholds; other codes retain the default tuning. Standard quantization
     /// matrices ignore this hint when constructing tables, but adaptive thresholds
-    /// still use it for YCbCr. RGB output ignores the hint. This does not transform
+    /// still use it for YCbCr. RGB and XYB output ignore the hint. This does not transform
     /// samples, tone-map, validate a registered code, or embed color metadata.
     /// Supply any required ICC profile separately.
     /// With InferCicpTransferFunctionFromIccProfile enabled, code 2 permits lookup
@@ -76,15 +82,17 @@ public sealed record JpegliEncoderOptions
     /// </summary>
     public bool InferCicpTransferFunctionFromIccProfile { get; init; }
 
-    /// <summary>Chroma sample area relative to luma. Defaults to 4:2:0 (2x2); SamplingFactors overrides it.</summary>
+    /// <summary>YCbCr chroma sample area relative to luma. Defaults to 4:2:0 (2x2); SamplingFactors overrides it. Ignored for RGB/XYB.</summary>
     public ChromaSubsampling Subsampling { get; init; } = ChromaSubsampling.Quarter;
 
     /// <summary>
     /// Optional per-component Y, Cb and Cr sampling factors, overriding Subsampling.
-    /// Null (the default) uses the preset for YCbCr and full resolution for RGB.
+    /// Null (the default) uses the preset for YCbCr, full resolution for RGB,
+    /// and factors 2x2/2x2/1x1 for scaled XYB.
     /// Factors must be 1..4, with integer sample
     /// areas relative to the largest factors and at most ten blocks per color MCU.
     /// For RGB output, Luma/Cb/Cr map to R/G/B and subsampled green disables adaptive quantization.
+    /// For XYB output they map to scaled X/Y/B-minus-Y and subsampled Y disables adaptive quantization.
     /// Subsampled luma disables adaptive quantization for YCbCr, following upstream.
     /// Valid color sampling settings are ignored for grayscale output.
     /// </summary>
@@ -170,7 +178,9 @@ public sealed record JpegliEncoderOptions
     /// <summary>
     /// Raw ICC profile bytes to embed in APP2 markers. Empty (the default) omits the profile.
     /// At most 16,707,345 bytes are supported. The profile is not applied to the pixels;
-    /// supply a profile describing the output's RGB or grayscale interpretation. It remains opaque
+    /// supply a profile describing the output's RGB or grayscale interpretation. XYB input
+    /// requires a nonempty profile describing Jpegli's scaled XYB channels, rather than an
+    /// ordinary RGB profile. The encoder does not validate that transform or generate a profile. It remains opaque
     /// unless InferCicpTransferFunctionFromIccProfile enables the narrow CICP lookup.
     /// Do not change the underlying memory or dispose its owner until encoding returns.
     /// </summary>
@@ -212,7 +222,7 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>
     /// Use Jpegli's spatial analysis to suppress perceptually masked coefficients.
-    /// Uses green for RGB output. Automatically disabled when custom sampling subsamples
+    /// Uses green for RGB output and scaled Y for XYB output. Automatically disabled when custom sampling subsamples
     /// the analyzed component in either direction.
     /// </summary>
     public bool AdaptiveQuantization { get; init; } = true;

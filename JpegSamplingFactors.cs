@@ -7,6 +7,7 @@ namespace DotJpegli;
 /// The sum of Horizontal * Vertical over all three components must not exceed ten.
 /// Grayscale encoding ignores valid color sampling factors and always uses 1x1.
 /// RGB output maps Luma, Cb and Cr to R, G and B; subsampled green disables adaptive quantization.
+/// XYB output maps them to scaled X, Y and B-minus-Y; subsampled Y disables adaptive quantization.
 /// </remarks>
 public sealed record JpegSamplingFactors(
     JpegComponentSampling Luma, JpegComponentSampling Cb, JpegComponentSampling Cr)

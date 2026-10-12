@@ -15,5 +15,11 @@ public enum PixelComponentLayout
     /// Chroma is centered at 32896 for 16-bit samples or 128f / 255f for normalized floats.
     /// No RGB conversion or video-range expansion is applied.
     /// </summary>
-    YCbCr
+    YCbCr,
+    /// <summary>
+    /// Already scaled Jpegli X, Y and B-minus-Y samples, interleaved in that order.
+    /// Float 0..1 or ushort 0..65535 represents upstream ScaleXYBRow output.
+    /// Requires XYB output and a matching ICC profile; no RGB-to-XYB transform is applied.
+    /// </summary>
+    Xyb
 }

@@ -48,9 +48,9 @@ public sealed class EncoderColorSpaceTests
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(2)]
-    public void AutomaticMatchesExplicitOutputForEverySourceLayout(int kind)
+    public void AutomaticMatchesExplicitOutputForEveryNonXybSourceLayout(int kind)
     {
-        foreach (PixelComponentLayout layout in Enum.GetValues<PixelComponentLayout>())
+        foreach (PixelComponentLayout layout in Enum.GetValues<PixelComponentLayout>().Where(layout => layout != PixelComponentLayout.Xyb))
         {
             Array pixels = Source(kind, 19, 17, layout);
             var automatic = new JpegliEncoderOptions
@@ -424,7 +424,7 @@ public sealed class EncoderColorSpaceTests
         Array ycbcr = Source(kind, 8, 8, PixelComponentLayout.YCbCr);
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
-        foreach (int invalid in new[] { -1, 4, int.MaxValue })
+        foreach (int invalid in new[] { -1, 5, int.MaxValue })
         {
             var error = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, rgb, 8, 8,
                 PixelComponentLayout.Rgb, new() { ColorSpace = (JpegColorSpace)invalid }));

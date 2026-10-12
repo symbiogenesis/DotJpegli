@@ -26,7 +26,8 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 File.WriteAllBytes("output.jpg", jpeg);
 ```
 
-`PixelLayout` also supports BGR24, RGBA32, BGRA32, Gray8 and YCbCr24. Alpha is ignored;
+`PixelLayout` also supports BGR24, RGBA32, BGRA32, Gray8, YCbCr24 and already scaled
+Xyb24 (see [scaled XYB input](#scaled-xyb-input)). Alpha is ignored;
 composite translucent pixels before encoding. Use `stride` for row padding. The
 last row needs only its pixel bytes, without trailing padding. Negative strides
 are not supported. The input must contain every row; extra trailing bytes are
@@ -224,7 +225,8 @@ applies a profile transform nor embeds a YCbCr ICC profile automatically.
 
 Set `ColorSpace` to choose the components stored in the JPEG independently of
 the source layout. `JpegColorSpace.Automatic`, the default, preserves existing
-output: grayscale for grayscale input, YCbCr for color input.
+output: grayscale for grayscale input, XYB for scaled XYB input, and YCbCr for
+other color input.
 
 ```csharp
 byte[] grayJpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
@@ -271,6 +273,56 @@ begins immediately after SOI in its usual order. Some JPEG readers have limited
 support for RGB or subsampled RGB JPEGs. This option does not perform color
 management, generate an ICC profile or implement XYB; any attached profile
 must describe the chosen output interpretation.
+
+### Scaled XYB input
+
+Use `PixelLayout.Xyb24` or `PixelComponentLayout.Xyb` for samples already
+transformed and scaled using Jpegli's XYB representation. Components are
+interleaved **scaled X, scaled Y, scaled B-minus-Y**, matching the pinned
+upstream `ScaleXYBRow` output. Raw opsin-space X/Y/B values and ordinary RGB
+values are not valid inputs for these layouts. The encoder does not perform
+RGB linearization, the opsin transform, or XYB scaling.
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(scaledXybSamples, width, height,
+    PixelComponentLayout.Xyb, options: new()
+    {
+        IccProfile = File.ReadAllBytes("jpegli-scaled-xyb.icc"),
+        Quality = 90
+    });
+```
+
+Here `scaledXybSamples` is a `float[]` containing normalized scaled samples.
+Byte and 16-bit layouts represent the same nominal range with 0..255 and
+0..65535. Existing element strides, fractional precision, float validation and
+optional out-of-range coefficient preflight apply. `Automatic` selects XYB
+output; explicit `JpegColorSpace.Xyb` is equivalent. Conversions between XYB
+and any other input or output color space are rejected before writing.
+
+A nonempty `IccProfile` is required to describe the stored scaled channels.
+Supply a matching Jpegli XYB profile; an ordinary sRGB profile is unsuitable.
+The profile is embedded unchanged and its transform is not validated. No
+profile is generated. Correct display requires a reader that applies that
+profile; readers ignoring ICC will interpret the scaled channels as RGB.
+
+XYB JPEGs use `R/G/B` component identifiers, shared Huffman table 0, and three
+separate perceptual quantization tables with selectors 0/1/2. The matrices and
+nonlinear distance scaling come from the pinned upstream XYB mode.
+`UseStandardQuantizationTables` and transfer-function hints do not change
+XYB quantization. Quality and explicit distance retain their usual precedence
+and tables remain clamped to 1..255.
+
+Default factors are X=2x2, Y=2x2, B-minus-Y=1x1: a 16x16 MCU with nine blocks,
+retaining full-resolution X/Y and averaging B-minus-Y over 2x2 pixels. The
+`Subsampling` preset is ignored. Custom `SamplingFactors` map `Luma`, `Cb`
+and `Cr` to the three scaled channels and retain the existing factor limits.
+Adaptive quantization analyzes unsmoothed scaled Y, disables itself when Y is
+subsampled, and uses uniform 0.5 AC bias multipliers and offsets when enabled;
+disabled analysis uses zero bias. Smoothing, replicated edges, dummy blocks,
+progressive refinement, restart markers and metadata use the existing paths.
+XYB omits JFIF and Adobe markers, so JFIF densities have no effect. Ignored
+options are still validated. This direct-input path does not establish
+color-managed visual quality, full encoder parity or HDR conformance.
 
 ### Profiles and metadata
 
@@ -717,8 +769,11 @@ with finite-computation and eight-bit coefficient validation before output.
 Custom per-component sampling factors support different Cb and Cr resolutions,
 integer sample areas including subsampled luma, and at most ten blocks per MCU.
 
+Direct already scaled XYB input uses the upstream XYB quantizers, sampling
+defaults and Y-based adaptive analysis, with a required caller-supplied ICC profile.
+
 Pending: fractional sampling ratios,
-XYB color encoding and built-in profiles or color management,
+RGB-to-XYB conversion and built-in profiles or color management,
 structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.
 Fractional sampling ratios are also rejected by the pinned upstream encoder.
@@ -788,6 +843,15 @@ profile bytes and cover sliced storage, marker boundaries, missing and malformed
 directories, extreme unsigned fields and last-entry selection. Native helper
 fixtures check the pinned lookup's permissive field handling. Cancellation,
 nonseekable streams and out-of-range coefficient rejection before output are covered.
+
+Scaled XYB regressions compare complete emitted quantization tables with
+independently compiled pinned C++ scalar fixtures. Independent JPEG parsing
+checks three quantizer selectors, shared Huffman selectors, sampling factors,
+constant and smoothed sampled cosine-DCT coefficients, and baseline/progressive
+refinement parity. They cover Y-based adaptive thresholds, typed and padded
+inputs, ICC byte preservation, stream behavior, cancellation and rejection
+before output. Decoder checks compare reconstructed scaled channels across scan
+modes; they do not test an ICC color-managed RGB roundtrip.
 
 Output color-space regressions independently parse RGB frame/scan identifiers,
 shared table selectors and marker framing, and check unequal constant-channel DC

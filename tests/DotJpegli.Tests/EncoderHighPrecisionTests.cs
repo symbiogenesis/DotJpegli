@@ -303,7 +303,7 @@ public sealed class EncoderHighPrecisionTests
     public void InvalidConsumedFloatSamplesAreRejectedBeforeOutput(float invalid)
     {
         const int width = 17, height = 9;
-        foreach (PixelComponentLayout layout in Enum.GetValues<PixelComponentLayout>())
+        foreach (PixelComponentLayout layout in Enum.GetValues<PixelComponentLayout>().Where(layout => layout != PixelComponentLayout.Xyb))
             foreach (bool optimize in new[] { false, true })
             {
                 float[] pixels = (float[])Pattern(true, width, height, layout);

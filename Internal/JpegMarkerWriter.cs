@@ -17,7 +17,7 @@ internal static class JpegMarkerWriter
     public static void WriteHeaders(Stream output, int width, int height, JpegSamplingFactors sampling,
         ushort[][] quantization, HuffmanTable[] dcTables, HuffmanTable[] acTables,
         JpegliEncoderOptions options, ExtendedXmpMetadata? extendedXmp, CancellationToken cancellationToken,
-        bool rgb = false)
+        bool rgb = false, bool xyb = false)
     {
         Marker(output, 0xd8);
         if (!rgb)
@@ -34,7 +34,7 @@ internal static class JpegMarkerWriter
 
         WriteMetadata(output, options, extendedXmp, cancellationToken);
 
-        int tableCount = rgb ? 1 : options.UseStandardQuantizationTables && quantization.Length == 3 ? 2 : quantization.Length;
+        int tableCount = xyb ? 3 : rgb ? 1 : options.UseStandardQuantizationTables && quantization.Length == 3 ? 2 : quantization.Length;
         Marker(output, 0xdb);
         Word(output, 2 + tableCount * 65);
         for (int component = 0; component < tableCount; component++)
@@ -55,7 +55,7 @@ internal static class JpegMarkerWriter
             output.WriteByte(ComponentId(component, rgb));
             JpegComponentSampling factor = sampling[component];
             output.WriteByte((byte)((factor.Horizontal << 4) | factor.Vertical));
-            output.WriteByte((byte)(rgb ? 0 : options.UseStandardQuantizationTables && component > 0 ? 1 : component));
+            output.WriteByte((byte)(xyb ? component : rgb ? 0 : options.UseStandardQuantizationTables && component > 0 ? 1 : component));
         }
 
         for (int index = 0; index < dcTables.Length; index++)

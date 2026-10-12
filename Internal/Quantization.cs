@@ -409,7 +409,7 @@ internal static class Quantization
         }
     }
 
-    private static float DistanceToScale(float distance, int frequency)
+    internal static float DistanceToScale(float distance, int frequency)
     {
         if (distance < NonlinearThreshold)
             return distance;
