@@ -1,3 +1,7 @@
+// Copyright (c) the JPEG XL Project Authors.
+// Use of this source code is governed by the BSD-3-Clause license in
+// THIRD-PARTY-NOTICES.md.
+
 namespace DotJpegli.Internal;
 
 // One state belongs to one refinement scan. EOB runs must be flushed at scan

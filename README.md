@@ -60,16 +60,16 @@ rounds require more encoding passes and CPU time. This scan script does not repr
 upstream Jpegli's default script or promise smaller files.
 
 With `OptimizeHuffmanTables = true` (the default), progressive initial and refinement
-AC scans combine trailing zero coefficients across consecutive blocks into end-of-block (EOB)
-runs, up to 32,767 blocks per run. Initial scans finish runs before nonzero AC
+AC scans combine consecutive block endings into end-of-block (EOB) runs,
+up to 32,767 blocks per run. Initial scans finish runs before nonzero AC
 coefficients; refinement scans finish them before newly significant coefficients.
 Both finish runs at restart markers and scan boundaries. With optimization disabled,
-the standard Huffman tables use only single-block EOB symbols. Aggregation changes the entropy coding,
-preserving the quantized coefficients and decoded pixels. AC refinement scans
+the standard Huffman tables use only single-block EOB symbols. Aggregation changes
+the entropy coding, preserving the quantized coefficients and decoded pixels. AC refinement scans
 buffer up to 255 correction bits in fixed storage, matching the pinned upstream
 token limit and flushing a run before another block would exceed that limit.
-Correction bits follow the run symbol and its
-length bits in block order. DC refinement uses raw bits.
+Buffered correction bits follow the run symbol and its length bits in block order.
+DC refinement uses raw bits.
 
 In progressive AC scans, a single component block counts as one MCU, so
 `RestartInterval` can produce more markers than in the DC scan. Restart counting
