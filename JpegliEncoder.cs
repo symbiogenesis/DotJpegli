@@ -119,7 +119,7 @@ public static class JpegliEncoder
             tables[component] = grayscale ? Quantization.CreateGrayscaleTable(options.Quality)
                 : Quantization.CreateTable(options.Quality, component, quantizationSampling, quantizationSampling);
 
-        // InitCompressParams in the pinned upstream disables adaptive analysis
+        // ProcessCompressionParams in the pinned upstream disables adaptive analysis
         // when luma is subsampled in either direction.
         bool useAdaptiveQuantization = options.AdaptiveQuantization && sampling.HasFullResolutionLuma;
         var adaptive = useAdaptiveQuantization ? new AdaptiveQuantization(width, height, sampling.MaxVertical) : null;

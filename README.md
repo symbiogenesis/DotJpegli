@@ -99,7 +99,7 @@ Custom sampling uses the same scalar kernels, smoothing, replicated edges,
 dummy-block coding, restart markers and progressive scans as the presets.
 Only the exact Y=2x2, Cb=1x1, Cr=1x1 scheme uses upstream's 4:2:0 quantization
 compensation. Other schemes, including asymmetric ones with Y=2x2, use the regular
-tables. Adaptive quantization follows the pinned streaming encoder: it indexes
+tables. When enabled, adaptive quantization follows the pinned streaming encoder: it indexes
 the luma field by the component's block row within the MCU and the block's
 full-resolution horizontal position. This also applies during progressive passes.
 Combined sample areas use horizontal averaging followed by vertical averaging,
@@ -433,6 +433,15 @@ Independent full-image scalar C++ adaptive-field fixtures verify bounded analysi
 across custom MCU rows. Emitted chroma AC checks use those fixture strengths to
 verify component-local vertical indexing and scaled horizontal field columns,
 with cases that distinguish incorrect indexing in baseline and progressive output.
+
+Subsampled-luma regressions check component maxima on different components,
+3x3 and 4x4 sample areas, ten-block MCUs, replicated edges, dummy DC continuity,
+restart cycling and coefficient parity through ten progressive refinement bits.
+Independent double-precision box-average, smoothing and cosine-DCT oracles check
+luma DC and AC coefficients. An independent decoder verifies final pixel parity
+across scan modes for thirteen sampling schemes. Typed and padded input checks,
+grayscale's retained adaptive analysis, automatic disabling of adaptive analysis
+for subsampled luma, and fractional-ratio rejection before output are also covered.
 
 Input smoothing regressions compare converted, filtered and subsampled block
 bits with independently compiled scalar C++ fixtures, including block seams,

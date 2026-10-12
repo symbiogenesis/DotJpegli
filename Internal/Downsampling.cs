@@ -9,7 +9,8 @@ namespace DotJpegli.Internal;
 // revision 031a0077f5799a6041004267fc12b956c1f52a20.
 // Reading and converting edge pixels on demand is equivalent to padding the
 // upstream planar input, and keeps temporary storage bounded to one block.
-// Three-row sampling uses the dedicated Downsample1x3/Downsample2x3 kernels;
+// Custom sample areas compose the horizontal and vertical scalar averages.
+// Three-row sampling follows Downsample1x3/Downsample2x3's summation order;
 // the pinned upstream selector instead routes vertical factor 3 to two-row kernels.
 internal static class Downsampling
 {
