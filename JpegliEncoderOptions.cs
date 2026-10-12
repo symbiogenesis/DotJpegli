@@ -9,8 +9,16 @@ public sealed record JpegliEncoderOptions
     /// <summary>Jpegli quality, from 0 to 100. This is not the libjpeg quality scale.</summary>
     public float Quality { get; init; } = 85;
 
-    /// <summary>Chroma sample area relative to luma. Defaults to 4:2:0 (2x2).</summary>
+    /// <summary>Chroma sample area relative to luma. Defaults to 4:2:0 (2x2); SamplingFactors overrides it.</summary>
     public ChromaSubsampling Subsampling { get; init; } = ChromaSubsampling.Quarter;
+
+    /// <summary>
+    /// Optional per-component Y, Cb and Cr sampling factors, overriding Subsampling.
+    /// Null (the default) uses the preset. Factors must be 1..4, with luma largest,
+    /// integer chroma sample areas and at most ten blocks per color MCU.
+    /// Valid color sampling settings are ignored for grayscale input.
+    /// </summary>
+    public JpegSamplingFactors? SamplingFactors { get; init; }
 
     /// <summary>
     /// Raw Exif TIFF bytes, starting with the TIFF header, to embed unchanged in one APP1 marker.
@@ -93,6 +101,7 @@ public sealed record JpegliEncoderOptions
     /// Zero disables restart markers. An MCU is 8x8 pixels for grayscale or 4:4:4,
     /// otherwise eight times the horizontal and vertical chroma sample area dimensions,
     /// including partial edge units. For example, 4:2:0 uses 16x16 and 4:1:0 uses 32x16.
+    /// Custom factors use eight times the luma horizontal and vertical factors.
     /// In progressive AC scans, each component block is one MCU. The interval
     /// and restart marker sequence start afresh in every scan.
     /// </summary>
@@ -107,6 +116,7 @@ public sealed record JpegliEncoderOptions
             throw new ArgumentOutOfRangeException(nameof(Quality), "Quality must be finite and between 0 and 100.");
         if (!Enum.IsDefined(Subsampling))
             throw new ArgumentOutOfRangeException(nameof(Subsampling));
+        SamplingFactors?.Validate();
         if (ExifData.Length > JpegMarkerWriter.MaxExifDataBytes)
             throw new ArgumentOutOfRangeException(nameof(ExifData), "The Exif TIFF data must not exceed 65,527 bytes.");
         if (XmpPacket is not null)

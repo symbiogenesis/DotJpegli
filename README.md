@@ -63,6 +63,39 @@ and multiply by `1f / 3f`. The pinned upstream selector routes vertical factor
 three to its two-row kernels instead. DotJpegli uses all three rows as the sample
 area specifies; these modes therefore differ from that pinned selector's output.
 
+Set `SamplingFactors` to override the `Subsampling` preset with separate Y, Cb
+and Cr factors. Each factor is the number of eight-by-eight component blocks in
+one color MCU, rather than a sample area. For example, this keeps luma at full
+resolution, averages Cb over 1x2 pixels and Cr over 2x2 pixels:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    SamplingFactors = new(
+        Luma: new(2, 2),
+        Cb: new(2, 1),
+        Cr: new(1, 1))
+});
+```
+
+Factors must be 1..4. Luma must have the largest horizontal and vertical factors,
+and each chroma factor must divide its corresponding luma factor. A component's
+sample area is `Luma.Horizontal / component.Horizontal` by
+`Luma.Vertical / component.Vertical`. The sum of `Horizontal * Vertical` over all
+three components must be at most ten. Invalid factors are rejected before output,
+including for grayscale input; valid color settings are ignored for grayscale.
+The `Subsampling` enum must still be valid when overridden. Null `SamplingFactors`
+uses the preset and preserves its JPEG bytes.
+
+Custom sampling uses the same scalar kernels, smoothing, replicated edges,
+dummy-block coding, restart markers and progressive scans as the presets.
+Only the exact Y=2x2, Cb=1x1, Cr=1x1 scheme uses upstream's 4:2:0 quantization
+compensation. Other schemes, including asymmetric ones with Y=2x2, use the regular
+tables. Adaptive quantization follows the pinned streaming encoder: it indexes
+the luma field by the component's block row within the MCU and the block's
+full-resolution horizontal position. This also applies during progressive passes.
+Unusual sampling schemes may have limited support in some JPEG readers.
+
 The stream overload takes a writable stream as its first argument. It leaves
 the stream open and does not seek. Cancellation and I/O failures may leave a
 partial JPEG. Pass a `CancellationToken` for cancellation between MCUs. Dimensions
@@ -180,6 +213,7 @@ Set `RestartInterval` to 1..65535 to insert restart markers after that many
 minimum coded units (MCUs); zero, the default, disables them. MCUs span 8x8 pixels
 for grayscale and 4:4:4; for other color modes, multiply each chroma sample area
 dimension in the table above by eight. For example, 4:1:0 uses 32x16 pixels.
+With custom factors, MCUs span `8 * Luma.Horizontal` by `8 * Luma.Vertical` pixels.
 Partial edge MCUs
 count toward the interval, which can cross row boundaries. Restart markers
 reset DC prediction and align the entropy stream between intervals, adding a
@@ -264,8 +298,10 @@ with APP2 chunking, UTF-8 COM comments, and configurable JFIF density fields are
 also implemented.
 Gamma-encoded 16-bit and normalized floating-point RGB and grayscale input are
 supported with fractional samples preserved through quantization.
+Custom per-component sampling factors support different Cb and Cr resolutions,
+integer sample areas with full-resolution luma, and at most ten blocks per MCU.
 
-Pending: custom per-component sampling ratios,
+Pending: fractional sampling ratios and subsampled luma,
 XYB color encoding and built-in profiles or color management, out-of-gamut float input,
 extended XMP, structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.
@@ -328,6 +364,13 @@ decoded-pixel parity across baseline and progressive refinement, and padded byte
 16-bit and fractional float inputs. Adaptive-analysis checks compare three-block
 rows with single-block traversal of the same padded image across 24-pixel seams.
 These checks cover the dedicated kernels, not the pinned upstream selector.
+
+Custom-factor regressions independently parse component factors, real and dummy
+chroma blocks, per-scan restart counts and refinement data. They compare baseline
+and progressive coefficients and decoded pixels, verify every preset's byte
+compatibility with equivalent explicit factors, and check asymmetric chroma DC
+values against an independent color-conversion and box-average oracle. They also
+cover typed inputs, padded layouts, grayscale settings and validation before output.
 
 Input smoothing regressions compare converted, filtered and subsampled block
 bits with independently compiled scalar C++ fixtures, including block seams,

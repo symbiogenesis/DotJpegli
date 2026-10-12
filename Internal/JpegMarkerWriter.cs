@@ -11,7 +11,7 @@ internal static class JpegMarkerWriter
     private const int MaxIccChunkBytes = MaxMarkerPayloadBytes - 14;
     internal const int MaxIccProfileBytes = 255 * MaxIccChunkBytes;
 
-    public static void WriteHeaders(Stream output, int width, int height, int horizontal, int vertical,
+    public static void WriteHeaders(Stream output, int width, int height, JpegSamplingFactors sampling,
         ushort[][] quantization, HuffmanTable[] dcTables, HuffmanTable[] acTables,
         JpegliEncoderOptions options, CancellationToken cancellationToken)
     {
@@ -45,7 +45,8 @@ internal static class JpegMarkerWriter
         for (int component = 0; component < quantization.Length; component++)
         {
             output.WriteByte((byte)(component + 1));
-            output.WriteByte(component == 0 ? (byte)((horizontal << 4) | vertical) : (byte)0x11);
+            JpegComponentSampling factor = sampling[component];
+            output.WriteByte((byte)((factor.Horizontal << 4) | factor.Vertical));
             output.WriteByte((byte)component);
         }
 
