@@ -1,3 +1,4 @@
+using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
 
@@ -155,7 +156,10 @@ public sealed class EncoderXybTests
             {
                 AdaptiveQuantization = adaptive, SmoothingFactor = 37, OptimizeHuffmanTables = false, SamplingFactors = factors
             };
-            JpegDocument expected = Read(Encode(pixels, width, height, options), options);
+            byte[] baseline = Encode(pixels, width, height, options);
+            JpegDocument expected = Read(baseline, options);
+            ImageResult decoded = ImageResult.FromMemory(baseline, ColorComponents.RedGreenBlue);
+            Assert.Equal((width, height), (decoded.Width, decoded.Height));
             foreach ((bool progressive, int refinement, bool optimize, int interval) in new[]
                 { (false, 0, true, 2), (false, 0, false, 1), (true, 0, false, 2), (true, 2, true, 1), (true, 10, false, 2) })
             {
@@ -164,7 +168,9 @@ public sealed class EncoderXybTests
                     Progressive = progressive, ProgressiveRefinementBits = refinement,
                     OptimizeHuffmanTables = optimize, RestartInterval = interval
                 };
-                AssertCoefficients(expected, Read(Encode(pixels, width, height, variant), variant));
+                byte[] jpeg = Encode(pixels, width, height, variant);
+                AssertCoefficients(expected, Read(jpeg, variant));
+                Assert.Equal(decoded.Data, ImageResult.FromMemory(jpeg, ColorComponents.RedGreenBlue).Data);
             }
         }
     }

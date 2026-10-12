@@ -271,7 +271,7 @@ RGB output omits JFIF APP0 and Adobe APP14; the RGB component identifiers signal
 the color space. JFIF density options therefore have no effect. Optional metadata
 begins immediately after SOI in its usual order. Some JPEG readers have limited
 support for RGB or subsampled RGB JPEGs. This option does not perform color
-management, generate an ICC profile or implement XYB; any attached profile
+management, generate an ICC profile or convert RGB to XYB; any attached profile
 must describe the chosen output interpretation.
 
 ### Scaled XYB input

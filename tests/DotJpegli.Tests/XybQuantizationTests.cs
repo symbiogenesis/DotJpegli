@@ -103,4 +103,3 @@ public sealed class XybQuantizationTests
     private static JpegDocument Read(byte[] jpeg, JpegliEncoderOptions options) =>
         JpegDocument.Read(jpeg, options.Progressive, options.RestartInterval, options.ProgressiveRefinementBits);
 }
-
