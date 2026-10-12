@@ -375,6 +375,18 @@ backing memory or dispose its owner until encoding returns. Profiles can contain
 at most 16,707,345 bytes (255 chunks of up to 65,519 bytes), following
 [ICC.1 Annex B.5](https://www.color.org/ICC1V42old.pdf).
 
+Set `IptcData` to raw IPTC-IIM bytes to embed them unchanged in one Photoshop
+APP13 marker. Supply only the IIM datasets, without Photoshop or JPEG framing.
+Empty (the default) writes no IPTC. The encoder adds `Photoshop 3.0\0` and one
+`8BIM` resource with ID `0x0404`, an empty resource name, a network-byte-order
+unpadded data length and zero padding when the data length is odd, following
+[Adobe's image resource format](https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/).
+The maximum is 65,506 input bytes, accounting for the framing and even-byte padding;
+larger inputs are rejected before output. Data is neither parsed nor transcoded;
+supply valid IIM datasets with their intended text encoding. No IPTC digest is
+added, and values are not reconciled with XMP or Exif. Do not change the backing
+memory or dispose its owner until encoding returns.
+
 `Comment` writes one JPEG COM marker containing UTF-8 bytes without a terminator.
 Null or empty writes no comment. Its UTF-8 length can be at most 65,533 bytes;
 non-ASCII characters can consume several bytes each. JPEG does not define a COM
@@ -392,6 +404,7 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
     ExifData = File.ReadAllBytes("exif-tiff.bin"),
     XmpPacket = File.ReadAllText("metadata.xmp"),
     IccProfile = File.ReadAllBytes("srgb.icc"),
+    IptcData = File.ReadAllBytes("metadata.iim"),
     Comment = "Photo export",
     DensityUnit = JpegDensityUnit.DotsPerInch,
     HorizontalDensity = 300,
@@ -400,8 +413,8 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 ```
 
 Metadata is written after the mandatory JFIF marker in this order: Exif APP1,
-standard XMP APP1, extended XMP APP1 chunks, ICC APP2 chunks and COM, followed by
-the coding tables and scans.
+standard XMP APP1, extended XMP APP1 chunks, ICC APP2 chunks, IPTC APP13 and COM,
+followed by the coding tables and scans.
 Defaults preserve the previous JPEG bytes. Metadata does not change coefficients
 or decoded sample values. Viewers may interpret orientation, profiles and other
 metadata when displaying the image.
@@ -499,8 +512,8 @@ progressive initial and refinement EOB-run aggregation with optimized Huffman ta
 optional DC and AC refinement scans with bounded correction-bit storage.
 Raw Exif TIFF embedding, standard and extended UTF-8 XMP packets in APP1,
 opt-in automatic partitioning of oversized XMP with selected standard properties, raw ICC profiles
-with APP2 chunking, UTF-8 COM comments, and configurable JFIF density fields are
-also implemented.
+with APP2 chunking, raw IPTC-IIM in Photoshop APP13, UTF-8 COM comments, and
+configurable JFIF density fields are also implemented.
 Gamma-encoded 16-bit and normalized floating-point RGB and grayscale input are
 supported with fractional samples preserved through quantization.
 Direct YCbCr input supports the same three source precisions and downstream options.
@@ -634,6 +647,12 @@ lengths, multibyte limits and malformed UTF-16 rejection before output. They als
 check combined metadata ordering, unchanged coding data and decoded pixels across
 baseline, progressive and refinement modes, grayscale and both Huffman settings,
 along with nonseekable streams, cancellation boundaries and I/O failures.
+
+IPTC regressions independently parse Photoshop APP13 and the image resource
+header, checking sliced raw data, network-byte-order lengths, odd-byte padding
+and the single-marker limit. They also cover validation before output, combined
+metadata ordering, default compatibility, unchanged coding bytes and decoded
+pixels, typed and padded inputs, nonseekable streams, cancellation and I/O failures.
 
 Extended XMP regressions independently reconstruct APP1 chunks and verify exact
 UTF-8 bytes, uppercase MD5 links, unsigned network-byte-order lengths and offsets,

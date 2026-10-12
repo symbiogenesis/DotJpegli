@@ -106,6 +106,16 @@ public sealed record JpegliEncoderOptions
     public ReadOnlyMemory<byte> IccProfile { get; init; }
 
     /// <summary>
+    /// Raw IPTC-IIM bytes to embed unchanged in one Photoshop APP13 marker, as image resource 0x0404.
+    /// Supply only the IIM data, without a Photoshop signature, resource header or JPEG marker bytes.
+    /// Empty (the default) omits IPTC. At most 65,506 bytes are supported, including room for odd-length padding.
+    /// IIM datasets and their text encoding are not validated, interpreted or rewritten. No IPTC digest is added,
+    /// and values are not reconciled with Exif or XMP. Do not change the underlying memory or dispose its
+    /// owner until encoding returns.
+    /// </summary>
+    public ReadOnlyMemory<byte> IptcData { get; init; }
+
+    /// <summary>
     /// Optional JPEG comment, encoded as UTF-8 in a single COM marker without a terminator.
     /// Null or empty omits the comment. The encoded length must not exceed 65,533 bytes.
     /// JPEG does not specify a comment character encoding, so readers may display it differently.
@@ -199,6 +209,8 @@ public sealed record JpegliEncoderOptions
         }
         if (IccProfile.Length > JpegMarkerWriter.MaxIccProfileBytes)
             throw new ArgumentOutOfRangeException(nameof(IccProfile), "The ICC profile must fit in at most 255 APP2 markers (16,707,345 bytes).");
+        if (IptcData.Length > JpegMarkerWriter.MaxIptcDataBytes)
+            throw new ArgumentOutOfRangeException(nameof(IptcData), "The IPTC-IIM data must not exceed 65,506 bytes in one Photoshop APP13 marker.");
         if (Comment is not null && (Comment.Length > JpegMarkerWriter.MaxMarkerPayloadBytes ||
             Encoding.UTF8.GetByteCount(Comment) > JpegMarkerWriter.MaxMarkerPayloadBytes))
             throw new ArgumentOutOfRangeException(nameof(Comment), "The UTF-8 comment must not exceed 65,533 bytes.");

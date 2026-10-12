@@ -7,6 +7,9 @@ internal static class JpegMarkerWriter
     internal const int MaxMarkerPayloadBytes = 65533;
     internal const int MaxExifDataBytes = MaxMarkerPayloadBytes - 6;
     internal const int MaxXmpPacketBytes = MaxMarkerPayloadBytes - 29;
+    // The 14-byte Photoshop signature and 12-byte resource header leave 65,507
+    // bytes; an odd payload also needs one padding byte, so the limit is even.
+    internal const int MaxIptcDataBytes = (MaxMarkerPayloadBytes - 26) & ~1;
     internal static readonly UTF8Encoding XmpEncoding = new(false, true);
     private const int MaxIccChunkBytes = MaxMarkerPayloadBytes - 14;
     internal const int MaxIccProfileBytes = 255 * MaxIccChunkBytes;
@@ -129,6 +132,25 @@ internal static class JpegMarkerWriter
             output.WriteByte((byte)(chunk + 1));
             output.WriteByte((byte)chunkCount);
             output.Write(profile.Slice(offset, length));
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!options.IptcData.IsEmpty)
+        {
+            // Adobe's Photoshop image resource format: the size excludes the
+            // even-byte data padding, and an empty Pascal name occupies two bytes.
+            ReadOnlySpan<byte> iptc = options.IptcData.Span;
+            int padding = iptc.Length & 1;
+            Marker(output, 0xed);
+            Word(output, iptc.Length + padding + 28);
+            output.Write("Photoshop 3.0\0"u8);
+            output.Write("8BIM"u8);
+            Word(output, 0x0404);
+            output.Write([0, 0]);
+            DoubleWord(output, (uint)iptc.Length);
+            output.Write(iptc);
+            if (padding != 0)
+                output.WriteByte(0);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
