@@ -107,6 +107,88 @@ public sealed class EncoderProgressiveTests
     }
 
     [Theory]
+    [InlineData(PixelLayout.Gray8, false)]
+    [InlineData(PixelLayout.Gray8, true)]
+    [InlineData(PixelLayout.Rgb24, false)]
+    [InlineData(PixelLayout.Rgb24, true)]
+    public void FlatImagesAggregateEobRunsOnlyWithOptimizedTablesAndResetAtEveryBoundary(
+        PixelLayout layout, bool optimize)
+    {
+        // Odd 4:2:0 edges leave padded DC blocks that must not extend an AC run.
+        // The two chroma scans share a table but must begin with fresh run state.
+        const int width = 145, height = 17;
+        byte[] pixels = FlatPixels(width, height, layout);
+        var options = new JpegliEncoderOptions
+        {
+            Subsampling = ChromaSubsampling.Quarter,
+            AdaptiveQuantization = false, OptimizeHuffmanTables = optimize
+        };
+        byte[] baseline = Encode(pixels, width, height, layout, options);
+        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        foreach (int interval in new[] { 0, 1, 7 })
+        {
+            byte[] jpeg = Encode(pixels, width, height, layout, options with
+            {
+                Progressive = true, RestartInterval = interval
+            });
+            JpegDocument actual = JpegDocument.Read(jpeg, progressive: true, expectedInterval: interval);
+            AssertBaselineParity(baseline, reference, jpeg, actual, layout);
+            Assert.Empty(actual.Scans[0].EobRuns);
+            foreach (Scan scan in actual.Scans.Skip(1))
+            {
+                int component = Assert.Single(scan.Selectors).Component;
+                int realBlocks = reference.Blocks.Count(pair =>
+                    pair.Key.Component == component && !pair.Value.IsDummy);
+                int runLimit = optimize ? (interval == 0 ? realBlocks : interval) : 1;
+                int[] expectedRuns = Enumerable.Range(0, (realBlocks - 1) / runLimit + 1)
+                    .Select(index => Math.Min(runLimit, realBlocks - index * runLimit)).ToArray();
+                Assert.Equal(expectedRuns, scan.EobRuns);
+                Assert.Equal(realBlocks, scan.EobRuns.Sum());
+                if (optimize && interval != 1)
+                    Assert.True(scan.EobRuns.Count < realBlocks);
+            }
+        }
+    }
+
+    [Fact]
+    public void EobRunsFlushBeforeTexturedBlocksAndPreserveTheirCoefficients()
+    {
+        const int width = 160, height = 8;
+        byte[] pixels = FlatPixels(width, height, PixelLayout.Gray8);
+        byte[] texture = Pattern(width, height, PixelLayout.Gray8);
+        foreach (int block in new[] { 7, 15 })
+            for (int y = 0; y < height; y++)
+                texture.AsSpan(y * width + block * 8, 8).CopyTo(pixels.AsSpan(y * width + block * 8, 8));
+        var options = new JpegliEncoderOptions { Quality = 90, AdaptiveQuantization = false };
+        byte[] baseline = Encode(pixels, width, height, PixelLayout.Gray8, options);
+        byte[] jpeg = Encode(pixels, width, height, PixelLayout.Gray8, options with { Progressive = true });
+        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        JpegDocument actual = JpegDocument.Read(jpeg, progressive: true, expectedInterval: 0);
+        AssertBaselineParity(baseline, reference, jpeg, actual, PixelLayout.Gray8);
+        foreach (int block in new[] { 7, 15 })
+            Assert.Contains(reference.Blocks[new(1, block, 0)].Coefficients[1..], coefficient => coefficient != 0);
+        Assert.Equal(7, actual.Scans[1].EobRuns[0]);
+        Assert.Contains(actual.Scans[1].EobRuns, run => run > 1);
+        Assert.True(actual.Scans[1].EobRuns.Count < 20);
+    }
+
+    [Fact]
+    public void EobRunsSplitAtTheMaximumRepresentableLength()
+    {
+        // 256 columns by 129 real rows gives 33024 blocks, with a partial last
+        // pixel row, and needs exactly two EOB symbols even without restarts.
+        const int width = 2048, height = 1025;
+        byte[] pixels = FlatPixels(width, height, PixelLayout.Gray8);
+        var options = new JpegliEncoderOptions { AdaptiveQuantization = false };
+        byte[] baseline = Encode(pixels, width, height, PixelLayout.Gray8, options);
+        byte[] jpeg = Encode(pixels, width, height, PixelLayout.Gray8, options with { Progressive = true });
+        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        JpegDocument actual = JpegDocument.Read(jpeg, progressive: true, expectedInterval: 0);
+        Assert.Equal(new[] { 32767, 257 }, actual.Scans[1].EobRuns);
+        AssertBaselineParity(baseline, reference, jpeg, actual, PixelLayout.Gray8);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void ProgressiveStreamEncodingMatchesArrayWithoutSeekingOrClosing(bool optimize)
@@ -191,6 +273,30 @@ public sealed class EncoderProgressiveTests
         JpegliEncoder.Encode(pixels, width, height, layout, options,
             cancellationToken: TestContext.Current.CancellationToken);
 
+    private static void AssertBaselineParity(byte[] baseline, JpegDocument reference,
+        byte[] progressive, JpegDocument actual, PixelLayout layout)
+    {
+        Assert.Equal(reference.Width, actual.Width);
+        Assert.Equal(reference.Height, actual.Height);
+        Assert.Equal(reference.Components, actual.Components);
+        Assert.Equal(reference.Blocks.Count, actual.Blocks.Count);
+        foreach ((BlockKey key, Block block) in reference.Blocks.Where(pair => !pair.Value.IsDummy))
+            Assert.Equal(block.Coefficients, actual.Blocks[key].Coefficients);
+        ColorComponents channels = layout == PixelLayout.Gray8 ? ColorComponents.Grey : ColorComponents.RedGreenBlue;
+        Assert.Equal(ImageResult.FromMemory(baseline, channels).Data,
+            ImageResult.FromMemory(progressive, channels).Data);
+    }
+
+    private static byte[] FlatPixels(int width, int height, PixelLayout layout)
+    {
+        int channels = layout == PixelLayout.Gray8 ? 1 : 3;
+        byte[] pixels = new byte[width * height * channels];
+        for (int pixel = 0; pixel < width * height; pixel++)
+            for (int channel = 0; channel < channels; channel++)
+                pixels[pixel * channels + channel] = (byte)(96 + channel * 40);
+        return pixels;
+    }
+
     private static byte[] Pattern(int width, int height, PixelLayout layout)
     {
         int channels = layout == PixelLayout.Gray8 ? 1 : 3;
@@ -208,7 +314,10 @@ public sealed class EncoderProgressiveTests
     private sealed record Block(bool IsDummy, int DcDifference, int[] Coefficients);
     private sealed record Selector(int Component, int Dc, int Ac);
     private sealed record EntropySegment(byte[] Bytes, int Terminator);
-    private sealed record Scan(List<Selector> Selectors, int First, int Last, int DataStart);
+    private sealed record Scan(List<Selector> Selectors, int First, int Last, int DataStart)
+    {
+        public List<int> EobRuns { get; } = [];
+    }
 
     // This reader reconstructs the quantized coefficients using only the emitted
     // marker definitions and canonical Huffman codes. It uses no encoder helpers,
@@ -391,6 +500,7 @@ public sealed class EncoderProgressiveTests
                     Assert.False(segment.Terminator is >= 0xd0 and <= 0xd7); // No final restart marker.
                 var reader = new EntropyBits(segment.Bytes);
                 var previousDc = components.Keys.ToDictionary(component => component, _ => 0);
+                int remainingEobBlocks = 0;
                 int endUnit = interval == 0 ? units : Math.Min(units, unit + interval);
                 for (; unit < endUnit; unit++)
                     foreach (Selector selector in scan.Selectors)
@@ -419,7 +529,8 @@ public sealed class EncoderProgressiveTests
                                 if (!dcScan || !progressive)
                                 {
                                     Block block = blocks[key];
-                                    ReadAc(reader, tables[selector.Ac], block.Coefficients);
+                                    ReadAc(reader, tables[selector.Ac], block.Coefficients,
+                                        progressive, scan.EobRuns, ref remainingEobBlocks);
                                     if (dummy)
                                         Assert.All(block.Coefficients[1..], coefficient => Assert.Equal(0, coefficient));
                                     else
@@ -429,26 +540,44 @@ public sealed class EncoderProgressiveTests
                     }
                 // Every segment must contain exactly its expected coding units,
                 // followed by no more than seven one-bits for byte alignment.
+                Assert.Equal(0, remainingEobBlocks); // Runs cannot cross a restart or the end of a scan.
                 reader.AssertOnlyPaddingRemains();
             }
             Assert.Equal(units, unit);
         }
 
-        private static void ReadAc(EntropyBits reader, Dictionary<int, int> table, int[] coefficients)
+        private static void ReadAc(EntropyBits reader, Dictionary<int, int> table, int[] coefficients,
+            bool progressive, List<int> eobRuns, ref int remainingEobBlocks)
         {
+            if (remainingEobBlocks > 0)
+            {
+                Assert.True(progressive);
+                remainingEobBlocks--;
+                return;
+            }
             for (int coefficient = 1; coefficient < 64;)
             {
                 int symbol = reader.Symbol(table);
-                if (symbol == 0)
-                    return;
                 if (symbol == 0xf0)
                 {
                     coefficient += 16;
                     Assert.InRange(coefficient, 1, 64);
                     continue;
                 }
-                // Full initial AC scans emit ordinary coefficients or immediate
-                // EOBs, rather than aggregating EOB runs across several blocks.
+                if ((symbol & 15) == 0)
+                {
+                    if (progressive)
+                    {
+                        int extraBits = symbol >> 4;
+                        Assert.InRange(extraBits, 0, 14);
+                        int run = (1 << extraBits) + reader.UnsignedValue(extraBits);
+                        eobRuns.Add(run);
+                        remainingEobBlocks = run - 1; // Includes the current block's remaining coefficients.
+                    }
+                    else
+                        Assert.Equal(0, symbol); // Baseline allows only a single-block EOB.
+                    return;
+                }
                 Assert.InRange(symbol & 15, 1, 10);
                 coefficient += symbol >> 4;
                 Assert.InRange(coefficient, 1, 63);
@@ -481,10 +610,17 @@ public sealed class EncoderProgressiveTests
         public int SignedValue(int count)
         {
             Assert.InRange(count, 0, 11);
+            int value = UnsignedValue(count);
+            return count == 0 || value >= (1 << (count - 1)) ? value : value - (1 << count) + 1;
+        }
+
+        public int UnsignedValue(int count)
+        {
+            Assert.InRange(count, 0, 14);
             int value = 0;
             for (int i = 0; i < count; i++)
                 value = (value << 1) | Bit();
-            return count == 0 || value >= (1 << (count - 1)) ? value : value - (1 << count) + 1;
+            return value;
         }
 
         public void AssertOnlyPaddingRemains()

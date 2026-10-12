@@ -87,7 +87,7 @@ public static class JpegliEncoder
                 for (int component = 0; component < componentCount; component++)
                     ProcessAcBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
                         tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers,
-                        component, acTables, null, acFrequencies, cancellationToken);
+                        component, acTables, null, acFrequencies, cancellationToken, aggregateEobRuns: true);
             for (int index = 0; index < dcTables.Length; index++)
             {
                 dcTables[index] = HuffmanTable.CreateOptimized(dcFrequencies[index]);
@@ -119,7 +119,8 @@ public static class JpegliEncoder
                 JpegMarkerWriter.WriteScanHeader(output, componentCount, true, component);
                 ProcessAcBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
                     tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers,
-                    component, acTables, bits, null, cancellationToken);
+                    component, acTables, bits, null, cancellationToken,
+                    aggregateEobRuns: options.OptimizeHuffmanTables);
                 bits.Flush();
             }
         output.WriteByte(0xff);
@@ -224,7 +225,7 @@ public static class JpegliEncoder
         int bytesPerPixel, PixelLayout layout, int horizontal, int vertical, ushort[][] tables,
         float quality, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         int component, HuffmanTable[] acTables, BitWriter? writer, long[][]? acFrequencies,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, bool aggregateEobRuns)
     {
         // A noninterleaved scan visits only real component blocks in raster order.
         // In particular, 4:2:0 luma must finish one block row before the next,
@@ -240,6 +241,7 @@ public static class JpegliEncoder
         int lastAnalysisTop = -1;
         int mcusRemaining = restartInterval;
         int restartIndex = 0;
+        int pendingEobRun = 0;
         for (int top = 0; top < height; top += 8 * sampleHeight)
         {
             int analysisTop = top / (8 * vertical) * (8 * vertical);
@@ -254,6 +256,12 @@ public static class JpegliEncoder
                 cancellationToken.ThrowIfCancellationRequested();
                 if (restartInterval != 0 && mcusRemaining == 0)
                 {
+                    // EOB runs cannot cross restart intervals. The frequency
+                    // pass must terminate runs at the same boundaries as output.
+                    if (writer is null)
+                        ProgressiveEntropyEncoder.FlushAcFrequencies(acFrequencies![tableIndex], ref pendingEobRun);
+                    else
+                        ProgressiveEntropyEncoder.FlushAc(writer, acTables[tableIndex], ref pendingEobRun);
                     writer?.WriteRestartMarker(restartIndex);
                     restartIndex = (restartIndex + 1) & 7;
                     mcusRemaining = restartInterval;
@@ -270,13 +278,26 @@ public static class JpegliEncoder
                     adaptiveStrength: strength,
                     adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component]);
                 if (writer is null)
-                    ProgressiveEntropyEncoder.AccumulateAcFrequencies(quantized, acFrequencies![tableIndex]);
+                    ProgressiveEntropyEncoder.AccumulateAcFrequencies(quantized, acFrequencies![tableIndex], ref pendingEobRun);
                 else
-                    ProgressiveEntropyEncoder.WriteAc(writer, quantized, acTables[tableIndex]);
+                    ProgressiveEntropyEncoder.WriteAc(writer, quantized, acTables[tableIndex], ref pendingEobRun);
+                // Annex K default AC tables only contain the one-block EOB
+                // symbol. Aggregated runs use the collected, optimized tables.
+                if (!aggregateEobRuns)
+                {
+                    if (writer is null)
+                        ProgressiveEntropyEncoder.FlushAcFrequencies(acFrequencies![tableIndex], ref pendingEobRun);
+                    else
+                        ProgressiveEntropyEncoder.FlushAc(writer, acTables[tableIndex], ref pendingEobRun);
+                }
                 if (restartInterval != 0)
                     mcusRemaining--;
             }
         }
+        if (writer is null)
+            ProgressiveEntropyEncoder.FlushAcFrequencies(acFrequencies![tableIndex], ref pendingEobRun);
+        else
+            ProgressiveEntropyEncoder.FlushAc(writer, acTables[tableIndex], ref pendingEobRun);
     }
 
 }

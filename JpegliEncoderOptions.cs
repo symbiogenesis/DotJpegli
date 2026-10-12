@@ -11,7 +11,10 @@ public sealed record JpegliEncoderOptions
     /// <summary>Use Jpegli's spatial analysis to suppress perceptually masked coefficients.</summary>
     public bool AdaptiveQuantization { get; init; } = true;
 
-    /// <summary>Collect symbol frequencies in a first pass to reduce entropy-coded size.</summary>
+    /// <summary>
+    /// Collect symbol frequencies in a first pass to reduce entropy-coded size.
+    /// Progressive AC scans also aggregate end-of-block runs when enabled.
+    /// </summary>
     public bool OptimizeHuffmanTables { get; init; } = true;
 
     /// <summary>

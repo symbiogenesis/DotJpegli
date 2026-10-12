@@ -49,9 +49,16 @@ Set `Progressive = true` to write a progressive JPEG: an initial DC scan provide
 a coarse preview, followed by one full-precision AC scan per component. This
 uses two scans for grayscale and four for color, with the same final quantized
 coefficients as baseline encoding. The default remains baseline sequential JPEG.
-This first progressive mode uses spectral selection without successive
-approximation, refinement scans or multi-block EOB runs; it does not reproduce
+This progressive mode uses spectral selection without successive
+approximation or refinement scans; it does not reproduce
 upstream Jpegli's default scan script or promise smaller files.
+
+With `OptimizeHuffmanTables = true` (the default), progressive AC scans combine
+trailing zero coefficients across consecutive blocks into end-of-block (EOB)
+runs, up to 32,767 blocks per run. Runs finish before nonzero AC coefficients,
+restart markers and scan boundaries. With optimization disabled, the standard
+Huffman tables use only single-block EOB symbols. Aggregation changes the entropy coding,
+preserving the quantized coefficients and decoded pixels.
 
 In progressive AC scans, a single component block counts as one MCU, so
 `RestartInterval` can produce more markers than in the DC scan. Restart counting
@@ -84,9 +91,10 @@ quantization with local differences, fuzzy erosion, masking, high-frequency and
 gamma modulation, quality dampening and frequency-specific coefficient thresholds;
 optimized length-limited canonical Huffman coding;
 byte stuffing and marker output; optional MCU restart intervals with DRI and
-cycling RST markers, including predictor resets during Huffman optimization.
+cycling RST markers, including predictor resets during Huffman optimization;
+progressive EOB-run aggregation with optimized Huffman tables.
 
-Pending: progressive refinement scans and EOB-run aggregation, optional input
+Pending: progressive refinement scans, optional input
 smoothing and other sampling ratios,
 XYB and ICC profiles, higher precision input,
 metadata options, SIMD/parallel paths, and decoder functionality.
@@ -135,6 +143,8 @@ Progressive regressions reconstruct every real block from independently parsed
 DC and AC scans and compare it with baseline coefficients and decoded pixels.
 They check noninterleaved block order, odd edges, per-scan restart counting and
 padding, as well as cancellation during later scans and padded input layouts.
+EOB-run regressions check run-length extension bits, the 32,767-block limit,
+flat-image aggregation and run termination at restart and scan boundaries.
 The scan rules follow [ITU T.81, Annex G](https://www.w3.org/Graphics/JPEG/itu-t81.pdf).
 
 `Directory.Build.targets` rejects `AllowUnsafeBlocks=true`, including a command

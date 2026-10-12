@@ -6,13 +6,14 @@ using System.Numerics;
 
 namespace DotJpegli.Internal;
 
-// Initial progressive scans (Ah = Al = 0) use the same difference and
-// run/category tokens as ComputeTokensForBlock in google/jpegli
-// lib/jpegli/entropy_coding-inl.h, revision
+// Initial progressive scans (Ah = Al = 0) use the difference and
+// run/category tokens from TokenizeProgressiveDC and
+// TokenizeACProgressiveScan in google/jpegli lib/jpegli/entropy_coding.cc, revision
 // 031a0077f5799a6041004267fc12b956c1f52a20. DC and AC are emitted separately.
-// Each AC end-of-block token describes one block, without EOB run aggregation.
 internal static class ProgressiveEntropyEncoder
 {
+    private const int MaximumEobRun = 0x7fff;
+
     public static void WriteDc(
         BitWriter writer,
         ReadOnlySpan<short> naturalCoefficients,
@@ -46,9 +47,26 @@ internal static class ProgressiveEntropyEncoder
         ReadOnlySpan<short> naturalCoefficients,
         HuffmanTable ac)
     {
+        // The standard AC tables only define the one-block EOB symbol.
+        int pendingEobRun = 0;
+        WriteAc(writer, naturalCoefficients, ac, ref pendingEobRun);
+        FlushAc(writer, ac, ref pendingEobRun);
+    }
+
+    public static void WriteAc(
+        BitWriter writer,
+        ReadOnlySpan<short> naturalCoefficients,
+        HuffmanTable ac,
+        ref int pendingEobRun)
+    {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(ac);
         ValidateAc(naturalCoefficients);
+        ValidateEobRun(pendingEobRun);
+        if (pendingEobRun == MaximumEobRun)
+        {
+            FlushAc(writer, ac, ref pendingEobRun);
+        }
 
         int run = 0;
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
@@ -59,6 +77,11 @@ internal static class ProgressiveEntropyEncoder
             {
                 run++;
                 continue;
+            }
+
+            if (pendingEobRun != 0)
+            {
+                FlushAc(writer, ac, ref pendingEobRun);
             }
 
             while (run >= 16)
@@ -75,7 +98,11 @@ internal static class ProgressiveEntropyEncoder
 
         if (run != 0)
         {
-            ac.WriteSymbol(writer, 0);
+            pendingEobRun++;
+            if (pendingEobRun == MaximumEobRun)
+            {
+                FlushAc(writer, ac, ref pendingEobRun);
+            }
         }
     }
 
@@ -83,8 +110,23 @@ internal static class ProgressiveEntropyEncoder
         ReadOnlySpan<short> naturalCoefficients,
         long[] ac)
     {
+        int pendingEobRun = 0;
+        AccumulateAcFrequencies(naturalCoefficients, ac, ref pendingEobRun);
+        FlushAcFrequencies(ac, ref pendingEobRun);
+    }
+
+    public static void AccumulateAcFrequencies(
+        ReadOnlySpan<short> naturalCoefficients,
+        long[] ac,
+        ref int pendingEobRun)
+    {
         ValidateFrequencies(ac);
         ValidateAc(naturalCoefficients);
+        ValidateEobRun(pendingEobRun);
+        if (pendingEobRun == MaximumEobRun)
+        {
+            FlushAcFrequencies(ac, ref pendingEobRun);
+        }
 
         int run = 0;
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
@@ -95,6 +137,11 @@ internal static class ProgressiveEntropyEncoder
             {
                 run++;
                 continue;
+            }
+
+            if (pendingEobRun != 0)
+            {
+                FlushAcFrequencies(ac, ref pendingEobRun);
             }
 
             while (run >= 16)
@@ -109,7 +156,52 @@ internal static class ProgressiveEntropyEncoder
 
         if (run != 0)
         {
-            checked { ac[0]++; }
+            pendingEobRun++;
+            if (pendingEobRun == MaximumEobRun)
+            {
+                FlushAcFrequencies(ac, ref pendingEobRun);
+            }
+        }
+    }
+
+    // Flush before a restart marker or the end of an AC scan. Annex G encodes
+    // a run as floor(log2(run)) in the symbol's high nibble followed by the
+    // remaining low bits. 0xf0 is reserved for ZRL, limiting runs to 32767.
+    public static void FlushAc(BitWriter writer, HuffmanTable ac, ref int pendingEobRun)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(ac);
+        ValidateEobRun(pendingEobRun);
+        if (pendingEobRun == 0)
+        {
+            return;
+        }
+
+        int bits = BitOperations.Log2((uint)pendingEobRun);
+        ac.WriteSymbol(writer, bits << 4);
+        writer.WriteBits((uint)(pendingEobRun - (1 << bits)), bits);
+        pendingEobRun = 0;
+    }
+
+    public static void FlushAcFrequencies(long[] ac, ref int pendingEobRun)
+    {
+        ValidateFrequencies(ac);
+        ValidateEobRun(pendingEobRun);
+        if (pendingEobRun == 0)
+        {
+            return;
+        }
+
+        int bits = BitOperations.Log2((uint)pendingEobRun);
+        checked { ac[bits << 4]++; }
+        pendingEobRun = 0;
+    }
+
+    private static void ValidateEobRun(int pendingEobRun)
+    {
+        if ((uint)pendingEobRun > MaximumEobRun)
+        {
+            throw new ArgumentOutOfRangeException(nameof(pendingEobRun), "An EOB run must contain 0 to 32767 blocks.");
         }
     }
 
