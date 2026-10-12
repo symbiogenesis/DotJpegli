@@ -17,13 +17,14 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
 
     internal static ExtendedXmpMetadata? Prepare(JpegliEncoderOptions options, CancellationToken cancellationToken)
     {
-        string? automaticPacket = options.AutoPartitionXmp && !string.IsNullOrEmpty(options.XmpPacket)
-            ? AutomaticXmpPartitioning.Prepare(options.XmpPacket, cancellationToken) : null;
-        string? packet = automaticPacket ?? options.ExtendedXmpPacket;
+        HashSet<XName> selection = AutomaticXmpPartitioning.CreateSelection(options, cancellationToken);
+        AutomaticXmpPartitioning.Partition? automatic = options.AutoPartitionXmp && !string.IsNullOrEmpty(options.XmpPacket)
+            ? AutomaticXmpPartitioning.Prepare(options.XmpPacket, selection, cancellationToken) : null;
+        string? packet = automatic?.ExtendedPacket ?? options.ExtendedXmpPacket;
         if (string.IsNullOrEmpty(packet))
             return null;
 
-        string parameter = automaticPacket is null
+        string parameter = automatic is null
             ? nameof(options.ExtendedXmpPacket) : nameof(options.XmpPacket);
         var chunks = new Utf8Chunks(packet);
         // MD5 is mandated by the XMP storage format as a packet identifier;
@@ -53,9 +54,11 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
         }
 
         string digest = Convert.ToHexString(hash.GetHashAndReset());
-        string standard = automaticPacket is not null || string.IsNullOrEmpty(options.XmpPacket)
-            ? CreateStandardPacket(digest) : options.XmpPacket;
-        if (automaticPacket is null && !string.IsNullOrEmpty(options.XmpPacket))
+        string standard = automatic?.StandardRoot is XElement standardRoot
+            ? AutomaticXmpPartitioning.CreateStandardPacket(standardRoot, digest, cancellationToken)
+            : automatic is not null || string.IsNullOrEmpty(options.XmpPacket)
+                ? CreateStandardPacket(digest) : options.XmpPacket;
+        if (automatic is null && !string.IsNullOrEmpty(options.XmpPacket))
             ValidateLink(standard, digest);
         return new(packet, standard, digest, length);
     }

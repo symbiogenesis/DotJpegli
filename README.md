@@ -307,8 +307,8 @@ The default is false. Packets that fit the standard marker retain their exact
 bytes, including opaque packets; the limit counts UTF-8 bytes rather than characters.
 Oversized packets move all properties together into the extension. The generated
 standard packet contains only the digest link, so readers supporting only standard
-XMP will not see the properties. Use explicit standard and extended packets to
-keep selected properties visible to those readers. A nonempty `ExtendedXmpPacket`
+XMP will not see the properties. Use `StandardXmpProperties` or explicit standard
+and extended packets to keep selected properties visible to those readers. A nonempty `ExtendedXmpPacket`
 cannot be combined with automatic partitioning.
 
 Automatic partitioning parses oversized XML with DTDs prohibited. The root must
@@ -324,6 +324,48 @@ supply valid XMP. Parsing and reserialization use storage proportional to the
 packet size. Subsequent hashing and APP1 output retain bounded chunk buffers,
 with cancellation checks during parsing and between chunks. Validation finishes
 before JPEG output begins.
+
+Set `StandardXmpProperties` alongside `AutoPartitionXmp` to keep chosen top-level
+properties visible to readers that only support standard XMP:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    XmpPacket = File.ReadAllText("metadata.xmp"),
+    AutoPartitionXmp = true,
+    StandardXmpProperties = new XmpPropertyName[]
+    {
+        new("http://purl.org/dc/elements/1.1/", "title"),
+        new("http://ns.adobe.com/xap/1.0/", "Rating")
+    }
+});
+```
+
+Names match by namespace URI and local name, independently of XML prefixes.
+Every matching top-level attribute or child element of each `rdf:Description`
+moves into the standard packet; remaining properties stay in the extension.
+Complete property subtrees, including arrays, structures and qualifiers, move
+together. Namespace declarations and inherited `xml:lang`, `xml:base` and
+`xml:space` remain on both envelopes. The generated standard envelope omits
+formatting whitespace, comments and processing instructions outside properties;
+the extension retains those nodes. The standard packet also gets exactly one
+digest link identifying the resulting extension. This follows Adobe's
+[top-level property partition model](https://github.com/adobe/XMP-Toolkit-SDK/blob/main/XMPCore/source/XMPUtils.cpp).
+
+Null or empty selections preserve the existing automatic behavior. Duplicate
+names have no effect and absent names are ignored. Nonempty selections require
+`AutoPartitionXmp = true`, even with a small or absent packet. Smaller packets
+still retain their exact original bytes. Names require a nonempty namespace URI
+and an XML NCName local name; RDF, XML, XMLNS and `adobe:ns:meta/` envelope
+namespaces and the `xmpNote:HasExtendedXMP` control property cannot be selected.
+Do not mutate the selection list until encoding returns.
+
+The selected properties, their inherited envelope attributes and the added
+digest link must fit in 65,504 UTF-8 bytes. Larger selections throw an
+`ArgumentOutOfRangeException` for `StandardXmpProperties` before any JPEG output;
+properties are never silently dropped or split. An empty-property extension
+envelope may be written if every property is selected. The existing XML envelope
+validation applies; this does not validate complete RDF graphs or XMP schemas.
 
 Set `IccProfile` to raw ICC profile bytes to embed them unchanged in numbered
 APP2 markers. An empty profile, the default, writes no ICC markers. The encoder
@@ -456,7 +498,7 @@ cycling RST markers, including predictor resets during Huffman optimization;
 progressive initial and refinement EOB-run aggregation with optimized Huffman tables;
 optional DC and AC refinement scans with bounded correction-bit storage.
 Raw Exif TIFF embedding, standard and extended UTF-8 XMP packets in APP1,
-opt-in automatic storage of oversized XMP in the extension, raw ICC profiles
+opt-in automatic partitioning of oversized XMP with selected standard properties, raw ICC profiles
 with APP2 chunking, UTF-8 COM comments, and configurable JFIF density fields are
 also implemented.
 Gamma-encoded 16-bit and normalized floating-point RGB and grayscale input are
@@ -469,7 +511,7 @@ integer sample areas including subsampled luma, and at most ten blocks per MCU.
 
 Pending: fractional sampling ratios,
 XYB color encoding and built-in profiles or color management,
-property-selective XMP partitioning, structured metadata editing, other metadata, SIMD/parallel paths,
+structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
 one eighth of those units. This scaling adaptation is accounted for during
@@ -606,6 +648,14 @@ wrapper removal and XML property/namespace preservation. Independent APP1 parsin
 reconstructs chunks and verifies their lengths, offsets and MD5 link. They also
 cover rejection before output, unchanged coding data and decoded pixels across
 scan modes, nonseekable streams, cancellation and I/O failures.
+
+Selective XMP regressions independently reconstruct extension chunks, verify
+their MD5 link, and compare top-level property contents across both packets.
+They cover selected attributes and structured elements across descriptions,
+namespace aliases and inherited XML attributes, duplicate and absent selections,
+all-selected metadata, compact envelopes and final UTF-8 size limits. They also
+check validation before output, default compatibility, unchanged coding bytes
+and decoded pixels across scan modes, nonseekable streams and cancellation.
 
 Higher-precision regressions use independently parsed JPEG coefficients to check
 fractional grayscale DC values, compare expanded 16-bit byte inputs with the byte

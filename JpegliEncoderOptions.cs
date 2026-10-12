@@ -61,13 +61,27 @@ public sealed record JpegliEncoderOptions
     /// Oversized packets must have an x:xmpmeta or rdf:RDF root with one or more top-level
     /// rdf:Description elements whose rdf:about is empty or absent, without rdf:ID/nodeID.
     /// DTDs, existing HasExtendedXMP links and nested xpacket instructions are rejected.
-    /// All properties move to the extension; standard-only readers see just the generated
-    /// digest link. The XML root is reserialized without its document declaration, outer
-    /// packet wrapper or padding. Property values and namespaces are retained; XML spelling
+    /// By default all properties move to the extension; StandardXmpProperties can retain
+    /// selected properties alongside the digest link. The XML root is reserialized without its
+    /// document declaration, outer packet wrapper or padding. Property values and namespaces are retained; XML spelling
     /// may change. RDF/schema semantics are not validated. Parsing uses storage proportional
     /// to the packet. Cannot be combined with a nonempty ExtendedXmpPacket.
     /// </summary>
     public bool AutoPartitionXmp { get; init; }
+
+    /// <summary>
+    /// Top-level properties to retain in standard XMP when an oversized packet is automatically partitioned.
+    /// Null or empty (the default) moves all properties into the extension. A nonempty selection requires
+    /// AutoPartitionXmp. Names match namespace URI and local name, independently of XML prefixes;
+    /// every matching attribute or element on a top-level rdf:Description is retained as a whole.
+    /// Absent names are ignored and duplicate selections have no effect. Arrays, structures and qualifiers
+    /// are never split. The RDF/XML/envelope namespaces and HasExtendedXMP control property cannot be selected.
+    /// Names must have a nonempty namespace URI and an XML NCName local name. The generated standard packet,
+    /// including its envelope and digest link, must fit 65,504 UTF-8 bytes or encoding fails before output.
+    /// Smaller input packets remain unchanged. An empty-property extension may be written when all
+    /// properties are selected. Do not mutate the list until encoding returns.
+    /// </summary>
+    public IReadOnlyList<XmpPropertyName>? StandardXmpProperties { get; init; }
 
     /// <summary>
     /// Serialized extended XMP, without an xpacket wrapper, to embed as UTF-8 in chunked APP1 markers.
