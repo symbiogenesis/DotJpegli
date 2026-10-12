@@ -32,12 +32,27 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>
     /// Serialized XMP packet to embed as UTF-8 in one standard APP1 marker.
-    /// Null or empty omits XMP. At most 65,504 encoded bytes are supported; extended XMP is not supported.
+    /// Null or empty omits standard-only XMP. At most 65,504 encoded bytes are supported.
     /// Supply the complete packet, including any desired packet wrapper. No BOM or terminator is added.
-    /// XML and metadata are neither parsed nor reconciled with Exif, ICC or JFIF fields.
+    /// With nonempty ExtendedXmpPacket, a supplied standard packet is parsed only to validate its
+    /// digest link; otherwise XML is not parsed. Metadata is not reconciled with Exif, ICC or JFIF fields.
     /// Malformed UTF-16 (unpaired surrogates) is rejected before output is written.
     /// </summary>
     public string? XmpPacket { get; init; }
+
+    /// <summary>
+    /// Serialized extended XMP, without an xpacket wrapper, to embed as UTF-8 in chunked APP1 markers.
+    /// Null or empty (the default) omits extended XMP. The encoded length must fit an unsigned 32-bit integer.
+    /// The encoder hashes the exact UTF-8 bytes with the format's MD5 identifier and generates a minimal
+    /// standard packet containing xmpNote:HasExtendedXMP when XmpPacket is null or empty.
+    /// A supplied XmpPacket is preserved unchanged and must contain exactly one matching uppercase digest
+    /// in a top-level RDF Description attribute or plain-text child in http://ns.adobe.com/xmp/note/.
+    /// Its root must be x:xmpmeta or rdf:RDF. Invalid links, malformed standard XML, DTDs and unpaired
+    /// UTF-16 surrogates are rejected before output. Extended XML/RDF and schemas are not parsed or validated;
+    /// callers must partition metadata and supply a valid wrapper-free serialization. No BOM is added.
+    /// Encoding and hashing use bounded working storage; cancellation is checked between chunks.
+    /// </summary>
+    public string? ExtendedXmpPacket { get; init; }
 
     /// <summary>
     /// Raw ICC profile bytes to embed in APP2 markers. Empty (the default) omits the profile.

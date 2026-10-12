@@ -13,7 +13,7 @@ internal static class JpegMarkerWriter
 
     public static void WriteHeaders(Stream output, int width, int height, JpegSamplingFactors sampling,
         ushort[][] quantization, HuffmanTable[] dcTables, HuffmanTable[] acTables,
-        JpegliEncoderOptions options, CancellationToken cancellationToken)
+        JpegliEncoderOptions options, ExtendedXmpMetadata? extendedXmp, CancellationToken cancellationToken)
     {
         Marker(output, 0xd8);
         // Preserve the default JFIF 1.01 header, with configurable densities and no thumbnail.
@@ -25,7 +25,7 @@ internal static class JpegMarkerWriter
         Word(output, options.VerticalDensity);
         output.Write([0, 0]);
 
-        WriteMetadata(output, options, cancellationToken);
+        WriteMetadata(output, options, extendedXmp, cancellationToken);
 
         Marker(output, 0xdb);
         Word(output, 2 + quantization.Length * 65);
@@ -65,7 +65,7 @@ internal static class JpegMarkerWriter
     }
 
     private static void WriteMetadata(Stream output, JpegliEncoderOptions options,
-        CancellationToken cancellationToken)
+        ExtendedXmpMetadata? extendedXmp, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!options.ExifData.IsEmpty)
@@ -79,15 +79,38 @@ internal static class JpegMarkerWriter
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        if (!string.IsNullOrEmpty(options.XmpPacket))
+        string? standardXmp = extendedXmp?.StandardPacket ?? options.XmpPacket;
+        if (!string.IsNullOrEmpty(standardXmp))
         {
             // A standard XMP packet occupies a single APP1 segment. Validation
             // bounds the UTF-8 allocation and rejects unpaired UTF-16 surrogates.
-            byte[] packet = XmpEncoding.GetBytes(options.XmpPacket);
+            byte[] packet = XmpEncoding.GetBytes(standardXmp);
             Marker(output, 0xe1);
             Word(output, packet.Length + 31);
             output.Write("http://ns.adobe.com/xap/1.0/\0"u8);
             output.Write(packet);
+        }
+
+        if (extendedXmp is not null)
+        {
+            var chunks = new ExtendedXmpMetadata.Utf8Chunks(extendedXmp.Packet);
+            byte[] digest = Encoding.ASCII.GetBytes(extendedXmp.Digest);
+            uint offset = 0;
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ReadOnlySpan<byte> chunk = chunks.Read();
+                if (chunk.IsEmpty)
+                    break;
+                Marker(output, 0xe1);
+                Word(output, chunk.Length + 77);
+                output.Write("http://ns.adobe.com/xmp/extension/\0"u8);
+                output.Write(digest);
+                DoubleWord(output, extendedXmp.Length);
+                DoubleWord(output, offset);
+                output.Write(chunk);
+                offset += (uint)chunk.Length;
+            }
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -161,6 +184,14 @@ internal static class JpegMarkerWriter
 
     private static void Word(Stream output, int value)
     {
+        output.WriteByte((byte)(value >> 8));
+        output.WriteByte((byte)value);
+    }
+
+    private static void DoubleWord(Stream output, uint value)
+    {
+        output.WriteByte((byte)(value >> 24));
+        output.WriteByte((byte)(value >> 16));
         output.WriteByte((byte)(value >> 8));
         output.WriteByte((byte)value);
     }

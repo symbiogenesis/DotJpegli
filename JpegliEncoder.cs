@@ -103,6 +103,7 @@ public static class JpegliEncoder
             throw new ArgumentException("The source buffer does not contain all image rows.", nameof(pixels));
         cancellationToken.ThrowIfCancellationRequested();
         pixels.ValidateSamples(width, height, stride, cancellationToken);
+        ExtendedXmpMetadata? extendedXmp = ExtendedXmpMetadata.Prepare(options, cancellationToken);
 
         bool grayscale = pixels.IsGrayscale;
         int componentCount = grayscale ? 1 : 3;
@@ -170,7 +171,7 @@ public static class JpegliEncoder
 
         cancellationToken.ThrowIfCancellationRequested();
         JpegMarkerWriter.WriteHeaders(output, width, height, sampling, tables, dcTables, acTables,
-            options, cancellationToken);
+            options, extendedXmp, cancellationToken);
         JpegMarkerWriter.WriteScanHeader(output, componentCount, options.Progressive,
             successiveLow: options.ProgressiveRefinementBits);
         var bits = new BitWriter(output);

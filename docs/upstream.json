@@ -3,7 +3,7 @@
   "revision": "031a0077f5799a6041004267fc12b956c1f52a20",
   "retrieved": "2026-10-12",
   "license": "BSD-3-Clause",
-  "portStage": "managed-adaptive-quantization-custom-component-sampling-restarts-progressive-refinement-eob-runs-smoothing-440-411-410-3x1-3x2-1x4-2x4-1x3-2x3-icc-exif-xmp-metadata-16bit-float-input",
+  "portStage": "managed-adaptive-quantization-custom-component-sampling-restarts-progressive-refinement-eob-runs-smoothing-440-411-410-3x1-3x2-1x4-2x4-1x3-2x3-icc-exif-xmp-extended-xmp-metadata-16bit-float-input",
   "samplingNotes": "1x3 and 2x3 use dedicated upstream three-row kernels; the pinned ChooseDownsampleMethods instead selects two-row kernels for vertical factor 3.",
   "parityEstablished": false
 }

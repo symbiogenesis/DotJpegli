@@ -158,13 +158,57 @@ complete Exif file standard, which requires APP1 immediately after SOI.
 
 Set `XmpPacket` to a serialized XMP packet to embed UTF-8 bytes in a single
 standard APP1 marker with the `http://ns.adobe.com/xap/1.0/\0` identifier.
-Null or empty writes no XMP. Its UTF-8 length must not exceed 65,504 bytes,
+Without extended XMP, null or empty writes no XMP. Its UTF-8 length must not exceed 65,504 bytes,
 including any packet wrapper or padding supplied by the caller. The encoder adds
 no BOM, terminator or XML wrapper. Unpaired UTF-16 surrogates are rejected before
-output. XML, RDF and schemas are not parsed or validated; supply a complete valid
-packet. Extended XMP is not supported. The framing follows
+output. For standard-only XMP, XML, RDF and schemas are not parsed or validated; supply a complete valid
+packet. For larger or explicitly partitioned metadata, use `ExtendedXmpPacket`
+as described below. The framing follows
 [Adobe's XMP storage specification](https://developer.adobe.com/xmp/docs/xmp-specifications/).
 The encoder does not reconcile XMP values with Exif, ICC or JFIF metadata.
+
+`ExtendedXmpPacket` accepts a serialized extended XMP tree **without an xpacket
+wrapper**. Null or empty writes no extension and preserves standard-only behavior.
+The encoder writes the exact UTF-8 bytes, with no added BOM or terminator, in
+consecutive APP1 chunks of up to 65,458 bytes. Each chunk includes the uppercase
+MD5 identifier of the entire serialization, its unsigned 32-bit byte length, and
+its byte offset in network byte order, following Adobe's
+[extended XMP storage format](https://github.com/adobe/XMP-Toolkit-SDK/blob/main/docs/XMPSpecificationPart3.pdf).
+MD5 identifies the metadata for this format; it does not authenticate it.
+UTF-8 characters may span chunks. The total encoded length must fit an unsigned
+32-bit integer; there is no 255-chunk limit as there is for ICC profiles.
+
+When `XmpPacket` is null or empty, a minimal standard packet is generated with
+the required `xmpNote:HasExtendedXMP` digest link. This keeps all caller-supplied
+properties in the extension; readers supporting only standard XMP will see the
+link alone. For example:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    ExtendedXmpPacket = File.ReadAllText("extended-xmp.xml")
+});
+```
+
+To keep important properties in the standard packet, partition metadata yourself
+and also supply `XmpPacket`, limited to 65,504 UTF-8 bytes. It is preserved unchanged
+and must contain exactly one top-level `HasExtendedXMP` property in the
+`http://ns.adobe.com/xmp/note/` namespace, equal to the uppercase MD5 of the extended
+packet's exact UTF-8 bytes. Supported forms are an attribute or a plain-text child
+of a top-level `rdf:Description`; namespace prefixes may vary. The standard root
+must be `x:xmpmeta` in `adobe:ns:meta/` or `rdf:RDF` in the RDF namespace. Only this
+combination parses standard XML to verify the link; malformed XML, DTDs, missing,
+duplicate, structured or mismatched links are rejected before output. Standard-only
+packets retain their opaque behavior. No packet is automatically partitioned or
+rewritten, and extended XML, RDF and schemas are not parsed or validated. Supply
+valid XMP partitions with consistent properties. Unpaired UTF-16 surrogates in
+either serialization are rejected before output.
+
+Extension encoding and digest preparation use bounded working storage, with a
+cancellation check between chunks, before any output is written. Output also checks
+cancellation between APP1 chunks. Neither phase allocates a complete UTF-8 copy
+of the extension. Cancellation or an I/O failure during output can leave a partial
+JPEG and leaves the destination stream open.
 
 Set `IccProfile` to raw ICC profile bytes to embed them unchanged in numbered
 APP2 markers. An empty profile, the default, writes no ICC markers. The encoder
@@ -199,7 +243,8 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 ```
 
 Metadata is written after the mandatory JFIF marker in this order: Exif APP1,
-XMP APP1, ICC APP2 chunks and COM, followed by the coding tables and scans.
+standard XMP APP1, extended XMP APP1 chunks, ICC APP2 chunks and COM, followed by
+the coding tables and scans.
 Defaults preserve the previous JPEG bytes. Metadata does not change coefficients
 or decoded sample values. Viewers may interpret orientation, profiles and other
 metadata when displaying the image.
@@ -293,7 +338,7 @@ byte stuffing and marker output; optional MCU restart intervals with DRI and
 cycling RST markers, including predictor resets during Huffman optimization;
 progressive initial and refinement EOB-run aggregation with optimized Huffman tables;
 optional DC and AC refinement scans with bounded correction-bit storage.
-Raw Exif TIFF embedding and standard UTF-8 XMP packets in APP1, raw ICC profiles
+Raw Exif TIFF embedding, standard and extended UTF-8 XMP packets in APP1, raw ICC profiles
 with APP2 chunking, UTF-8 COM comments, and configurable JFIF density fields are
 also implemented.
 Gamma-encoded 16-bit and normalized floating-point RGB and grayscale input are
@@ -303,7 +348,7 @@ integer sample areas with full-resolution luma, and at most ten blocks per MCU.
 
 Pending: fractional sampling ratios and subsampled luma,
 XYB color encoding and built-in profiles or color management, out-of-gamut float input,
-extended XMP, structured metadata editing, other metadata, SIMD/parallel paths,
+automatic XMP partitioning, structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
 one eighth of those units. This scaling adaptation is accounted for during
@@ -417,6 +462,14 @@ lengths, multibyte limits and malformed UTF-16 rejection before output. They als
 check combined metadata ordering, unchanged coding data and decoded pixels across
 baseline, progressive and refinement modes, grayscale and both Huffman settings,
 along with nonseekable streams, cancellation boundaries and I/O failures.
+
+Extended XMP regressions independently reconstruct APP1 chunks and verify exact
+UTF-8 bytes, uppercase MD5 links, unsigned network-byte-order lengths and offsets,
+full-chunk boundaries, and multibyte characters split across segments. They check
+generated standard packets and unchanged caller-supplied packets with namespace
+aliases and attribute or element links, reject invalid linkage and malformed input
+before output, and cover metadata ordering, unchanged coding data and decoded
+pixels, nonseekable streams, per-chunk cancellation and I/O failures.
 
 Higher-precision regressions use independently parsed JPEG coefficients to check
 fractional grayscale DC values, compare expanded 16-bit byte inputs with the byte
