@@ -37,8 +37,13 @@ public sealed class EncoderRgbToXybTests
             Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2
         };
         byte[] actual = Encode(source, width, height, layout, options);
-        byte[] expected = Encode(ScaledXyb(rgb, width, height, layout == PixelComponentLayout.Gray),
-            width, height, PixelComponentLayout.Xyb, options);
+        // Transform rounding can put a channel just outside 0..1 (for example,
+        // white Y on Linux). Preserve it in the direct-XYB comparison, including
+        // coefficient preflight; the original sRGB source remains strictly validated.
+        float[] scaled = ScaledXyb(rgb, width, height, layout == PixelComponentLayout.Gray);
+        AssertNormalizedTransformRange(scaled);
+        byte[] expected = Encode(scaled,
+            width, height, PixelComponentLayout.Xyb, options with { AllowOutOfRangeFloatSamples = true });
         AssertCoefficients(Read(expected, options), Read(actual, options), tolerance: 1);
 
         // Element strides, trailing storage and alpha must never enter the transform.
@@ -75,6 +80,7 @@ public sealed class EncoderRgbToXybTests
         const int width = 33, height = 19;
         Array rgb = RgbSource(2, width, height);
         float[] scaled = ScaledXyb(rgb, width, height, grayscale: false);
+        AssertNormalizedTransformRange(scaled);
         foreach (JpegSamplingFactors? factors in new JpegSamplingFactors?[]
             { null, FullResolution, new(new(1, 2), new(2, 1), new(1, 1)), new(new(2, 1), new(1, 1), new(1, 1)) })
             foreach (int smoothing in new[] { 0, 37 })
@@ -84,7 +90,8 @@ public sealed class EncoderRgbToXybTests
                     Distance = 0.375f, AdaptiveQuantization = adaptive, SamplingFactors = factors,
                     SmoothingFactor = smoothing, OptimizeHuffmanTables = false, RestartInterval = 2
                 };
-                AssertCoefficients(Read(Encode(scaled, width, height, PixelComponentLayout.Xyb, options), options),
+                AssertCoefficients(Read(Encode(scaled, width, height, PixelComponentLayout.Xyb,
+                    options with { AllowOutOfRangeFloatSamples = true }), options),
                     Read(Encode(rgb, width, height, PixelComponentLayout.Rgb, options), options), tolerance: 1);
             }
     }
@@ -175,6 +182,7 @@ public sealed class EncoderRgbToXybTests
     [InlineData(-float.MaxValue / 512f)]
     [InlineData(-0.01f)]
     [InlineData(1.01f)]
+    [InlineData(1.00000011920928955078125f)] // Next float above 1: still invalid source input.
     public void InvalidConsumedFloatsRejectBeforeHeadersEvenWhenLastPixelIsInvalid(float invalid)
     {
         foreach (PixelComponentLayout layout in new[]
@@ -303,6 +311,14 @@ public sealed class EncoderRgbToXybTests
             result[offset + 2] = bMinusY / 255f;
         }
         return result;
+    }
+
+    private static void AssertNormalizedTransformRange(float[] scaled)
+    {
+        // Only rounding-scale excursions are expected from normalized sRGB.
+        // Keep the same sub-sample tolerance as the independent native fixtures.
+        const float tolerance = 0.0025f / 255f;
+        Assert.All(scaled, value => Assert.InRange(value, -tolerance, 1f + tolerance));
     }
 
     private static byte[] Encode(Array source, int width, int height, PixelComponentLayout layout, JpegliEncoderOptions options, int stride = 0) => source switch
