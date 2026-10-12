@@ -155,10 +155,7 @@ internal static class Quantization
         int horizontalSampling = 1, int verticalSampling = 1)
     {
         ValidateComponent(component);
-        if (horizontalSampling is not (1 or 2))
-            throw new ArgumentOutOfRangeException(nameof(horizontalSampling));
-        if (verticalSampling is not (1 or 2) || (horizontalSampling == 1 && verticalSampling == 2))
-            throw new ArgumentOutOfRangeException(nameof(verticalSampling), "Supported sampling is 4:4:4, 4:2:2 or 4:2:0.");
+        ValidateSampling(horizontalSampling, verticalSampling);
 
         float distance = QualityToDistance(quality);
         bool is420 = horizontalSampling == 2 && verticalSampling == 2;
@@ -192,10 +189,7 @@ internal static class Quantization
         int horizontalSampling, int verticalSampling, bool grayscale)
     {
         ArgumentNullException.ThrowIfNull(tables);
-        if (horizontalSampling is not (1 or 2))
-            throw new ArgumentOutOfRangeException(nameof(horizontalSampling));
-        if (verticalSampling is not (1 or 2) || (horizontalSampling == 1 && verticalSampling == 2))
-            throw new ArgumentOutOfRangeException(nameof(verticalSampling), "Supported sampling is 4:4:4, 4:2:2 or 4:2:0.");
+        ValidateSampling(horizontalSampling, verticalSampling);
         if (tables.Length != (grayscale ? 1 : 3))
             throw new ArgumentException("Supply one grayscale table or three YCbCr tables.", nameof(tables));
 
@@ -215,6 +209,15 @@ internal static class Quantization
             }
         }
         return multipliers;
+    }
+
+    private static void ValidateSampling(int horizontalSampling, int verticalSampling)
+    {
+        if (horizontalSampling is not (1 or 2 or 4))
+            throw new ArgumentOutOfRangeException(nameof(horizontalSampling));
+        if (verticalSampling is not (1 or 2) || (horizontalSampling == 4 && verticalSampling == 2))
+            throw new ArgumentOutOfRangeException(nameof(verticalSampling),
+                "Supported sampling is 4:4:4, 4:2:2, 4:2:0, 4:4:0 or 4:1:1.");
     }
 
     /// <summary>Infers upstream quantizer distance from the emitted baseline tables.</summary>

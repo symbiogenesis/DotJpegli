@@ -3,7 +3,8 @@
 
 namespace DotJpegli.Internal;
 
-// Scalar adaptation of DownsampleRow2x1, Downsample2x2 and ApplyInputSmoothing in
+// Scalar adaptation of DownsampleRow2x1, Downsample1x2, DownsampleRow4x1,
+// Downsample2x2 and ApplyInputSmoothing in
 // google/jpegli lib/jpegli/downsample.cc, and PadInputBuffer in encode.cc,
 // revision 031a0077f5799a6041004267fc12b956c1f52a20.
 // Reading and converting edge pixels on demand is equivalent to padding the
@@ -41,6 +42,23 @@ internal static class Downsampling
                     {
                         sample = (sample + right) * 0.5f;
                     }
+                }
+                else if (sampleWidth == 4)
+                {
+                    float second = ReadSample(pixels, width, height, stride, bytesPerPixel, layout, component, x + 1, y,
+                        neighborWeight, centerWeight);
+                    float third = ReadSample(pixels, width, height, stride, bytesPerPixel, layout, component, x + 2, y,
+                        neighborWeight, centerWeight);
+                    float fourth = ReadSample(pixels, width, height, stride, bytesPerPixel, layout, component, x + 3, y,
+                        neighborWeight, centerWeight);
+                    // DownsampleRow4x1 also adds pairs before scaling.
+                    sample = ((sample + second) + (third + fourth)) * 0.25f;
+                }
+                else if (sampleHeight == 2)
+                {
+                    float bottom = ReadSample(pixels, width, height, stride, bytesPerPixel, layout, component, x, y + 1,
+                        neighborWeight, centerWeight);
+                    sample = (sample + bottom) * 0.5f;
                 }
                 samples[row * 8 + column] = sample - 128f;
             }

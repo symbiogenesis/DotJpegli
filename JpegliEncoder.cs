@@ -58,8 +58,15 @@ public static class JpegliEncoder
 
         bool grayscale = layout == PixelLayout.Gray8;
         int componentCount = grayscale ? 1 : 3;
-        int horizontal = !grayscale && options.Subsampling != ChromaSubsampling.None ? 2 : 1;
-        int vertical = !grayscale && options.Subsampling == ChromaSubsampling.Quarter ? 2 : 1;
+        (int horizontal, int vertical) = grayscale ? (1, 1) : options.Subsampling switch
+        {
+            ChromaSubsampling.None => (1, 1),
+            ChromaSubsampling.HalfHorizontal => (2, 1),
+            ChromaSubsampling.Quarter => (2, 2),
+            ChromaSubsampling.HalfVertical => (1, 2),
+            ChromaSubsampling.QuarterHorizontal => (4, 1),
+            _ => throw new ArgumentOutOfRangeException(nameof(options.Subsampling))
+        };
         var tables = new ushort[componentCount][];
         for (int component = 0; component < componentCount; component++)
             tables[component] = grayscale ? Quantization.CreateGrayscaleTable(options.Quality)

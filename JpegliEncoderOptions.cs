@@ -44,7 +44,8 @@ public sealed record JpegliEncoderOptions
     /// <summary>
     /// Number of minimum coded units (MCUs) between restart markers, from 0 to 65535.
     /// Zero disables restart markers. An MCU is 8x8 pixels for grayscale or 4:4:4,
-    /// 16x8 for 4:2:2, and 16x16 for 4:2:0, including partial edge units.
+    /// 16x8 for 4:2:2, 16x16 for 4:2:0, 8x16 for 4:4:0, and 32x8 for 4:1:1,
+    /// including partial edge units.
     /// In progressive AC scans, each component block is one MCU. The interval
     /// and restart marker sequence start afresh in every scan.
     /// </summary>
