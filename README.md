@@ -680,6 +680,14 @@ They also cover default byte compatibility, direct-distance precedence, source
 precision, padded layouts, custom sampling, restart markers, baseline and
 progressive coefficient/decoded-pixel parity, and validation before output.
 
+Transfer-function regressions retain complete native scalar PQ/HLG quantization
+tables and adaptive-inference fixtures for 4:4:4, 4:2:0 and grayscale. Independent
+coefficient parsing checks shared-chroma adaptive thresholds using analytical
+cosine inputs that distinguish missing hints and incorrect table selectors. They
+also cover default and other-code byte compatibility, typed and padded inputs,
+custom sampling, scan/refinement parity, metadata and stream behavior, finite
+distance extremes, and out-of-range float coefficient validation before output.
+
 Additional 4:4:0 and 4:1:1 regressions use independent scalar C++ fixtures for
 vertical and pairwise horizontal averaging, odd edges, block seams and smoothing.
 They also check emitted sampling factors, dummy-block DC continuity, restart counts,
