@@ -76,6 +76,7 @@ public sealed class AdaptiveQuantizationTests
     [Theory]
     [InlineData(1)]
     [InlineData(2)]
+    [InlineData(3)]
     [InlineData(4)]
     public void EdgePaddingMatchesExplicitlyReplicatedImage(int sampling)
     {
@@ -108,6 +109,40 @@ public sealed class AdaptiveQuantizationTests
         float[] fourRows = Analyze(new AdaptiveQuantization(width, height, 4),
             source, width, height, width, 4, quant);
         Assert.Equal(twoRows, fourRows);
+    }
+
+    [Theory]
+    [InlineData(23, 4)]
+    [InlineData(25, 4)]
+    [InlineData(47, 18)]
+    [InlineData(48, 255)]
+    [InlineData(71, 4)]
+    public void ThreeBlockMcuRowsPreserveSpatialFieldAcrossRowSeams(int height, int quant)
+    {
+        const int width = 19;
+        // Analyze the same explicitly padded image in single-block and
+        // three-block rows, checking every output row across 24-pixel seams.
+        int paddedHeight = ((height + 23) / 24) * 24;
+        byte[] source = CreateMixedImage(width, height, width);
+        byte[] padded = new byte[width * paddedHeight];
+        for (int y = 0; y < paddedHeight; y++)
+            source.AsSpan(Math.Min(y, height - 1) * width, width)
+                .CopyTo(padded.AsSpan(y * width, width));
+        float[] singleRows = Analyze(new AdaptiveQuantization(width, paddedHeight, 1),
+            padded, width, paddedHeight, width, 1, quant);
+        var threeRowAnalysis = new AdaptiveQuantization(width, height, 3);
+        float[] threeRows = Analyze(threeRowAnalysis, source, width, height, width, 3, quant);
+        Assert.Equal(singleRows, threeRows);
+
+        // Reuse the bounded buffers in reverse traversal order as progressive
+        // passes do, without relying on previously computed neighborhoods.
+        float[] row = new float[threeRowAnalysis.BlocksWide * 3];
+        for (int top = paddedHeight - 24; top >= 0; top -= 24)
+        {
+            threeRowAnalysis.ComputeRow(source, width, 1, PixelLayout.Gray8, top, quant,
+                row, TestContext.Current.CancellationToken);
+            Assert.Equal(singleRows.AsSpan(top / 8 * threeRowAnalysis.BlocksWide, row.Length).ToArray(), row);
+        }
     }
 
     [Theory]

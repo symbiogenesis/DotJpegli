@@ -215,9 +215,9 @@ internal static class Quantization
     {
         if (horizontalSampling is < 1 or > 4)
             throw new ArgumentOutOfRangeException(nameof(horizontalSampling));
-        if (verticalSampling is not (1 or 2 or 4) || horizontalSampling * verticalSampling > 8)
+        if (verticalSampling is < 1 or > 4 || horizontalSampling * verticalSampling > 8)
             throw new ArgumentOutOfRangeException(nameof(verticalSampling),
-                "Sampling must use 1..4 horizontal samples, 1, 2 or 4 vertical samples, and at most 10 blocks per color MCU.");
+                "Sampling must use 1..4 horizontal and vertical samples, and at most 10 blocks per color MCU.");
     }
 
     /// <summary>Infers upstream quantizer distance from the emitted baseline tables.</summary>

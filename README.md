@@ -46,6 +46,8 @@ allowed.
 | `QuarterVertical` | — | 1x4 pixels | 8x32 pixels |
 | `QuarterHorizontalHalfVertical` | 4:1:0 | 4x2 pixels | 32x16 pixels |
 | `HalfHorizontalQuarterVertical` | — | 2x4 pixels | 16x32 pixels |
+| `ThirdVertical` | — | 1x3 pixels | 8x24 pixels |
+| `HalfHorizontalThirdVertical` | — | 2x3 pixels | 16x24 pixels |
 
 Grayscale always uses one sample per pixel and 8x8 MCUs. All color modes use
 upstream scalar box averaging after optional smoothing, with replicated image
@@ -54,6 +56,12 @@ all other modes use the same perceptual tables as 4:4:4 and 4:2:2.
 The less common modes are identified by their sample areas where the usual
 4:a:b notation is ambiguous. Color MCUs contain at most ten blocks, including
 the two chroma blocks.
+
+The three-row modes use upstream's dedicated `Downsample1x3` and `Downsample2x3`
+kernels: average horizontally first, then sum the three rows from top to bottom
+and multiply by `1f / 3f`. The pinned upstream selector routes vertical factor
+three to its two-row kernels instead. DotJpegli uses all three rows as the sample
+area specifies; these modes therefore differ from that pinned selector's output.
 
 The stream overload takes a writable stream as its first argument. It leaves
 the stream open and does not seek. Cancellation and I/O failures may leave a
@@ -239,7 +247,7 @@ writing them. Neither mode retains an image-sized coefficient buffer.
 
 Implemented: baseline sequential and optional spectral-selection and successive-approximation progressive
 JPEG/JFIF; RGB and grayscale input; 4:4:4,
-4:2:2, 4:2:0, 4:4:0, 4:1:1 and 4:1:0, plus 3x1, 3x2, 1x4 and 2x4 chroma
+4:2:2, 4:2:0, 4:4:0, 4:1:1 and 4:1:0, plus 3x1, 3x2, 1x4, 2x4, 1x3 and 2x3 chroma
 sample areas, using upstream scalar box sampling with edge replication and empty
 dummy-block coding that preserves DC predictors at MCU edges; optional upstream
 3x3 input smoothing before sampling; recursive scalar DCT; Jpegli
@@ -257,7 +265,7 @@ also implemented.
 Gamma-encoded 16-bit and normalized floating-point RGB and grayscale input are
 supported with fractional samples preserved through quantization.
 
-Pending: three-row and custom per-component sampling ratios,
+Pending: custom per-component sampling ratios,
 XYB color encoding and built-in profiles or color management, out-of-gamut float input,
 extended XMP, structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.
@@ -311,6 +319,15 @@ restarts and coefficient parity across baseline and progressive refinement;
 an independent decoder checks final pixel parity. They also cover padded byte,
 16-bit and fractional float inputs. Four-block adaptive-analysis rows preserve
 the established two-block spatial field when both use the same padded height.
+
+Three-row sampling regressions use independently compiled scalar C++ fixtures
+for the dedicated 1x3 and 2x3 kernels, including intermediate rounding, smoothing,
+block seams and replicated edges. They check all three rows contribute, emitted
+sampling factors, dummy-block DC continuity, restart markers, coefficient and
+decoded-pixel parity across baseline and progressive refinement, and padded byte,
+16-bit and fractional float inputs. Adaptive-analysis checks compare three-block
+rows with single-block traversal of the same padded image across 24-pixel seams.
+These checks cover the dedicated kernels, not the pinned upstream selector.
 
 Input smoothing regressions compare converted, filtered and subsampled block
 bits with independently compiled scalar C++ fixtures, including block seams,

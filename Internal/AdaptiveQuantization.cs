@@ -36,7 +36,7 @@ internal sealed class AdaptiveQuantization
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
-        if (verticalSampling is not (1 or 2 or 4))
+        if (verticalSampling is < 1 or > 4)
             throw new ArgumentOutOfRangeException(nameof(verticalSampling));
         this.width = width;
         this.height = height;

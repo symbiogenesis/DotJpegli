@@ -22,5 +22,9 @@ public enum ChromaSubsampling
     /// <summary>4:1:0: one chroma sample per four-by-two pixel area (4x2).</summary>
     QuarterHorizontalHalfVertical,
     /// <summary>One chroma sample per two-by-four pixel area (2x4).</summary>
-    HalfHorizontalQuarterVertical
+    HalfHorizontalQuarterVertical,
+    /// <summary>One chroma sample per three vertical pixels (1x3).</summary>
+    ThirdVertical,
+    /// <summary>One chroma sample per two-by-three pixel area (2x3).</summary>
+    HalfHorizontalThirdVertical
 }

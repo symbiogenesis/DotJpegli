@@ -3,12 +3,14 @@
 
 namespace DotJpegli.Internal;
 
-// Scalar adaptation of the horizontal 2/3/4 and vertical 2/4 downsampling
+// Scalar adaptation of the horizontal 2/3/4 and vertical 2/3/4 downsampling
 // methods and ApplyInputSmoothing in
 // google/jpegli lib/jpegli/downsample.cc, and PadInputBuffer in encode.cc,
 // revision 031a0077f5799a6041004267fc12b956c1f52a20.
 // Reading and converting edge pixels on demand is equivalent to padding the
 // upstream planar input, and keeps temporary storage bounded to one block.
+// Three-row sampling uses the dedicated Downsample1x3/Downsample2x3 kernels;
+// the pinned upstream selector instead routes vertical factor 3 to two-row kernels.
 internal static class Downsampling
 {
     internal static void FillBlock(ReadOnlySpan<byte> pixels, int width, int height, int stride,
@@ -59,9 +61,14 @@ internal static class Downsampling
                         {
                             float third = ReadRowSample(pixels, width, height, stride, component, x, y + 2,
                                 sampleWidth, neighborWeight, centerWeight);
-                            float fourth = ReadRowSample(pixels, width, height, stride, component, x, y + 3,
-                                sampleWidth, neighborWeight, centerWeight);
-                            sample = ((sample + second) + (third + fourth)) * 0.25f;
+                            if (sampleHeight == 3)
+                                sample = ((sample + second) + third) * (1f / 3f);
+                            else
+                            {
+                                float fourth = ReadRowSample(pixels, width, height, stride, component, x, y + 3,
+                                    sampleWidth, neighborWeight, centerWeight);
+                                sample = ((sample + second) + (third + fourth)) * 0.25f;
+                            }
                         }
                     }
                 }

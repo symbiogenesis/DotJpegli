@@ -174,7 +174,7 @@ public sealed class ExtendedDownsamplingTests
         ushort[][] expected = Enumerable.Range(0, 3)
             .Select(component => Quantization.CreateTable(85f, component, 1, 1)).ToArray();
         float[][] expectedMultipliers = Quantization.CreateAdaptiveZeroBiasMultipliers(expected, 1, 1, false);
-        foreach ((int horizontal, int vertical) in new[] { (3, 1), (3, 2), (1, 4), (4, 2), (2, 4) })
+        foreach ((int horizontal, int vertical) in new[] { (3, 1), (3, 2), (1, 4), (4, 2), (2, 4), (1, 3), (2, 3) })
         {
             ushort[][] actual = Enumerable.Range(0, 3)
                 .Select(component => Quantization.CreateTable(85f, component, horizontal, vertical)).ToArray();
@@ -197,8 +197,8 @@ public sealed class ExtendedDownsamplingTests
     }
 
     [Theory]
-    [InlineData(1, 3)]
-    [InlineData(2, 3)]
+    [InlineData(1, 0)]
+    [InlineData(1, 5)]
     [InlineData(3, 3)]
     [InlineData(4, 3)]
     [InlineData(3, 4)]

@@ -118,6 +118,8 @@ public static class JpegliEncoder
             ChromaSubsampling.QuarterVertical => (1, 4),
             ChromaSubsampling.QuarterHorizontalHalfVertical => (4, 2),
             ChromaSubsampling.HalfHorizontalQuarterVertical => (2, 4),
+            ChromaSubsampling.ThirdVertical => (1, 3),
+            ChromaSubsampling.HalfHorizontalThirdVertical => (2, 3),
             _ => throw new ArgumentOutOfRangeException(nameof(options.Subsampling))
         };
         var tables = new ushort[componentCount][];
