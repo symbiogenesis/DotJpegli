@@ -348,8 +348,8 @@ A nonempty `IccProfile` is required to describe the stored scaled channels.
 Supply the built-in profile from `JpegliIccProfiles.CreateXybProfile()` or a
 matching Jpegli XYB profile; an ordinary sRGB profile is unsuitable.
 The profile is embedded unchanged and an external profile's transform is not
-validated. Correct display requires a reader that applies that
-profile; readers ignoring ICC will interpret the scaled channels as RGB.
+validated. Correct display requires a reader that applies the profile;
+readers ignoring ICC will interpret the scaled channels as RGB.
 
 `CreateXybProfile()` builds the pinned upstream's 720-byte perceptual ICC v4.4
 profile in managed code. Every call returns a separate mutable array with
@@ -529,10 +529,11 @@ validation applies; this does not validate complete RDF graphs or XMP schemas.
 Set `IccProfile` to raw ICC profile bytes to embed them unchanged in numbered
 APP2 markers. An empty profile, the default, writes no ICC markers except that
 XYB output requires a nonempty matching scaled XYB profile. The profile
-is opaque unless the opt-in CICP lookup described below is enabled. The encoder
-does not apply the profile's color transform; the built-in scaled XYB profile
-is available separately through `JpegliIccProfiles.CreateXybProfile()`;
-use a profile describing the output's RGB or grayscale interpretation. Do not change its
+is opaque unless the opt-in CICP lookup described below is enabled. Supply a
+profile describing the output's RGB, grayscale or scaled XYB interpretation.
+The built-in scaled XYB profile is available through
+`JpegliIccProfiles.CreateXybProfile()`. The encoder does not apply an attached
+profile's color transform. Do not change its
 backing memory or dispose its owner until encoding returns. Profiles can contain
 at most 16,707,345 bytes (255 chunks of up to 65,519 bytes), following
 [ICC.1 Annex B.5](https://www.color.org/ICC1V42old.pdf).
