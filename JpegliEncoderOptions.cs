@@ -1,3 +1,6 @@
+using System.Text;
+using DotJpegli.Internal;
+
 namespace DotJpegli;
 
 /// <summary>Reusable settings for the managed JPEG encoder.</summary>
@@ -7,6 +10,30 @@ public sealed record JpegliEncoderOptions
     public float Quality { get; init; } = 85;
 
     public ChromaSubsampling Subsampling { get; init; } = ChromaSubsampling.Quarter;
+
+    /// <summary>
+    /// Raw ICC profile bytes to embed in APP2 markers. Empty (the default) omits the profile.
+    /// At most 16,707,345 bytes are supported. The profile is neither interpreted nor applied
+    /// to the pixels; supply a profile describing the input RGB or grayscale values.
+    /// Keep the underlying memory unchanged until encoding returns.
+    /// </summary>
+    public ReadOnlyMemory<byte> IccProfile { get; init; }
+
+    /// <summary>
+    /// Optional JPEG comment, encoded as UTF-8 in a single COM marker without a terminator.
+    /// Null or empty omits the comment. The encoded length must not exceed 65,533 bytes.
+    /// JPEG does not specify a comment character encoding, so readers may display it differently.
+    /// </summary>
+    public string? Comment { get; init; }
+
+    /// <summary>Units for JFIF densities. The default specifies a pixel aspect ratio.</summary>
+    public JpegDensityUnit DensityUnit { get; init; }
+
+    /// <summary>Horizontal JFIF density, from 1 to 65535. Defaults to 1.</summary>
+    public int HorizontalDensity { get; init; } = 1;
+
+    /// <summary>Vertical JFIF density, from 1 to 65535. Defaults to 1.</summary>
+    public int VerticalDensity { get; init; } = 1;
 
     /// <summary>
     /// Strength of the upstream 3x3 input smoothing filter, from 0 to 100.
@@ -60,6 +87,16 @@ public sealed record JpegliEncoderOptions
             throw new ArgumentOutOfRangeException(nameof(Quality), "Quality must be finite and between 0 and 100.");
         if (!Enum.IsDefined(Subsampling))
             throw new ArgumentOutOfRangeException(nameof(Subsampling));
+        if (IccProfile.Length > JpegMarkerWriter.MaxIccProfileBytes)
+            throw new ArgumentOutOfRangeException(nameof(IccProfile), "The ICC profile must fit in at most 255 APP2 markers (16,707,345 bytes).");
+        if (Comment is not null && Encoding.UTF8.GetByteCount(Comment) > JpegMarkerWriter.MaxMarkerPayloadBytes)
+            throw new ArgumentOutOfRangeException(nameof(Comment), "The UTF-8 comment must not exceed 65,533 bytes.");
+        if (!Enum.IsDefined(DensityUnit))
+            throw new ArgumentOutOfRangeException(nameof(DensityUnit));
+        if (HorizontalDensity is < 1 or > 65535)
+            throw new ArgumentOutOfRangeException(nameof(HorizontalDensity), "Horizontal density must be between 1 and 65535.");
+        if (VerticalDensity is < 1 or > 65535)
+            throw new ArgumentOutOfRangeException(nameof(VerticalDensity), "Vertical density must be between 1 and 65535.");
         if (SmoothingFactor is < 0 or > 100)
             throw new ArgumentOutOfRangeException(nameof(SmoothingFactor), "Smoothing factor must be between 0 and 100.");
         if (ProgressiveRefinementBits is < 0 or > 10)

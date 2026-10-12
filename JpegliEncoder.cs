@@ -124,7 +124,7 @@ public static class JpegliEncoder
 
         cancellationToken.ThrowIfCancellationRequested();
         JpegMarkerWriter.WriteHeaders(output, width, height, horizontal, vertical, tables, dcTables, acTables,
-            options.RestartInterval, options.Progressive);
+            options, cancellationToken);
         JpegMarkerWriter.WriteScanHeader(output, componentCount, options.Progressive,
             successiveLow: options.ProgressiveRefinementBits);
         var bits = new BitWriter(output);
