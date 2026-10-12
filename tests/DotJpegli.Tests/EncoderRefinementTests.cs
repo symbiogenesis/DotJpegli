@@ -49,8 +49,9 @@ public sealed class EncoderRefinementTests
             JpegDocument actual = JpegDocument.Read(jpeg, progressive: true,
                 expectedInterval: interval, expectedRefinementBits: bits);
             AssertBaselineParity(baseline, reference, jpeg, actual, layout);
-            foreach (Scan scan in actual.Scans.Where(scan => scan.High != 0 && scan.First != 0))
-                Assert.All(scan.EobRuns, run => Assert.Equal(1, run));
+            if (!optimize)
+                foreach (Scan scan in actual.Scans.Where(scan => scan.High != 0 && scan.First != 0))
+                    Assert.All(scan.EobRuns, run => Assert.Equal(1, run));
         }
     }
 
@@ -128,17 +129,22 @@ public sealed class EncoderRefinementTests
     }
 
     [Theory]
-    [InlineData(PixelLayout.Gray8, false)]
-    [InlineData(PixelLayout.Gray8, true)]
-    [InlineData(PixelLayout.Rgb24, false)]
-    [InlineData(PixelLayout.Rgb24, true)]
-    public void FlatRefinementScansUseOneEobPerRealBlock(PixelLayout layout, bool optimize)
+    [InlineData(PixelLayout.Gray8, ChromaSubsampling.Quarter, false)]
+    [InlineData(PixelLayout.Gray8, ChromaSubsampling.Quarter, true)]
+    [InlineData(PixelLayout.Rgb24, ChromaSubsampling.None, false)]
+    [InlineData(PixelLayout.Rgb24, ChromaSubsampling.None, true)]
+    [InlineData(PixelLayout.Rgb24, ChromaSubsampling.HalfHorizontal, false)]
+    [InlineData(PixelLayout.Rgb24, ChromaSubsampling.HalfHorizontal, true)]
+    [InlineData(PixelLayout.Rgb24, ChromaSubsampling.Quarter, false)]
+    [InlineData(PixelLayout.Rgb24, ChromaSubsampling.Quarter, true)]
+    public void FlatRefinementScansAggregateOnlyWithOptimizedTablesAndResetAtEveryBoundary(
+        PixelLayout layout, ChromaSubsampling sampling, bool optimize)
     {
         const int width = 145, height = 17;
         byte[] pixels = FlatPixels(width, height, layout);
         var options = new JpegliEncoderOptions
         {
-            Subsampling = ChromaSubsampling.Quarter,
+            Subsampling = sampling,
             AdaptiveQuantization = false, OptimizeHuffmanTables = optimize
         };
         byte[] baseline = Encode(pixels, width, height, layout, options);
@@ -162,12 +168,144 @@ public sealed class EncoderRefinementTests
                 int component = Assert.Single(scan.Selectors).Component;
                 int realBlocks = reference.Blocks.Count(pair =>
                     pair.Key.Component == component && !pair.Value.IsDummy);
-                int runLimit = scan.High != 0 || !optimize ? 1 : interval == 0 ? realBlocks : interval;
+                int runLimit = !optimize ? 1 : interval == 0 ? realBlocks : interval;
                 int[] expectedRuns = Enumerable.Range(0, (realBlocks - 1) / runLimit + 1)
                     .Select(index => Math.Min(runLimit, realBlocks - index * runLimit)).ToArray();
                 Assert.Equal(expectedRuns, scan.EobRuns);
+                Assert.Equal(realBlocks, scan.EobRuns.Sum());
             }
         }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OldCoefficientCorrectionRunsStayBoundedAndPreserveTheirOrder(bool optimize)
+    {
+        // Every stripe block has old AC coefficients but no newly significant
+        // coefficients in either refinement scan. Sign and amplitude
+        // vary between blocks so misplaced buffered correction bits change
+        // the reconstructed coefficients. Enough blocks exceed the fixed
+        // correction storage even though the EOB length itself still fits.
+        const int width = 4800, height = 8, correctionCapacity = 255;
+        byte[] pixels = StripePixels(width, height);
+        var options = new JpegliEncoderOptions
+        {
+            Quality = 100, AdaptiveQuantization = false, OptimizeHuffmanTables = optimize
+        };
+        byte[] baseline = Encode(pixels, width, height, PixelLayout.Gray8, options);
+        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        Block[] blocks = reference.Blocks.OrderBy(pair => pair.Key.Y).ThenBy(pair => pair.Key.X)
+            .Select(pair => pair.Value).ToArray();
+        Assert.Equal(600, blocks.Length);
+        Assert.All(blocks, block =>
+        {
+            Assert.False(block.IsDummy);
+            Assert.Contains(block.Coefficients[1..], coefficient => Math.Abs(coefficient) > 3);
+            Assert.DoesNotContain(block.Coefficients[1..], coefficient => Math.Abs(coefficient) is >= 1 and <= 3);
+        });
+        int[] oldCounts = blocks.Select(block => block.Coefficients[1..].Count(coefficient => coefficient != 0)).ToArray();
+        int[] coefficients = blocks.SelectMany(block => block.Coefficients[1..]).ToArray();
+        Assert.True(oldCounts.Sum() > correctionCapacity);
+        Assert.Contains(coefficients, coefficient => coefficient < -1 && (coefficient & 1) != 0);
+        Assert.Contains(coefficients, coefficient => coefficient > 1 && (coefficient & 1) != 0);
+        Assert.Contains(coefficients, coefficient => coefficient != 0 && (coefficient & 1) == 0);
+        Assert.True(blocks.Select(block => string.Join(',', block.Coefficients[1..]
+            .Where(coefficient => coefficient != 0).Select(coefficient => Math.Abs(coefficient) & 1)))
+            .Distinct().Count() > 1);
+
+        foreach (int interval in new[] { 0, 17 })
+        {
+            byte[] jpeg = Encode(pixels, width, height, PixelLayout.Gray8, options with
+            {
+                Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = interval
+            });
+            JpegDocument actual = JpegDocument.Read(jpeg, progressive: true,
+                expectedInterval: interval, expectedRefinementBits: 2);
+            AssertBaselineParity(baseline, reference, jpeg, actual, PixelLayout.Gray8);
+            Scan[] refinements = actual.Scans.Where(scan => scan.High != 0 && scan.First != 0).ToArray();
+            Assert.Equal(2, refinements.Length);
+            foreach (Scan refinement in refinements)
+            {
+                Assert.Equal(blocks.Length, refinement.EobRuns.Sum());
+                if (!optimize)
+                {
+                    Assert.All(refinement.EobRuns, run => Assert.Equal(1, run));
+                    continue;
+                }
+                Assert.Contains(refinement.EobRuns, run => run > 1);
+                Assert.True(refinement.EobRuns.Count > 1);
+                int firstBlock = 0;
+                foreach (int run in refinement.EobRuns)
+                {
+                    Assert.InRange(oldCounts.AsSpan(firstBlock, run).ToArray().Sum(), 1, correctionCapacity);
+                    if (interval != 0)
+                        Assert.Equal(firstBlock / interval, (firstBlock + run - 1) / interval);
+                    firstBlock += run;
+                }
+                Assert.Equal(blocks.Length, firstBlock);
+            }
+        }
+    }
+
+    [Fact]
+    public void RefinementEobRunsFlushBeforeNewlySignificantCoefficients()
+    {
+        const int width = 160, height = 8;
+        byte[] pixels = StripePixels(width, height);
+        // A small one-pixel impulse adds magnitude-one AC coefficients to
+        // otherwise old-coefficient stripe blocks at known run boundaries.
+        pixels[7 * 8] += 8;
+        pixels[15 * 8] -= 8;
+        var options = new JpegliEncoderOptions { Quality = 100, AdaptiveQuantization = false };
+        byte[] baseline = Encode(pixels, width, height, PixelLayout.Gray8, options);
+        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        foreach (int block in new[] { 7, 15 })
+            Assert.Contains(reference.Blocks[new(1, block, 0)].Coefficients[1..], coefficient => Math.Abs(coefficient) == 1);
+        byte[] jpeg = Encode(pixels, width, height, PixelLayout.Gray8, options with
+        {
+            Progressive = true, ProgressiveRefinementBits = 1
+        });
+        JpegDocument actual = JpegDocument.Read(jpeg, progressive: true,
+            expectedInterval: 0, expectedRefinementBits: 1);
+        AssertBaselineParity(baseline, reference, jpeg, actual, PixelLayout.Gray8);
+        Scan refinement = Assert.Single(actual.Scans, scan => scan.High != 0 && scan.First != 0);
+        Assert.Equal(7, refinement.EobRuns[0]);
+        Assert.Contains(refinement.EobRuns, run => run > 1);
+    }
+
+    [Fact]
+    public void FlatRefinementEobRunsSplitAtTheMaximumRepresentableLength()
+    {
+        // The partial last row is real AC data and gives 33024 blocks.
+        const int width = 2048, height = 1025;
+        byte[] pixels = FlatPixels(width, height, PixelLayout.Gray8);
+        var options = new JpegliEncoderOptions { AdaptiveQuantization = false };
+        byte[] baseline = Encode(pixels, width, height, PixelLayout.Gray8, options);
+        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        byte[] jpeg = Encode(pixels, width, height, PixelLayout.Gray8, options with
+        {
+            Progressive = true, ProgressiveRefinementBits = 1
+        });
+        JpegDocument actual = JpegDocument.Read(jpeg, progressive: true,
+            expectedInterval: 0, expectedRefinementBits: 1);
+        AssertBaselineParity(baseline, reference, jpeg, actual, PixelLayout.Gray8);
+        foreach (Scan scan in actual.Scans.Where(scan => scan.First != 0))
+            Assert.Equal(new[] { 32767, 257 }, scan.EobRuns);
+    }
+
+    private static byte[] StripePixels(int width, int height)
+    {
+        ReadOnlySpan<byte> stripe = [39, 68, 90, 116, 140, 166, 188, 217];
+        byte[] pixels = new byte[width * height];
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+            {
+                int amplitude = x / 8 % 3;
+                int value = stripe[x % 8] + (x % 8 < 4 ? amplitude : -amplitude);
+                pixels[y * width + x] = (byte)(x / 8 % 2 == 0 ? value : 256 - value);
+            }
+        return pixels;
     }
 
     [Theory]
