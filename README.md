@@ -52,6 +52,48 @@ the stream open and does not seek. Cancellation and I/O failures may leave a
 partial JPEG. Pass a `CancellationToken` for cancellation between MCUs. Dimensions
 must be 1..65535 and fit `MaxPixels` (100 million by default).
 
+### Profiles and metadata
+
+Set `IccProfile` to raw ICC profile bytes to embed them unchanged in numbered
+APP2 markers. An empty profile, the default, writes no ICC markers. The encoder
+does not parse the profile, apply a color transform, or provide a built-in profile;
+use a profile describing the source RGB or grayscale values. Do not change its
+backing memory or dispose its owner until encoding returns. Profiles can contain
+at most 16,707,345 bytes (255 chunks of up to 65,519 bytes), following
+[ICC.1 Annex B.5](https://www.color.org/ICC1V42old.pdf).
+
+`Comment` writes one JPEG COM marker containing UTF-8 bytes without a terminator.
+Null or empty writes no comment. Its UTF-8 length can be at most 65,533 bytes;
+non-ASCII characters can consume several bytes each. JPEG does not define a COM
+character encoding, so readers may display non-ASCII comments differently.
+
+`DensityUnit`, `HorizontalDensity`, and `VerticalDensity` configure the JFIF
+header. Each density must be 1..65535. `Unspecified`, the default, expresses
+the pixel aspect ratio; both values default to 1. `DotsPerInch` and
+`DotsPerCentimeter` express physical pixel densities, as defined by
+[JFIF](https://www.w3.org/Graphics/JPEG/jfif3.pdf). These fields do not resize pixels.
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    IccProfile = File.ReadAllBytes("srgb.icc"),
+    Comment = "Photo export",
+    DensityUnit = JpegDensityUnit.DotsPerInch,
+    HorizontalDensity = 300,
+    VerticalDensity = 300
+});
+```
+
+Metadata is written after the mandatory JFIF marker and before the coding tables
+and scans. Defaults preserve the previous JPEG bytes. Profiles, comments and
+densities do not change coefficients or decoded sample values. A color-managed
+viewer may render an image differently according to its embedded profile.
+Invalid metadata options are rejected before writing output. Cancellation is
+checked between metadata segments as well as between MCUs; cancellation or an
+I/O failure during metadata output can leave a partial JPEG and leaves the stream open.
+
+### Compression options
+
 Set `RestartInterval` to 1..65535 to insert restart markers after that many
 minimum coded units (MCUs); zero, the default, disables them. MCUs span 8x8 pixels
 for grayscale and 4:4:4, 16x8 for 4:2:2, 16x16 for 4:2:0, 8x16 for 4:4:0,
@@ -133,10 +175,12 @@ byte stuffing and marker output; optional MCU restart intervals with DRI and
 cycling RST markers, including predictor resets during Huffman optimization;
 progressive initial and refinement EOB-run aggregation with optimized Huffman tables;
 optional DC and AC refinement scans with bounded correction-bit storage.
+Raw ICC profile embedding with APP2 chunking, UTF-8 COM comments, and configurable
+JFIF density fields are also implemented.
 
 Pending: other sampling ratios,
-XYB and ICC profiles, higher precision input,
-metadata options, SIMD/parallel paths, and decoder functionality.
+XYB color encoding and built-in profiles or color management, higher precision input,
+Exif/XMP and other metadata, SIMD/parallel paths, and decoder functionality.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
 one eighth of those units. This scaling adaptation is accounted for during
 quantization.
@@ -206,6 +250,13 @@ with baseline output, alongside decoded-pixel, restart, edge, layout and
 cancellation checks.
 Refinement EOB-run regressions also check correction-bit ordering across blocks,
 fixed-buffer flushes, the 32,767-block limit, and restart and scan boundaries.
+
+Metadata regressions independently parse APP0, APP2 and COM segments to check
+network-byte-order density fields, ICC sequence/count bytes, chunk boundaries,
+the 255-chunk profile limit, raw marker payload bytes and UTF-8 comment lengths.
+They also check default byte compatibility, unchanged decoded samples across
+baseline and progressive modes, validation before output, nonseekable streams,
+cancellation between metadata segments and I/O failures.
 
 `Directory.Build.targets` rejects `AllowUnsafeBlocks=true`, including a command
 line override. Library and tests compile with warnings treated as errors.

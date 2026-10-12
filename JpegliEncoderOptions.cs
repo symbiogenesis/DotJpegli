@@ -15,7 +15,7 @@ public sealed record JpegliEncoderOptions
     /// Raw ICC profile bytes to embed in APP2 markers. Empty (the default) omits the profile.
     /// At most 16,707,345 bytes are supported. The profile is neither interpreted nor applied
     /// to the pixels; supply a profile describing the input RGB or grayscale values.
-    /// Keep the underlying memory unchanged until encoding returns.
+    /// Do not change the underlying memory or dispose its owner until encoding returns.
     /// </summary>
     public ReadOnlyMemory<byte> IccProfile { get; init; }
 
@@ -89,7 +89,8 @@ public sealed record JpegliEncoderOptions
             throw new ArgumentOutOfRangeException(nameof(Subsampling));
         if (IccProfile.Length > JpegMarkerWriter.MaxIccProfileBytes)
             throw new ArgumentOutOfRangeException(nameof(IccProfile), "The ICC profile must fit in at most 255 APP2 markers (16,707,345 bytes).");
-        if (Comment is not null && Encoding.UTF8.GetByteCount(Comment) > JpegMarkerWriter.MaxMarkerPayloadBytes)
+        if (Comment is not null && (Comment.Length > JpegMarkerWriter.MaxMarkerPayloadBytes ||
+            Encoding.UTF8.GetByteCount(Comment) > JpegMarkerWriter.MaxMarkerPayloadBytes))
             throw new ArgumentOutOfRangeException(nameof(Comment), "The UTF-8 comment must not exceed 65,533 bytes.");
         if (!Enum.IsDefined(DensityUnit))
             throw new ArgumentOutOfRangeException(nameof(DensityUnit));
