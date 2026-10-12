@@ -49,7 +49,7 @@ internal static class JpegMarkerWriter
     }
 
     public static void WriteScanHeader(Stream output, int componentCount, bool progressive,
-        int acComponent = -1)
+        int acComponent = -1, int successiveHigh = 0, int successiveLow = 0)
     {
         // Progressive DC may be interleaved; AC scans must select one component.
         int scanComponents = acComponent < 0 ? componentCount : 1;
@@ -62,12 +62,14 @@ internal static class JpegMarkerWriter
             output.WriteByte((byte)(component + 1));
             int tableIndex = component == 0 ? 0 : 1;
             // Unused DC/AC selectors are zero in progressive scan headers.
-            output.WriteByte(progressive ? (byte)(acComponent < 0 ? tableIndex << 4 : tableIndex)
-                : (byte)((tableIndex << 4) | tableIndex));
+            int selector = (tableIndex << 4) | tableIndex;
+            if (progressive)
+                selector = acComponent >= 0 ? tableIndex : successiveHigh == 0 ? tableIndex << 4 : 0;
+            output.WriteByte((byte)selector);
         }
         output.WriteByte((byte)(acComponent < 0 ? 0 : 1));
         output.WriteByte((byte)(progressive && acComponent < 0 ? 0 : 63));
-        output.WriteByte(0); // Initial scans at full precision: Ah=Al=0.
+        output.WriteByte((byte)((successiveHigh << 4) | successiveLow));
     }
 
     private static void Huffman(Stream output, HuffmanTable table, int selector)

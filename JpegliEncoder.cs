@@ -82,12 +82,24 @@ public static class JpegliEncoder
             }
             ProcessBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
                 tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
-                null, dcFrequencies, acFrequencies, cancellationToken, dcOnly: options.Progressive);
+                null, dcFrequencies, acFrequencies, cancellationToken, dcOnly: options.Progressive,
+                successiveLow: options.ProgressiveRefinementBits);
             if (options.Progressive)
+            {
                 for (int component = 0; component < componentCount; component++)
                     ProcessAcBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
                         tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers,
-                        component, acTables, null, acFrequencies, cancellationToken, aggregateEobRuns: true);
+                        component, acTables, null, acFrequencies, cancellationToken, aggregateEobRuns: true,
+                        successiveLow: options.ProgressiveRefinementBits);
+                // DC refinement emits raw bits, so only AC refinement contributes
+                // additional symbols to the shared optimized Huffman tables.
+                for (int low = options.ProgressiveRefinementBits - 1; low >= 0; low--)
+                    for (int component = 0; component < componentCount; component++)
+                        ProcessAcBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
+                            tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers,
+                            component, acTables, null, acFrequencies, cancellationToken,
+                            aggregateEobRuns: false, successiveLow: low, refine: true);
+            }
             for (int index = 0; index < dcTables.Length; index++)
             {
                 dcTables[index] = HuffmanTable.CreateOptimized(dcFrequencies[index]);
@@ -106,23 +118,50 @@ public static class JpegliEncoder
         cancellationToken.ThrowIfCancellationRequested();
         JpegMarkerWriter.WriteHeaders(output, width, height, horizontal, vertical, tables, dcTables, acTables,
             options.RestartInterval, options.Progressive);
-        JpegMarkerWriter.WriteScanHeader(output, componentCount, options.Progressive);
+        JpegMarkerWriter.WriteScanHeader(output, componentCount, options.Progressive,
+            successiveLow: options.ProgressiveRefinementBits);
         var bits = new BitWriter(output);
         ProcessBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
             tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
-            bits, null, null, cancellationToken, dcOnly: options.Progressive);
+            bits, null, null, cancellationToken, dcOnly: options.Progressive,
+            successiveLow: options.ProgressiveRefinementBits);
         bits.Flush();
         if (options.Progressive)
+        {
             for (int component = 0; component < componentCount; component++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                JpegMarkerWriter.WriteScanHeader(output, componentCount, true, component);
+                JpegMarkerWriter.WriteScanHeader(output, componentCount, true, component,
+                    successiveLow: options.ProgressiveRefinementBits);
                 ProcessAcBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
                     tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers,
                     component, acTables, bits, null, cancellationToken,
-                    aggregateEobRuns: options.OptimizeHuffmanTables);
+                    aggregateEobRuns: options.OptimizeHuffmanTables,
+                    successiveLow: options.ProgressiveRefinementBits);
                 bits.Flush();
             }
+            for (int low = options.ProgressiveRefinementBits - 1; low >= 0; low--)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                JpegMarkerWriter.WriteScanHeader(output, componentCount, true,
+                    successiveHigh: low + 1, successiveLow: low);
+                ProcessBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
+                    tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
+                    bits, null, null, cancellationToken, dcOnly: true, successiveLow: low, refine: true);
+                bits.Flush();
+                for (int component = 0; component < componentCount; component++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    JpegMarkerWriter.WriteScanHeader(output, componentCount, true, component,
+                        successiveHigh: low + 1, successiveLow: low);
+                    ProcessAcBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
+                        tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers,
+                        component, acTables, bits, null, cancellationToken,
+                        aggregateEobRuns: false, successiveLow: low, refine: true);
+                    bits.Flush();
+                }
+            }
+        }
         output.WriteByte(0xff);
         output.WriteByte(0xd9);
     }
@@ -132,13 +171,15 @@ public static class JpegliEncoder
         float quality, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
-        bool dcOnly = false)
+        bool dcOnly = false, int successiveLow = 0, bool refine = false)
     {
         Span<float> samples = stackalloc float[64];
         Span<float> coefficients = stackalloc float[64];
         Span<short> quantized = stackalloc short[64];
         Span<int> previousDc = stackalloc int[3];
         previousDc.Clear();
+        Span<int> previousScanDc = stackalloc int[3];
+        previousScanDc.Clear();
         float distance = Quantization.QualityToDistance(quality);
         int mcuWidth = horizontal * 8;
         int mcuHeight = vertical * 8;
@@ -158,6 +199,7 @@ public static class JpegliEncoder
                     // same DC categories used after each emitted restart marker.
                     writer?.WriteRestartMarker(restartIndex);
                     previousDc.Clear();
+                    previousScanDc.Clear();
                     restartIndex = (restartIndex + 1) & 7;
                     mcusRemaining = restartInterval;
                 }
@@ -199,12 +241,17 @@ public static class JpegliEncoder
                             int tableIndex = component == 0 ? 0 : 1;
                             if (dcOnly)
                             {
-                                if (writer is null)
+                                if (refine)
+                                    ProgressiveEntropyEncoder.WriteDcRefinement(writer!, quantized, successiveLow);
+                                else if (writer is null)
                                     ProgressiveEntropyEncoder.AccumulateDcFrequencies(quantized,
-                                        ref previousDc[component], dcFrequencies![tableIndex]);
+                                        ref previousScanDc[component], dcFrequencies![tableIndex], successiveLow);
                                 else
                                     ProgressiveEntropyEncoder.WriteDc(writer, quantized,
-                                        ref previousDc[component], dcTables[tableIndex]);
+                                        ref previousScanDc[component], dcTables[tableIndex], successiveLow);
+                                // Dummy blocks and quantization use the full coefficient,
+                                // independently of the initial scan's shifted predictor.
+                                previousDc[component] = quantized[0];
                             }
                             else if (writer is null)
                                 EntropyEncoder.AccumulateFrequencies(quantized, ref previousDc[component],
@@ -225,7 +272,7 @@ public static class JpegliEncoder
         int bytesPerPixel, PixelLayout layout, int horizontal, int vertical, ushort[][] tables,
         float quality, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         int component, HuffmanTable[] acTables, BitWriter? writer, long[][]? acFrequencies,
-        CancellationToken cancellationToken, bool aggregateEobRuns)
+        CancellationToken cancellationToken, bool aggregateEobRuns, int successiveLow = 0, bool refine = false)
     {
         // A noninterleaved scan visits only real component blocks in raster order.
         // In particular, 4:2:0 luma must finish one block row before the next,
@@ -277,10 +324,19 @@ public static class JpegliEncoder
                     grayscale: layout == PixelLayout.Gray8, adaptiveQuantization: adaptive is not null,
                     adaptiveStrength: strength,
                     adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component]);
-                if (writer is null)
-                    ProgressiveEntropyEncoder.AccumulateAcFrequencies(quantized, acFrequencies![tableIndex], ref pendingEobRun);
+                if (refine)
+                {
+                    if (writer is null)
+                        ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(quantized,
+                            acFrequencies![tableIndex], successiveLow);
+                    else
+                        ProgressiveEntropyEncoder.WriteAcRefinement(writer, quantized, acTables[tableIndex], successiveLow);
+                }
+                else if (writer is null)
+                    ProgressiveEntropyEncoder.AccumulateAcFrequencies(quantized, acFrequencies![tableIndex],
+                        ref pendingEobRun, successiveLow);
                 else
-                    ProgressiveEntropyEncoder.WriteAc(writer, quantized, acTables[tableIndex], ref pendingEobRun);
+                    ProgressiveEntropyEncoder.WriteAc(writer, quantized, acTables[tableIndex], ref pendingEobRun, successiveLow);
                 // Annex K default AC tables only contain the one-block EOB
                 // symbol. Aggregated runs use the collected, optimized tables.
                 if (!aggregateEobRuns)

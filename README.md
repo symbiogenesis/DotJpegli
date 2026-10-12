@@ -49,16 +49,24 @@ Set `Progressive = true` to write a progressive JPEG: an initial DC scan provide
 a coarse preview, followed by one full-precision AC scan per component. This
 uses two scans for grayscale and four for color, with the same final quantized
 coefficients as baseline encoding. The default remains baseline sequential JPEG.
-This progressive mode uses spectral selection without successive
-approximation or refinement scans; it does not reproduce
-upstream Jpegli's default scan script or promise smaller files.
+Set `ProgressiveRefinementBits` to 1..10 with `Progressive = true` to deliver
+that many low coefficient bits in later refinement scans. For example,
+`new JpegliEncoderOptions { Progressive = true, ProgressiveRefinementBits = 2 }`
+writes initial scans with two bits deferred, then two rounds of DC and component
+AC refinement. With `N` refinement bits this produces `2 * (N + 1)` grayscale scans
+or `4 * (N + 1)` color scans, preserving the final quantized coefficients and pixels.
+The default, zero, keeps the original full-precision initial scans. More refinement
+rounds require more encoding passes and CPU time. This scan script does not reproduce
+upstream Jpegli's default script or promise smaller files.
 
-With `OptimizeHuffmanTables = true` (the default), progressive AC scans combine
+With `OptimizeHuffmanTables = true` (the default), initial progressive AC scans combine
 trailing zero coefficients across consecutive blocks into end-of-block (EOB)
 runs, up to 32,767 blocks per run. Runs finish before nonzero AC coefficients,
 restart markers and scan boundaries. With optimization disabled, the standard
 Huffman tables use only single-block EOB symbols. Aggregation changes the entropy coding,
-preserving the quantized coefficients and decoded pixels.
+preserving the quantized coefficients and decoded pixels. AC refinement scans
+emit one-block EOB symbols and their correction bits, even with optimized tables;
+they retain at most one block's correction bits. DC refinement uses raw bits.
 
 In progressive AC scans, a single component block counts as one MCU, so
 `RestartInterval` can produce more markers than in the DC scan. Restart counting
@@ -77,12 +85,12 @@ Keep the input unchanged until encoding returns. The byte-array overload also
 holds the encoded JPEG in memory; use the stream overload for larger outputs.
 Progressive encoding recomputes blocks in each scan's traversal order, using
 additional passes and CPU time to retain bounded working memory. Optimized
-progressive output collects frequencies from the same DC and AC scans before
+progressive output collects frequencies from the initial DC and all AC scans before
 writing them. Neither mode retains an image-sized coefficient buffer.
 
 ## Port status
 
-Implemented: baseline sequential and optional spectral-selection progressive
+Implemented: baseline sequential and optional spectral-selection and successive-approximation progressive
 JPEG/JFIF; RGB and grayscale input; 4:4:4,
 4:2:2 and 4:2:0 upstream scalar box sampling with edge replication and empty
 dummy-block coding that preserves DC predictors at MCU edges; recursive scalar DCT; Jpegli
@@ -92,10 +100,10 @@ gamma modulation, quality dampening and frequency-specific coefficient threshold
 optimized length-limited canonical Huffman coding;
 byte stuffing and marker output; optional MCU restart intervals with DRI and
 cycling RST markers, including predictor resets during Huffman optimization;
-progressive EOB-run aggregation with optimized Huffman tables.
+initial progressive EOB-run aggregation with optimized Huffman tables;
+optional DC and AC refinement scans with bounded correction-bit storage.
 
-Pending: progressive refinement scans, optional input
-smoothing and other sampling ratios,
+Pending: refinement EOB-run aggregation, optional input smoothing and other sampling ratios,
 XYB and ICC profiles, higher precision input,
 metadata options, SIMD/parallel paths, and decoder functionality.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
@@ -146,6 +154,13 @@ padding, as well as cancellation during later scans and padded input layouts.
 EOB-run regressions check run-length extension bits, the 32,767-block limit,
 flat-image aggregation and run termination at restart and scan boundaries.
 The scan rules follow [ITU T.81, Annex G](https://www.w3.org/Graphics/JPEG/itu-t81.pdf).
+
+Refinement regressions check initial point transforms and later bit planes,
+including negative DC coefficients, AC sign bits, correction-bit order around
+ZRL and EOB symbols, and optimized frequency collection. An independent scan
+parser reconstructs coefficients across refinement rounds and compares them
+with baseline output, alongside decoded-pixel, restart, edge, layout and
+cancellation checks.
 
 `Directory.Build.targets` rejects `AllowUnsafeBlocks=true`, including a command
 line override. Library and tests compile with warnings treated as errors.

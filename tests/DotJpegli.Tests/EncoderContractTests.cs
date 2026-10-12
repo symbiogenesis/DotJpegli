@@ -54,6 +54,36 @@ public sealed class EncoderContractTests
         Assert.Equal(0, stream.Length);
     }
 
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(11)]
+    [InlineData(int.MinValue)]
+    [InlineData(int.MaxValue)]
+    public void InvalidProgressiveRefinementBitsWriteNoOutput(int bits)
+    {
+        using var stream = new MemoryStream();
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            JpegliEncoder.Encode(stream, new byte[3], 1, 1,
+                options: new() { Progressive = true, ProgressiveRefinementBits = bits },
+                cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal(nameof(JpegliEncoderOptions.ProgressiveRefinementBits), error.ParamName);
+        Assert.Equal(0, stream.Length);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(10)]
+    public void RefinementRequiresProgressiveEncodingBeforeWriting(int bits)
+    {
+        using var stream = new MemoryStream();
+        var error = Assert.Throws<ArgumentException>(() =>
+            JpegliEncoder.Encode(stream, new byte[3], 1, 1,
+                options: new() { ProgressiveRefinementBits = bits },
+                cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal(nameof(JpegliEncoderOptions.ProgressiveRefinementBits), error.ParamName);
+        Assert.Equal(0, stream.Length);
+    }
+
     [Fact]
     public void EncoderLeavesNonSeekableStreamOpen()
     {

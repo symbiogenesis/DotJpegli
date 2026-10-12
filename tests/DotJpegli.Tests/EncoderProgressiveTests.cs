@@ -269,16 +269,18 @@ public sealed class EncoderProgressiveTests
                 cancellationToken: TestContext.Current.CancellationToken));
     }
 
-    private static byte[] Encode(byte[] pixels, int width, int height, PixelLayout layout, JpegliEncoderOptions options) =>
+    internal static byte[] Encode(byte[] pixels, int width, int height, PixelLayout layout, JpegliEncoderOptions options) =>
         JpegliEncoder.Encode(pixels, width, height, layout, options,
             cancellationToken: TestContext.Current.CancellationToken);
 
-    private static void AssertBaselineParity(byte[] baseline, JpegDocument reference,
+    internal static void AssertBaselineParity(byte[] baseline, JpegDocument reference,
         byte[] progressive, JpegDocument actual, PixelLayout layout)
     {
         Assert.Equal(reference.Width, actual.Width);
         Assert.Equal(reference.Height, actual.Height);
         Assert.Equal(reference.Components, actual.Components);
+        foreach ((int selector, byte[] quantizer) in reference.Quantizers)
+            Assert.Equal(quantizer, actual.Quantizers[selector]);
         Assert.Equal(reference.Blocks.Count, actual.Blocks.Count);
         foreach ((BlockKey key, Block block) in reference.Blocks.Where(pair => !pair.Value.IsDummy))
             Assert.Equal(block.Coefficients, actual.Blocks[key].Coefficients);
@@ -287,7 +289,7 @@ public sealed class EncoderProgressiveTests
             ImageResult.FromMemory(progressive, channels).Data);
     }
 
-    private static byte[] FlatPixels(int width, int height, PixelLayout layout)
+    internal static byte[] FlatPixels(int width, int height, PixelLayout layout)
     {
         int channels = layout == PixelLayout.Gray8 ? 1 : 3;
         byte[] pixels = new byte[width * height * channels];
@@ -297,7 +299,7 @@ public sealed class EncoderProgressiveTests
         return pixels;
     }
 
-    private static byte[] Pattern(int width, int height, PixelLayout layout)
+    internal static byte[] Pattern(int width, int height, PixelLayout layout)
     {
         int channels = layout == PixelLayout.Gray8 ? 1 : 3;
         byte[] pixels = new byte[width * height * channels];
@@ -309,12 +311,12 @@ public sealed class EncoderProgressiveTests
         return pixels;
     }
 
-    private sealed record Component(int H, int V, int Quantizer);
-    private sealed record BlockKey(int Component, int X, int Y);
-    private sealed record Block(bool IsDummy, int DcDifference, int[] Coefficients);
-    private sealed record Selector(int Component, int Dc, int Ac);
+    internal sealed record Component(int H, int V, int Quantizer);
+    internal sealed record BlockKey(int Component, int X, int Y);
+    internal sealed record Block(bool IsDummy, int DcDifference, int[] Coefficients);
+    internal sealed record Selector(int Component, int Dc, int Ac);
     private sealed record EntropySegment(byte[] Bytes, int Terminator);
-    private sealed record Scan(List<Selector> Selectors, int First, int Last, int DataStart)
+    internal sealed record Scan(List<Selector> Selectors, int First, int Last, int High, int Low, int DataStart)
     {
         public List<int> EobRuns { get; } = [];
     }
@@ -322,11 +324,12 @@ public sealed class EncoderProgressiveTests
     // This reader reconstructs the quantized coefficients using only the emitted
     // marker definitions and canonical Huffman codes. It uses no encoder helpers,
     // including the encoder's block traversal, scan or restart implementation.
-    private sealed record JpegDocument(int Width, int Height, int McuCount,
+    internal sealed record JpegDocument(int Width, int Height, int McuCount,
         Dictionary<int, Component> Components, Dictionary<int, byte[]> Quantizers,
         Dictionary<BlockKey, Block> Blocks, List<Scan> Scans)
     {
-        public static JpegDocument Read(byte[] jpeg, bool progressive, int expectedInterval)
+        public static JpegDocument Read(byte[] jpeg, bool progressive, int expectedInterval,
+            int expectedRefinementBits = 0)
         {
             Assert.Equal(new byte[] { 0xff, 0xd8 }, jpeg[..2]);
             int position = 2, width = 0, height = 0, frameCount = 0, driCount = 0;
@@ -411,21 +414,30 @@ public sealed class EncoderProgressiveTests
                             selectors.Add(new(component, selector >> 4, 0x10 | (selector & 15)));
                         }
                         int first = jpeg[position++], last = jpeg[position++];
-                        Assert.Equal(0, jpeg[position++]); // Initial scans only, without successive approximation.
+                        int approximation = jpeg[position++];
+                        int high = approximation >> 4, low = approximation & 15;
                         Assert.Equal(end, position);
-                        var scan = new Scan(selectors, first, last, end);
-                        if (!progressive || scans.Count == 0)
+                        var scan = new Scan(selectors, first, last, high, low, end);
+                        int cycle = progressive ? scans.Count / (components.Count + 1) : 0;
+                        int band = progressive ? scans.Count % (components.Count + 1) : 0;
+                        Assert.Equal(cycle == 0 ? 0 : expectedRefinementBits - cycle + 1, high);
+                        Assert.Equal(progressive ? expectedRefinementBits - cycle : 0, low);
+                        if (band == 0)
                         {
                             Assert.Equal(components.Keys, selectors.Select(selector => selector.Component));
                             Assert.Equal(0, first);
                             Assert.Equal(progressive ? 0 : 63, last);
                             if (progressive)
+                            {
                                 Assert.All(selectors, selector => Assert.Equal(0x10, selector.Ac));
+                                if (high != 0)
+                                    Assert.All(selectors, selector => Assert.Equal(0, selector.Dc));
+                            }
                         }
                         else
                         {
                             Selector selector = Assert.Single(selectors);
-                            Assert.Equal(components.Keys.ElementAt(scans.Count - 1), selector.Component);
+                            Assert.Equal(components.Keys.ElementAt(band - 1), selector.Component);
                             Assert.Equal(1, first);
                             Assert.Equal(63, last);
                             Assert.Equal(0, selector.Dc);
@@ -440,7 +452,7 @@ public sealed class EncoderProgressiveTests
             }
             Assert.Equal(1, frameCount);
             Assert.Equal(expectedInterval == 0 ? 0 : 1, driCount);
-            Assert.Equal(progressive ? components.Count + 1 : 1, scans.Count);
+            Assert.Equal(progressive ? (components.Count + 1) * (expectedRefinementBits + 1) : 1, scans.Count);
             Assert.Equal(blocks.Count(pair => !pair.Value.IsDummy), acBlocks.Count);
             Assert.Equal(components.Count, quantizers.Count);
             int maxH = components.Values.Max(component => component.H);
@@ -516,24 +528,34 @@ public sealed class EncoderProgressiveTests
                                 var key = new BlockKey(selector.Component, blockX, blockY);
                                 bool dummy = blockX >= Ceiling(width * component.H, 8 * maxH)
                                     || blockY >= Ceiling(height * component.V, 8 * maxV);
-                                if (dcScan)
+                                if (dcScan && scan.High == 0)
                                 {
                                     int difference = reader.SignedValue(reader.Symbol(tables[selector.Dc]));
                                     previousDc[selector.Component] += difference;
                                     int[] coefficients = new int[64];
-                                    coefficients[0] = previousDc[selector.Component];
+                                    coefficients[0] = previousDc[selector.Component] << scan.Low;
                                     Assert.True(blocks.TryAdd(key, new(dummy, difference, coefficients)));
                                     if (dummy)
                                         Assert.Equal(0, difference);
                                 }
+                                else if (dcScan)
+                                {
+                                    // DC approximation uses two's complement: a refinement bit
+                                    // moves a negative value toward zero, unlike AC magnitudes.
+                                    blocks[key].Coefficients[0] |= reader.UnsignedValue(1) << scan.Low;
+                                }
                                 if (!dcScan || !progressive)
                                 {
                                     Block block = blocks[key];
-                                    ReadAc(reader, tables[selector.Ac], block.Coefficients,
-                                        progressive, scan.EobRuns, ref remainingEobBlocks);
+                                    if (scan.High == 0)
+                                        ReadAc(reader, tables[selector.Ac], block.Coefficients,
+                                            progressive, scan.Low, scan.EobRuns, ref remainingEobBlocks);
+                                    else
+                                        ReadAcRefinement(reader, tables[selector.Ac], block.Coefficients,
+                                            scan.Low, scan.EobRuns, ref remainingEobBlocks);
                                     if (dummy)
                                         Assert.All(block.Coefficients[1..], coefficient => Assert.Equal(0, coefficient));
-                                    else
+                                    else if (scan.High == 0)
                                         Assert.True(acBlocks.Add(key));
                                 }
                             }
@@ -547,7 +569,7 @@ public sealed class EncoderProgressiveTests
         }
 
         private static void ReadAc(EntropyBits reader, Dictionary<int, int> table, int[] coefficients,
-            bool progressive, List<int> eobRuns, ref int remainingEobBlocks)
+            bool progressive, int low, List<int> eobRuns, ref int remainingEobBlocks)
         {
             if (remainingEobBlocks > 0)
             {
@@ -583,8 +605,71 @@ public sealed class EncoderProgressiveTests
                 Assert.InRange(coefficient, 1, 63);
                 int value = reader.SignedValue(symbol & 15);
                 Assert.NotEqual(0, value);
-                coefficients[coefficient++] = value;
+                coefficients[coefficient++] = value << low;
             }
+        }
+
+        // ITU-T T.81 Annex G: runs count only coefficients still equal to zero.
+        // Each already significant coefficient consumes a correction bit, while
+        // a newly significant coefficient consumes a sign bit before that run.
+        private static void ReadAcRefinement(EntropyBits reader, Dictionary<int, int> table,
+            int[] coefficients, int low, List<int> eobRuns, ref int remainingEobBlocks)
+        {
+            int coefficient = 1;
+            if (remainingEobBlocks == 0)
+                while (coefficient < 64)
+                {
+                    int symbol = reader.Symbol(table), run = symbol >> 4, size = symbol & 15;
+                    Assert.InRange(size, 0, 1);
+                    if (size == 0 && run != 15)
+                    {
+                        remainingEobBlocks = (1 << run) + reader.UnsignedValue(run);
+                        eobRuns.Add(remainingEobBlocks);
+                        break;
+                    }
+                    int newValue = size == 0 ? 0 : (reader.UnsignedValue(1) == 1 ? 1 : -1) << low;
+                    int zeros = size == 0 ? 16 : run;
+                    bool inserted = false;
+                    while (coefficient < 64)
+                    {
+                        if (coefficients[coefficient] != 0)
+                            CorrectAc(reader, coefficients, coefficient, low);
+                        else if (zeros != 0)
+                        {
+                            zeros--;
+                            if (size == 0 && zeros == 0)
+                            {
+                                coefficient++;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            Assert.Equal(1, size);
+                            coefficients[coefficient++] = newValue;
+                            inserted = true;
+                            break;
+                        }
+                        coefficient++;
+                    }
+                    Assert.Equal(0, zeros);
+                    Assert.Equal(size == 1, inserted);
+                }
+            if (remainingEobBlocks > 0)
+            {
+                for (; coefficient < 64; coefficient++)
+                    if (coefficients[coefficient] != 0)
+                        CorrectAc(reader, coefficients, coefficient, low);
+                remainingEobBlocks--;
+            }
+        }
+
+        private static void CorrectAc(EntropyBits reader, int[] coefficients, int coefficient, int low)
+        {
+            int bit = 1 << low;
+            Assert.Equal(0, Math.Abs(coefficients[coefficient]) & bit);
+            if (reader.UnsignedValue(1) != 0)
+                coefficients[coefficient] += coefficients[coefficient] > 0 ? bit : -bit;
         }
 
         private static int Word(byte[] bytes, int position) => bytes[position] * 256 + bytes[position + 1];
@@ -637,7 +722,7 @@ public sealed class EncoderProgressiveTests
         }
     }
 
-    private sealed class WriteOnlyStream(Stream inner, Action? onWrite = null) : Stream
+    internal sealed class WriteOnlyStream(Stream inner, Action? onWrite = null) : Stream
     {
         public bool Closed { get; private set; }
         public override bool CanRead => false;
