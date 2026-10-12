@@ -76,6 +76,7 @@ public sealed class AdaptiveQuantizationTests
     [Theory]
     [InlineData(1)]
     [InlineData(2)]
+    [InlineData(4)]
     public void EdgePaddingMatchesExplicitlyReplicatedImage(int sampling)
     {
         const int width = 19, height = 23, paddedWidth = 24;
@@ -90,6 +91,23 @@ public sealed class AdaptiveQuantizationTests
         float[] explicitPadding = Analyze(new AdaptiveQuantization(paddedWidth, paddedHeight, sampling),
             padded, paddedWidth, paddedHeight, paddedWidth, sampling, 4);
         Assert.Equal(explicitPadding, actual);
+    }
+
+    [Theory]
+    [InlineData(23, 4)]
+    [InlineData(53, 4)]
+    [InlineData(64, 18)]
+    public void FourBlockMcuRowsPreserveSpatialFieldAcrossRowSeams(int height, int quant)
+    {
+        // Identical padded height gives the two traversals the same complete
+        // image neighborhood. This checks all four output rows and their seams.
+        const int width = 19;
+        byte[] source = CreateMixedImage(width, height, width);
+        float[] twoRows = Analyze(new AdaptiveQuantization(width, height, 2),
+            source, width, height, width, 2, quant);
+        float[] fourRows = Analyze(new AdaptiveQuantization(width, height, 4),
+            source, width, height, width, 4, quant);
+        Assert.Equal(twoRows, fourRows);
     }
 
     [Theory]

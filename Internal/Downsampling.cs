@@ -3,8 +3,8 @@
 
 namespace DotJpegli.Internal;
 
-// Scalar adaptation of DownsampleRow2x1, Downsample1x2, DownsampleRow4x1,
-// Downsample2x2 and ApplyInputSmoothing in
+// Scalar adaptation of the horizontal 2/3/4 and vertical 2/4 downsampling
+// methods and ApplyInputSmoothing in
 // google/jpegli lib/jpegli/downsample.cc, and PadInputBuffer in encode.cc,
 // revision 031a0077f5799a6041004267fc12b956c1f52a20.
 // Reading and converting edge pixels on demand is equivalent to padding the
@@ -29,46 +29,65 @@ internal static class Downsampling
             for (int column = 0; column < 8; column++)
             {
                 int x = left + column * sampleWidth;
-                float sample = ReadSample(pixels, width, height, stride, component, x, y,
-                    neighborWeight, centerWeight);
-                if (sampleWidth == 2)
+                float sample;
+                if (sampleWidth == 2 && sampleHeight == 2)
                 {
+                    float first = ReadSample(pixels, width, height, stride, component, x, y,
+                        neighborWeight, centerWeight);
                     float right = ReadSample(pixels, width, height, stride, component, x + 1, y,
                         neighborWeight, centerWeight);
-                    if (sampleHeight == 2)
-                    {
-                        float bottom = ReadSample(pixels, width, height, stride, component, x, y + 1,
-                            neighborWeight, centerWeight);
-                        float bottomRight = ReadSample(pixels, width, height, stride, component, x + 1, y + 1,
-                            neighborWeight, centerWeight);
-                        // Preserve upstream's pairwise addition before scaling.
-                        sample = ((sample + right) + (bottom + bottomRight)) * 0.25f;
-                    }
-                    else
-                    {
-                        sample = (sample + right) * 0.5f;
-                    }
-                }
-                else if (sampleWidth == 4)
-                {
-                    float second = ReadSample(pixels, width, height, stride, component, x + 1, y,
-                        neighborWeight, centerWeight);
-                    float third = ReadSample(pixels, width, height, stride, component, x + 2, y,
-                        neighborWeight, centerWeight);
-                    float fourth = ReadSample(pixels, width, height, stride, component, x + 3, y,
-                        neighborWeight, centerWeight);
-                    // DownsampleRow4x1 also adds pairs before scaling.
-                    sample = ((sample + second) + (third + fourth)) * 0.25f;
-                }
-                else if (sampleHeight == 2)
-                {
                     float bottom = ReadSample(pixels, width, height, stride, component, x, y + 1,
                         neighborWeight, centerWeight);
-                    sample = (sample + bottom) * 0.5f;
+                    float bottomRight = ReadSample(pixels, width, height, stride, component, x + 1, y + 1,
+                        neighborWeight, centerWeight);
+                    // Downsample2x2 scales only once, after summing both row pairs.
+                    sample = ((first + right) + (bottom + bottomRight)) * 0.25f;
+                }
+                else
+                {
+                    // Other combined methods first downsample each row, then
+                    // average vertically. Preserve those intermediate roundings.
+                    sample = ReadRowSample(pixels, width, height, stride, component, x, y,
+                        sampleWidth, neighborWeight, centerWeight);
+                    if (sampleHeight != 1)
+                    {
+                        float second = ReadRowSample(pixels, width, height, stride, component, x, y + 1,
+                            sampleWidth, neighborWeight, centerWeight);
+                        if (sampleHeight == 2)
+                            sample = (sample + second) * 0.5f;
+                        else
+                        {
+                            float third = ReadRowSample(pixels, width, height, stride, component, x, y + 2,
+                                sampleWidth, neighborWeight, centerWeight);
+                            float fourth = ReadRowSample(pixels, width, height, stride, component, x, y + 3,
+                                sampleWidth, neighborWeight, centerWeight);
+                            sample = ((sample + second) + (third + fourth)) * 0.25f;
+                        }
+                    }
                 }
                 samples[row * 8 + column] = sample - 128f;
             }
         }
+    }
+
+    private static float ReadRowSample(PixelSource pixels, int width, int height, int stride,
+        int component, int x, int y, int sampleWidth, float neighborWeight, float centerWeight)
+    {
+        float first = ReadSample(pixels, width, height, stride, component, x, y,
+            neighborWeight, centerWeight);
+        if (sampleWidth == 1)
+            return first;
+        float second = ReadSample(pixels, width, height, stride, component, x + 1, y,
+            neighborWeight, centerWeight);
+        if (sampleWidth == 2)
+            return (first + second) * 0.5f;
+        float third = ReadSample(pixels, width, height, stride, component, x + 2, y,
+            neighborWeight, centerWeight);
+        if (sampleWidth == 3)
+            return ((first + second) + third) * (1f / 3f);
+        float fourth = ReadSample(pixels, width, height, stride, component, x + 3, y,
+            neighborWeight, centerWeight);
+        return ((first + second) + (third + fourth)) * 0.25f;
     }
 
     private static float ReadSample(PixelSource pixels, int width, int height, int stride,

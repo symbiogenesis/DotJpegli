@@ -9,6 +9,7 @@ public sealed record JpegliEncoderOptions
     /// <summary>Jpegli quality, from 0 to 100. This is not the libjpeg quality scale.</summary>
     public float Quality { get; init; } = 85;
 
+    /// <summary>Chroma sample area relative to luma. Defaults to 4:2:0 (2x2).</summary>
     public ChromaSubsampling Subsampling { get; init; } = ChromaSubsampling.Quarter;
 
     /// <summary>
@@ -90,8 +91,8 @@ public sealed record JpegliEncoderOptions
     /// <summary>
     /// Number of minimum coded units (MCUs) between restart markers, from 0 to 65535.
     /// Zero disables restart markers. An MCU is 8x8 pixels for grayscale or 4:4:4,
-    /// 16x8 for 4:2:2, 16x16 for 4:2:0, 8x16 for 4:4:0, and 32x8 for 4:1:1,
-    /// including partial edge units.
+    /// otherwise eight times the horizontal and vertical chroma sample area dimensions,
+    /// including partial edge units. For example, 4:2:0 uses 16x16 and 4:1:0 uses 32x16.
     /// In progressive AC scans, each component block is one MCU. The interval
     /// and restart marker sequence start afresh in every scan.
     /// </summary>

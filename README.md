@@ -41,11 +41,19 @@ allowed.
 | `Quarter` (default) | 4:2:0 | 2x2 pixels | 16x16 pixels |
 | `HalfVertical` | 4:4:0 | 1x2 pixels | 8x16 pixels |
 | `QuarterHorizontal` | 4:1:1 | 4x1 pixels | 32x8 pixels |
+| `ThirdHorizontal` | — | 3x1 pixels | 24x8 pixels |
+| `ThirdHorizontalHalfVertical` | — | 3x2 pixels | 24x16 pixels |
+| `QuarterVertical` | — | 1x4 pixels | 8x32 pixels |
+| `QuarterHorizontalHalfVertical` | 4:1:0 | 4x2 pixels | 32x16 pixels |
+| `HalfHorizontalQuarterVertical` | — | 2x4 pixels | 16x32 pixels |
 
 Grayscale always uses one sample per pixel and 8x8 MCUs. All color modes use
 upstream scalar box averaging after optional smoothing, with replicated image
 edges. Only 4:2:0 applies upstream's specialized quantization-table compensation;
-4:4:0 and 4:1:1 use the same perceptual tables as 4:4:4 and 4:2:2.
+all other modes use the same perceptual tables as 4:4:4 and 4:2:2.
+The less common modes are identified by their sample areas where the usual
+4:a:b notation is ambiguous. Color MCUs contain at most ten blocks, including
+the two chroma blocks. Some image viewers may support only common sampling ratios.
 
 The stream overload takes a writable stream as its first argument. It leaves
 the stream open and does not seek. Cancellation and I/O failures may leave a
@@ -162,8 +170,9 @@ I/O failure during metadata output can leave a partial JPEG and leaves the strea
 
 Set `RestartInterval` to 1..65535 to insert restart markers after that many
 minimum coded units (MCUs); zero, the default, disables them. MCUs span 8x8 pixels
-for grayscale and 4:4:4, 16x8 for 4:2:2, 16x16 for 4:2:0, 8x16 for 4:4:0,
-and 32x8 for 4:1:1. Partial edge MCUs
+for grayscale and 4:4:4; for other color modes, multiply each chroma sample area
+dimension in the table above by eight. For example, 4:1:0 uses 32x16 pixels.
+Partial edge MCUs
 count toward the interval, which can cross row boundaries. Restart markers
 reset DC prediction and align the entropy stream between intervals, adding a
 small amount of output overhead without changing the decoded image. For example,
@@ -230,7 +239,8 @@ writing them. Neither mode retains an image-sized coefficient buffer.
 
 Implemented: baseline sequential and optional spectral-selection and successive-approximation progressive
 JPEG/JFIF; RGB and grayscale input; 4:4:4,
-4:2:2, 4:2:0, 4:4:0 and 4:1:1 upstream scalar box sampling with edge replication and empty
+4:2:2, 4:2:0, 4:4:0, 4:1:1 and 4:1:0, plus 3x1, 3x2, 1x4 and 2x4 chroma
+sample areas, using upstream scalar box sampling with edge replication and empty
 dummy-block coding that preserves DC predictors at MCU edges; optional upstream
 3x3 input smoothing before sampling; recursive scalar DCT; Jpegli
 quality-to-distance and perceptual Y/Cb/Cr quantization tables; scalar adaptive
@@ -247,7 +257,7 @@ also implemented.
 Gamma-encoded 16-bit and normalized floating-point RGB and grayscale input are
 supported with fractional samples preserved through quantization.
 
-Pending: other sampling ratios,
+Pending: three-row and custom per-component sampling ratios,
 XYB color encoding and built-in profiles or color management, out-of-gamut float input,
 extended XMP, structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.
