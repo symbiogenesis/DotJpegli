@@ -26,7 +26,7 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 File.WriteAllBytes("output.jpg", jpeg);
 ```
 
-`PixelLayout` also supports BGR24, RGBA32, BGRA32 and Gray8. Alpha is ignored;
+`PixelLayout` also supports BGR24, RGBA32, BGRA32, Gray8 and YCbCr24. Alpha is ignored;
 composite translucent pixels before encoding. Use `stride` for row padding. The
 last row needs only its pixel bytes, without trailing padding. Negative strides
 are not supported. The input must contain every row; extra trailing bytes are
@@ -115,8 +115,9 @@ must be 1..65535 and fit `MaxPixels` (100 million by default).
 ### Higher-precision input
 
 The `ReadOnlySpan<ushort>` and `ReadOnlySpan<float>` overloads accept interleaved
-gamma-encoded samples, using `PixelComponentLayout.Rgb`, `Bgr`, `Rgba`, `Bgra` or
-`Gray`. The default is `Rgb`. For these overloads, `stride` counts source elements,
+gamma-encoded RGB/grayscale samples, using `PixelComponentLayout.Rgb`, `Bgr`, `Rgba`,
+`Bgra` or `Gray`. They also accept full-range JPEG YCbCr samples using `YCbCr`, as
+described [below](#direct-ycbcr-input). The default is `Rgb`. For these overloads, `stride` counts source elements,
 not bytes; zero means tightly packed rows. The final row needs only its pixel
 elements. Alpha, row padding and extra trailing elements are ignored.
 
@@ -150,6 +151,37 @@ lossless encoding. Stream behavior, cancellation, pixel limits and source lifeti
 requirements are the same as for byte input. Samples are read on demand with
 bounded working storage; no full-image conversion buffer is allocated. Float
 validation adds one input pass, with cancellation checks between rows.
+
+### Direct YCbCr input
+
+Use `PixelLayout.YCbCr24` for eight-bit samples or `PixelComponentLayout.YCbCr`
+for 16-bit and float samples already in JPEG's full-range, BT.601-derived YCbCr
+space. Supply three interleaved values per pixel in Y, Cb, Cr order, with all
+components at the full image resolution. The encoder scales the source values
+as above and passes them directly to smoothing, sampling and the DCT, without
+an RGB conversion, following the pinned upstream's `JCS_YCbCr` input path.
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(ycbcrPixels, width, height,
+    PixelLayout.YCbCr24, options: new() { Subsampling = ChromaSubsampling.None });
+```
+
+Byte samples span 0..255, with neutral chroma at 128. Sixteen-bit samples span
+0..65535, with neutral chroma at 32896 (`128 * 257`). Float samples must be
+finite and in 0..1, with neutral chroma at `128f / 255f`; normalized 0.5 is not
+the exact neutral value. Fractional precision is retained until quantization.
+These inputs use JPEG's full-range component values, not limited-range video
+levels; convert video ranges and other YCbCr matrices before encoding.
+
+This input is neither planar nor already subsampled (for example, NV12, YUV420
+or YUY2). `Subsampling` and `SamplingFactors` still select the output sampling;
+the default averages chroma over 2x2 pixels. Select `None`, as above, to retain
+full-resolution chroma. Adaptive quantization analyzes the supplied Y values
+before smoothing and disables itself for subsampled luma as usual. Stride,
+pixel limits, float validation, metadata, scan modes and stream behavior have
+the same contracts as the other interleaved layouts. An attached ICC profile
+should describe the RGB interpretation of the output; the encoder neither
+applies a profile transform nor embeds a YCbCr ICC profile automatically.
 
 ### Profiles and metadata
 
@@ -338,7 +370,7 @@ writing them. Neither mode retains an image-sized coefficient buffer.
 ## Port status
 
 Implemented: baseline sequential and optional spectral-selection and successive-approximation progressive
-JPEG/JFIF; RGB and grayscale input; 4:4:4,
+JPEG/JFIF; RGB, grayscale and direct interleaved full-range YCbCr input; 4:4:4,
 4:2:2, 4:2:0, 4:4:0, 4:1:1 and 4:1:0, plus 3x1, 3x2, 1x4, 2x4, 1x3 and 2x3 chroma
 sample areas, using upstream scalar box sampling with edge replication and empty
 dummy-block coding that preserves DC predictors at MCU edges; optional upstream
@@ -356,6 +388,7 @@ with APP2 chunking, UTF-8 COM comments, and configurable JFIF density fields are
 also implemented.
 Gamma-encoded 16-bit and normalized floating-point RGB and grayscale input are
 supported with fractional samples preserved through quantization.
+Direct YCbCr input supports the same three source precisions and downstream options.
 Custom per-component sampling factors support different Cb and Cr resolutions,
 integer sample areas including subsampled luma, and at most ten blocks per MCU.
 
@@ -499,6 +532,12 @@ encoder, and compare baseline and progressive coefficients and decoded pixels.
 They cover color and grayscale layouts, element strides, alpha and padding,
 smoothing, sampling, adaptive and Huffman modes, restarts, stream behavior, and
 float validation before output.
+
+Direct YCbCr regressions use independent all-component constant-block DC and
+smoothed box-average/cosine-DCT oracles, including custom sampling, subsampled
+luma and odd edges. They check 16-bit byte compatibility, fractional samples,
+padded strides, validation before output, and coefficient and decoded-pixel
+parity across scan, Huffman and restart modes.
 
 `Directory.Build.targets` rejects `AllowUnsafeBlocks=true`, including a command
 line override. Library and tests compile with warnings treated as errors.

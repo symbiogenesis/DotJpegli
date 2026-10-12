@@ -11,6 +11,7 @@ internal readonly ref struct PixelSource
     private readonly ReadOnlySpan<float> floats;
     private readonly SourceType sourceType;
     private readonly bool bgr;
+    private readonly bool ycbcr;
 
     internal PixelSource(ReadOnlySpan<byte> pixels, PixelLayout layout)
     {
@@ -18,12 +19,13 @@ internal readonly ref struct PixelSource
         sourceType = SourceType.Byte;
         ComponentsPerPixel = layout switch
         {
-            PixelLayout.Rgb24 or PixelLayout.Bgr24 => 3,
+            PixelLayout.Rgb24 or PixelLayout.Bgr24 or PixelLayout.YCbCr24 => 3,
             PixelLayout.Rgba32 or PixelLayout.Bgra32 => 4,
             PixelLayout.Gray8 => 1,
             _ => throw new ArgumentOutOfRangeException(nameof(layout))
         };
         bgr = layout is PixelLayout.Bgr24 or PixelLayout.Bgra32;
+        ycbcr = layout == PixelLayout.YCbCr24;
     }
 
     internal PixelSource(ReadOnlySpan<ushort> pixels, PixelComponentLayout layout)
@@ -32,6 +34,7 @@ internal readonly ref struct PixelSource
         sourceType = SourceType.UInt16;
         ComponentsPerPixel = GetComponentCount(layout);
         bgr = layout is PixelComponentLayout.Bgr or PixelComponentLayout.Bgra;
+        ycbcr = layout == PixelComponentLayout.YCbCr;
     }
 
     internal PixelSource(ReadOnlySpan<float> pixels, PixelComponentLayout layout)
@@ -40,6 +43,7 @@ internal readonly ref struct PixelSource
         sourceType = SourceType.Float;
         ComponentsPerPixel = GetComponentCount(layout);
         bgr = layout is PixelComponentLayout.Bgr or PixelComponentLayout.Bgra;
+        ycbcr = layout == PixelComponentLayout.YCbCr;
     }
 
     internal int ComponentsPerPixel { get; }
@@ -80,6 +84,11 @@ internal readonly ref struct PixelSource
     {
         if (IsGrayscale)
             return ReadComponent(offset);
+        // ChooseColorTransform in the pinned upstream uses NullTransform when
+        // both input and output are JCS_YCbCr. Read the supplied component after
+        // the same input scaling; smoothing and subsampling still follow below.
+        if (ycbcr)
+            return ReadComponent(offset + component);
 
         float r = ReadComponent(offset + (bgr ? 2 : 0));
         float g = ReadComponent(offset + 1);
@@ -100,7 +109,7 @@ internal readonly ref struct PixelSource
 
     private static int GetComponentCount(PixelComponentLayout layout) => layout switch
     {
-        PixelComponentLayout.Rgb or PixelComponentLayout.Bgr => 3,
+        PixelComponentLayout.Rgb or PixelComponentLayout.Bgr or PixelComponentLayout.YCbCr => 3,
         PixelComponentLayout.Rgba or PixelComponentLayout.Bgra => 4,
         PixelComponentLayout.Gray => 1,
         _ => throw new ArgumentOutOfRangeException(nameof(layout))

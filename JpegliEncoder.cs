@@ -3,7 +3,8 @@ using DotJpegli.Internal;
 namespace DotJpegli;
 
 /// <summary>
-/// Encodes byte, 16-bit or normalized floating-point pixels to eight-bit baseline or progressive JPEG.
+/// Encodes byte, 16-bit or normalized floating-point RGB, grayscale or YCbCr pixels
+/// to eight-bit baseline or progressive JPEG.
 /// Includes spatial adaptive quantization; XYB remains pending.
 /// </summary>
 public static class JpegliEncoder
@@ -31,7 +32,8 @@ public static class JpegliEncoder
         => EncodeCore(output, new PixelSource(pixels, layout), width, height, options, stride, cancellationToken);
 
     /// <summary>
-    /// Encodes gamma-encoded 16-bit samples, with 0..65535 representing black..white.
+    /// Encodes gamma-encoded RGB/grayscale or full-range JPEG YCbCr 16-bit samples.
+    /// Values 0..65535 map to JPEG sample units 0..255; neutral YCbCr chroma is 32896.
     /// Fractional precision is retained until quantization; output JPEG sample precision is eight bits.
     /// </summary>
     /// <param name="stride">Source elements between rows, or zero for tightly packed rows.</param>
@@ -45,7 +47,8 @@ public static class JpegliEncoder
     }
 
     /// <summary>
-    /// Writes an eight-bit JPEG from gamma-encoded 16-bit samples without closing or seeking the stream.
+    /// Writes an eight-bit JPEG from gamma-encoded RGB/grayscale or full-range JPEG YCbCr 16-bit samples
+    /// without closing or seeking the stream.
     /// Source pixels must remain unchanged until encoding returns. Cancellation or I/O errors may leave partial output.
     /// </summary>
     /// <param name="stride">Source elements between rows, or zero for tightly packed rows.</param>
@@ -55,7 +58,8 @@ public static class JpegliEncoder
         => EncodeCore(output, new PixelSource(pixels, layout), width, height, options, stride, cancellationToken);
 
     /// <summary>
-    /// Encodes normalized gamma-encoded samples. Consumed color or grayscale samples must be finite and in 0..1.
+    /// Encodes normalized gamma-encoded RGB/grayscale or full-range JPEG YCbCr samples.
+    /// Consumed samples must be finite and in 0..1; neutral YCbCr chroma is 128f / 255f.
     /// Alpha, row padding and trailing elements are ignored. This API does not apply a linear-light or HDR transform.
     /// Fractional precision is retained until quantization; output JPEG sample precision is eight bits.
     /// </summary>
@@ -70,7 +74,8 @@ public static class JpegliEncoder
     }
 
     /// <summary>
-    /// Writes an eight-bit JPEG from finite normalized gamma-encoded samples in 0..1 without closing or seeking the stream.
+    /// Writes an eight-bit JPEG from normalized RGB/grayscale or full-range JPEG YCbCr samples in 0..1
+    /// without closing or seeking the stream.
     /// Consumed samples are validated before output. Source pixels must remain unchanged until encoding returns.
     /// Alpha and padding are ignored. Cancellation or I/O errors may leave partial output.
     /// </summary>
