@@ -54,6 +54,30 @@ must be 1..65535 and fit `MaxPixels` (100 million by default).
 
 ### Profiles and metadata
 
+Set `ExifData` to raw TIFF bytes for Exif metadata, beginning with the TIFF header.
+The encoder prepends `Exif\0\0` and embeds the bytes unchanged in a single APP1
+marker. Do not include the Exif signature, APP1 marker or segment length in the
+input. An empty value, the default, writes no Exif. The limit is 65,527 bytes.
+TIFF structure, tags and offsets are not validated or rewritten; supply data whose
+dimensions, orientation, color space, densities and optional thumbnail describe
+the encoded image. Orientation tags do not rotate source pixels. Do not change
+the backing memory or dispose its owner until encoding returns.
+
+The output retains its leading JFIF APP0 marker, followed by any Exif APP1 marker,
+as in [Adobe's JPEG handler](https://github.com/adobe/XMP-Toolkit-SDK/blob/main/XMPFiles/source/FileHandlers/JPEG_Handler.cpp).
+This embeds Exif metadata in a JFIF JPEG; it does not claim conformance to the
+complete Exif file standard, which requires APP1 immediately after SOI.
+
+Set `XmpPacket` to a serialized XMP packet to embed UTF-8 bytes in a single
+standard APP1 marker with the `http://ns.adobe.com/xap/1.0/\0` identifier.
+Null or empty writes no XMP. Its UTF-8 length must not exceed 65,504 bytes,
+including any packet wrapper or padding supplied by the caller. The encoder adds
+no BOM, terminator or XML wrapper. Unpaired UTF-16 surrogates are rejected before
+output. XML, RDF and schemas are not parsed or validated; supply a complete valid
+packet. Extended XMP is not supported. The framing follows
+[Adobe's XMP storage specification](https://developer.adobe.com/xmp/docs/xmp-specifications/).
+The encoder does not reconcile XMP values with Exif, ICC or JFIF metadata.
+
 Set `IccProfile` to raw ICC profile bytes to embed them unchanged in numbered
 APP2 markers. An empty profile, the default, writes no ICC markers. The encoder
 does not parse the profile, apply a color transform, or provide a built-in profile;
@@ -76,6 +100,8 @@ the pixel aspect ratio; both values default to 1. `DotsPerInch` and
 ```csharp
 byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 {
+    ExifData = File.ReadAllBytes("exif-tiff.bin"),
+    XmpPacket = File.ReadAllText("metadata.xmp"),
     IccProfile = File.ReadAllBytes("srgb.icc"),
     Comment = "Photo export",
     DensityUnit = JpegDensityUnit.DotsPerInch,
@@ -84,10 +110,11 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 });
 ```
 
-Metadata is written after the mandatory JFIF marker and before the coding tables
-and scans. Defaults preserve the previous JPEG bytes. Profiles, comments and
-densities do not change coefficients or decoded sample values. A color-managed
-viewer may render an image differently according to its embedded profile.
+Metadata is written after the mandatory JFIF marker in this order: Exif APP1,
+XMP APP1, ICC APP2 chunks and COM, followed by the coding tables and scans.
+Defaults preserve the previous JPEG bytes. Metadata does not change coefficients
+or decoded sample values. Viewers may interpret orientation, profiles and other
+metadata when displaying the image.
 Invalid metadata options are rejected before writing output. Cancellation is
 checked between metadata segments as well as between MCUs; cancellation or an
 I/O failure during metadata output can leave a partial JPEG and leaves the stream open.
@@ -175,12 +202,14 @@ byte stuffing and marker output; optional MCU restart intervals with DRI and
 cycling RST markers, including predictor resets during Huffman optimization;
 progressive initial and refinement EOB-run aggregation with optimized Huffman tables;
 optional DC and AC refinement scans with bounded correction-bit storage.
-Raw ICC profile embedding with APP2 chunking, UTF-8 COM comments, and configurable
-JFIF density fields are also implemented.
+Raw Exif TIFF embedding and standard UTF-8 XMP packets in APP1, raw ICC profiles
+with APP2 chunking, UTF-8 COM comments, and configurable JFIF density fields are
+also implemented.
 
 Pending: other sampling ratios,
 XYB color encoding and built-in profiles or color management, higher precision input,
-Exif/XMP and other metadata, SIMD/parallel paths, and decoder functionality.
+extended XMP, structured metadata editing, other metadata, SIMD/parallel paths,
+and decoder functionality.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
 one eighth of those units. This scaling adaptation is accounted for during
 quantization.
@@ -257,6 +286,13 @@ the 255-chunk profile limit, raw marker payload bytes and UTF-8 comment lengths.
 They also check default byte compatibility, unchanged decoded samples across
 baseline and progressive modes, validation before output, nonseekable streams,
 cancellation between metadata segments and I/O failures.
+
+APP1 regressions independently check Exif and standard XMP identifiers, raw TIFF
+byte preservation, UTF-8 without an added BOM or terminator, maximum segment
+lengths, multibyte limits and malformed UTF-16 rejection before output. They also
+check combined metadata ordering, unchanged coding data and decoded pixels across
+baseline, progressive and refinement modes, grayscale and both Huffman settings,
+along with nonseekable streams, cancellation boundaries and I/O failures.
 
 `Directory.Build.targets` rejects `AllowUnsafeBlocks=true`, including a command
 line override. Library and tests compile with warnings treated as errors.

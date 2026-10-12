@@ -5,6 +5,9 @@ namespace DotJpegli.Internal;
 internal static class JpegMarkerWriter
 {
     internal const int MaxMarkerPayloadBytes = 65533;
+    internal const int MaxExifDataBytes = MaxMarkerPayloadBytes - 6;
+    internal const int MaxXmpPacketBytes = MaxMarkerPayloadBytes - 29;
+    internal static readonly UTF8Encoding XmpEncoding = new(false, true);
     private const int MaxIccChunkBytes = MaxMarkerPayloadBytes - 14;
     internal const int MaxIccProfileBytes = 255 * MaxIccChunkBytes;
 
@@ -63,6 +66,30 @@ internal static class JpegMarkerWriter
     private static void WriteMetadata(Stream output, JpegliEncoderOptions options,
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!options.ExifData.IsEmpty)
+        {
+            // Exif's six-byte identifier precedes the caller's unmodified TIFF stream.
+            // Keep APP0 first for JFIF interoperability, as in Adobe's JPEG handler.
+            Marker(output, 0xe1);
+            Word(output, options.ExifData.Length + 8);
+            output.Write("Exif\0\0"u8);
+            output.Write(options.ExifData.Span);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!string.IsNullOrEmpty(options.XmpPacket))
+        {
+            // A standard XMP packet occupies a single APP1 segment. Validation
+            // bounds the UTF-8 allocation and rejects unpaired UTF-16 surrogates.
+            byte[] packet = XmpEncoding.GetBytes(options.XmpPacket);
+            Marker(output, 0xe1);
+            Word(output, packet.Length + 31);
+            output.Write("http://ns.adobe.com/xap/1.0/\0"u8);
+            output.Write(packet);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
         ReadOnlySpan<byte> profile = options.IccProfile.Span;
         int chunkCount = (profile.Length + MaxIccChunkBytes - 1) / MaxIccChunkBytes;
         // ICC.1 Annex B: APP2 payloads begin with ICC_PROFILE\0 and the

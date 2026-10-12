@@ -12,6 +12,25 @@ public sealed record JpegliEncoderOptions
     public ChromaSubsampling Subsampling { get; init; } = ChromaSubsampling.Quarter;
 
     /// <summary>
+    /// Raw Exif TIFF bytes, starting with the TIFF header, to embed unchanged in one APP1 marker.
+    /// Do not include the Exif signature or JPEG marker/length bytes; the encoder adds them.
+    /// Empty (the default) omits Exif. At most 65,527 bytes are supported; TIFF data is not validated.
+    /// Tags, offsets, thumbnails, orientation and dimensions are neither interpreted nor updated.
+    /// The JFIF APP0 marker remains first. Do not change the underlying memory or dispose its
+    /// owner until encoding returns.
+    /// </summary>
+    public ReadOnlyMemory<byte> ExifData { get; init; }
+
+    /// <summary>
+    /// Serialized XMP packet to embed as UTF-8 in one standard APP1 marker.
+    /// Null or empty omits XMP. At most 65,504 encoded bytes are supported; extended XMP is not supported.
+    /// Supply the complete packet, including any desired packet wrapper. No BOM or terminator is added.
+    /// XML and metadata are neither parsed nor reconciled with Exif, ICC or JFIF fields.
+    /// Malformed UTF-16 (unpaired surrogates) is rejected before output is written.
+    /// </summary>
+    public string? XmpPacket { get; init; }
+
+    /// <summary>
     /// Raw ICC profile bytes to embed in APP2 markers. Empty (the default) omits the profile.
     /// At most 16,707,345 bytes are supported. The profile is neither interpreted nor applied
     /// to the pixels; supply a profile describing the input RGB or grayscale values.
@@ -87,6 +106,22 @@ public sealed record JpegliEncoderOptions
             throw new ArgumentOutOfRangeException(nameof(Quality), "Quality must be finite and between 0 and 100.");
         if (!Enum.IsDefined(Subsampling))
             throw new ArgumentOutOfRangeException(nameof(Subsampling));
+        if (ExifData.Length > JpegMarkerWriter.MaxExifDataBytes)
+            throw new ArgumentOutOfRangeException(nameof(ExifData), "The Exif TIFF data must not exceed 65,527 bytes.");
+        if (XmpPacket is not null)
+        {
+            if (XmpPacket.Length > JpegMarkerWriter.MaxXmpPacketBytes)
+                throw new ArgumentOutOfRangeException(nameof(XmpPacket), "The UTF-8 XMP packet must not exceed 65,504 bytes.");
+            try
+            {
+                if (JpegMarkerWriter.XmpEncoding.GetByteCount(XmpPacket) > JpegMarkerWriter.MaxXmpPacketBytes)
+                    throw new ArgumentOutOfRangeException(nameof(XmpPacket), "The UTF-8 XMP packet must not exceed 65,504 bytes.");
+            }
+            catch (EncoderFallbackException error)
+            {
+                throw new ArgumentException("The XMP packet must contain well-formed UTF-16.", nameof(XmpPacket), error);
+            }
+        }
         if (IccProfile.Length > JpegMarkerWriter.MaxIccProfileBytes)
             throw new ArgumentOutOfRangeException(nameof(IccProfile), "The ICC profile must fit in at most 255 APP2 markers (16,707,345 bytes).");
         if (Comment is not null && (Comment.Length > JpegMarkerWriter.MaxMarkerPayloadBytes ||
