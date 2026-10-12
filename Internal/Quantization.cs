@@ -72,6 +72,69 @@ internal static class Quantization
         9.482700481227672f, 8.380307846134853f, 8.67909f, 8.362933242943903f, 8.053178199770173f, 64.25135180237939f, 83.35294340273799f, 114.89202448569779f,
     ];
 
+    // InitQuantizer uses natural frequency order: 64 Y, then Cb and Cr.
+    private static ReadOnlySpan<float> ZeroBiasMultipliersLowQuality =>
+    [
+        // c = 0
+        0.0000f, 0.0568f, 0.3880f, 0.6190f, 0.6190f, 0.4490f, 0.4490f, 0.6187f,
+        0.0568f, 0.5829f, 0.6189f, 0.6190f, 0.6190f, 0.7190f, 0.6190f, 0.6189f,
+        0.3880f, 0.6189f, 0.6190f, 0.6190f, 0.6190f, 0.6190f, 0.6187f, 0.6100f,
+        0.6190f, 0.6190f, 0.6190f, 0.6190f, 0.5890f, 0.3839f, 0.7160f, 0.6190f,
+        0.6190f, 0.6190f, 0.6190f, 0.5890f, 0.6190f, 0.3880f, 0.5860f, 0.4790f,
+        0.4490f, 0.7190f, 0.6190f, 0.3839f, 0.3880f, 0.6190f, 0.6190f, 0.6190f,
+        0.4490f, 0.6190f, 0.6187f, 0.7160f, 0.5860f, 0.6190f, 0.6204f, 0.6190f,
+        0.6187f, 0.6189f, 0.6100f, 0.6190f, 0.4790f, 0.6190f, 0.6190f, 0.3480f,
+        // c = 1
+        0.0000f, 1.1640f, 0.9373f, 1.1319f, 0.8016f, 0.9136f, 1.1530f, 0.9430f,
+        1.1640f, 0.9188f, 0.9160f, 1.1980f, 1.1830f, 0.9758f, 0.9430f, 0.9430f,
+        0.9373f, 0.9160f, 0.8430f, 1.1720f, 0.7083f, 0.9430f, 0.9430f, 0.9430f,
+        1.1319f, 1.1980f, 1.1720f, 1.1490f, 0.8547f, 0.9430f, 0.9430f, 0.9430f,
+        0.8016f, 1.1830f, 0.7083f, 0.8547f, 0.9430f, 0.9430f, 0.9430f, 0.9430f,
+        0.9136f, 0.9758f, 0.9430f, 0.9430f, 0.9430f, 0.9430f, 0.9430f, 0.9430f,
+        1.1530f, 0.9430f, 0.9430f, 0.9430f, 0.9430f, 0.9430f, 0.9430f, 0.9480f,
+        0.9430f, 0.9430f, 0.9430f, 0.9430f, 0.9430f, 0.9430f, 0.9480f, 0.9430f,
+        // c = 2
+        0.0000f, 1.3190f, 0.4308f, 0.4460f, 0.0661f, 0.0660f, 0.2660f, 0.2960f,
+        1.3190f, 0.3280f, 0.3093f, 0.0750f, 0.0505f, 0.1594f, 0.3060f, 0.2113f,
+        0.4308f, 0.3093f, 0.3060f, 0.1182f, 0.0500f, 0.3060f, 0.3915f, 0.2426f,
+        0.4460f, 0.0750f, 0.1182f, 0.0512f, 0.0500f, 0.2130f, 0.3930f, 0.1590f,
+        0.0661f, 0.0505f, 0.0500f, 0.0500f, 0.3055f, 0.3360f, 0.5148f, 0.5403f,
+        0.0660f, 0.1594f, 0.3060f, 0.2130f, 0.3360f, 0.5060f, 0.5874f, 0.3060f,
+        0.2660f, 0.3060f, 0.3915f, 0.3930f, 0.5148f, 0.5874f, 0.3060f, 0.3060f,
+        0.2960f, 0.2113f, 0.2426f, 0.1590f, 0.5403f, 0.3060f, 0.3060f, 0.3060f,
+    ];
+
+    private static ReadOnlySpan<float> ZeroBiasMultipliersHighQuality =>
+    [
+        // c = 0
+        0.0000f, 0.0044f, 0.2521f, 0.6547f, 0.8161f, 0.6130f, 0.8841f, 0.8155f,
+        0.0044f, 0.6831f, 0.6553f, 0.6295f, 0.7848f, 0.7843f, 0.8474f, 0.7836f,
+        0.2521f, 0.6553f, 0.7834f, 0.7829f, 0.8161f, 0.8072f, 0.7743f, 0.9242f,
+        0.6547f, 0.6295f, 0.7829f, 0.8654f, 0.7829f, 0.6986f, 0.7818f, 0.7726f,
+        0.8161f, 0.7848f, 0.8161f, 0.7829f, 0.7471f, 0.7827f, 0.7843f, 0.7653f,
+        0.6130f, 0.7843f, 0.8072f, 0.6986f, 0.7827f, 0.7848f, 0.9508f, 0.7653f,
+        0.8841f, 0.8474f, 0.7743f, 0.7818f, 0.7843f, 0.9508f, 0.7839f, 0.8437f,
+        0.8155f, 0.7836f, 0.9242f, 0.7726f, 0.7653f, 0.7653f, 0.8437f, 0.7819f,
+        // c = 1
+        0.0000f, 1.0816f, 1.0556f, 1.2876f, 1.1554f, 1.1567f, 1.8851f, 0.5488f,
+        1.0816f, 1.1537f, 1.1850f, 1.0712f, 1.1671f, 2.0719f, 1.0544f, 1.4764f,
+        1.0556f, 1.1850f, 1.2870f, 1.1981f, 1.8181f, 1.2618f, 1.0564f, 1.1191f,
+        1.2876f, 1.0712f, 1.1981f, 1.4753f, 2.0609f, 1.0564f, 1.2645f, 1.0564f,
+        1.1554f, 1.1671f, 1.8181f, 2.0609f, 0.7324f, 1.1163f, 0.8464f, 1.0564f,
+        1.1567f, 2.0719f, 1.2618f, 1.0564f, 1.1163f, 1.0040f, 1.0564f, 1.0564f,
+        1.8851f, 1.0544f, 1.0564f, 1.2645f, 0.8464f, 1.0564f, 1.0564f, 1.0564f,
+        0.5488f, 1.4764f, 1.1191f, 1.0564f, 1.0564f, 1.0564f, 1.0564f, 1.0564f,
+        // c = 2
+        0.0000f, 0.5392f, 0.6659f, 0.8968f, 0.6829f, 0.6328f, 0.5802f, 0.4836f,
+        0.5392f, 0.6746f, 0.6760f, 0.6102f, 0.6015f, 0.6958f, 0.7327f, 0.4897f,
+        0.6659f, 0.6760f, 0.6957f, 0.6543f, 0.4396f, 0.6330f, 0.7081f, 0.2583f,
+        0.8968f, 0.6102f, 0.6543f, 0.5913f, 0.6457f, 0.5828f, 0.5139f, 0.3565f,
+        0.6829f, 0.6015f, 0.4396f, 0.6457f, 0.5633f, 0.4263f, 0.6371f, 0.5949f,
+        0.6328f, 0.6958f, 0.6330f, 0.5828f, 0.4263f, 0.2847f, 0.2909f, 0.6629f,
+        0.5802f, 0.7327f, 0.7081f, 0.5139f, 0.6371f, 0.2909f, 0.6644f, 0.6644f,
+        0.4836f, 0.4897f, 0.2583f, 0.3565f, 0.5949f, 0.6629f, 0.6644f, 0.6644f,
+    ];
+
     /// <summary>Maps JPEGli quality to distance using the upstream polynomial.</summary>
     internal static float QualityToDistance(float quality)
     {
@@ -124,16 +187,87 @@ internal static class Quantization
     /// </remarks>
     internal static ushort[] CreateGrayscaleTable(float quality) => CreateTable(quality, 0);
 
+    /// <summary>Creates upstream per-frequency adaptive zero-bias multipliers.</summary>
+    internal static float[][] CreateAdaptiveZeroBiasMultipliers(ushort[][] tables,
+        int horizontalSampling, int verticalSampling, bool grayscale)
+    {
+        ArgumentNullException.ThrowIfNull(tables);
+        if (horizontalSampling is not (1 or 2))
+            throw new ArgumentOutOfRangeException(nameof(horizontalSampling));
+        if (verticalSampling is not (1 or 2) || (horizontalSampling == 1 && verticalSampling == 2))
+            throw new ArgumentOutOfRangeException(nameof(verticalSampling), "Supported sampling is 4:4:4, 4:2:2 or 4:2:0.");
+        if (tables.Length != (grayscale ? 1 : 3))
+            throw new ArgumentException("Supply one grayscale table or three YCbCr tables.", nameof(tables));
+
+        float distance = QuantValuesToDistance(tables);
+        float lowQualityMix = Math.Clamp((distance - 1f) / 2f, 0f, 1f);
+        float highQualityMix = 1f - lowQualityMix;
+        float[][] multipliers = new float[tables.Length][];
+        for (int component = 0; component < multipliers.Length; component++)
+        {
+            multipliers[component] = new float[BlockSize];
+            for (int frequency = 1; frequency < BlockSize; frequency++)
+            {
+                int index = component * BlockSize + frequency;
+                multipliers[component][frequency] = grayscale ? 0.5f
+                    : lowQualityMix * ZeroBiasMultipliersLowQuality[index]
+                        + highQualityMix * ZeroBiasMultipliersHighQuality[index];
+            }
+        }
+        return multipliers;
+    }
+
+    /// <summary>Infers upstream quantizer distance from the emitted baseline tables.</summary>
+    /// <remarks>
+    /// QuantValsToDistance uses the unscaled YCbCr base matrices, including for
+    /// tables emitted with 4:2:0 rescaling. It reconstructs an interval from
+    /// rounded values, leaving saturated 1 and 255 endpoints unbounded.
+    /// </remarks>
+    internal static float QuantValuesToDistance(ushort[][] tables)
+    {
+        ArgumentNullException.ThrowIfNull(tables);
+        if (tables.Length is not (1 or 3))
+            throw new ArgumentException("Supply one grayscale table or three YCbCr tables.", nameof(tables));
+        const float distanceLimit = 10000f;
+        float distanceMin = 0f;
+        float distanceMax = distanceLimit;
+        for (int component = 0; component < tables.Length; component++)
+        {
+            ushort[] table = tables[component];
+            if (table is null || table.Length != BlockSize)
+                throw new ArgumentException("A quantization table requires 64 values.", nameof(tables));
+            for (int frequency = 0; frequency < BlockSize; frequency++)
+            {
+                int quant = table[frequency];
+                if (quant is < 1 or > 255)
+                    throw new ArgumentException("Baseline quantization values must be between 1 and 255.", nameof(tables));
+                float inverseQuant = 1f / BaseMatrices[component * BlockSize + frequency] / GlobalScale;
+                float min = quant > 1 ? ScaleToDistance((quant - 0.5f) * inverseQuant, frequency) : 0f;
+                float max = quant < 255 ? ScaleToDistance((quant + 0.5f) * inverseQuant, frequency) : distanceLimit;
+                if (min <= distanceMax)
+                    distanceMin = MathF.Max(min, distanceMin);
+                if (max >= distanceMin)
+                    distanceMax = MathF.Min(max, distanceMax);
+            }
+        }
+        if (distanceMin == 0f)
+            return distanceMax;
+        if (distanceMax == distanceLimit)
+            return distanceMin;
+        return 0.5f * (distanceMin + distanceMax);
+    }
+
     /// <summary>Quantizes a level-shifted block in standard JPEG DCT units.</summary>
     /// <remarks>
-    /// This implements the AQ-disabled path. YCbCr uses component-specific AC
-    /// zero-bias offsets; grayscale uses zero offsets. Adaptive block analysis
-    /// and multipliers remain pending. DC uses ties-away-from-zero rounding;
-    /// AC uses Highway's ties-to-even rounding.
+    /// YCbCr uses component-specific AC zero-bias offsets. Adaptive grayscale
+    /// uses a 0.5 offset; AQ-disabled grayscale uses zero. DC uses
+    /// ties-away-from-zero rounding; AC uses Highway's ties-to-even rounding.
     /// </remarks>
     internal static void Quantize(ReadOnlySpan<float> coefficients,
         ReadOnlySpan<ushort> table, Span<short> output, int component, float distance,
-        bool grayscale = false)
+        bool grayscale = false, bool adaptiveQuantization = false,
+        float adaptiveStrength = 0f, ReadOnlySpan<float> adaptiveMultipliers = default,
+        int previousDc = 0)
     {
         ValidateComponent(component);
         if (grayscale && component != 0)
@@ -146,12 +280,15 @@ internal static class Quantization
             throw new ArgumentException("A quantization table requires 64 values.", nameof(table));
         if (output.Length < BlockSize)
             throw new ArgumentException("A quantized block requires 64 values.", nameof(output));
+        if (adaptiveQuantization)
+        {
+            if (!float.IsFinite(adaptiveStrength) || adaptiveStrength < 0)
+                throw new ArgumentOutOfRangeException(nameof(adaptiveStrength));
+            if (adaptiveMultipliers.Length < BlockSize)
+                throw new ArgumentException("Adaptive quantization requires 64 multipliers.", nameof(adaptiveMultipliers));
+        }
 
-        // AQ-disabled YCbCr still uses the component-specific AC zero-bias
-        // offsets in InitQuantizer. Adaptive multipliers and block analysis
-        // are pending, so distance does not affect this fixed threshold.
-        // Grayscale bypasses InitQuantizer's YCbCr-only offset initialization.
-        float acThreshold = grayscale ? 0f : component switch
+        float acOffset = grayscale ? (adaptiveQuantization ? 0.5f : 0f) : component switch
         {
             0 => 0.59082f,
             1 => 0.58146f,
@@ -163,14 +300,22 @@ internal static class Quantization
                 throw new ArgumentException("Baseline quantization values must be between 1 and 255.", nameof(table));
             if (!float.IsFinite(coefficients[i]))
                 throw new ArgumentException("DCT coefficients must be finite.", nameof(coefficients));
+            if (adaptiveQuantization && (!float.IsFinite(adaptiveMultipliers[i]) || adaptiveMultipliers[i] < 0))
+                throw new ArgumentException("Adaptive multipliers must be finite and nonnegative.", nameof(adaptiveMultipliers));
 
             // Input is in standard JPEG DCT units and is already level shifted.
             // C++ uses 1/64-scaled DCT values with an 8/quant multiplier.
             float quantized = coefficients[i] / table[i];
+            float threshold = (i == 0 ? 0f : acOffset)
+                + (adaptiveQuantization ? adaptiveStrength * adaptiveMultipliers[i] : 0f);
             float value;
             if (i == 0)
-                value = MathF.Round(quantized, MidpointRounding.AwayFromZero);
-            else if (MathF.Abs(quantized) < acThreshold)
+                // ComputeCoefficientBlock applies its DC threshold to the
+                // difference from the preceding block. Pinned multipliers
+                // and offsets are zero for DC, so this normally just rounds.
+                value = MathF.Abs(quantized - previousDc) < threshold ? previousDc
+                    : MathF.Round(quantized, MidpointRounding.AwayFromZero);
+            else if (MathF.Abs(quantized) < threshold)
                 value = 0f;
             else
                 // Highway Round in QuantizeBlock uses ties-to-even for AC.
@@ -188,6 +333,15 @@ internal static class Quantization
         // C++ uses std::pow(float, double) for the first pow due to 1.0.
         float multiplier = (float)Math.Pow(NonlinearThreshold, 1.0 - exponent);
         return MathF.Max(0.5f * distance, multiplier * MathF.Pow(distance, exponent));
+    }
+
+    private static float ScaleToDistance(float scale, int frequency)
+    {
+        if (scale < NonlinearThreshold)
+            return scale;
+        float exponent = (float)(1.0 / FrequencyExponents[frequency]);
+        float multiplier = (float)Math.Pow(NonlinearThreshold, 1.0 - exponent);
+        return MathF.Min(2f * scale, multiplier * MathF.Pow(scale, exponent));
     }
 
     private static void ValidateComponent(int component)
