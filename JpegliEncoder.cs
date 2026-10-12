@@ -80,7 +80,7 @@ public static class JpegliEncoder
                 acFrequencies[index] = new long[256];
             }
             ProcessBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
-                tables, options.Quality, adaptive, adaptiveMultipliers, dcTables, acTables,
+                tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
                 null, dcFrequencies, acFrequencies, cancellationToken);
             for (int index = 0; index < dcTables.Length; index++)
             {
@@ -98,10 +98,11 @@ public static class JpegliEncoder
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        JpegMarkerWriter.WriteHeaders(output, width, height, horizontal, vertical, tables, dcTables, acTables);
+        JpegMarkerWriter.WriteHeaders(output, width, height, horizontal, vertical, tables, dcTables, acTables,
+            options.RestartInterval);
         var bits = new BitWriter(output);
         ProcessBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
-            tables, options.Quality, adaptive, adaptiveMultipliers, dcTables, acTables,
+            tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
             bits, null, null, cancellationToken);
         bits.Flush();
         output.WriteByte(0xff);
@@ -110,7 +111,7 @@ public static class JpegliEncoder
 
     private static void ProcessBlocks(ReadOnlySpan<byte> pixels, int width, int height, int stride,
         int bytesPerPixel, PixelLayout layout, int horizontal, int vertical, ushort[][] tables,
-        float quality, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
+        float quality, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken)
     {
@@ -122,6 +123,8 @@ public static class JpegliEncoder
         float distance = Quantization.QualityToDistance(quality);
         int mcuWidth = horizontal * 8;
         int mcuHeight = vertical * 8;
+        int mcusRemaining = restartInterval;
+        int restartIndex = 0;
         float[]? strengths = adaptive is null ? null : new float[adaptive.BlocksWide * vertical];
         for (int top = 0; top < height; top += mcuHeight)
         {
@@ -130,6 +133,15 @@ public static class JpegliEncoder
             for (int left = 0; left < width; left += mcuWidth)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (restartInterval != 0 && mcusRemaining == 0)
+                {
+                    // Reset in both passes so the optimized tables include the
+                    // same DC categories used after each emitted restart marker.
+                    writer?.WriteRestartMarker(restartIndex);
+                    previousDc.Clear();
+                    restartIndex = (restartIndex + 1) & 7;
+                    mcusRemaining = restartInterval;
+                }
                 for (int component = 0; component < tables.Length; component++)
                 {
                     int blocksWide = component == 0 ? horizontal : 1;
@@ -175,6 +187,8 @@ public static class JpegliEncoder
                         }
                     }
                 }
+                if (restartInterval != 0)
+                    mcusRemaining--;
             }
         }
     }

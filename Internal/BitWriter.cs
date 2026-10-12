@@ -61,6 +61,18 @@ internal sealed class BitWriter
         bufferedBits = 0;
     }
 
+    public void WriteRestartMarker(int index)
+    {
+        if ((uint)index > 7)
+            throw new ArgumentOutOfRangeException(nameof(index));
+
+        // Finish the entropy segment with one-bits (including byte stuffing),
+        // then emit the marker itself without entropy byte stuffing.
+        Flush();
+        output.WriteByte(0xff);
+        output.WriteByte((byte)(0xd0 + index));
+    }
+
     private void WriteByte(byte value)
     {
         output.WriteByte(value);

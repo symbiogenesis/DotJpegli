@@ -37,6 +37,14 @@ the stream open and does not seek. Cancellation and I/O failures may leave a
 partial JPEG. Pass a `CancellationToken` for cancellation between MCUs. Dimensions
 must be 1..65535 and fit `MaxPixels` (100 million by default).
 
+Set `RestartInterval` to 1..65535 to insert restart markers after that many
+minimum coded units (MCUs); zero, the default, disables them. MCUs span 8x8 pixels
+for grayscale and 4:4:4, 16x8 for 4:2:2, and 16x16 for 4:2:0. Partial edge MCUs
+count toward the interval, which can cross row boundaries. Restart markers
+reset DC prediction and align the entropy stream between intervals, adding a
+small amount of output overhead without changing the decoded image. For example,
+`new JpegliEncoderOptions { RestartInterval = 64 }` restarts every 64 MCUs.
+
 Spatial adaptive quantization is enabled by default. It analyzes luma texture,
 brightness and neighboring regions to adjust coefficient zeroing thresholds.
 Set `AdaptiveQuantization = false` to use uniform quantization. Upstream sampling
@@ -58,11 +66,12 @@ quality-to-distance and perceptual Y/Cb/Cr quantization tables; scalar adaptive
 quantization with local differences, fuzzy erosion, masking, high-frequency and
 gamma modulation, quality dampening and frequency-specific coefficient thresholds;
 optimized length-limited canonical Huffman coding;
-byte stuffing and marker output.
+byte stuffing and marker output; optional MCU restart intervals with DRI and
+cycling RST markers, including predictor resets during Huffman optimization.
 
 Pending: progressive scans, optional input smoothing and other sampling ratios,
 XYB and ICC profiles, higher precision input,
-metadata/restart options, SIMD/parallel paths, and decoder functionality.
+metadata options, SIMD/parallel paths, and decoder functionality.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
 one eighth of those units. This scaling adaptation is accounted for during
 quantization.
@@ -98,6 +107,11 @@ averaging and odd edge padding, and entropy parsing checks dummy-block tokens an
 DC predictor continuity. Future parity work should encode the same corpus with this pinned C++ revision and
 compare decoded quality at matched sizes. Execute performance benchmarks only
 on CI.
+
+Restart regressions independently parse marker definitions and entropy segments
+to check MCU boundaries, all-component DC resets, one-bit padding and marker
+cycling, and compare decoded pixels with restart markers disabled. The marker
+and reset rules follow [ITU T.81, sections B.2.4.4 and E.1.3/E.1.4](https://www.w3.org/Graphics/JPEG/itu-t81.pdf).
 
 `Directory.Build.targets` rejects `AllowUnsafeBlocks=true`, including a command
 line override. Library and tests compile with warnings treated as errors.

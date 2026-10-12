@@ -3,7 +3,7 @@ namespace DotJpegli.Internal;
 internal static class JpegMarkerWriter
 {
     public static void WriteHeaders(Stream output, int width, int height, int horizontal, int vertical,
-        ushort[][] quantization, HuffmanTable[] dcTables, HuffmanTable[] acTables)
+        ushort[][] quantization, HuffmanTable[] dcTables, HuffmanTable[] acTables, int restartInterval)
     {
         Marker(output, 0xd8);
         // JFIF 1.01, unspecified density units, 1x1 density, no thumbnail.
@@ -37,6 +37,13 @@ internal static class JpegMarkerWriter
         {
             Huffman(output, dcTables[index], index);
             Huffman(output, acTables[index], 0x10 | index);
+        }
+
+        if (restartInterval != 0)
+        {
+            Marker(output, 0xdd);
+            Word(output, 4);
+            Word(output, restartInterval);
         }
 
         Marker(output, 0xda);
