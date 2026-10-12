@@ -45,21 +45,38 @@ reset DC prediction and align the entropy stream between intervals, adding a
 small amount of output overhead without changing the decoded image. For example,
 `new JpegliEncoderOptions { RestartInterval = 64 }` restarts every 64 MCUs.
 
+Set `Progressive = true` to write a progressive JPEG: an initial DC scan provides
+a coarse preview, followed by one full-precision AC scan per component. This
+uses two scans for grayscale and four for color, with the same final quantized
+coefficients as baseline encoding. The default remains baseline sequential JPEG.
+This first progressive mode uses spectral selection without successive
+approximation, refinement scans or multi-block EOB runs; it does not reproduce
+upstream Jpegli's default scan script or promise smaller files.
+
+In progressive AC scans, a single component block counts as one MCU, so
+`RestartInterval` can produce more markers than in the DC scan. Restart counting
+and the RST0..RST7 sequence begin again in each scan.
+
 Spatial adaptive quantization is enabled by default. It analyzes luma texture,
 brightness and neighboring regions to adjust coefficient zeroing thresholds.
 Set `AdaptiveQuantization = false` to use uniform quantization. Upstream sampling
 arithmetic and dummy-block coding apply to both modes; partially filled MCUs can
 produce different JPEG bytes from earlier port versions.
 
-Huffman optimization makes two passes over the supplied pixels, keeping only
+Baseline Huffman optimization makes two passes over the supplied pixels, keeping only
 block buffers, bounded rows of spatial-analysis data and symbol histograms
 rather than a full image of coefficients or an image-sized adaptive map.
 Keep the input unchanged until encoding returns. The byte-array overload also
 holds the encoded JPEG in memory; use the stream overload for larger outputs.
+Progressive encoding recomputes blocks in each scan's traversal order, using
+additional passes and CPU time to retain bounded working memory. Optimized
+progressive output collects frequencies from the same DC and AC scans before
+writing them. Neither mode retains an image-sized coefficient buffer.
 
 ## Port status
 
-Implemented: baseline sequential JPEG/JFIF; RGB and grayscale input; 4:4:4,
+Implemented: baseline sequential and optional spectral-selection progressive
+JPEG/JFIF; RGB and grayscale input; 4:4:4,
 4:2:2 and 4:2:0 upstream scalar box sampling with edge replication and empty
 dummy-block coding that preserves DC predictors at MCU edges; recursive scalar DCT; Jpegli
 quality-to-distance and perceptual Y/Cb/Cr quantization tables; scalar adaptive
@@ -69,7 +86,8 @@ optimized length-limited canonical Huffman coding;
 byte stuffing and marker output; optional MCU restart intervals with DRI and
 cycling RST markers, including predictor resets during Huffman optimization.
 
-Pending: progressive scans, optional input smoothing and other sampling ratios,
+Pending: progressive refinement scans and EOB-run aggregation, optional input
+smoothing and other sampling ratios,
 XYB and ICC profiles, higher precision input,
 metadata options, SIMD/parallel paths, and decoder functionality.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
@@ -112,6 +130,12 @@ Restart regressions independently parse marker definitions and entropy segments
 to check MCU boundaries, all-component DC resets, one-bit padding and marker
 cycling, and compare decoded pixels with restart markers disabled. The marker
 and reset rules follow [ITU T.81, sections B.2.4.4 and E.1.3/E.1.4](https://www.w3.org/Graphics/JPEG/itu-t81.pdf).
+
+Progressive regressions reconstruct every real block from independently parsed
+DC and AC scans and compare it with baseline coefficients and decoded pixels.
+They check noninterleaved block order, odd edges, per-scan restart counting and
+padding, as well as cancellation during later scans and padded input layouts.
+The scan rules follow [ITU T.81, Annex G](https://www.w3.org/Graphics/JPEG/itu-t81.pdf).
 
 `Directory.Build.targets` rejects `AllowUnsafeBlocks=true`, including a command
 line override. Library and tests compile with warnings treated as errors.

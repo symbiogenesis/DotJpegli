@@ -3,8 +3,8 @@ using DotJpegli.Internal;
 namespace DotJpegli;
 
 /// <summary>
-/// Encodes eight-bit pixels to baseline JPEG using safe managed code.
-/// Includes spatial adaptive quantization; progressive scans and XYB remain pending.
+/// Encodes eight-bit pixels to baseline or progressive JPEG using safe managed code.
+/// Includes spatial adaptive quantization; XYB remains pending.
 /// </summary>
 public static class JpegliEncoder
 {
@@ -22,7 +22,8 @@ public static class JpegliEncoder
     /// <summary>
     /// Writes a JPEG to a writable stream without closing or seeking it.
     /// Cancellation or an I/O error can leave partial output in the stream.
-    /// Source pixels must remain unchanged during both passes when Huffman optimization is enabled.
+    /// Source pixels must remain unchanged until encoding returns; Huffman optimization
+    /// and progressive scans make multiple passes over them.
     /// </summary>
     public static void Encode(Stream output, ReadOnlySpan<byte> pixels, int width, int height,
         PixelLayout layout = PixelLayout.Rgb24, JpegliEncoderOptions? options = null,
@@ -81,7 +82,12 @@ public static class JpegliEncoder
             }
             ProcessBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
                 tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
-                null, dcFrequencies, acFrequencies, cancellationToken);
+                null, dcFrequencies, acFrequencies, cancellationToken, dcOnly: options.Progressive);
+            if (options.Progressive)
+                for (int component = 0; component < componentCount; component++)
+                    ProcessAcBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
+                        tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers,
+                        component, acTables, null, acFrequencies, cancellationToken);
             for (int index = 0; index < dcTables.Length; index++)
             {
                 dcTables[index] = HuffmanTable.CreateOptimized(dcFrequencies[index]);
@@ -99,12 +105,23 @@ public static class JpegliEncoder
 
         cancellationToken.ThrowIfCancellationRequested();
         JpegMarkerWriter.WriteHeaders(output, width, height, horizontal, vertical, tables, dcTables, acTables,
-            options.RestartInterval);
+            options.RestartInterval, options.Progressive);
+        JpegMarkerWriter.WriteScanHeader(output, componentCount, options.Progressive);
         var bits = new BitWriter(output);
         ProcessBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
             tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
-            bits, null, null, cancellationToken);
+            bits, null, null, cancellationToken, dcOnly: options.Progressive);
         bits.Flush();
+        if (options.Progressive)
+            for (int component = 0; component < componentCount; component++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                JpegMarkerWriter.WriteScanHeader(output, componentCount, true, component);
+                ProcessAcBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
+                    tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers,
+                    component, acTables, bits, null, cancellationToken);
+                bits.Flush();
+            }
         output.WriteByte(0xff);
         output.WriteByte(0xd9);
     }
@@ -113,7 +130,8 @@ public static class JpegliEncoder
         int bytesPerPixel, PixelLayout layout, int horizontal, int vertical, ushort[][] tables,
         float quality, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
-        long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken)
+        long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
+        bool dcOnly = false)
     {
         Span<float> samples = stackalloc float[64];
         Span<float> coefficients = stackalloc float[64];
@@ -178,7 +196,16 @@ public static class JpegliEncoder
                                     previousDc: previousDc[component]);
                             }
                             int tableIndex = component == 0 ? 0 : 1;
-                            if (writer is null)
+                            if (dcOnly)
+                            {
+                                if (writer is null)
+                                    ProgressiveEntropyEncoder.AccumulateDcFrequencies(quantized,
+                                        ref previousDc[component], dcFrequencies![tableIndex]);
+                                else
+                                    ProgressiveEntropyEncoder.WriteDc(writer, quantized,
+                                        ref previousDc[component], dcTables[tableIndex]);
+                            }
+                            else if (writer is null)
                                 EntropyEncoder.AccumulateFrequencies(quantized, ref previousDc[component],
                                     dcFrequencies![tableIndex], acFrequencies![tableIndex]);
                             else
@@ -187,6 +214,65 @@ public static class JpegliEncoder
                         }
                     }
                 }
+                if (restartInterval != 0)
+                    mcusRemaining--;
+            }
+        }
+    }
+
+    private static void ProcessAcBlocks(ReadOnlySpan<byte> pixels, int width, int height, int stride,
+        int bytesPerPixel, PixelLayout layout, int horizontal, int vertical, ushort[][] tables,
+        float quality, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
+        int component, HuffmanTable[] acTables, BitWriter? writer, long[][]? acFrequencies,
+        CancellationToken cancellationToken)
+    {
+        // A noninterleaved scan visits only real component blocks in raster order.
+        // In particular, 4:2:0 luma must finish one block row before the next,
+        // rather than following the two-row ordering of interleaved MCUs.
+        Span<float> samples = stackalloc float[64];
+        Span<float> coefficients = stackalloc float[64];
+        Span<short> quantized = stackalloc short[64];
+        int sampleWidth = component == 0 ? 1 : horizontal;
+        int sampleHeight = component == 0 ? 1 : vertical;
+        int tableIndex = component == 0 ? 0 : 1;
+        float distance = Quantization.QualityToDistance(quality);
+        float[]? strengths = adaptive is null ? null : new float[adaptive.BlocksWide * vertical];
+        int lastAnalysisTop = -1;
+        int mcusRemaining = restartInterval;
+        int restartIndex = 0;
+        for (int top = 0; top < height; top += 8 * sampleHeight)
+        {
+            int analysisTop = top / (8 * vertical) * (8 * vertical);
+            if (adaptive is not null && analysisTop != lastAnalysisTop)
+            {
+                adaptive.ComputeRow(pixels, stride, bytesPerPixel, layout, analysisTop,
+                    tables[0][1], strengths!, cancellationToken);
+                lastAnalysisTop = analysisTop;
+            }
+            for (int left = 0; left < width; left += 8 * sampleWidth)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (restartInterval != 0 && mcusRemaining == 0)
+                {
+                    writer?.WriteRestartMarker(restartIndex);
+                    restartIndex = (restartIndex + 1) & 7;
+                    mcusRemaining = restartInterval;
+                }
+                Downsampling.FillBlock(pixels, width, height, stride, bytesPerPixel, layout, component,
+                    left, top, sampleWidth, sampleHeight, samples);
+                ForwardDct.Transform(samples, coefficients);
+                int strengthRow = component == 0 ? (top - analysisTop) / 8 : 0;
+                float strength = adaptive is null ? 0f : strengths![strengthRow * adaptive.BlocksWide + left / 8];
+                // AC quantization is independent of the DC predictor. The DC
+                // entry computed here is ignored by this scan.
+                Quantization.Quantize(coefficients, tables[component], quantized, component, distance,
+                    grayscale: layout == PixelLayout.Gray8, adaptiveQuantization: adaptive is not null,
+                    adaptiveStrength: strength,
+                    adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component]);
+                if (writer is null)
+                    ProgressiveEntropyEncoder.AccumulateAcFrequencies(quantized, acFrequencies![tableIndex]);
+                else
+                    ProgressiveEntropyEncoder.WriteAc(writer, quantized, acTables[tableIndex]);
                 if (restartInterval != 0)
                     mcusRemaining--;
             }

@@ -3,6 +3,6 @@
   "revision": "031a0077f5799a6041004267fc12b956c1f52a20",
   "retrieved": "2026-10-12",
   "license": "BSD-3-Clause",
-  "portStage": "baseline-managed-adaptive-quantization-sampling-restarts",
+  "portStage": "managed-adaptive-quantization-sampling-restarts-initial-progressive",
   "parityEstablished": false
 }

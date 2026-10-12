@@ -3,7 +3,8 @@ namespace DotJpegli.Internal;
 internal static class JpegMarkerWriter
 {
     public static void WriteHeaders(Stream output, int width, int height, int horizontal, int vertical,
-        ushort[][] quantization, HuffmanTable[] dcTables, HuffmanTable[] acTables, int restartInterval)
+        ushort[][] quantization, HuffmanTable[] dcTables, HuffmanTable[] acTables, int restartInterval,
+        bool progressive = false)
     {
         Marker(output, 0xd8);
         // JFIF 1.01, unspecified density units, 1x1 density, no thumbnail.
@@ -20,7 +21,7 @@ internal static class JpegMarkerWriter
                 output.WriteByte(checked((byte)quantization[component][naturalIndex]));
         }
 
-        Marker(output, 0xc0);
+        Marker(output, progressive ? (byte)0xc2 : (byte)0xc0);
         Word(output, 8 + quantization.Length * 3);
         output.WriteByte(8);
         Word(output, height);
@@ -45,16 +46,28 @@ internal static class JpegMarkerWriter
             Word(output, 4);
             Word(output, restartInterval);
         }
+    }
 
+    public static void WriteScanHeader(Stream output, int componentCount, bool progressive,
+        int acComponent = -1)
+    {
+        // Progressive DC may be interleaved; AC scans must select one component.
+        int scanComponents = acComponent < 0 ? componentCount : 1;
         Marker(output, 0xda);
-        Word(output, 6 + quantization.Length * 2);
-        output.WriteByte((byte)quantization.Length);
-        for (int component = 0; component < quantization.Length; component++)
+        Word(output, 6 + scanComponents * 2);
+        output.WriteByte((byte)scanComponents);
+        for (int index = 0; index < scanComponents; index++)
         {
+            int component = acComponent < 0 ? index : acComponent;
             output.WriteByte((byte)(component + 1));
-            output.WriteByte(component == 0 ? (byte)0 : (byte)0x11);
+            int tableIndex = component == 0 ? 0 : 1;
+            // Unused DC/AC selectors are zero in progressive scan headers.
+            output.WriteByte(progressive ? (byte)(acComponent < 0 ? tableIndex << 4 : tableIndex)
+                : (byte)((tableIndex << 4) | tableIndex));
         }
-        output.Write([0, 63, 0]);
+        output.WriteByte((byte)(acComponent < 0 ? 0 : 1));
+        output.WriteByte((byte)(progressive && acComponent < 0 ? 0 : 63));
+        output.WriteByte(0); // Initial scans at full precision: Ah=Al=0.
     }
 
     private static void Huffman(Stream output, HuffmanTable table, int selector)

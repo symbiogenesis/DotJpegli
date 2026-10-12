@@ -1,6 +1,6 @@
 namespace DotJpegli;
 
-/// <summary>Reusable settings for the managed baseline encoder.</summary>
+/// <summary>Reusable settings for the managed JPEG encoder.</summary>
 public sealed record JpegliEncoderOptions
 {
     /// <summary>Jpegli quality, from 0 to 100. This is not the libjpeg quality scale.</summary>
@@ -15,9 +15,18 @@ public sealed record JpegliEncoderOptions
     public bool OptimizeHuffmanTables { get; init; } = true;
 
     /// <summary>
+    /// Write a progressive JPEG with a DC preview followed by one full AC scan
+    /// per component. False (the default) writes baseline sequential JPEG.
+    /// Coefficients are recomputed for each scan to keep working memory bounded.
+    /// </summary>
+    public bool Progressive { get; init; }
+
+    /// <summary>
     /// Number of minimum coded units (MCUs) between restart markers, from 0 to 65535.
     /// Zero disables restart markers. An MCU is 8x8 pixels for grayscale or 4:4:4,
     /// 16x8 for 4:2:2, and 16x16 for 4:2:0, including partial edge units.
+    /// In progressive AC scans, each component block is one MCU. The interval
+    /// and restart marker sequence start afresh in every scan.
     /// </summary>
     public int RestartInterval { get; init; }
 
