@@ -1,0 +1,5 @@
+<Project>
+  <Target Name="RequireSafeManagedCode" BeforeTargets="CoreCompile">
+    <Error Condition="'$(AllowUnsafeBlocks)' != 'false'" Text="DotJpegli requires AllowUnsafeBlocks=false. Unsafe compilation is prohibited." />
+  </Target>
+</Project>

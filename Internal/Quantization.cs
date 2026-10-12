@@ -1,0 +1,198 @@
+// Copyright (c) the JPEG XL Project Authors.
+//
+// Use of this source code is governed by the BSD-3-Clause license in LICENSE.
+// Ported directly from google/jpegli revision
+// 031a0077f5799a6041004267fc12b956c1f52a20:
+// lib/jpegli/quant.cc (YCbCr tables, DistanceToScale, SetQuantMatrices,
+// InitQuantizer), lib/jpegli/encode.cc (jpegli_quality_to_distance), and
+// lib/jpegli/dct-inl.h (QuantizeBlock and ComputeCoefficientBlock).
+// https://github.com/google/jpegli/tree/031a0077f5799a6041004267fc12b956c1f52a20
+
+namespace DotJpegli.Internal;
+
+internal static class Quantization
+{
+    private const int BlockSize = 64;
+    private const float GlobalScale = 1.73966010f;
+    private const float GlobalScale420 = 1.22f;
+    private const float NonlinearThreshold = 1.5f;
+
+    // Natural row-major frequency order, as used by SetQuantMatrices.
+    private static ReadOnlySpan<float> FrequencyExponents =>
+    [
+        1.00f, 0.51f, 0.67f, 0.74f, 1.00f, 1.00f, 1.00f, 1.00f,
+        0.51f, 0.66f, 0.69f, 0.87f, 1.00f, 1.00f, 1.00f, 1.00f,
+        0.67f, 0.69f, 0.84f, 0.83f, 0.96f, 1.00f, 1.00f, 1.00f,
+        0.74f, 0.87f, 0.83f, 1.00f, 1.00f, 0.91f, 0.91f, 1.00f,
+        1.00f, 1.00f, 0.96f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f,
+        1.00f, 1.00f, 1.00f, 0.91f, 1.00f, 1.00f, 1.00f, 1.00f,
+        1.00f, 1.00f, 1.00f, 0.91f, 1.00f, 1.00f, 1.00f, 1.00f,
+        1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f,
+    ];
+
+    private static ReadOnlySpan<float> ChromaRescale420 =>
+    [
+        0.4093f, 0.3209f, 0.3477f, 0.3333f, 0.3144f, 0.2823f, 0.3214f, 0.3354f,
+        0.3209f, 0.3111f, 0.3489f, 0.2801f, 0.3059f, 0.3119f, 0.4135f, 0.3445f,
+        0.3477f, 0.3489f, 0.3586f, 0.3257f, 0.2727f, 0.3754f, 0.3369f, 0.3484f,
+        0.3333f, 0.2801f, 0.3257f, 0.3020f, 0.3515f, 0.3410f, 0.3971f, 0.3839f,
+        0.3144f, 0.3059f, 0.2727f, 0.3515f, 0.3105f, 0.3397f, 0.2716f, 0.3836f,
+        0.2823f, 0.3119f, 0.3754f, 0.3410f, 0.3397f, 0.3212f, 0.3203f, 0.0726f,
+        0.3214f, 0.4135f, 0.3369f, 0.3971f, 0.2716f, 0.3203f, 0.0798f, 0.0553f,
+        0.3354f, 0.3445f, 0.3484f, 0.3839f, 0.3836f, 0.0726f, 0.0553f, 0.3368f,
+    ];
+
+    // Three independent perceptual matrices: 64 Y, 64 Cb, then 64 Cr values.
+    // This corresponds to SetQuantMatrices(add_two_chroma_tables = true).
+    private static ReadOnlySpan<float> BaseMatrices =>
+    [
+        1.2397409345866273f, 1.7227115097630963f, 2.9212167156636855f, 2.812737435286529f, 3.339819711906184f, 3.463603762596166f, 3.840915217993518f, 3.86956f,
+        1.7227115097630963f, 2.0928894413636874f, 2.8456760904429297f, 2.704506820909662f, 3.4407673520905337f, 3.166232352090534f, 4.025208741558432f, 4.035324490952577f,
+        2.9212167156636855f, 2.8456760904429297f, 2.9587403520905338f, 3.3862948970669273f, 3.619523781336757f, 3.9046279999999998f, 3.757835838431854f, 4.237447515714274f,
+        2.812737435286529f, 2.704506820909662f, 3.3862948970669273f, 3.380058821812233f, 4.1679867415584315f, 4.805510627261856f, 4.784259f, 4.605934f,
+        3.339819711906184f, 3.4407673520905337f, 3.619523781336757f, 4.1679867415584315f, 4.579851258441568f, 4.923237f, 5.574107f, 5.48533336146308f,
+        3.463603762596166f, 3.166232352090534f, 3.9046279999999998f, 4.805510627261856f, 4.923237f, 5.43936f, 5.093895741558431f, 6.0872254423617225f,
+        3.840915217993518f, 4.025208741558432f, 3.757835838431854f, 4.784259f, 5.574107f, 5.093895741558431f, 5.438461f, 5.4037359493250845f,
+        3.86956f, 4.035324490952577f, 4.237447515714274f, 4.605934f, 5.48533336146308f, 6.0872254423617225f, 5.4037359493250845f, 4.37787101190424f,
+        2.8236197786377537f, 6.495639358561486f, 9.310489207538302f, 10.64747864717083f, 11.07419143098738f, 17.146390223910462f, 18.463982229408998f, 29.087001644203088f,
+        6.495639358561486f, 8.890103846667353f, 8.976895794294748f, 13.666270550318826f, 16.547071905624193f, 16.63871382827686f, 26.778396930893695f, 21.33034294694781f,
+        9.310489207538302f, 8.976895794294748f, 11.08737706005991f, 18.20548239870446f, 19.752481654011646f, 23.985660533114896f, 102.6457378402362f, 24.450989f,
+        10.64747864717083f, 13.666270550318826f, 18.20548239870446f, 18.628012327860365f, 16.042509519487183f, 25.04918273242625f, 25.017140189353015f, 35.79788782635831f,
+        11.07419143098738f, 16.547071905624193f, 19.752481654011646f, 16.042509519487183f, 19.373482748612577f, 14.677529999999999f, 19.94695960400931f, 51.094112f,
+        17.146390223910462f, 16.63871382827686f, 23.985660533114896f, 25.04918273242625f, 14.677529999999999f, 31.320412426835304f, 46.357234000000005f, 67.48111451705412f,
+        18.463982229408998f, 26.778396930893695f, 102.6457378402362f, 25.017140189353015f, 19.94695960400931f, 46.357234000000005f, 61.315764694388044f, 88.34665293823721f,
+        29.087001644203088f, 21.33034294694781f, 24.450989f, 35.79788782635831f, 51.094112f, 67.48111451705412f, 88.34665293823721f, 112.16099098350989f,
+        2.9217254961255255f, 4.497681013199305f, 7.356344520940414f, 6.583891506504051f, 8.535608740100237f, 8.799434353234647f, 9.188341534163023f, 9.482700481227672f,
+        4.497681013199305f, 6.309548851989123f, 7.024608962670982f, 7.156445324163424f, 8.049059218663244f, 7.0124290657218555f, 6.711923184393611f, 8.380307846134853f,
+        7.356344520940414f, 7.024608962670982f, 6.892101177327445f, 6.882819916277163f, 8.782226090078568f, 6.8774750000000004f, 7.8858175969577955f, 8.67909f,
+        6.583891506504051f, 7.156445324163424f, 6.882819916277163f, 7.003072944847055f, 7.7223464701024875f, 7.955425720217421f, 7.4734110000000005f, 8.362933242943903f,
+        8.535608740100237f, 8.049059218663244f, 8.782226090078568f, 7.7223464701024875f, 6.778005927001542f, 9.484922741558432f, 9.043702663686046f, 8.053178199770173f,
+        8.799434353234647f, 7.0124290657218555f, 6.8774750000000004f, 7.955425720217421f, 9.484922741558432f, 8.607606527385098f, 9.922697394370815f, 64.25135180237939f,
+        9.188341534163023f, 6.711923184393611f, 7.8858175969577955f, 7.4734110000000005f, 9.043702663686046f, 9.922697394370815f, 63.184936549738225f, 83.35294340273799f,
+        9.482700481227672f, 8.380307846134853f, 8.67909f, 8.362933242943903f, 8.053178199770173f, 64.25135180237939f, 83.35294340273799f, 114.89202448569779f,
+    ];
+
+    /// <summary>Maps JPEGli quality to distance using the upstream polynomial.</summary>
+    internal static float QualityToDistance(float quality)
+    {
+        if (!float.IsFinite(quality) || quality is < 0 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(quality), "Quality must be finite and between 0 and 100.");
+
+        // Same polynomial as jpegli_quality_to_distance, extended to fractional
+        // quality values. The C++ public function accepts integer quality.
+        if (quality >= 100f)
+            return 0.01f;
+        if (quality >= 30f)
+            return 0.1f + (100f - quality) * 0.09f;
+        return 53f / 3000f * quality * quality - 23f / 20f * quality + 25f;
+    }
+
+    /// <summary>Creates one baseline YCbCr quantization table in natural frequency order.</summary>
+    internal static ushort[] CreateTable(float quality, int component,
+        int horizontalSampling = 1, int verticalSampling = 1)
+    {
+        ValidateComponent(component);
+        if (horizontalSampling is not (1 or 2))
+            throw new ArgumentOutOfRangeException(nameof(horizontalSampling));
+        if (verticalSampling is not (1 or 2) || (horizontalSampling == 1 && verticalSampling == 2))
+            throw new ArgumentOutOfRangeException(nameof(verticalSampling), "Supported sampling is 4:4:4, 4:2:2 or 4:2:0.");
+
+        float distance = QualityToDistance(quality);
+        bool is420 = horizontalSampling == 2 && verticalSampling == 2;
+        float globalScale = is420 ? GlobalScale * GlobalScale420 : GlobalScale;
+        ReadOnlySpan<float> matrix = BaseMatrices.Slice(component * BlockSize, BlockSize);
+        ushort[] table = new ushort[BlockSize];
+        for (int i = 0; i < table.Length; i++)
+        {
+            float scale = globalScale * DistanceToScale(distance, i);
+            if (is420 && component > 0)
+                scale *= ChromaRescale420[i];
+            // SetQuantMatrices uses std::round (ties away from zero), then
+            // clamps the result to 1..255 when force_baseline is enabled.
+            float quant = MathF.Round(scale * matrix[i], MidpointRounding.AwayFromZero);
+            table[i] = (ushort)Math.Clamp(quant, 1f, 255f);
+        }
+        return table;
+    }
+
+    /// <summary>Creates the upstream default grayscale perceptual luma table.</summary>
+    /// <remarks>
+    /// SetQuantMatrices handles JCS_GRAYSCALE with the YCbCr perceptual Y matrix
+    /// when use_std_tables is false, as initialized by jpegli_set_defaults.
+    /// Grayscale has no chroma subsampling compensation. The Annex K matrix and
+    /// DistanceToLinearQuality apply only to the explicit standard-table mode.
+    /// </remarks>
+    internal static ushort[] CreateGrayscaleTable(float quality) => CreateTable(quality, 0);
+
+    /// <summary>Quantizes a level-shifted block in standard JPEG DCT units.</summary>
+    /// <remarks>
+    /// This implements the AQ-disabled path. YCbCr uses component-specific AC
+    /// zero-bias offsets; grayscale uses zero offsets. Adaptive block analysis
+    /// and multipliers remain pending. DC uses ties-away-from-zero rounding;
+    /// AC uses Highway's ties-to-even rounding.
+    /// </remarks>
+    internal static void Quantize(ReadOnlySpan<float> coefficients,
+        ReadOnlySpan<ushort> table, Span<short> output, int component, float distance,
+        bool grayscale = false)
+    {
+        ValidateComponent(component);
+        if (grayscale && component != 0)
+            throw new ArgumentOutOfRangeException(nameof(component), "Grayscale has only component 0.");
+        if (!float.IsFinite(distance) || distance <= 0)
+            throw new ArgumentOutOfRangeException(nameof(distance));
+        if (coefficients.Length < BlockSize)
+            throw new ArgumentException("A DCT block requires 64 coefficients.", nameof(coefficients));
+        if (table.Length < BlockSize)
+            throw new ArgumentException("A quantization table requires 64 values.", nameof(table));
+        if (output.Length < BlockSize)
+            throw new ArgumentException("A quantized block requires 64 values.", nameof(output));
+
+        // AQ-disabled YCbCr still uses the component-specific AC zero-bias
+        // offsets in InitQuantizer. Adaptive multipliers and block analysis
+        // are pending, so distance does not affect this fixed threshold.
+        // Grayscale bypasses InitQuantizer's YCbCr-only offset initialization.
+        float acThreshold = grayscale ? 0f : component switch
+        {
+            0 => 0.59082f,
+            1 => 0.58146f,
+            _ => 0.57988f,
+        };
+        for (int i = 0; i < BlockSize; i++)
+        {
+            if (table[i] is < 1 or > 255)
+                throw new ArgumentException("Baseline quantization values must be between 1 and 255.", nameof(table));
+            if (!float.IsFinite(coefficients[i]))
+                throw new ArgumentException("DCT coefficients must be finite.", nameof(coefficients));
+
+            // Input is in standard JPEG DCT units and is already level shifted.
+            // C++ uses 1/64-scaled DCT values with an 8/quant multiplier.
+            float quantized = coefficients[i] / table[i];
+            float value;
+            if (i == 0)
+                value = MathF.Round(quantized, MidpointRounding.AwayFromZero);
+            else if (MathF.Abs(quantized) < acThreshold)
+                value = 0f;
+            else
+                // Highway Round in QuantizeBlock uses ties-to-even for AC.
+                value = MathF.Round(quantized, MidpointRounding.ToEven);
+            // Saturating int16 demotion matches StoreQuantizedValue's DemoteTo.
+            output[i] = (short)Math.Clamp(value, short.MinValue, short.MaxValue);
+        }
+    }
+
+    private static float DistanceToScale(float distance, int frequency)
+    {
+        if (distance < NonlinearThreshold)
+            return distance;
+        float exponent = FrequencyExponents[frequency];
+        // C++ uses std::pow(float, double) for the first pow due to 1.0.
+        float multiplier = (float)Math.Pow(NonlinearThreshold, 1.0 - exponent);
+        return MathF.Max(0.5f * distance, multiplier * MathF.Pow(distance, exponent));
+    }
+
+    private static void ValidateComponent(int component)
+    {
+        if (component is < 0 or > 2)
+            throw new ArgumentOutOfRangeException(nameof(component), "Component must be 0 (Y), 1 (Cb) or 2 (Cr).");
+    }
+}
