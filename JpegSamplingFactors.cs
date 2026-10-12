@@ -2,8 +2,8 @@ namespace DotJpegli;
 
 /// <summary>Custom Y, Cb and Cr sampling factors, validated when encoding.</summary>
 /// <remarks>
-/// Each factor must be 1..4. Luma must have the largest horizontal and vertical
-/// factors, and each chroma factor must divide the corresponding luma factor.
+/// Each factor must be 1..4 and divide the largest corresponding factor across
+/// all three components. Luma may be subsampled; this disables adaptive quantization.
 /// The sum of Horizontal * Vertical over all three components must not exceed ten.
 /// Grayscale encoding ignores valid color sampling factors and always uses 1x1.
 /// </remarks>
@@ -22,6 +22,10 @@ public sealed record JpegSamplingFactors(
     internal bool Is420 => Luma == new JpegComponentSampling(2, 2)
         && Cb == new JpegComponentSampling(1, 1) && Cr == new JpegComponentSampling(1, 1);
 
+    internal int MaxHorizontal => Math.Max(Luma.Horizontal, Math.Max(Cb.Horizontal, Cr.Horizontal));
+    internal int MaxVertical => Math.Max(Luma.Vertical, Math.Max(Cb.Vertical, Cr.Vertical));
+    internal bool HasFullResolutionLuma => Luma.Horizontal == MaxHorizontal && Luma.Vertical == MaxVertical;
+
     internal void Validate()
     {
         int blocks = 0;
@@ -36,12 +40,14 @@ public sealed record JpegSamplingFactors(
         if (blocks > 10)
             throw new ArgumentException("A color MCU must contain at most ten blocks.",
                 nameof(JpegliEncoderOptions.SamplingFactors));
-        for (int component = 1; component < 3; component++)
+        int horizontal = MaxHorizontal;
+        int vertical = MaxVertical;
+        for (int component = 0; component < 3; component++)
         {
             JpegComponentSampling factor = this[component];
-            if (Luma.Horizontal % factor.Horizontal != 0 || Luma.Vertical % factor.Vertical != 0)
+            if (horizontal % factor.Horizontal != 0 || vertical % factor.Vertical != 0)
                 throw new ArgumentException(
-                    "Luma must have the largest sampling factors, with integer ratios to each chroma component.",
+                    "Each component sampling factor must divide the largest corresponding factor across all components.",
                     nameof(JpegliEncoderOptions.SamplingFactors));
         }
     }

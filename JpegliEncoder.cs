@@ -119,8 +119,11 @@ public static class JpegliEncoder
             tables[component] = grayscale ? Quantization.CreateGrayscaleTable(options.Quality)
                 : Quantization.CreateTable(options.Quality, component, quantizationSampling, quantizationSampling);
 
-        var adaptive = options.AdaptiveQuantization ? new AdaptiveQuantization(width, height, sampling.Luma.Vertical) : null;
-        float[][]? adaptiveMultipliers = options.AdaptiveQuantization
+        // InitCompressParams in the pinned upstream disables adaptive analysis
+        // when luma is subsampled in either direction.
+        bool useAdaptiveQuantization = options.AdaptiveQuantization && sampling.HasFullResolutionLuma;
+        var adaptive = useAdaptiveQuantization ? new AdaptiveQuantization(width, height, sampling.MaxVertical) : null;
+        float[][]? adaptiveMultipliers = useAdaptiveQuantization
             ? Quantization.CreateAdaptiveZeroBiasMultipliers(tables, quantizationSampling, quantizationSampling, grayscale) : null;
 
         var dcTables = new HuffmanTable[grayscale ? 1 : 2];
@@ -235,8 +238,8 @@ public static class JpegliEncoder
         Span<int> previousScanDc = stackalloc int[3];
         previousScanDc.Clear();
         float distance = Quantization.QualityToDistance(quality);
-        int horizontal = sampling.Luma.Horizontal;
-        int vertical = sampling.Luma.Vertical;
+        int horizontal = sampling.MaxHorizontal;
+        int vertical = sampling.MaxVertical;
         int mcuWidth = horizontal * 8;
         int mcuHeight = vertical * 8;
         int mcusRemaining = restartInterval;
@@ -337,8 +340,8 @@ public static class JpegliEncoder
         Span<float> samples = stackalloc float[64];
         Span<float> coefficients = stackalloc float[64];
         Span<short> quantized = stackalloc short[64];
-        int vertical = sampling.Luma.Vertical;
-        int sampleWidth = sampling.Luma.Horizontal / sampling[component].Horizontal;
+        int vertical = sampling.MaxVertical;
+        int sampleWidth = sampling.MaxHorizontal / sampling[component].Horizontal;
         int sampleHeight = vertical / sampling[component].Vertical;
         int tableIndex = component == 0 ? 0 : 1;
         float distance = Quantization.QualityToDistance(quality);

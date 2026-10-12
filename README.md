@@ -78,14 +78,22 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 });
 ```
 
-Factors must be 1..4. Luma must have the largest horizontal and vertical factors,
-and each chroma factor must divide its corresponding luma factor. A component's
-sample area is `Luma.Horizontal / component.Horizontal` by
-`Luma.Vertical / component.Vertical`. The sum of `Horizontal * Vertical` over all
+Factors must be 1..4. The largest horizontal and vertical factors across Y, Cb
+and Cr determine the MCU size; the maxima may belong to different components.
+Each component factor must divide its corresponding maximum. A component's
+sample area is `maxHorizontal / component.Horizontal` by
+`maxVertical / component.Vertical`. The sum of `Horizontal * Vertical` over all
 three components must be at most ten. Invalid factors are rejected before output,
 including for grayscale input; valid color settings are ignored for grayscale.
 The `Subsampling` enum must still be valid when overridden. Null `SamplingFactors`
 uses the preset and preserves its JPEG bytes.
+
+Luma may have smaller factors than Cb or Cr. For example, `SamplingFactors =
+new(new(1, 1), new(2, 2), new(1, 1))` averages Y and Cr over 2x2 pixels while
+keeping Cb at full resolution in a 16x16 MCU. Subsampled luma automatically
+disables adaptive quantization, even when `AdaptiveQuantization` is true,
+following the pinned upstream encoder. It reduces brightness detail and may
+have limited reader support; the existing presets keep full-resolution luma.
 
 Custom sampling uses the same scalar kernels, smoothing, replicated edges,
 dummy-block coding, restart markers and progressive scans as the presets.
@@ -94,6 +102,9 @@ compensation. Other schemes, including asymmetric ones with Y=2x2, use the regul
 tables. Adaptive quantization follows the pinned streaming encoder: it indexes
 the luma field by the component's block row within the MCU and the block's
 full-resolution horizontal position. This also applies during progressive passes.
+Combined sample areas use horizontal averaging followed by vertical averaging,
+except the specialized 2x2 kernel. Three-row sample areas always include all three
+rows, including for subsampled luma; they retain the selector deviation described above.
 Unusual sampling schemes may have limited support in some JPEG readers.
 
 The stream overload takes a writable stream as its first argument. It leaves
@@ -258,7 +269,8 @@ Set `RestartInterval` to 1..65535 to insert restart markers after that many
 minimum coded units (MCUs); zero, the default, disables them. MCUs span 8x8 pixels
 for grayscale and 4:4:4; for other color modes, multiply each chroma sample area
 dimension in the table above by eight. For example, 4:1:0 uses 32x16 pixels.
-With custom factors, MCUs span `8 * Luma.Horizontal` by `8 * Luma.Vertical` pixels.
+With custom factors, MCUs span `8 * maxHorizontal` by `8 * maxVertical` pixels,
+using the largest corresponding factors across all three components.
 Partial edge MCUs
 count toward the interval, which can cross row boundaries. Restart markers
 reset DC prediction and align the entropy stream between intervals, adding a
@@ -297,7 +309,8 @@ and the RST0..RST7 sequence begin again in each scan.
 
 Spatial adaptive quantization is enabled by default. It analyzes luma texture,
 brightness and neighboring regions to adjust coefficient zeroing thresholds.
-Set `AdaptiveQuantization = false` to use uniform quantization. Upstream sampling
+Set `AdaptiveQuantization = false` to use uniform quantization. Subsampled luma
+also disables adaptive analysis automatically, matching upstream. Upstream sampling
 arithmetic and dummy-block coding apply to both modes; partially filled MCUs can
 produce different JPEG bytes from earlier port versions.
 
@@ -344,9 +357,9 @@ also implemented.
 Gamma-encoded 16-bit and normalized floating-point RGB and grayscale input are
 supported with fractional samples preserved through quantization.
 Custom per-component sampling factors support different Cb and Cr resolutions,
-integer sample areas with full-resolution luma, and at most ten blocks per MCU.
+integer sample areas including subsampled luma, and at most ten blocks per MCU.
 
-Pending: fractional sampling ratios and subsampled luma,
+Pending: fractional sampling ratios,
 XYB color encoding and built-in profiles or color management, out-of-gamut float input,
 automatic XMP partitioning, structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.

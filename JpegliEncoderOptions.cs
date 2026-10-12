@@ -14,8 +14,9 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>
     /// Optional per-component Y, Cb and Cr sampling factors, overriding Subsampling.
-    /// Null (the default) uses the preset. Factors must be 1..4, with luma largest,
-    /// integer chroma sample areas and at most ten blocks per color MCU.
+    /// Null (the default) uses the preset. Factors must be 1..4, with integer sample
+    /// areas relative to the largest factors and at most ten blocks per color MCU.
+    /// Subsampled luma automatically disables adaptive quantization, following upstream.
     /// Valid color sampling settings are ignored for grayscale input.
     /// </summary>
     public JpegSamplingFactors? SamplingFactors { get; init; }
@@ -86,7 +87,10 @@ public sealed record JpegliEncoderOptions
     /// </summary>
     public int SmoothingFactor { get; init; }
 
-    /// <summary>Use Jpegli's spatial analysis to suppress perceptually masked coefficients.</summary>
+    /// <summary>
+    /// Use Jpegli's spatial analysis to suppress perceptually masked coefficients.
+    /// Automatically disabled when custom sampling subsamples luma in either direction.
+    /// </summary>
     public bool AdaptiveQuantization { get; init; } = true;
 
     /// <summary>
@@ -116,7 +120,7 @@ public sealed record JpegliEncoderOptions
     /// Zero disables restart markers. An MCU is 8x8 pixels for grayscale or 4:4:4,
     /// otherwise eight times the horizontal and vertical chroma sample area dimensions,
     /// including partial edge units. For example, 4:2:0 uses 16x16 and 4:1:0 uses 32x16.
-    /// Custom factors use eight times the luma horizontal and vertical factors.
+    /// Custom factors use eight times the largest horizontal and vertical component factors.
     /// In progressive AC scans, each component block is one MCU. The interval
     /// and restart marker sequence start afresh in every scan.
     /// </summary>
