@@ -153,11 +153,17 @@ internal static class Quantization
     /// <summary>Creates one baseline YCbCr quantization table in natural frequency order.</summary>
     internal static ushort[] CreateTable(float quality, int component,
         int horizontalSampling = 1, int verticalSampling = 1)
+        => CreateTableForDistance(QualityToDistance(quality), component, horizontalSampling, verticalSampling);
+
+    /// <summary>Creates an upstream perceptual table directly from a positive finite distance.</summary>
+    internal static ushort[] CreateTableForDistance(float distance, int component,
+        int horizontalSampling = 1, int verticalSampling = 1)
     {
         ValidateComponent(component);
         ValidateSampling(horizontalSampling, verticalSampling);
+        if (!float.IsFinite(distance) || distance <= 0f)
+            throw new ArgumentOutOfRangeException(nameof(distance), "Distance must be finite and greater than zero.");
 
-        float distance = QualityToDistance(quality);
         bool is420 = horizontalSampling == 2 && verticalSampling == 2;
         float globalScale = is420 ? GlobalScale * GlobalScale420 : GlobalScale;
         ReadOnlySpan<float> matrix = BaseMatrices.Slice(component * BlockSize, BlockSize);
@@ -183,6 +189,8 @@ internal static class Quantization
     /// DistanceToLinearQuality apply only to the explicit standard-table mode.
     /// </remarks>
     internal static ushort[] CreateGrayscaleTable(float quality) => CreateTable(quality, 0);
+
+    internal static ushort[] CreateGrayscaleTableForDistance(float distance) => CreateTableForDistance(distance, 0);
 
     /// <summary>Creates upstream per-frequency adaptive zero-bias multipliers.</summary>
     internal static float[][] CreateAdaptiveZeroBiasMultipliers(ushort[][] tables,

@@ -9,6 +9,17 @@ public sealed record JpegliEncoderOptions
     /// <summary>Jpegli quality, from 0 to 100. This is not the libjpeg quality scale.</summary>
     public float Quality { get; init; } = 85;
 
+    /// <summary>
+    /// Optional Jpegli perceptual distance, overriding Quality when set.
+    /// Must be finite and greater than zero; lower values request finer quantization.
+    /// Null (the default) maps Quality through JpegliEncoder.QualityToDistance.
+    /// Quality must remain valid even when overridden. Quantization tables stay
+    /// clamped to baseline JPEG's 1..255 range, so extreme distances can produce
+    /// the same tables. This is a quantization setting, not a measured or guaranteed
+    /// perceptual error; even very small distances remain lossy.
+    /// </summary>
+    public float? Distance { get; init; }
+
     /// <summary>Chroma sample area relative to luma. Defaults to 4:2:0 (2x2); SamplingFactors overrides it.</summary>
     public ChromaSubsampling Subsampling { get; init; } = ChromaSubsampling.Quarter;
 
@@ -185,6 +196,8 @@ public sealed record JpegliEncoderOptions
     {
         if (!float.IsFinite(Quality) || Quality is < 0 or > 100)
             throw new ArgumentOutOfRangeException(nameof(Quality), "Quality must be finite and between 0 and 100.");
+        if (Distance is float distance && (!float.IsFinite(distance) || distance <= 0f))
+            throw new ArgumentOutOfRangeException(nameof(Distance), "Distance must be finite and greater than zero.");
         if (!Enum.IsDefined(Subsampling))
             throw new ArgumentOutOfRangeException(nameof(Subsampling));
         SamplingFactors?.Validate();

@@ -424,6 +424,39 @@ I/O failure during metadata output can leave a partial JPEG and leaves the strea
 
 ### Compression options
 
+`Quality` accepts finite values from 0 to 100, including fractional values, and
+defaults to 85. Set `Distance` to a finite value greater than zero to control
+Jpegli's perceptual quantization distance directly, following upstream's
+[`jpegli_set_distance`](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/encode.cc).
+Lower distances request finer quantization:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    Distance = 1.0f,
+    Subsampling = ChromaSubsampling.Quarter
+});
+
+float distance = JpegliEncoder.QualityToDistance(85); // 1.45f.
+```
+
+Null `Distance`, the default, uses the quality mapping and preserves existing
+JPEG bytes. A supplied distance overrides `Quality`, which must still be valid.
+Using `Distance = JpegliEncoder.QualityToDistance(quality)` produces the same
+JPEG as that quality setting, including with adaptive quantization and
+progressive scans. The helper applies the pinned upstream polynomial to
+fractional quality as well as integers: quality 0 maps to 25, 30 to 6.4,
+and 100 to 0.01. The special value at 100 is distinct from the approximately
+0.1 distance approached by qualities just below 100.
+
+Direct distance also accepts values outside that quality range, such as 0.001
+or 30. Tables remain clamped to the baseline JPEG range of 1..255; tiny distances
+can share all-one tables and large distances can share saturated tables.
+Distance is a quantization setting, not a measured or guaranteed perceptual
+error. Very small distances and quality 100 remain lossy. This option applies
+to every input precision and layout, with the same sampling, smoothing, metadata,
+scan, stream and cancellation behavior as quality-based encoding.
+
 Set `RestartInterval` to 1..65535 to insert restart markers after that many
 minimum coded units (MCUs); zero, the default, disables them. MCUs span 8x8 pixels
 for grayscale and 4:4:4; for other color modes, multiply each chroma sample area
@@ -514,6 +547,8 @@ Raw Exif TIFF embedding, standard and extended UTF-8 XMP packets in APP1,
 opt-in automatic partitioning of oversized XMP with selected standard properties, raw ICC profiles
 with APP2 chunking, raw IPTC-IIM in Photoshop APP13, UTF-8 COM comments, and
 configurable JFIF density fields are also implemented.
+Direct perceptual-distance control and a public quality-to-distance mapping
+are available, retaining baseline quantization tables and existing quality bytes.
 Gamma-encoded 16-bit and normalized floating-point RGB and grayscale input are
 supported with fractional samples preserved through quantization.
 Direct YCbCr input supports the same three source precisions and downstream options.
@@ -526,6 +561,7 @@ Pending: fractional sampling ratios,
 XYB color encoding and built-in profiles or color management,
 structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.
+Fractional sampling ratios are also rejected by the pinned upstream encoder.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
 one eighth of those units. This scaling adaptation is accounted for during
 quantization.
@@ -561,6 +597,14 @@ averaging and odd edge padding, and entropy parsing checks dummy-block tokens an
 DC predictor continuity. Future parity work should encode the same corpus with this pinned C++ revision and
 compare decoded quality at matched sizes. Execute performance benchmarks only
 on CI.
+
+Direct-distance regressions check the public quality mapping, precedence and
+validation before output, plus JPEG byte compatibility at equivalent quality
+across source precisions and layouts. Independently compiled pinned C++ table
+fixtures cover direct distances and nonlinear scaling. Independent marker and
+coefficient parsing checks table clamping and constant-block DC values, including
+positive finite distance extremes; these extremes do not establish upstream
+encoder parity.
 
 Additional 4:4:0 and 4:1:1 regressions use independent scalar C++ fixtures for
 vertical and pairwise horizontal averaging, odd edges, block seams and smoothing.

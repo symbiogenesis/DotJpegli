@@ -9,6 +9,14 @@ namespace DotJpegli;
 /// </summary>
 public static class JpegliEncoder
 {
+    /// <summary>
+    /// Maps Jpegli quality (finite 0..100) to its perceptual quantization distance.
+    /// Supports fractional quality using the pinned upstream polynomial; quality 100
+    /// maps to 0.01, which remains lossy. This is not libjpeg's quality scale or a
+    /// measured perceptual error. The result can be supplied as JpegliEncoderOptions.Distance.
+    /// </summary>
+    public static float QualityToDistance(float quality) => Quantization.QualityToDistance(quality);
+
     /// <summary>Encodes an image and returns its JPEG bytes.</summary>
     /// <param name="stride">Bytes between source rows, or zero for tightly packed rows.</param>
     public static byte[] Encode(ReadOnlySpan<byte> pixels, int width, int height,
@@ -122,10 +130,11 @@ public static class JpegliEncoder
         // compensation. Asymmetric schemes use uncompensated tables even when
         // the luma factors are 2x2.
         int quantizationSampling = sampling.Is420 ? 2 : 1;
+        float distance = options.Distance ?? QualityToDistance(options.Quality);
         var tables = new ushort[componentCount][];
         for (int component = 0; component < componentCount; component++)
-            tables[component] = grayscale ? Quantization.CreateGrayscaleTable(options.Quality)
-                : Quantization.CreateTable(options.Quality, component, quantizationSampling, quantizationSampling);
+            tables[component] = grayscale ? Quantization.CreateGrayscaleTableForDistance(distance)
+                : Quantization.CreateTableForDistance(distance, component, quantizationSampling, quantizationSampling);
 
         // ProcessCompressionParams in the pinned upstream disables adaptive analysis
         // when luma is subsampled in either direction.
@@ -151,7 +160,7 @@ public static class JpegliEncoder
             try
             {
                 ProcessBlocks(pixels, width, height, stride, sampling,
-                    tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
+                    tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
                     dcTables, acTables, null, dcValidation, acValidation, cancellationToken,
                     requireEightBitCoefficients: true);
             }
@@ -171,14 +180,14 @@ public static class JpegliEncoder
                 acFrequencies[index] = new long[256];
             }
             ProcessBlocks(pixels, width, height, stride, sampling,
-                tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
+                tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
                 null, dcFrequencies, acFrequencies, cancellationToken, dcOnly: options.Progressive,
                 successiveLow: options.ProgressiveRefinementBits);
             if (options.Progressive)
             {
                 for (int component = 0; component < componentCount; component++)
                     ProcessAcBlocks(pixels, width, height, stride, sampling,
-                        tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
+                        tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
                         component, acTables, null, acFrequencies, cancellationToken, aggregateEobRuns: true,
                         successiveLow: options.ProgressiveRefinementBits);
                 // DC refinement emits raw bits, so only AC refinement contributes
@@ -186,7 +195,7 @@ public static class JpegliEncoder
                 for (int low = options.ProgressiveRefinementBits - 1; low >= 0; low--)
                     for (int component = 0; component < componentCount; component++)
                         ProcessAcBlocks(pixels, width, height, stride, sampling,
-                            tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
+                            tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
                             component, acTables, null, acFrequencies, cancellationToken,
                             aggregateEobRuns: true, successiveLow: low, refine: true);
             }
@@ -212,7 +221,7 @@ public static class JpegliEncoder
             successiveLow: options.ProgressiveRefinementBits);
         var bits = new BitWriter(output);
         ProcessBlocks(pixels, width, height, stride, sampling,
-            tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
+            tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
             bits, null, null, cancellationToken, dcOnly: options.Progressive,
             successiveLow: options.ProgressiveRefinementBits);
         bits.Flush();
@@ -224,7 +233,7 @@ public static class JpegliEncoder
                 JpegMarkerWriter.WriteScanHeader(output, componentCount, true, component,
                     successiveLow: options.ProgressiveRefinementBits);
                 ProcessAcBlocks(pixels, width, height, stride, sampling,
-                    tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
+                    tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
                     component, acTables, bits, null, cancellationToken,
                     aggregateEobRuns: options.OptimizeHuffmanTables,
                     successiveLow: options.ProgressiveRefinementBits);
@@ -236,7 +245,7 @@ public static class JpegliEncoder
                 JpegMarkerWriter.WriteScanHeader(output, componentCount, true,
                     successiveHigh: low + 1, successiveLow: low);
                 ProcessBlocks(pixels, width, height, stride, sampling,
-                    tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
+                    tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
                     bits, null, null, cancellationToken, dcOnly: true, successiveLow: low, refine: true);
                 bits.Flush();
                 for (int component = 0; component < componentCount; component++)
@@ -245,7 +254,7 @@ public static class JpegliEncoder
                     JpegMarkerWriter.WriteScanHeader(output, componentCount, true, component,
                         successiveHigh: low + 1, successiveLow: low);
                     ProcessAcBlocks(pixels, width, height, stride, sampling,
-                        tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
+                        tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
                         component, acTables, bits, null, cancellationToken,
                         aggregateEobRuns: options.OptimizeHuffmanTables, successiveLow: low, refine: true);
                     bits.Flush();
@@ -258,7 +267,7 @@ public static class JpegliEncoder
 
     private static void ProcessBlocks(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, ushort[][] tables,
-        float quality, int smoothingFactor, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
+        float distance, int smoothingFactor, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
         bool dcOnly = false, int successiveLow = 0, bool refine = false, bool requireEightBitCoefficients = false)
@@ -270,7 +279,6 @@ public static class JpegliEncoder
         previousDc.Clear();
         Span<int> previousScanDc = stackalloc int[3];
         previousScanDc.Clear();
-        float distance = Quantization.QualityToDistance(quality);
         int horizontal = sampling.MaxHorizontal;
         int vertical = sampling.MaxVertical;
         int mcuWidth = horizontal * 8;
@@ -363,7 +371,7 @@ public static class JpegliEncoder
 
     private static void ProcessAcBlocks(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, ushort[][] tables,
-        float quality, int smoothingFactor, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
+        float distance, int smoothingFactor, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         int component, HuffmanTable[] acTables, BitWriter? writer, long[][]? acFrequencies,
         CancellationToken cancellationToken, bool aggregateEobRuns, int successiveLow = 0, bool refine = false)
     {
@@ -377,7 +385,6 @@ public static class JpegliEncoder
         int sampleWidth = sampling.MaxHorizontal / sampling[component].Horizontal;
         int sampleHeight = vertical / sampling[component].Vertical;
         int tableIndex = component == 0 ? 0 : 1;
-        float distance = Quantization.QualityToDistance(quality);
         float[]? strengths = adaptive is null ? null : new float[adaptive.BlocksWide * vertical];
         int lastAnalysisTop = -1;
         int mcusRemaining = restartInterval;
