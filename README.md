@@ -531,12 +531,22 @@ APP2 markers. An empty profile, the default, writes no ICC markers except that
 XYB output requires a nonempty matching scaled XYB profile. The profile
 is opaque unless the opt-in CICP lookup described below is enabled. Supply a
 profile describing the output's RGB, grayscale or scaled XYB interpretation.
-The built-in scaled XYB profile is available through
-`JpegliIccProfiles.CreateXybProfile()`. The encoder does not apply an attached
-profile's color transform. Do not change its
-backing memory or dispose its owner until encoding returns. Profiles can contain
-at most 16,707,345 bytes (255 chunks of up to 65,519 bytes), following
+Use `JpegliIccProfiles.CreateSrgbProfile()` for a built-in RGB sRGB profile, or
+`JpegliIccProfiles.CreateXybProfile()` for scaled XYB. Both factories return a
+fresh mutable array with deterministic bytes and require explicit assignment to
+`IccProfile`. The encoder does not apply an attached profile's color transform.
+Do not change its backing memory or dispose its owner until encoding returns.
+Profiles can contain at most 16,707,345 bytes (255 chunks of up to 65,519 bytes), following
 [ICC.1 Annex B.5](https://www.color.org/ICC1V42old.pdf).
+
+`CreateSrgbProfile()` provides the pinned Jpegli builder's 504-byte perceptual
+ICC v4.4 display profile, with sRGB transfer curves, D65-to-D50 Bradford
+adaptation and RGB-to-D50-XYZ colorants. Its `cicp` tag describes sRGB/BT.709
+primaries, transfer code 13, an RGB matrix and full range. Opt-in CICP lookup
+therefore retains the default non-HDR quantization tuning. Use this RGB profile
+for RGB output or YCbCr output whose RGB interpretation is gamma-encoded sRGB.
+It is unsuitable for grayscale, scaled XYB or samples in another RGB space.
+Attaching it does not convert samples or validate their color space.
 
 Set `IptcData` to raw IPTC-IIM bytes to embed them unchanged in one Photoshop
 APP13 marker. Supply only the IIM datasets, without Photoshop or JPEG framing.
@@ -566,7 +576,7 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 {
     ExifData = File.ReadAllBytes("exif-tiff.bin"),
     XmpPacket = File.ReadAllText("metadata.xmp"),
-    IccProfile = File.ReadAllBytes("srgb.icc"),
+    IccProfile = JpegliIccProfiles.CreateSrgbProfile(),
     IptcData = File.ReadAllBytes("metadata.iim"),
     Comment = "Photo export",
     DensityUnit = JpegDensityUnit.DotsPerInch,
@@ -831,9 +841,11 @@ Direct already scaled XYB input and explicit sRGB/grayscale-to-XYB output use
 the upstream XYB quantizers, sampling defaults and Y-based adaptive analysis,
 with a required explicitly assigned output ICC profile. A managed factory
 provides the pinned upstream's perceptual scaled XYB profile.
+The same API provides a fixed perceptual sRGB RGB display profile for explicit
+attachment to RGB or YCbCr output, with shared transfer curves and a CICP tag.
 
 Pending: fractional sampling ratios,
-other built-in profiles and arbitrary source ICC color management,
+additional built-in profiles and arbitrary source ICC color management,
 structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.
 Fractional sampling ratios are also rejected by the pinned upstream encoder.
@@ -921,6 +933,16 @@ white and saturated colors. Encoding checks verify exact APP2 embedding,
 unchanged coding bytes, typed source input, progressive output and nonseekable
 streams. These checks validate the profile transform, without establishing a
 color-managed lossy JPEG quality comparison.
+
+Built-in sRGB profile regressions check the complete profile against an
+independently compiled pinned C++ SHA-256 fixture, the ICC MD5 ID and fresh
+storage on every factory call. Independent parsing checks the header, aligned
+tags, shared transfer curves and CICP fields. A double-precision sRGB-to-D50-XYZ
+oracle checks the parsed matrix and curves over a color cube, including transfer
+boundaries. Encoding checks cover exact APP2 embedding, unchanged coding data,
+CICP lookup, source precisions, RGB/YCbCr output, progressive refinement and
+nonseekable streams. These checks do not establish a color-managed lossy JPEG
+quality comparison.
 
 Scaled XYB regressions compare complete emitted quantization tables with
 independently compiled pinned C++ scalar fixtures. Independent JPEG parsing

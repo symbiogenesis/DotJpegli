@@ -184,8 +184,10 @@ public sealed record JpegliEncoderOptions
     /// <summary>
     /// Raw ICC profile bytes to embed in APP2 markers. Empty (the default) omits the profile.
     /// At most 16,707,345 bytes are supported. The profile is not applied to the pixels;
-    /// supply a profile describing the output's RGB or grayscale interpretation. XYB output
-    /// requires a nonempty profile describing Jpegli's scaled XYB channels, rather than an
+    /// supply a profile describing the output's RGB or grayscale interpretation.
+    /// JpegliIccProfiles.CreateSrgbProfile provides an RGB sRGB profile for explicit
+    /// assignment to RGB or YCbCr output with an sRGB interpretation, not grayscale.
+    /// XYB output requires a nonempty profile describing Jpegli's scaled XYB channels, rather than an
     /// ordinary RGB profile. JpegliIccProfiles.CreateXybProfile provides a matching
     /// built-in profile; it must be assigned explicitly. The encoder does not validate
     /// an external profile's transform. It remains opaque
