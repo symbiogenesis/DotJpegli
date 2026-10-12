@@ -33,6 +33,18 @@ public sealed record JpegliEncoderOptions
     /// </summary>
     public bool UseStandardQuantizationTables { get; init; }
 
+    /// <summary>
+    /// CICP transfer-function code describing the supplied samples, from 0 to 255.
+    /// The default, 2 (unspecified), preserves existing output. Codes 16 (PQ) and
+    /// 18 (HLG) tune Jpegli's perceptual quantization and adaptive coefficient
+    /// thresholds; other codes retain the default tuning. Standard quantization
+    /// matrices ignore this hint when constructing tables, but adaptive thresholds
+    /// still use it. This does not transform samples, tone-map, validate a registered
+    /// code, or embed color metadata. Supply any required ICC profile separately.
+    /// Output remains a lossy eight-bit JPEG; this hint does not establish HDR conformance.
+    /// </summary>
+    public int CicpTransferFunction { get; init; } = 2;
+
     /// <summary>Chroma sample area relative to luma. Defaults to 4:2:0 (2x2); SamplingFactors overrides it.</summary>
     public ChromaSubsampling Subsampling { get; init; } = ChromaSubsampling.Quarter;
 
@@ -211,6 +223,8 @@ public sealed record JpegliEncoderOptions
             throw new ArgumentOutOfRangeException(nameof(Quality), "Quality must be finite and between 0 and 100.");
         if (Distance is float distance && (!float.IsFinite(distance) || distance <= 0f))
             throw new ArgumentOutOfRangeException(nameof(Distance), "Distance must be finite and greater than zero.");
+        if (CicpTransferFunction is < 0 or > 255)
+            throw new ArgumentOutOfRangeException(nameof(CicpTransferFunction), "The CICP transfer-function code must be between 0 and 255.");
         if (!Enum.IsDefined(Subsampling))
             throw new ArgumentOutOfRangeException(nameof(Subsampling));
         SamplingFactors?.Validate();

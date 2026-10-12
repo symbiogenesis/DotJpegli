@@ -179,7 +179,7 @@ internal static class Quantization
 
     /// <summary>Creates an upstream perceptual table directly from a positive finite distance.</summary>
     internal static ushort[] CreateTableForDistance(float distance, int component,
-        int horizontalSampling = 1, int verticalSampling = 1)
+        int horizontalSampling = 1, int verticalSampling = 1, int cicpTransferFunction = 2)
     {
         ValidateComponent(component);
         ValidateSampling(horizontalSampling, verticalSampling);
@@ -187,7 +187,9 @@ internal static class Quantization
             throw new ArgumentOutOfRangeException(nameof(distance), "Distance must be finite and greater than zero.");
 
         bool is420 = horizontalSampling == 2 && verticalSampling == 2;
-        float globalScale = is420 ? GlobalScale * GlobalScale420 : GlobalScale;
+        float globalScale = TransferFunctionGlobalScale(cicpTransferFunction);
+        if (is420)
+            globalScale *= GlobalScale420;
         ReadOnlySpan<float> matrix = BaseMatrices.Slice(component * BlockSize, BlockSize);
         ushort[] table = new ushort[BlockSize];
         for (int i = 0; i < table.Length; i++)
@@ -212,7 +214,8 @@ internal static class Quantization
     /// </remarks>
     internal static ushort[] CreateGrayscaleTable(float quality) => CreateTable(quality, 0);
 
-    internal static ushort[] CreateGrayscaleTableForDistance(float distance) => CreateTableForDistance(distance, 0);
+    internal static ushort[] CreateGrayscaleTableForDistance(float distance, int cicpTransferFunction = 2)
+        => CreateTableForDistance(distance, 0, cicpTransferFunction: cicpTransferFunction);
 
     /// <summary>Creates the pinned upstream's optional baseline Annex K table.</summary>
     internal static ushort[] CreateStandardTableForDistance(float distance, int component)
@@ -247,14 +250,15 @@ internal static class Quantization
 
     /// <summary>Creates upstream per-frequency adaptive zero-bias multipliers.</summary>
     internal static float[][] CreateAdaptiveZeroBiasMultipliers(ushort[][] tables,
-        int horizontalSampling, int verticalSampling, bool grayscale, bool sharedChromaTable = false)
+        int horizontalSampling, int verticalSampling, bool grayscale, bool sharedChromaTable = false,
+        int cicpTransferFunction = 2)
     {
         ArgumentNullException.ThrowIfNull(tables);
         ValidateSampling(horizontalSampling, verticalSampling);
         if (tables.Length != (grayscale ? 1 : 3))
             throw new ArgumentException("Supply one grayscale table or three YCbCr tables.", nameof(tables));
 
-        float distance = QuantValuesToDistance(tables, sharedChromaTable);
+        float distance = QuantValuesToDistance(tables, sharedChromaTable, cicpTransferFunction);
         float lowQualityMix = Math.Clamp((distance - 1f) / 2f, 0f, 1f);
         float highQualityMix = 1f - lowQualityMix;
         float[][] multipliers = new float[tables.Length][];
@@ -283,18 +287,21 @@ internal static class Quantization
 
     /// <summary>Infers upstream quantizer distance from the emitted baseline tables.</summary>
     /// <remarks>
-    /// QuantValsToDistance uses the unscaled YCbCr base matrices, including for
+    /// QuantValsToDistance uses the YCbCr base matrices and transfer-function global
+    /// scale, without the 4:2:0 compensation, including for
     /// tables emitted with 4:2:0 rescaling or standard matrices. Shared chroma
     /// selectors use the perceptual Cb base for both components, following upstream's
     /// quant_tbl_no indexing; their zero-bias multipliers remain component-specific.
     /// It reconstructs an interval from
     /// rounded values, leaving saturated 1 and 255 endpoints unbounded.
     /// </remarks>
-    internal static float QuantValuesToDistance(ushort[][] tables, bool sharedChromaTable = false)
+    internal static float QuantValuesToDistance(ushort[][] tables, bool sharedChromaTable = false,
+        int cicpTransferFunction = 2)
     {
         ArgumentNullException.ThrowIfNull(tables);
         if (tables.Length is not (1 or 3))
             throw new ArgumentException("Supply one grayscale table or three YCbCr tables.", nameof(tables));
+        float globalScale = TransferFunctionGlobalScale(cicpTransferFunction);
         const float distanceLimit = 10000f;
         float distanceMin = 0f;
         float distanceMax = distanceLimit;
@@ -309,7 +316,7 @@ internal static class Quantization
                 if (quant is < 1 or > 255)
                     throw new ArgumentException("Baseline quantization values must be between 1 and 255.", nameof(tables));
                 int tableIndex = sharedChromaTable && component > 0 ? 1 : component;
-                float inverseQuant = 1f / BaseMatrices[tableIndex * BlockSize + frequency] / GlobalScale;
+                float inverseQuant = 1f / BaseMatrices[tableIndex * BlockSize + frequency] / globalScale;
                 float min = quant > 1 ? ScaleToDistance((quant - 0.5f) * inverseQuant, frequency) : 0f;
                 float max = quant < 255 ? ScaleToDistance((quant + 0.5f) * inverseQuant, frequency) : distanceLimit;
                 if (min <= distanceMax)
@@ -409,6 +416,22 @@ internal static class Quantization
         // C++ uses std::pow(float, double) for the first pow due to 1.0.
         float multiplier = (float)Math.Pow(NonlinearThreshold, 1.0 - exponent);
         return MathF.Max(0.5f * distance, multiplier * MathF.Pow(distance, exponent));
+    }
+
+    // SetQuantMatrices and QuantValsToDistance use this tuning only for PQ and
+    // HLG. Apply it before 4:2:0 rescaling to preserve upstream float ordering.
+    // Conventional tables have their own scale, but adaptive inference still
+    // uses this perceptual global scale even when those tables are selected.
+    private static float TransferFunctionGlobalScale(int cicpTransferFunction)
+    {
+        if (cicpTransferFunction is < 0 or > 255)
+            throw new ArgumentOutOfRangeException(nameof(cicpTransferFunction));
+        return cicpTransferFunction switch
+        {
+            16 => GlobalScale * 0.4f,
+            18 => GlobalScale * 0.5f,
+            _ => GlobalScale
+        };
     }
 
     private static float ScaleToDistance(float scale, int frequency)

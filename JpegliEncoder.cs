@@ -137,8 +137,9 @@ public static class JpegliEncoder
             if (options.UseStandardQuantizationTables)
                 tables[component] = component == 2 ? tables[1] : Quantization.CreateStandardTableForDistance(distance, component);
             else
-                tables[component] = grayscale ? Quantization.CreateGrayscaleTableForDistance(distance)
-                    : Quantization.CreateTableForDistance(distance, component, quantizationSampling, quantizationSampling);
+                tables[component] = grayscale ? Quantization.CreateGrayscaleTableForDistance(distance, options.CicpTransferFunction)
+                    : Quantization.CreateTableForDistance(distance, component, quantizationSampling, quantizationSampling,
+                        options.CicpTransferFunction);
         }
 
         // ProcessCompressionParams in the pinned upstream disables adaptive analysis
@@ -147,7 +148,8 @@ public static class JpegliEncoder
         var adaptive = useAdaptiveQuantization ? new AdaptiveQuantization(width, height, sampling.MaxVertical) : null;
         float[][]? adaptiveMultipliers = useAdaptiveQuantization
             ? Quantization.CreateAdaptiveZeroBiasMultipliers(tables, quantizationSampling, quantizationSampling, grayscale,
-                sharedChromaTable: options.UseStandardQuantizationTables) : null;
+                sharedChromaTable: options.UseStandardQuantizationTables,
+                cicpTransferFunction: options.CicpTransferFunction) : null;
 
         var dcTables = new HuffmanTable[grayscale ? 1 : 2];
         var acTables = new HuffmanTable[dcTables.Length];

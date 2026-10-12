@@ -559,6 +559,37 @@ In particular, fractional scaling can differ from libjpeg's integer quality scal
 The scaling and shared-table rules are ported from
 [the pinned upstream quantizer](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/quant.cc).
 
+### Transfer-function quantization tuning
+
+Set `CicpTransferFunction` to describe the transfer function of the supplied samples:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(pqPixels, width, height, options: new()
+{
+    CicpTransferFunction = 16, // Already PQ-encoded input samples.
+    IccProfile = matchingProfile
+});
+```
+
+The option accepts one byte's code range, 0..255, and defaults to 2 (unspecified).
+Codes 16 (PQ) and 18 (HLG) multiply upstream's perceptual global quantization
+scale by 0.4 and 0.5 respectively, before any 4:2:0 compensation and coefficient
+rounding. Other codes preserve default tuning, including 13 (sRGB); registration
+of the supplied code is not validated. Quality and direct-distance controls retain
+their existing meaning. This applies to RGB, grayscale and direct YCbCr input at
+all three source precisions, with unchanged sampling and scan options.
+
+Adaptive quantization infers its coefficient thresholds using the same
+transfer-function scale. With `UseStandardQuantizationTables`, the emitted Annex K
+tables ignore the hint, but adaptive thresholds still use it, following upstream.
+Grayscale retains its constant adaptive coefficient multipliers.
+
+The hint follows [the pinned upstream quantizer](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/quant.cc).
+It does not convert transfer functions, apply a profile, tone-map or write CICP
+metadata. Supply appropriately encoded samples and any matching ICC profile
+yourself. Output remains a lossy eight-bit JPEG; this tuning alone does not
+establish HDR conformance or a measured perceptual quality guarantee.
+
 ## Port status
 
 Implemented: baseline sequential and optional spectral-selection and successive-approximation progressive
@@ -583,6 +614,8 @@ Direct perceptual-distance control and a public quality-to-distance mapping
 are available, retaining baseline quantization tables and existing quality bytes.
 Optional conventional Annex K quantization matrices use upstream distance scaling,
 with one luma table and a shared chroma table, retaining Jpegli adaptive quantization.
+Optional CICP transfer-function hints provide upstream PQ/HLG perceptual table
+scaling and adaptive threshold inference without changing or signaling the input color space.
 Gamma-encoded 16-bit and normalized floating-point RGB and grayscale input are
 supported with fractional samples preserved through quantization.
 Direct YCbCr input supports the same three source precisions and downstream options.
