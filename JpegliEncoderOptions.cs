@@ -25,7 +25,9 @@ public sealed record JpegliEncoderOptions
     /// False (the default) uses Jpegli's perceptual matrices. Quality still maps to Jpegli
     /// distance, and an explicit Distance still overrides it; the standard matrices use
     /// the pinned upstream's linear scaling from that distance without 4:2:0 compensation.
-    /// Values remain clamped to baseline JPEG's 1..255 range. Adaptive quantization and
+    /// Values are clamped to baseline JPEG's 1..255 range before integer conversion,
+    /// including near distance 25 where upstream's conversion can overflow.
+    /// Adaptive quantization and
     /// Jpegli's coefficient thresholds remain available; this is not libjpeg byte parity
     /// or a promise of equivalent quality, size or speed.
     /// </summary>

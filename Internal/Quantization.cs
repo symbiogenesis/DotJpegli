@@ -224,6 +224,8 @@ internal static class Quantization
         float scale = 0.01f * DistanceToLinearQuality(distance);
         ReadOnlySpan<byte> matrix = StandardMatrices.Slice(component == 0 ? 0 : BlockSize, BlockSize);
         ushort[] table = new ushort[BlockSize];
+        // Clamp before the integer conversion, including immediately below 25
+        // where DistanceToLinearQuality can exceed upstream's int32 range.
         for (int i = 0; i < table.Length; i++)
             table[i] = (ushort)Math.Clamp(MathF.Round(scale * matrix[i], MidpointRounding.AwayFromZero), 1f, 255f);
         return table;

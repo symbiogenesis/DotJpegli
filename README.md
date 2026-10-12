@@ -546,6 +546,9 @@ The standard matrices use the pinned upstream's piecewise linear-quality scale
 from that distance, with rounding and clamping to 1..255. Both chroma components
 share table 1; grayscale uses only the luma matrix in table 0. Sampling factors
 still select the output resolution, but standard tables have no 4:2:0 compensation.
+The managed encoder clamps before converting to integers, including immediately
+below distance 25 where upstream's scale can overflow its integer conversion.
+Those cases retain legal saturated tables; they do not establish native parity.
 
 Adaptive quantization, Jpegli's coefficient thresholds, smoothing, higher-precision
 and direct YCbCr input, restart markers and progressive refinement remain available.
