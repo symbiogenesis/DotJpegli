@@ -5,8 +5,8 @@ namespace DotJpegli;
 /// <summary>
 /// Encodes byte, 16-bit or floating-point RGB, grayscale or YCbCr pixels
 /// to eight-bit baseline or progressive grayscale, YCbCr or RGB JPEG.
-/// Also accepts already scaled XYB input with a matching caller-supplied ICC profile.
-/// Includes spatial adaptive quantization; RGB-to-XYB conversion remains pending.
+/// Converts sRGB/grayscale to scaled XYB or accepts already scaled XYB input,
+/// with a matching caller-supplied output ICC profile. Includes spatial adaptive quantization.
 /// </summary>
 public static class JpegliEncoder
 {
@@ -70,7 +70,8 @@ public static class JpegliEncoder
     /// Encodes gamma-encoded RGB/grayscale, full-range JPEG YCbCr or already scaled XYB floating-point samples.
     /// Consumed samples must be finite and in 0..1 by default; neutral YCbCr chroma is 128f / 255f.
     /// AllowOutOfRangeFloatSamples permits out-of-range values that fit eight-bit JPEG coefficients.
-    /// Alpha, row padding and trailing elements are ignored. This API does not apply a linear-light or HDR transform.
+    /// Alpha, row padding and trailing elements are ignored. Explicit XYB output linearizes sRGB
+    /// before its opsin transform. No HDR transform or source ICC transform is applied.
     /// Fractional precision is retained until quantization; output JPEG sample precision is eight bits.
     /// </summary>
     /// <param name="stride">Source elements between rows, or zero for tightly packed rows.</param>

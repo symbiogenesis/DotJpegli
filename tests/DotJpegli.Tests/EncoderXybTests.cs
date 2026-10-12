@@ -282,7 +282,7 @@ public sealed class EncoderXybTests
         foreach (JpegColorSpace output in new[] { JpegColorSpace.Grayscale, JpegColorSpace.YCbCr, JpegColorSpace.Rgb })
             AssertRejected(pixels, Options() with { ColorSpace = output }, "ColorSpace");
         foreach (PixelComponentLayout layout in new[]
-            { PixelComponentLayout.Rgb, PixelComponentLayout.Bgr, PixelComponentLayout.Rgba, PixelComponentLayout.Bgra, PixelComponentLayout.Gray, PixelComponentLayout.YCbCr })
+            { PixelComponentLayout.YCbCr })
         {
             Array source = kind switch { 0 => new byte[256], 1 => new ushort[256], _ => new float[256] };
             using var destination = new MemoryStream();

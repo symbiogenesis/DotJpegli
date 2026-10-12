@@ -77,9 +77,11 @@ internal readonly ref struct PixelSource
 
     internal PixelSource WithColorSpace(JpegColorSpace outputColorSpace)
     {
-        if ((xyb && outputColorSpace is not (JpegColorSpace.Automatic or JpegColorSpace.Xyb))
-            || (!xyb && outputColorSpace == JpegColorSpace.Xyb))
-            throw new ArgumentException("XYB output requires already scaled XYB input, which cannot be converted to another output color space.",
+        if (xyb && outputColorSpace is not (JpegColorSpace.Automatic or JpegColorSpace.Xyb))
+            throw new ArgumentException("Already scaled XYB input cannot be converted to another output color space.",
+                nameof(JpegliEncoderOptions.ColorSpace));
+        if (outputColorSpace == JpegColorSpace.Xyb && ycbcr)
+            throw new ArgumentException("Direct YCbCr input cannot be converted to XYB output.",
                 nameof(JpegliEncoderOptions.ColorSpace));
         if (outputColorSpace == JpegColorSpace.Rgb && ycbcr)
             throw new ArgumentException("Direct YCbCr input cannot be converted to RGB output.",
@@ -122,6 +124,10 @@ internal readonly ref struct PixelSource
                         hasOutOfRangeSamples = true;
                     }
                 }
+                // Validate the nonlinear transform before any output, including
+                // when a finite source sample would overflow sRGB linearization.
+                if (IsXyb && !xyb)
+                    ReadSample(offset, 0);
             }
         }
         return hasOutOfRangeSamples;
@@ -129,6 +135,14 @@ internal readonly ref struct PixelSource
 
     internal float ReadSample(int offset, int component)
     {
+        if (IsXyb && !xyb)
+        {
+            float red = ReadNormalizedComponent(offset + (IsGrayscaleInput ? 0 : bgr ? 2 : 0));
+            float green = IsGrayscaleInput ? red : ReadNormalizedComponent(offset + 1);
+            float blue = IsGrayscaleInput ? red : ReadNormalizedComponent(offset + (bgr ? 0 : 2));
+            XybColorConversion.SrgbToScaledXyb(red, green, blue, out float scaledX, out float scaledY, out float scaledB);
+            return component switch { 0 => scaledX, 1 => scaledY, _ => scaledB };
+        }
         if (IsGrayscaleInput)
             return ColorSpace == JpegColorSpace.YCbCr && component > 0 ? 128f : ReadComponent(offset);
         // ChooseColorTransform in the pinned upstream uses NullTransform when
@@ -156,6 +170,15 @@ internal readonly ref struct PixelSource
         // Upstream's double reciprocal matters before conversion to float.
         SourceType.UInt16 => (float)(words[offset] * (1.0 / 257.0)),
         _ => floats[offset] * 255f
+    };
+
+    // ToFloatRow in upstream's extras encoder normalizes directly to 0..1
+    // before its color transform. Avoid a rounded JPEG-unit intermediate.
+    private float ReadNormalizedComponent(int offset) => sourceType switch
+    {
+        SourceType.Byte => (float)(bytes[offset] * (1.0 / 255.0)),
+        SourceType.UInt16 => (float)(words[offset] * (1.0 / 65535.0)),
+        _ => floats[offset]
     };
 
     private static int GetComponentCount(PixelComponentLayout layout) => layout switch

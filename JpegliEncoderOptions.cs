@@ -18,8 +18,11 @@ public sealed record JpegliEncoderOptions
     /// and transfer-function hints. It defaults to full resolution, ignoring the
     /// Subsampling preset; custom SamplingFactors map Luma/Cb/Cr to R/G/B.
     /// Adaptive RGB quantization analyzes green and disables itself if green is
-    /// subsampled. Xyb requires already scaled XYB input and a nonempty matching
-    /// IccProfile; no conversion to or from another color space is supported.
+    /// subsampled. Xyb converts sRGB or grayscale input using sRGB linearization,
+    /// the opsin transform and Jpegli scaling, or accepts already scaled XYB input.
+    /// It requires a nonempty IccProfile describing the scaled output channels;
+    /// the source is assumed to be sRGB and no source ICC transform is applied.
+    /// Direct YCbCr-to-XYB and XYB-to-other conversions are unsupported.
     /// It uses RGB identifiers with three perceptual XYB tables and defaults to
     /// X/Y factors 2x2 and B-minus-Y factors 1x1. Its adaptive analysis uses Y.
     /// RGB/XYB JPEG reader support varies. This does not apply an ICC transform.
@@ -105,8 +108,10 @@ public sealed record JpegliEncoderOptions
     /// 0..1, a bounded coefficient pass validates the image before output: computations must remain
     /// finite, quantized DC must be -1024..1023 and AC -1023..1023. Unencodable input is rejected
     /// with an ArgumentException for pixels, independently of Huffman or scan settings.
+    /// RGB-to-XYB output extends the sRGB transfer with the source sign, clamps biased
+    /// opsin absorbance to zero, and requires finite nonlinear computations before output.
     /// Acceptance depends on quality, smoothing and sampling; this does not enable HDR output,
-    /// tone mapping, linear-light conversion or color management.
+    /// tone mapping or source ICC color management.
     /// </summary>
     public bool AllowOutOfRangeFloatSamples { get; init; }
 
@@ -178,7 +183,7 @@ public sealed record JpegliEncoderOptions
     /// <summary>
     /// Raw ICC profile bytes to embed in APP2 markers. Empty (the default) omits the profile.
     /// At most 16,707,345 bytes are supported. The profile is not applied to the pixels;
-    /// supply a profile describing the output's RGB or grayscale interpretation. XYB input
+    /// supply a profile describing the output's RGB or grayscale interpretation. XYB output
     /// requires a nonempty profile describing Jpegli's scaled XYB channels, rather than an
     /// ordinary RGB profile. The encoder does not validate that transform or generate a profile. It remains opaque
     /// unless InferCicpTransferFunctionFromIccProfile enables the narrow CICP lookup.

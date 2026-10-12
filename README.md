@@ -134,16 +134,19 @@ byte[] jpegFloat = JpegliEncoder.Encode(gray, width, height,
 Sixteen-bit samples are scaled by `1.0 / 257.0` and float samples by 255, following
 the pinned Jpegli scalar input reader. Fractional values pass through color conversion,
 adaptive analysis, smoothing, sampling and the DCT until quantization, without
-first rounding to bytes. Expanding byte samples to `ushort` with `value * 257`
+first rounding to bytes. Explicit [sRGB-to-XYB output](#srgb-to-xyb-output) instead
+normalizes directly to 0..1 before its nonlinear transform. Expanding byte samples to `ushort` with `value * 257`
 preserves the byte encoder's JPEG output. Float arithmetic can differ near coefficient
 rounding boundaries, so `value / 255f` does not promise byte-identical encoding.
 
 By default, consumed float color or grayscale samples must be finite and between 0 and 1;
 invalid values are rejected before output is written. Ignored alpha and padding
 need not satisfy that range. This is narrower than upstream Jpegli's float input,
-which also permits out-of-gamut values. These overloads do not linearize samples,
-tone-map HDR, or apply color profiles. Supply gamma-encoded values in the color
-space described by any attached ICC profile. Typed spans contain native numeric
+which also permits out-of-gamut values. XYB output linearizes sRGB before its
+opsin transform; other output modes retain gamma-encoded samples. No HDR tone
+mapping or source ICC transform is applied. For XYB output supply sRGB input and
+a scaled XYB output profile; other modes use the color space described by the
+attached profile. Typed spans contain native numeric
 values; deserialize byte-oriented source data with its correct endianness first.
 
 The output remains a lossy eight-bit JPEG. Higher-precision input retains more
@@ -187,7 +190,8 @@ slightly negative grayscale image may fit after coarse quantization yet exceed
 the DC limit at quality 100. Unencodable input throws an `ArgumentException`
 with `ParamName` equal to `pixels` before any output, with the same acceptance
 across baseline/progressive and Huffman settings. This option adds no tone
-mapping, linear-light conversion, HDR JPEG output or color management. Decoders
+mapping, HDR JPEG output or source ICC color management. Explicit XYB output
+applies its sRGB linearization and opsin transform as described below. Decoders
 can clamp reconstructed samples to their output range.
 
 ### Direct YCbCr input
@@ -271,8 +275,47 @@ RGB output omits JFIF APP0 and Adobe APP14; the RGB component identifiers signal
 the color space. JFIF density options therefore have no effect. Optional metadata
 begins immediately after SOI in its usual order. Some JPEG readers have limited
 support for RGB or subsampled RGB JPEGs. This option does not perform color
-management, generate an ICC profile or convert RGB to XYB; any attached profile
+management or generate an ICC profile; any attached profile
 must describe the chosen output interpretation.
+
+### sRGB-to-XYB output
+
+Set `ColorSpace = JpegColorSpace.Xyb` to convert gamma-encoded sRGB or grayscale
+input to Jpegli's scaled XYB representation:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    ColorSpace = JpegColorSpace.Xyb,
+    IccProfile = File.ReadAllBytes("jpegli-scaled-xyb.icc"),
+    Quality = 90
+});
+```
+
+This supports byte, 16-bit and float RGB/BGR layouts, including ignored alpha,
+and grayscale replicated across the three source channels. The source must use
+sRGB primaries, D65 white and the sRGB transfer function. Samples are normalized
+directly to 0..1, linearized, transformed through upstream's biased opsin matrix
+at its default intensity target of 255, then scaled to X, Y and B-minus-Y.
+Fractional values pass to the existing XYB quantization and sampling paths;
+conversion is performed on demand without a full-image conversion buffer.
+
+A nonempty matching **scaled XYB output** ICC profile is required. It is embedded
+unchanged; it does not describe or transform the source RGB. No built-in profile,
+arbitrary source ICC conversion or tone mapping is provided. Direct YCbCr input
+cannot be converted to XYB. `Automatic` continues to select YCbCr for RGB input
+and grayscale for grayscale input.
+
+The managed transform uses `MathF.Pow` for the piecewise sRGB transfer and
+`MathF.Cbrt` for the opsin roots, retaining upstream's matrix and scale constants.
+These differ slightly from the pinned upstream's rational and fast cube-root
+approximations and can change coefficient rounding near boundaries. Encoded
+channels are not clipped to 0..255. With `AllowOutOfRangeFloatSamples`, the sRGB
+transfer preserves each sample's sign and biased absorbance is clamped to zero,
+as upstream does. Nonfinite nonlinear computations and unrepresentable JPEG
+coefficients are rejected before output. Existing metadata, smoothing, custom
+sampling, adaptive analysis, progressive scans, restarts and stream behavior apply.
+Readers must apply the matching ICC profile for correct display.
 
 ### Scaled XYB input
 
@@ -280,8 +323,8 @@ Use `PixelLayout.Xyb24` or `PixelComponentLayout.Xyb` for samples already
 transformed and scaled using Jpegli's XYB representation. Components are
 interleaved **scaled X, scaled Y, scaled B-minus-Y**, matching the pinned
 upstream `ScaleXYBRow` output. Raw opsin-space X/Y/B values and ordinary RGB
-values are not valid inputs for these layouts. The encoder does not perform
-RGB linearization, the opsin transform, or XYB scaling.
+values are not valid inputs for these layouts. These layouts bypass RGB
+linearization, the opsin transform and XYB scaling.
 
 ```csharp
 byte[] jpeg = JpegliEncoder.Encode(scaledXybSamples, width, height,
@@ -296,8 +339,8 @@ Here `scaledXybSamples` is a `float[]` containing normalized scaled samples.
 Byte and 16-bit layouts represent the same nominal range with 0..255 and
 0..65535. Existing element strides, fractional precision, float validation and
 optional out-of-range coefficient preflight apply. `Automatic` selects XYB
-output; explicit `JpegColorSpace.Xyb` is equivalent. Conversions between XYB
-and any other input or output color space are rejected before writing.
+output; explicit `JpegColorSpace.Xyb` is equivalent. Scaled XYB input cannot
+be converted to any other output color space.
 
 A nonempty `IccProfile` is required to describe the stored scaled channels.
 Supply a matching Jpegli XYB profile; an ordinary sRGB profile is unsuitable.
@@ -472,7 +515,8 @@ envelope may be written if every property is selected. The existing XML envelope
 validation applies; this does not validate complete RDF graphs or XMP schemas.
 
 Set `IccProfile` to raw ICC profile bytes to embed them unchanged in numbered
-APP2 markers. An empty profile, the default, writes no ICC markers. The profile
+APP2 markers. An empty profile, the default, writes no ICC markers except that
+XYB output requires a nonempty matching scaled XYB profile. The profile
 is opaque unless the opt-in CICP lookup described below is enabled. The encoder
 does not apply a color transform or provide a built-in profile;
 use a profile describing the output's RGB or grayscale interpretation. Do not change its
@@ -769,11 +813,12 @@ with finite-computation and eight-bit coefficient validation before output.
 Custom per-component sampling factors support different Cb and Cr resolutions,
 integer sample areas including subsampled luma, and at most ten blocks per MCU.
 
-Direct already scaled XYB input uses the upstream XYB quantizers, sampling
-defaults and Y-based adaptive analysis, with a required caller-supplied ICC profile.
+Direct already scaled XYB input and explicit sRGB/grayscale-to-XYB output use
+the upstream XYB quantizers, sampling defaults and Y-based adaptive analysis,
+with a required caller-supplied output ICC profile.
 
 Pending: fractional sampling ratios,
-RGB-to-XYB conversion and built-in profiles or color management,
+built-in profiles and arbitrary source ICC color management,
 structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.
 Fractional sampling ratios are also rejected by the pinned upstream encoder.
@@ -843,6 +888,14 @@ profile bytes and cover sliced storage, marker boundaries, missing and malformed
 directories, extreme unsigned fields and last-entry selection. Native helper
 fixtures check the pinned lookup's permissive field handling. Cancellation,
 nonseekable streams and out-of-range coefficient rejection before output are covered.
+
+RGB-to-XYB regressions check transformed values against independently compiled
+pinned scalar C++ fixtures and a double-precision transfer/opsin oracle. They
+cover source normalization, ignored alpha and padding, grayscale replication,
+sampling and smoothing, adaptive analysis, progressive/restart coefficient
+parity, unchanged default behavior and rejection before output. Native transform
+fixtures allow the documented difference from upstream's fast approximations;
+these checks do not establish an ICC color-managed RGB roundtrip.
 
 Scaled XYB regressions compare complete emitted quantization tables with
 independently compiled pinned C++ scalar fixtures. Independent JPEG parsing

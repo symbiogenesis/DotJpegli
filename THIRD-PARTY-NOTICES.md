@@ -13,6 +13,7 @@ distributed under BSD-3-Clause:
 | --- | --- |
 | `Internal/ForwardDct.cs` | `lib/jpegli/dct-inl.h`: recursive DCT and transform ordering |
 | `Internal/ColorConversion.cs` | `lib/jpegli/color_transform.cc`: scalar RGB to YCbCr |
+| `Internal/XybColorConversion.cs` | `lib/extras/xyb_transform.cc`, `lib/cms/opsin_params.h`, `lib/cms/transfer_functions-inl.h`: sRGB transfer, opsin absorbance and scaled XYB; managed `MathF` power/cube root replace upstream approximations |
 | `Internal/PixelSource.cs` | `lib/jpegli/input.cc`: scalar 16-bit and float input scaling; `color_transform.cc`: direct YCbCr input with no color transform |
 | `Internal/IccProfile.cs` | `lib/extras/enc/jpegli.cc`: `FindCICPTag` and raw-profile CICP transfer-function lookup |
 | `Internal/Downsampling.cs` | `lib/jpegli/downsample.cc`, `encode.cc`: scalar 2x1, 2x2, 1x2 and 4x1 box filters, input smoothing and edge padding |

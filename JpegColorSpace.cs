@@ -16,9 +16,11 @@ public enum JpegColorSpace
     Rgb = 3,
 
     /// <summary>
-    /// Already scaled Jpegli XYB components, stored with RGB JPEG identifiers.
-    /// Requires XYB input and a caller-supplied ICC profile describing the scaled channels.
-    /// No color conversion or profile generation is performed.
+    /// Jpegli scaled XYB components, stored with RGB JPEG identifiers.
+    /// Converts sRGB or grayscale input through sRGB linearization and the opsin transform,
+    /// or accepts already scaled XYB input. Direct YCbCr input is unsupported.
+    /// Requires a caller-supplied ICC profile describing the scaled output channels.
+    /// No profile generation or source ICC transform is performed.
     /// </summary>
     Xyb = 4
 }
