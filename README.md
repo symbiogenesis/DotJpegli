@@ -531,8 +531,9 @@ APP2 markers. An empty profile, the default, writes no ICC markers except that
 XYB output requires a nonempty matching scaled XYB profile. The profile
 is opaque unless the opt-in CICP lookup described below is enabled. Supply a
 profile describing the output's RGB, grayscale or scaled XYB interpretation.
-Use `JpegliIccProfiles.CreateSrgbProfile()` for a built-in RGB sRGB profile, or
-`JpegliIccProfiles.CreateXybProfile()` for scaled XYB. Both factories return a
+Use `JpegliIccProfiles.CreateSrgbProfile()` for a built-in RGB sRGB profile,
+`JpegliIccProfiles.CreateSrgbGrayscaleProfile()` for grayscale with the sRGB
+transfer function, or `JpegliIccProfiles.CreateXybProfile()` for scaled XYB. These factories return a
 fresh mutable array with deterministic bytes and require explicit assignment to
 `IccProfile`. The encoder does not apply an attached profile's color transform.
 Do not change its backing memory or dispose its owner until encoding returns.
@@ -547,6 +548,22 @@ therefore retains the default non-HDR quantization tuning. Use this RGB profile
 for RGB output or YCbCr output whose RGB interpretation is gamma-encoded sRGB.
 It is unsuitable for grayscale, scaled XYB or samples in another RGB space.
 Attaching it does not convert samples or validate their color space.
+
+`CreateSrgbGrayscaleProfile()` provides the pinned builder's 328-byte perceptual
+ICC v4.4 grayscale display profile. Its `kTRC` tag describes the sRGB decoding
+curve. Following upstream, its media-white tag is D65 while its header uses the
+ICC D50 PCS illuminant; it has no chromatic-adaptation or CICP tag. Opt-in CICP
+lookup therefore returns unspecified (2) and retains default quantization tuning.
+Use it for grayscale output whose samples follow the sRGB transfer function:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(grayPixels, width, height, PixelLayout.Gray8,
+    options: new() { IccProfile = JpegliIccProfiles.CreateSrgbGrayscaleProfile() });
+```
+
+The factory returns fresh deterministic storage and requires explicit assignment.
+Attaching the profile leaves sample conversion and JPEG coding unchanged. It does
+not make linear, PQ or HLG grayscale samples sRGB, and is unsuitable for color output.
 
 Set `IptcData` to raw IPTC-IIM bytes to embed them unchanged in one Photoshop
 APP13 marker. Supply only the IIM datasets, without Photoshop or JPEG framing.
@@ -843,6 +860,8 @@ with a required explicitly assigned output ICC profile. A managed factory
 provides the pinned upstream's perceptual scaled XYB profile.
 The same API provides a fixed perceptual sRGB RGB display profile for explicit
 attachment to RGB or YCbCr output, with shared transfer curves and a CICP tag.
+It also provides a fixed D65 grayscale profile with the sRGB transfer curve for
+explicit attachment to grayscale output.
 
 Pending: fractional sampling ratios,
 additional built-in profiles and arbitrary source ICC color management,
@@ -943,6 +962,14 @@ boundaries. Encoding checks cover exact APP2 embedding, unchanged coding data,
 CICP lookup, source precisions, RGB/YCbCr output, progressive refinement and
 nonseekable streams. These checks do not establish a color-managed lossy JPEG
 quality comparison.
+
+Built-in sRGB grayscale profile regressions compare complete bytes with an
+independently compiled pinned C++ fixture, verify the ICC MD5 ID and fresh
+storage, and independently parse the header, aligned tags, D65 media white and
+sRGB decoding curve. Encoding checks cover exact APP2 embedding, unchanged
+coding data, typed and padded inputs, explicit grayscale conversion, scan modes,
+restart markers, CICP lookup and nonseekable streams. These checks do not establish
+a color-managed lossy JPEG quality comparison.
 
 Scaled XYB regressions compare complete emitted quantization tables with
 independently compiled pinned C++ scalar fixtures. Independent JPEG parsing

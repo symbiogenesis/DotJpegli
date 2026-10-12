@@ -16,6 +16,17 @@ public static class JpegliIccProfiles
     public static byte[] CreateSrgbProfile() => SrgbIccProfile.Create();
 
     /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 grayscale display profile for
+    /// gamma-encoded samples with the sRGB transfer function and D65 media white.
+    /// Assign it explicitly to JpegliEncoderOptions.IccProfile for grayscale
+    /// output. The profile retains upstream's D65 media-white tag and D50 PCS
+    /// header, without a chromatic-adaptation or CICP tag. It does not convert
+    /// source samples and is not an RGB or scaled XYB profile.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateSrgbGrayscaleProfile() => SrgbGrayscaleIccProfile.Create();
+
+    /// <summary>
     /// Creates Jpegli's perceptual ICC v4 profile for scaled X, Y and B-minus-Y
     /// output at the default intensity target of 255. Assign it to
     /// JpegliEncoderOptions.IccProfile when encoding XYB output.
