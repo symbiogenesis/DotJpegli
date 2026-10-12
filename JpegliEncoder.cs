@@ -4,7 +4,7 @@ namespace DotJpegli;
 
 /// <summary>
 /// Encodes eight-bit pixels to baseline JPEG using safe managed code.
-/// This initial port does not yet implement adaptive quantization, progressive scans, or XYB.
+/// Includes spatial adaptive quantization; progressive scans and XYB remain pending.
 /// </summary>
 public static class JpegliEncoder
 {
@@ -64,6 +64,10 @@ public static class JpegliEncoder
             tables[component] = grayscale ? Quantization.CreateGrayscaleTable(options.Quality)
                 : Quantization.CreateTable(options.Quality, component, horizontal, vertical);
 
+        var adaptive = options.AdaptiveQuantization ? new AdaptiveQuantization(width, height, vertical) : null;
+        float[][]? adaptiveMultipliers = options.AdaptiveQuantization
+            ? Quantization.CreateAdaptiveZeroBiasMultipliers(tables, horizontal, vertical, grayscale) : null;
+
         var dcTables = new HuffmanTable[grayscale ? 1 : 2];
         var acTables = new HuffmanTable[dcTables.Length];
         if (options.OptimizeHuffmanTables)
@@ -76,7 +80,8 @@ public static class JpegliEncoder
                 acFrequencies[index] = new long[256];
             }
             ProcessBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
-                tables, options.Quality, dcTables, acTables, null, dcFrequencies, acFrequencies, cancellationToken);
+                tables, options.Quality, adaptive, adaptiveMultipliers, dcTables, acTables,
+                null, dcFrequencies, acFrequencies, cancellationToken);
             for (int index = 0; index < dcTables.Length; index++)
             {
                 dcTables[index] = HuffmanTable.CreateOptimized(dcFrequencies[index]);
@@ -96,7 +101,8 @@ public static class JpegliEncoder
         JpegMarkerWriter.WriteHeaders(output, width, height, horizontal, vertical, tables, dcTables, acTables);
         var bits = new BitWriter(output);
         ProcessBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
-            tables, options.Quality, dcTables, acTables, bits, null, null, cancellationToken);
+            tables, options.Quality, adaptive, adaptiveMultipliers, dcTables, acTables,
+            bits, null, null, cancellationToken);
         bits.Flush();
         output.WriteByte(0xff);
         output.WriteByte(0xd9);
@@ -104,7 +110,8 @@ public static class JpegliEncoder
 
     private static void ProcessBlocks(ReadOnlySpan<byte> pixels, int width, int height, int stride,
         int bytesPerPixel, PixelLayout layout, int horizontal, int vertical, ushort[][] tables,
-        float quality, HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
+        float quality, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
+        HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken)
     {
         Span<float> samples = stackalloc float[64];
@@ -115,8 +122,11 @@ public static class JpegliEncoder
         float distance = Quantization.QualityToDistance(quality);
         int mcuWidth = horizontal * 8;
         int mcuHeight = vertical * 8;
+        float[]? strengths = adaptive is null ? null : new float[adaptive.BlocksWide * vertical];
         for (int top = 0; top < height; top += mcuHeight)
         {
+            if (adaptive is not null)
+                adaptive.ComputeRow(pixels, stride, bytesPerPixel, layout, top, tables[0][1], strengths!, cancellationToken);
             for (int left = 0; left < width; left += mcuWidth)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -133,8 +143,16 @@ public static class JpegliEncoder
                             FillBlock(pixels, width, height, stride, bytesPerPixel, layout, component,
                                 left + blockX * 8, top + blockY * 8, sampleWidth, sampleHeight, samples);
                             ForwardDct.Transform(samples, coefficients);
+                            // Upstream samples the top-left luma field value for a chroma block.
+                            // Edge blocks beyond the real luma width reuse its last field value.
+                            float strength = adaptive is null ? 0f : strengths![
+                                (component == 0 ? blockY : 0) * adaptive.BlocksWide +
+                                Math.Min(left / 8 + (component == 0 ? blockX : 0), adaptive.BlocksWide - 1)];
                             Quantization.Quantize(coefficients, tables[component], quantized, component, distance,
-                                grayscale: layout == PixelLayout.Gray8);
+                                grayscale: layout == PixelLayout.Gray8, adaptiveQuantization: adaptive is not null,
+                                adaptiveStrength: strength,
+                                adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
+                                previousDc: previousDc[component]);
                             int tableIndex = component == 0 ? 0 : 1;
                             if (writer is null)
                                 EntropyEncoder.AccumulateFrequencies(quantized, ref previousDc[component],

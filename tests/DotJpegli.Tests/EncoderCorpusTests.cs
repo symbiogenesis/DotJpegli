@@ -21,14 +21,17 @@ public sealed class EncoderCorpusTests
         foreach (float quality in new[] { 0f, 1f, 50f, 85f, 99f, 100f })
             foreach (ChromaSubsampling sampling in Enum.GetValues<ChromaSubsampling>())
                 foreach (bool optimize in new[] { false, true })
-                {
-                    byte[] jpeg = JpegliEncoder.Encode(pixels, width, height, options: new()
-                    { Quality = quality, Subsampling = sampling, OptimizeHuffmanTables = optimize },
-                    cancellationToken: TestContext.Current.CancellationToken);
-                    ImageResult decoded = ImageResult.FromMemory(jpeg, ColorComponents.RedGreenBlue);
-                    Assert.Equal(width, decoded.Width);
-                    Assert.Equal(height, decoded.Height);
-                    Assert.Equal(pixels.Length, decoded.Data.Length);
-                }
+                    foreach (bool adaptive in new[] { false, true })
+                    {
+                        byte[] jpeg = JpegliEncoder.Encode(pixels, width, height, options: new()
+                        {
+                            Quality = quality, Subsampling = sampling, OptimizeHuffmanTables = optimize,
+                            AdaptiveQuantization = adaptive
+                        }, cancellationToken: TestContext.Current.CancellationToken);
+                        ImageResult decoded = ImageResult.FromMemory(jpeg, ColorComponents.RedGreenBlue);
+                        Assert.Equal(width, decoded.Width);
+                        Assert.Equal(height, decoded.Height);
+                        Assert.Equal(pixels.Length, decoded.Data.Length);
+                    }
     }
 }

@@ -1,12 +1,15 @@
 namespace DotJpegli;
 
-/// <summary>Reusable settings for the initial baseline encoder port.</summary>
+/// <summary>Reusable settings for the managed baseline encoder.</summary>
 public sealed record JpegliEncoderOptions
 {
     /// <summary>Jpegli quality, from 0 to 100. This is not the libjpeg quality scale.</summary>
     public float Quality { get; init; } = 85;
 
     public ChromaSubsampling Subsampling { get; init; } = ChromaSubsampling.Quarter;
+
+    /// <summary>Use Jpegli's spatial analysis to suppress perceptually masked coefficients.</summary>
+    public bool AdaptiveQuantization { get; init; } = true;
 
     /// <summary>Collect symbol frequencies in a first pass to reduce entropy-coded size.</summary>
     public bool OptimizeHuffmanTables { get; init; } = true;
