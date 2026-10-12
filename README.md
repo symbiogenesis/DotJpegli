@@ -54,8 +54,8 @@ upstream scalar box averaging after optional smoothing, with replicated image
 edges. Only 4:2:0 applies upstream's specialized quantization-table compensation;
 all other modes use the same perceptual tables as 4:4:4 and 4:2:2.
 The less common modes are identified by their sample areas where the usual
-4:a:b notation is ambiguous. Color MCUs contain at most ten blocks, including
-the two chroma blocks.
+4:a:b notation is ambiguous. Preset color MCUs contain at most ten blocks,
+including one block for each chroma component.
 
 The three-row modes use upstream's dedicated `Downsample1x3` and `Downsample2x3`
 kernels: average horizontally first, then sum the three rows from top to bottom
@@ -371,6 +371,10 @@ and progressive coefficients and decoded pixels, verify every preset's byte
 compatibility with equivalent explicit factors, and check asymmetric chroma DC
 values against an independent color-conversion and box-average oracle. They also
 cover typed inputs, padded layouts, grayscale settings and validation before output.
+Independent full-image scalar C++ adaptive-field fixtures verify bounded analysis
+across custom MCU rows. Emitted chroma AC checks use those fixture strengths to
+verify component-local vertical indexing and scaled horizontal field columns,
+with cases that distinguish incorrect indexing in baseline and progressive output.
 
 Input smoothing regressions compare converted, filtered and subsampled block
 bits with independently compiled scalar C++ fixtures, including block seams,
