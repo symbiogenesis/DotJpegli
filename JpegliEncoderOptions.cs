@@ -45,13 +45,29 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>
     /// Serialized XMP packet to embed as UTF-8 in one standard APP1 marker.
-    /// Null or empty omits standard-only XMP. At most 65,504 encoded bytes are supported.
+    /// Null or empty omits standard-only XMP. At most 65,504 encoded bytes are supported
+    /// unless AutoPartitionXmp is enabled.
     /// Supply the complete packet, including any desired packet wrapper. No BOM or terminator is added.
     /// With nonempty ExtendedXmpPacket, a supplied standard packet is parsed only to validate its
-    /// digest link; otherwise XML is not parsed. Metadata is not reconciled with Exif, ICC or JFIF fields.
+    /// digest link. Oversized automatic packets are parsed for partitioning; other standard-only
+    /// packets are not parsed. Metadata is not reconciled with Exif, ICC or JFIF fields.
     /// Malformed UTF-16 (unpaired surrogates) is rejected before output is written.
     /// </summary>
     public string? XmpPacket { get; init; }
+
+    /// <summary>
+    /// Automatically store an XmpPacket exceeding 65,504 UTF-8 bytes in extended XMP.
+    /// False (the default) retains the single-marker limit. Smaller packets are unchanged.
+    /// Oversized packets must have an x:xmpmeta or rdf:RDF root with one or more top-level
+    /// rdf:Description elements whose rdf:about is empty or absent, without rdf:ID/nodeID.
+    /// DTDs, existing HasExtendedXMP links and nested xpacket instructions are rejected.
+    /// All properties move to the extension; standard-only readers see just the generated
+    /// digest link. The XML root is reserialized without its document declaration, outer
+    /// packet wrapper or padding. Property values and namespaces are retained; XML spelling
+    /// may change. RDF/schema semantics are not validated. Parsing uses storage proportional
+    /// to the packet. Cannot be combined with a nonempty ExtendedXmpPacket.
+    /// </summary>
+    public bool AutoPartitionXmp { get; init; }
 
     /// <summary>
     /// Serialized extended XMP, without an xpacket wrapper, to embed as UTF-8 in chunked APP1 markers.
@@ -150,7 +166,10 @@ public sealed record JpegliEncoderOptions
         SamplingFactors?.Validate();
         if (ExifData.Length > JpegMarkerWriter.MaxExifDataBytes)
             throw new ArgumentOutOfRangeException(nameof(ExifData), "The Exif TIFF data must not exceed 65,527 bytes.");
-        if (XmpPacket is not null)
+        if (AutoPartitionXmp && !string.IsNullOrEmpty(ExtendedXmpPacket))
+            throw new ArgumentException("Automatic XMP partitioning cannot be combined with an explicit extended packet.",
+                nameof(AutoPartitionXmp));
+        if (XmpPacket is not null && !AutoPartitionXmp)
         {
             if (XmpPacket.Length > JpegMarkerWriter.MaxXmpPacketBytes)
                 throw new ArgumentOutOfRangeException(nameof(XmpPacket), "The UTF-8 XMP packet must not exceed 65,504 bytes.");

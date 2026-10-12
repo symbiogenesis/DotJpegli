@@ -17,10 +17,14 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
 
     internal static ExtendedXmpMetadata? Prepare(JpegliEncoderOptions options, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(options.ExtendedXmpPacket))
+        string? automaticPacket = options.AutoPartitionXmp && !string.IsNullOrEmpty(options.XmpPacket)
+            ? AutomaticXmpPartitioning.Prepare(options.XmpPacket, cancellationToken) : null;
+        string? packet = automaticPacket ?? options.ExtendedXmpPacket;
+        if (string.IsNullOrEmpty(packet))
             return null;
 
-        string packet = options.ExtendedXmpPacket;
+        string parameter = automaticPacket is null
+            ? nameof(options.ExtendedXmpPacket) : nameof(options.XmpPacket);
         var chunks = new Utf8Chunks(packet);
         // MD5 is mandated by the XMP storage format as a packet identifier;
         // it is not used for authentication or a security decision.
@@ -36,7 +40,7 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
                 if (chunk.IsEmpty)
                     break;
                 if ((ulong)length + (uint)chunk.Length > uint.MaxValue)
-                    throw new ArgumentOutOfRangeException(nameof(options.ExtendedXmpPacket),
+                    throw new ArgumentOutOfRangeException(parameter,
                         "The UTF-8 extended XMP packet must fit in an unsigned 32-bit byte length.");
                 length += (uint)chunk.Length;
                 hash.AppendData(chunk);
@@ -45,12 +49,13 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
         catch (EncoderFallbackException error)
         {
             throw new ArgumentException("The extended XMP packet must contain well-formed UTF-16.",
-                nameof(options.ExtendedXmpPacket), error);
+                parameter, error);
         }
 
         string digest = Convert.ToHexString(hash.GetHashAndReset());
-        string standard = string.IsNullOrEmpty(options.XmpPacket) ? CreateStandardPacket(digest) : options.XmpPacket;
-        if (!string.IsNullOrEmpty(options.XmpPacket))
+        string standard = automaticPacket is not null || string.IsNullOrEmpty(options.XmpPacket)
+            ? CreateStandardPacket(digest) : options.XmpPacket;
+        if (automaticPacket is null && !string.IsNullOrEmpty(options.XmpPacket))
             ValidateLink(standard, digest);
         return new(packet, standard, digest, length);
     }
