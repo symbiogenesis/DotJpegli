@@ -3,7 +3,7 @@ using DotJpegli.Internal;
 namespace DotJpegli;
 
 /// <summary>
-/// Encodes eight-bit pixels to baseline or progressive JPEG using safe managed code.
+/// Encodes byte, 16-bit or normalized floating-point pixels to eight-bit baseline or progressive JPEG.
 /// Includes spatial adaptive quantization; XYB remains pending.
 /// </summary>
 public static class JpegliEncoder
@@ -28,6 +28,60 @@ public static class JpegliEncoder
     public static void Encode(Stream output, ReadOnlySpan<byte> pixels, int width, int height,
         PixelLayout layout = PixelLayout.Rgb24, JpegliEncoderOptions? options = null,
         int stride = 0, CancellationToken cancellationToken = default)
+        => EncodeCore(output, new PixelSource(pixels, layout), width, height, options, stride, cancellationToken);
+
+    /// <summary>
+    /// Encodes gamma-encoded 16-bit samples, with 0..65535 representing black..white.
+    /// Fractional precision is retained until quantization; output JPEG sample precision is eight bits.
+    /// </summary>
+    /// <param name="stride">Source elements between rows, or zero for tightly packed rows.</param>
+    public static byte[] Encode(ReadOnlySpan<ushort> pixels, int width, int height,
+        PixelComponentLayout layout = PixelComponentLayout.Rgb, JpegliEncoderOptions? options = null,
+        int stride = 0, CancellationToken cancellationToken = default)
+    {
+        using var output = new MemoryStream();
+        Encode(output, pixels, width, height, layout, options, stride, cancellationToken);
+        return output.ToArray();
+    }
+
+    /// <summary>
+    /// Writes an eight-bit JPEG from gamma-encoded 16-bit samples without closing or seeking the stream.
+    /// Source pixels must remain unchanged until encoding returns. Cancellation or I/O errors may leave partial output.
+    /// </summary>
+    /// <param name="stride">Source elements between rows, or zero for tightly packed rows.</param>
+    public static void Encode(Stream output, ReadOnlySpan<ushort> pixels, int width, int height,
+        PixelComponentLayout layout = PixelComponentLayout.Rgb, JpegliEncoderOptions? options = null,
+        int stride = 0, CancellationToken cancellationToken = default)
+        => EncodeCore(output, new PixelSource(pixels, layout), width, height, options, stride, cancellationToken);
+
+    /// <summary>
+    /// Encodes normalized gamma-encoded samples. Consumed color or grayscale samples must be finite and in 0..1.
+    /// Alpha, row padding and trailing elements are ignored. This API does not apply a linear-light or HDR transform.
+    /// Fractional precision is retained until quantization; output JPEG sample precision is eight bits.
+    /// </summary>
+    /// <param name="stride">Source elements between rows, or zero for tightly packed rows.</param>
+    public static byte[] Encode(ReadOnlySpan<float> pixels, int width, int height,
+        PixelComponentLayout layout = PixelComponentLayout.Rgb, JpegliEncoderOptions? options = null,
+        int stride = 0, CancellationToken cancellationToken = default)
+    {
+        using var output = new MemoryStream();
+        Encode(output, pixels, width, height, layout, options, stride, cancellationToken);
+        return output.ToArray();
+    }
+
+    /// <summary>
+    /// Writes an eight-bit JPEG from finite normalized gamma-encoded samples in 0..1 without closing or seeking the stream.
+    /// Consumed samples are validated before output. Source pixels must remain unchanged until encoding returns.
+    /// Alpha and padding are ignored. Cancellation or I/O errors may leave partial output.
+    /// </summary>
+    /// <param name="stride">Source elements between rows, or zero for tightly packed rows.</param>
+    public static void Encode(Stream output, ReadOnlySpan<float> pixels, int width, int height,
+        PixelComponentLayout layout = PixelComponentLayout.Rgb, JpegliEncoderOptions? options = null,
+        int stride = 0, CancellationToken cancellationToken = default)
+        => EncodeCore(output, new PixelSource(pixels, layout), width, height, options, stride, cancellationToken);
+
+    private static void EncodeCore(Stream output, PixelSource pixels, int width, int height,
+        JpegliEncoderOptions? options, int stride, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(output);
         if (!output.CanWrite)
@@ -40,23 +94,17 @@ public static class JpegliEncoder
             throw new ArgumentOutOfRangeException(nameof(height), "JPEG dimensions must be between 1 and 65535.");
         if ((long)width * height > options.MaxPixels)
             throw new ArgumentOutOfRangeException(nameof(width), "The image exceeds the configured pixel limit.");
-        int bytesPerPixel = layout switch
-        {
-            PixelLayout.Rgb24 or PixelLayout.Bgr24 => 3,
-            PixelLayout.Rgba32 or PixelLayout.Bgra32 => 4,
-            PixelLayout.Gray8 => 1,
-            _ => throw new ArgumentOutOfRangeException(nameof(layout))
-        };
-        int rowBytes = checked(width * bytesPerPixel);
+        int rowElements = checked(width * pixels.ComponentsPerPixel);
         if (stride == 0)
-            stride = rowBytes;
-        if (stride < rowBytes)
+            stride = rowElements;
+        if (stride < rowElements)
             throw new ArgumentOutOfRangeException(nameof(stride), "Stride must hold a complete row.");
-        if ((long)(height - 1) * stride + rowBytes > pixels.Length)
+        if ((long)(height - 1) * stride + rowElements > pixels.Length)
             throw new ArgumentException("The source buffer does not contain all image rows.", nameof(pixels));
         cancellationToken.ThrowIfCancellationRequested();
+        pixels.ValidateSamples(width, height, stride, cancellationToken);
 
-        bool grayscale = layout == PixelLayout.Gray8;
+        bool grayscale = pixels.IsGrayscale;
         int componentCount = grayscale ? 1 : 3;
         (int horizontal, int vertical) = grayscale ? (1, 1) : options.Subsampling switch
         {
@@ -87,14 +135,14 @@ public static class JpegliEncoder
                 dcFrequencies[index] = new long[256];
                 acFrequencies[index] = new long[256];
             }
-            ProcessBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
+            ProcessBlocks(pixels, width, height, stride, horizontal, vertical,
                 tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
                 null, dcFrequencies, acFrequencies, cancellationToken, dcOnly: options.Progressive,
                 successiveLow: options.ProgressiveRefinementBits);
             if (options.Progressive)
             {
                 for (int component = 0; component < componentCount; component++)
-                    ProcessAcBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
+                    ProcessAcBlocks(pixels, width, height, stride, horizontal, vertical,
                         tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
                         component, acTables, null, acFrequencies, cancellationToken, aggregateEobRuns: true,
                         successiveLow: options.ProgressiveRefinementBits);
@@ -102,7 +150,7 @@ public static class JpegliEncoder
                 // additional symbols to the shared optimized Huffman tables.
                 for (int low = options.ProgressiveRefinementBits - 1; low >= 0; low--)
                     for (int component = 0; component < componentCount; component++)
-                        ProcessAcBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
+                        ProcessAcBlocks(pixels, width, height, stride, horizontal, vertical,
                             tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
                             component, acTables, null, acFrequencies, cancellationToken,
                             aggregateEobRuns: true, successiveLow: low, refine: true);
@@ -128,7 +176,7 @@ public static class JpegliEncoder
         JpegMarkerWriter.WriteScanHeader(output, componentCount, options.Progressive,
             successiveLow: options.ProgressiveRefinementBits);
         var bits = new BitWriter(output);
-        ProcessBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
+        ProcessBlocks(pixels, width, height, stride, horizontal, vertical,
             tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
             bits, null, null, cancellationToken, dcOnly: options.Progressive,
             successiveLow: options.ProgressiveRefinementBits);
@@ -140,7 +188,7 @@ public static class JpegliEncoder
                 cancellationToken.ThrowIfCancellationRequested();
                 JpegMarkerWriter.WriteScanHeader(output, componentCount, true, component,
                     successiveLow: options.ProgressiveRefinementBits);
-                ProcessAcBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
+                ProcessAcBlocks(pixels, width, height, stride, horizontal, vertical,
                     tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
                     component, acTables, bits, null, cancellationToken,
                     aggregateEobRuns: options.OptimizeHuffmanTables,
@@ -152,7 +200,7 @@ public static class JpegliEncoder
                 cancellationToken.ThrowIfCancellationRequested();
                 JpegMarkerWriter.WriteScanHeader(output, componentCount, true,
                     successiveHigh: low + 1, successiveLow: low);
-                ProcessBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
+                ProcessBlocks(pixels, width, height, stride, horizontal, vertical,
                     tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
                     bits, null, null, cancellationToken, dcOnly: true, successiveLow: low, refine: true);
                 bits.Flush();
@@ -161,7 +209,7 @@ public static class JpegliEncoder
                     cancellationToken.ThrowIfCancellationRequested();
                     JpegMarkerWriter.WriteScanHeader(output, componentCount, true, component,
                         successiveHigh: low + 1, successiveLow: low);
-                    ProcessAcBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
+                    ProcessAcBlocks(pixels, width, height, stride, horizontal, vertical,
                         tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
                         component, acTables, bits, null, cancellationToken,
                         aggregateEobRuns: options.OptimizeHuffmanTables, successiveLow: low, refine: true);
@@ -173,8 +221,8 @@ public static class JpegliEncoder
         output.WriteByte(0xd9);
     }
 
-    private static void ProcessBlocks(ReadOnlySpan<byte> pixels, int width, int height, int stride,
-        int bytesPerPixel, PixelLayout layout, int horizontal, int vertical, ushort[][] tables,
+    private static void ProcessBlocks(PixelSource pixels, int width, int height, int stride,
+        int horizontal, int vertical, ushort[][] tables,
         float quality, int smoothingFactor, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
@@ -196,7 +244,7 @@ public static class JpegliEncoder
         for (int top = 0; top < height; top += mcuHeight)
         {
             if (adaptive is not null)
-                adaptive.ComputeRow(pixels, stride, bytesPerPixel, layout, top, tables[0][1], strengths!, cancellationToken);
+                adaptive.ComputeRow(pixels, stride, top, tables[0][1], strengths!, cancellationToken);
             for (int left = 0; left < width; left += mcuWidth)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -232,7 +280,7 @@ public static class JpegliEncoder
                             }
                             else
                             {
-                                Downsampling.FillBlock(pixels, width, height, stride, bytesPerPixel, layout, component,
+                                Downsampling.FillBlock(pixels, width, height, stride, component,
                                     blockLeft, blockTop, sampleWidth, sampleHeight, samples, smoothingFactor);
                                 ForwardDct.Transform(samples, coefficients);
                                 // Upstream samples the top-left luma field value for a chroma block.
@@ -240,7 +288,7 @@ public static class JpegliEncoder
                                     (component == 0 ? blockY : 0) * adaptive.BlocksWide +
                                     left / 8 + (component == 0 ? blockX : 0)];
                                 Quantization.Quantize(coefficients, tables[component], quantized, component, distance,
-                                    grayscale: layout == PixelLayout.Gray8, adaptiveQuantization: adaptive is not null,
+                                    grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
                                     adaptiveStrength: strength,
                                     adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
                                     previousDc: previousDc[component]);
@@ -275,8 +323,8 @@ public static class JpegliEncoder
         }
     }
 
-    private static void ProcessAcBlocks(ReadOnlySpan<byte> pixels, int width, int height, int stride,
-        int bytesPerPixel, PixelLayout layout, int horizontal, int vertical, ushort[][] tables,
+    private static void ProcessAcBlocks(PixelSource pixels, int width, int height, int stride,
+        int horizontal, int vertical, ushort[][] tables,
         float quality, int smoothingFactor, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         int component, HuffmanTable[] acTables, BitWriter? writer, long[][]? acFrequencies,
         CancellationToken cancellationToken, bool aggregateEobRuns, int successiveLow = 0, bool refine = false)
@@ -318,7 +366,7 @@ public static class JpegliEncoder
             int analysisTop = top / (8 * vertical) * (8 * vertical);
             if (adaptive is not null && analysisTop != lastAnalysisTop)
             {
-                adaptive.ComputeRow(pixels, stride, bytesPerPixel, layout, analysisTop,
+                adaptive.ComputeRow(pixels, stride, analysisTop,
                     tables[0][1], strengths!, cancellationToken);
                 lastAnalysisTop = analysisTop;
             }
@@ -334,7 +382,7 @@ public static class JpegliEncoder
                     restartIndex = (restartIndex + 1) & 7;
                     mcusRemaining = restartInterval;
                 }
-                Downsampling.FillBlock(pixels, width, height, stride, bytesPerPixel, layout, component,
+                Downsampling.FillBlock(pixels, width, height, stride, component,
                     left, top, sampleWidth, sampleHeight, samples, smoothingFactor);
                 ForwardDct.Transform(samples, coefficients);
                 int strengthRow = component == 0 ? (top - analysisTop) / 8 : 0;
@@ -342,7 +390,7 @@ public static class JpegliEncoder
                 // AC quantization is independent of the DC predictor. The DC
                 // entry computed here is ignored by this scan.
                 Quantization.Quantize(coefficients, tables[component], quantized, component, distance,
-                    grayscale: layout == PixelLayout.Gray8, adaptiveQuantization: adaptive is not null,
+                    grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
                     adaptiveStrength: strength,
                     adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component]);
                 if (refine)

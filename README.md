@@ -52,6 +52,45 @@ the stream open and does not seek. Cancellation and I/O failures may leave a
 partial JPEG. Pass a `CancellationToken` for cancellation between MCUs. Dimensions
 must be 1..65535 and fit `MaxPixels` (100 million by default).
 
+### Higher-precision input
+
+The `ReadOnlySpan<ushort>` and `ReadOnlySpan<float>` overloads accept interleaved
+gamma-encoded samples, using `PixelComponentLayout.Rgb`, `Bgr`, `Rgba`, `Bgra` or
+`Gray`. The default is `Rgb`. For these overloads, `stride` counts source elements,
+not bytes; zero means tightly packed rows. The final row needs only its pixel
+elements. Alpha, row padding and extra trailing elements are ignored.
+
+```csharp
+ushort[] rgb16 = ReadRgb16Samples(); // 0..65535 per component.
+byte[] jpeg16 = JpegliEncoder.Encode(rgb16, width, height);
+
+float[] gray = ReadNormalizedGraySamples(); // Finite 0..1 samples.
+byte[] jpegFloat = JpegliEncoder.Encode(gray, width, height,
+    PixelComponentLayout.Gray, options: new() { Quality = 90 });
+```
+
+Sixteen-bit samples are scaled by `1.0 / 257.0` and float samples by 255, following
+the pinned Jpegli scalar input reader. Fractional values pass through color conversion,
+adaptive analysis, smoothing, sampling and the DCT until quantization, without
+first rounding to bytes. Expanding byte samples to `ushort` with `value * 257`
+preserves the byte encoder's JPEG output. Float arithmetic can differ near coefficient
+rounding boundaries, so `value / 255f` does not promise byte-identical encoding.
+
+Consumed float color or grayscale samples must be finite and between 0 and 1;
+invalid values are rejected before output is written. Ignored alpha and padding
+need not satisfy that range. This is narrower than upstream Jpegli's float input,
+which also permits out-of-gamut values. These overloads do not linearize samples,
+tone-map HDR, or apply color profiles. Supply gamma-encoded values in the color
+space described by any attached ICC profile. Typed spans contain native numeric
+values; deserialize byte-oriented source data with its correct endianness first.
+
+The output remains a lossy eight-bit JPEG. Higher-precision input retains more
+information before coefficient quantization; it does not enable 12-bit JPEG or
+lossless encoding. Stream behavior, cancellation, pixel limits and source lifetime
+requirements are the same as for byte input. Samples are read on demand with
+bounded working storage; no full-image conversion buffer is allocated. Float
+validation adds one input pass, with cancellation checks between rows.
+
 ### Profiles and metadata
 
 Set `ExifData` to raw TIFF bytes for Exif metadata, beginning with the TIFF header.
@@ -205,9 +244,11 @@ optional DC and AC refinement scans with bounded correction-bit storage.
 Raw Exif TIFF embedding and standard UTF-8 XMP packets in APP1, raw ICC profiles
 with APP2 chunking, UTF-8 COM comments, and configurable JFIF density fields are
 also implemented.
+Gamma-encoded 16-bit and normalized floating-point RGB and grayscale input are
+supported with fractional samples preserved through quantization.
 
 Pending: other sampling ratios,
-XYB color encoding and built-in profiles or color management, higher precision input,
+XYB color encoding and built-in profiles or color management, out-of-gamut float input,
 extended XMP, structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
@@ -293,6 +334,13 @@ lengths, multibyte limits and malformed UTF-16 rejection before output. They als
 check combined metadata ordering, unchanged coding data and decoded pixels across
 baseline, progressive and refinement modes, grayscale and both Huffman settings,
 along with nonseekable streams, cancellation boundaries and I/O failures.
+
+Higher-precision regressions use independently parsed JPEG coefficients to check
+fractional grayscale DC values, compare expanded 16-bit byte inputs with the byte
+encoder, and compare baseline and progressive coefficients and decoded pixels.
+They cover color and grayscale layouts, element strides, alpha and padding,
+smoothing, sampling, adaptive and Huffman modes, restarts, stream behavior, and
+float validation before output.
 
 `Directory.Build.targets` rejects `AllowUnsafeBlocks=true`, including a command
 line override. Library and tests compile with warnings treated as errors.

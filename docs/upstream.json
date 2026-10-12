@@ -3,6 +3,6 @@
   "revision": "031a0077f5799a6041004267fc12b956c1f52a20",
   "retrieved": "2026-10-12",
   "license": "BSD-3-Clause",
-  "portStage": "managed-adaptive-quantization-sampling-restarts-progressive-refinement-eob-runs-smoothing-440-411-icc-exif-xmp-metadata",
+  "portStage": "managed-adaptive-quantization-sampling-restarts-progressive-refinement-eob-runs-smoothing-440-411-icc-exif-xmp-metadata-16bit-float-input",
   "parityEstablished": false
 }

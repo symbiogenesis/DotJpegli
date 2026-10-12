@@ -21,10 +21,10 @@ internal static class ColorConversion
     private const float BlueNormalization = 1f / (RedWeight + (GreenWeight + BlueAmplitude));
 
     /// <summary>
-    /// Converts a byte RGB pixel to fractional JPEG YCbCr sample units.
+    /// Converts RGB samples in 0..255 units to fractional JPEG YCbCr sample units.
     /// Chroma is centered at 128 and can reach 255.5 at saturated primaries.
     /// </summary>
-    internal static void RgbToYCbCr(byte r, byte g, byte b, out float y, out float cb, out float cr)
+    internal static void RgbToYCbCr(float r, float g, float b, out float y, out float cb, out float cr)
     {
         // Keep the C++ multiply and addition ordering: y = r_base +
         // (g_base + b_base). Only the final chroma operations use MulAdd.

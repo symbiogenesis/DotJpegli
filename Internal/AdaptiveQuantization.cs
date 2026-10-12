@@ -59,6 +59,10 @@ internal sealed class AdaptiveQuantization
     internal void ComputeRow(ReadOnlySpan<byte> pixels, int stride, int bytesPerPixel,
         PixelLayout layout, int top, int lumaAcQuant, Span<float> strengths,
         CancellationToken cancellationToken)
+        => ComputeRow(new PixelSource(pixels, layout), stride, top, lumaAcQuant, strengths, cancellationToken);
+
+    internal void ComputeRow(PixelSource pixels, int stride, int top, int lumaAcQuant,
+        Span<float> strengths, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         int mcuHeight = verticalSampling * 8;
@@ -74,21 +78,11 @@ internal sealed class AdaptiveQuantization
         {
             cancellationToken.ThrowIfCancellationRequested();
             int sourceY = Math.Clamp(firstLumaY + row, 0, height - 1);
-            ReadOnlySpan<byte> source = pixels.Slice(sourceY * stride, width * bytesPerPixel);
             int destination = row * lumaStride + 1;
             for (int x = 0; x < width; x++)
             {
-                int offset = x * bytesPerPixel;
-                float y;
-                if (layout == PixelLayout.Gray8)
-                    y = source[offset];
-                else
-                {
-                    bool bgr = layout is PixelLayout.Bgr24 or PixelLayout.Bgra32;
-                    ColorConversion.RgbToYCbCr(source[offset + (bgr ? 2 : 0)],
-                        source[offset + 1], source[offset + (bgr ? 0 : 2)], out y, out _, out _);
-                }
-                luma[destination + x] = y;
+                int offset = sourceY * stride + x * pixels.ComponentsPerPixel;
+                luma[destination + x] = pixels.ReadSample(offset, 0);
             }
             luma[destination - 1] = luma[destination];
             luma.AsSpan(destination + width, paddedWidth - width + 1).Fill(luma[destination + width - 1]);
