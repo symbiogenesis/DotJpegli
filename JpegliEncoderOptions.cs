@@ -6,6 +6,21 @@ namespace DotJpegli;
 /// <summary>Reusable settings for the managed JPEG encoder.</summary>
 public sealed record JpegliEncoderOptions
 {
+    /// <summary>
+    /// Color space stored in the JPEG. Automatic (the default) writes grayscale
+    /// for grayscale input and YCbCr for color input, preserving existing bytes.
+    /// Grayscale converts RGB to luminance or uses Y from direct YCbCr input.
+    /// YCbCr adds neutral chroma to grayscale input. Rgb keeps RGB components or
+    /// replicates grayscale; direct YCbCr-to-RGB conversion is not supported.
+    /// RGB output uses R/G/B component identifiers, omits JFIF, and uses a shared
+    /// Annex K luma quantization table regardless of UseStandardQuantizationTables
+    /// and transfer-function hints. It defaults to full resolution, ignoring the
+    /// Subsampling preset; custom SamplingFactors map Luma/Cb/Cr to R/G/B.
+    /// Adaptive RGB quantization analyzes green and disables itself if green is
+    /// subsampled. RGB JPEG reader support varies. This does not apply an ICC transform.
+    /// </summary>
+    public JpegColorSpace ColorSpace { get; init; }
+
     /// <summary>Jpegli quality, from 0 to 100. This is not the libjpeg quality scale.</summary>
     public float Quality { get; init; } = 85;
 
@@ -22,7 +37,8 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>
     /// Use the conventional JPEG Annex K luma and shared chroma quantization matrices.
-    /// False (the default) uses Jpegli's perceptual matrices. Quality still maps to Jpegli
+    /// False (the default) uses Jpegli's perceptual matrices for grayscale and YCbCr.
+    /// RGB output always uses one shared Annex K luma matrix. Quality still maps to Jpegli
     /// distance, and an explicit Distance still overrides it; the standard matrices use
     /// the pinned upstream's linear scaling from that distance without 4:2:0 compensation.
     /// Values are clamped to baseline JPEG's 1..255 range before integer conversion,
@@ -39,8 +55,9 @@ public sealed record JpegliEncoderOptions
     /// 18 (HLG) tune Jpegli's perceptual quantization and adaptive coefficient
     /// thresholds; other codes retain the default tuning. Standard quantization
     /// matrices ignore this hint when constructing tables, but adaptive thresholds
-    /// still use it. This does not transform samples, tone-map, validate a registered
-    /// code, or embed color metadata. Supply any required ICC profile separately.
+    /// still use it for YCbCr. RGB output ignores the hint. This does not transform
+    /// samples, tone-map, validate a registered code, or embed color metadata.
+    /// Supply any required ICC profile separately.
     /// With InferCicpTransferFunctionFromIccProfile enabled, code 2 permits lookup
     /// from that profile; every other code overrides it.
     /// Output remains a lossy eight-bit JPEG; this hint does not establish HDR conformance.
@@ -64,10 +81,12 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>
     /// Optional per-component Y, Cb and Cr sampling factors, overriding Subsampling.
-    /// Null (the default) uses the preset. Factors must be 1..4, with integer sample
+    /// Null (the default) uses the preset for YCbCr and full resolution for RGB.
+    /// Factors must be 1..4, with integer sample
     /// areas relative to the largest factors and at most ten blocks per color MCU.
-    /// Subsampled luma automatically disables adaptive quantization, following upstream.
-    /// Valid color sampling settings are ignored for grayscale input.
+    /// For RGB output, Luma/Cb/Cr map to R/G/B and subsampled green disables adaptive quantization.
+    /// Subsampled luma disables adaptive quantization for YCbCr, following upstream.
+    /// Valid color sampling settings are ignored for grayscale output.
     /// </summary>
     public JpegSamplingFactors? SamplingFactors { get; init; }
 
@@ -88,7 +107,8 @@ public sealed record JpegliEncoderOptions
     /// Do not include the Exif signature or JPEG marker/length bytes; the encoder adds them.
     /// Empty (the default) omits Exif. At most 65,527 bytes are supported; TIFF data is not validated.
     /// Tags, offsets, thumbnails, orientation and dimensions are neither interpreted nor updated.
-    /// The JFIF APP0 marker remains first. Do not change the underlying memory or dispose its
+    /// For grayscale/YCbCr output the JFIF APP0 marker remains first; RGB omits it.
+    /// Do not change the underlying memory or dispose its
     /// owner until encoding returns.
     /// </summary>
     public ReadOnlyMemory<byte> ExifData { get; init; }
@@ -150,7 +170,7 @@ public sealed record JpegliEncoderOptions
     /// <summary>
     /// Raw ICC profile bytes to embed in APP2 markers. Empty (the default) omits the profile.
     /// At most 16,707,345 bytes are supported. The profile is not applied to the pixels;
-    /// supply a profile describing the input RGB or grayscale values. It remains opaque
+    /// supply a profile describing the output's RGB or grayscale interpretation. It remains opaque
     /// unless InferCicpTransferFunctionFromIccProfile enables the narrow CICP lookup.
     /// Do not change the underlying memory or dispose its owner until encoding returns.
     /// </summary>
@@ -173,13 +193,13 @@ public sealed record JpegliEncoderOptions
     /// </summary>
     public string? Comment { get; init; }
 
-    /// <summary>Units for JFIF densities. The default specifies a pixel aspect ratio.</summary>
+    /// <summary>Units for JFIF densities. The default specifies a pixel aspect ratio. Ignored for RGB output.</summary>
     public JpegDensityUnit DensityUnit { get; init; }
 
-    /// <summary>Horizontal JFIF density, from 1 to 65535. Defaults to 1.</summary>
+    /// <summary>Horizontal JFIF density, from 1 to 65535. Defaults to 1. Ignored for RGB output.</summary>
     public int HorizontalDensity { get; init; } = 1;
 
-    /// <summary>Vertical JFIF density, from 1 to 65535. Defaults to 1.</summary>
+    /// <summary>Vertical JFIF density, from 1 to 65535. Defaults to 1. Ignored for RGB output.</summary>
     public int VerticalDensity { get; init; } = 1;
 
     /// <summary>
@@ -192,7 +212,8 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>
     /// Use Jpegli's spatial analysis to suppress perceptually masked coefficients.
-    /// Automatically disabled when custom sampling subsamples luma in either direction.
+    /// Uses green for RGB output. Automatically disabled when custom sampling subsamples
+    /// the analyzed component in either direction.
     /// </summary>
     public bool AdaptiveQuantization { get; init; } = true;
 
@@ -234,6 +255,8 @@ public sealed record JpegliEncoderOptions
 
     internal void Validate()
     {
+        if (!Enum.IsDefined(ColorSpace))
+            throw new ArgumentOutOfRangeException(nameof(ColorSpace));
         if (!float.IsFinite(Quality) || Quality is < 0 or > 100)
             throw new ArgumentOutOfRangeException(nameof(Quality), "Quality must be finite and between 0 and 100.");
         if (Distance is float distance && (!float.IsFinite(distance) || distance <= 0f))

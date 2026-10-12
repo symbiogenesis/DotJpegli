@@ -16,21 +16,25 @@ internal static class JpegMarkerWriter
 
     public static void WriteHeaders(Stream output, int width, int height, JpegSamplingFactors sampling,
         ushort[][] quantization, HuffmanTable[] dcTables, HuffmanTable[] acTables,
-        JpegliEncoderOptions options, ExtendedXmpMetadata? extendedXmp, CancellationToken cancellationToken)
+        JpegliEncoderOptions options, ExtendedXmpMetadata? extendedXmp, CancellationToken cancellationToken,
+        bool rgb = false)
     {
         Marker(output, 0xd8);
-        // Preserve the default JFIF 1.01 header, with configurable densities and no thumbnail.
-        Marker(output, 0xe0);
-        Word(output, 16);
-        output.Write([0x4a, 0x46, 0x49, 0x46, 0, 1, 1]);
-        output.WriteByte((byte)options.DensityUnit);
-        Word(output, options.HorizontalDensity);
-        Word(output, options.VerticalDensity);
-        output.Write([0, 0]);
+        if (!rgb)
+        {
+            // JFIF describes grayscale or YCbCr. RGB uses R/G/B frame identifiers instead.
+            Marker(output, 0xe0);
+            Word(output, 16);
+            output.Write([0x4a, 0x46, 0x49, 0x46, 0, 1, 1]);
+            output.WriteByte((byte)options.DensityUnit);
+            Word(output, options.HorizontalDensity);
+            Word(output, options.VerticalDensity);
+            output.Write([0, 0]);
+        }
 
         WriteMetadata(output, options, extendedXmp, cancellationToken);
 
-        int tableCount = options.UseStandardQuantizationTables && quantization.Length == 3 ? 2 : quantization.Length;
+        int tableCount = rgb ? 1 : options.UseStandardQuantizationTables && quantization.Length == 3 ? 2 : quantization.Length;
         Marker(output, 0xdb);
         Word(output, 2 + tableCount * 65);
         for (int component = 0; component < tableCount; component++)
@@ -48,10 +52,10 @@ internal static class JpegMarkerWriter
         output.WriteByte((byte)quantization.Length);
         for (int component = 0; component < quantization.Length; component++)
         {
-            output.WriteByte((byte)(component + 1));
+            output.WriteByte(ComponentId(component, rgb));
             JpegComponentSampling factor = sampling[component];
             output.WriteByte((byte)((factor.Horizontal << 4) | factor.Vertical));
-            output.WriteByte((byte)(options.UseStandardQuantizationTables && component > 0 ? 1 : component));
+            output.WriteByte((byte)(rgb ? 0 : options.UseStandardQuantizationTables && component > 0 ? 1 : component));
         }
 
         for (int index = 0; index < dcTables.Length; index++)
@@ -167,7 +171,7 @@ internal static class JpegMarkerWriter
     }
 
     public static void WriteScanHeader(Stream output, int componentCount, bool progressive,
-        int acComponent = -1, int successiveHigh = 0, int successiveLow = 0)
+        int acComponent = -1, int successiveHigh = 0, int successiveLow = 0, bool rgb = false)
     {
         // Progressive DC may be interleaved; AC scans must select one component.
         int scanComponents = acComponent < 0 ? componentCount : 1;
@@ -177,8 +181,8 @@ internal static class JpegMarkerWriter
         for (int index = 0; index < scanComponents; index++)
         {
             int component = acComponent < 0 ? index : acComponent;
-            output.WriteByte((byte)(component + 1));
-            int tableIndex = component == 0 ? 0 : 1;
+            output.WriteByte(ComponentId(component, rgb));
+            int tableIndex = rgb || component == 0 ? 0 : 1;
             // Unused DC/AC selectors are zero in progressive scan headers.
             int selector = (tableIndex << 4) | tableIndex;
             if (progressive)
@@ -189,6 +193,9 @@ internal static class JpegMarkerWriter
         output.WriteByte((byte)(progressive && acComponent < 0 ? 0 : 63));
         output.WriteByte((byte)((successiveHigh << 4) | successiveLow));
     }
+
+    private static byte ComponentId(int component, bool rgb)
+        => rgb ? "RGB"u8[component] : (byte)(component + 1);
 
     private static void Huffman(Stream output, HuffmanTable table, int selector)
     {

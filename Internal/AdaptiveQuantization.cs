@@ -82,7 +82,7 @@ internal sealed class AdaptiveQuantization
             for (int x = 0; x < width; x++)
             {
                 int offset = sourceY * stride + x * pixels.ComponentsPerPixel;
-                luma[destination + x] = pixels.ReadSample(offset, 0);
+                luma[destination + x] = pixels.ReadSample(offset, pixels.AnalysisComponent);
             }
             luma[destination - 1] = luma[destination];
             luma.AsSpan(destination + width, paddedWidth - width + 1).Fill(luma[destination + width - 1]);

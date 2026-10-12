@@ -84,7 +84,7 @@ Each component factor must divide its corresponding maximum. A component's
 sample area is `maxHorizontal / component.Horizontal` by
 `maxVertical / component.Vertical`. The sum of `Horizontal * Vertical` over all
 three components must be at most ten. Invalid factors are rejected before output,
-including for grayscale input; valid color settings are ignored for grayscale.
+including for grayscale output; valid color settings are ignored for grayscale.
 The `Subsampling` enum must still be valid when overridden. Null `SamplingFactors`
 uses the preset and preserves its JPEG bytes.
 
@@ -220,6 +220,58 @@ the same contracts as the other interleaved layouts. An attached ICC profile
 should describe the RGB interpretation of the output; the encoder neither
 applies a profile transform nor embeds a YCbCr ICC profile automatically.
 
+### Output color space
+
+Set `ColorSpace` to choose the components stored in the JPEG independently of
+the source layout. `JpegColorSpace.Automatic`, the default, preserves existing
+output: grayscale for grayscale input, YCbCr for color input.
+
+```csharp
+byte[] grayJpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    ColorSpace = JpegColorSpace.Grayscale
+});
+
+byte[] rgbJpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    ColorSpace = JpegColorSpace.Rgb,
+    Quality = 90
+});
+```
+
+`Grayscale` uses the existing fractional RGB-to-luminance conversion, or only
+the supplied Y component of direct YCbCr input. Unused float Cb/Cr samples are
+ignored, including during range validation. Grayscale output always uses 1x1
+sampling. `YCbCr` also accepts grayscale input, adding neutral chroma at 128
+JPEG sample units. This neutral fill deliberately differs from the pinned
+upstream `GrayscaleToYCbCr` helper, which fills chroma with zero.
+
+`Rgb` preserves R/G/B values without a YCbCr conversion; BGR layouts are
+reordered and alpha is ignored. Grayscale input replicates its value across
+all three components. Direct YCbCr-to-RGB conversion is unsupported and is
+rejected before output. All three source precisions retain their existing scaling.
+
+RGB JPEGs use `R/G/B` frame and scan identifiers, one shared Annex K luma
+quantization table, and one shared pair of Huffman tables, following upstream's
+non-XYB RGB path. Quality and distance use the standard-table linear scale;
+`UseStandardQuantizationTables` and CICP transfer-function hints have no effect
+on RGB output. Adaptive quantization analyzes unsmoothed green, using uniform
+0.5 AC bias multipliers and offsets; disabling it uses zero bias.
+
+RGB defaults to full-resolution 1x1 factors and ignores the `Subsampling` preset.
+Custom `SamplingFactors` map `Luma`, `Cb` and `Cr` to R, G and B respectively,
+with the usual divisibility and ten-block MCU limits. Subsampled green disables
+adaptive quantization. Other sampling, smoothing, dummy blocks, restart markers,
+progressive scans, refinement and coefficient preflight use the existing paths.
+All options are still validated, including ignored sampling presets and JFIF densities.
+
+RGB output omits JFIF APP0 and Adobe APP14; the RGB component identifiers signal
+the color space. JFIF density options therefore have no effect. Optional metadata
+begins immediately after SOI in its usual order. Some JPEG readers have limited
+support for RGB or subsampled RGB JPEGs. This option does not perform color
+management, generate an ICC profile or implement XYB; any attached profile
+must describe the chosen output interpretation.
+
 ### Profiles and metadata
 
 Set `ExifData` to raw TIFF bytes for Exif metadata, beginning with the TIFF header.
@@ -231,7 +283,7 @@ dimensions, orientation, color space, densities and optional thumbnail describe
 the encoded image. Orientation tags do not rotate source pixels. Do not change
 the backing memory or dispose its owner until encoding returns.
 
-The output retains its leading JFIF APP0 marker, followed by any Exif APP1 marker,
+Grayscale and YCbCr output retain their leading JFIF APP0 marker, followed by any Exif APP1 marker,
 as in [Adobe's JPEG handler](https://github.com/adobe/XMP-Toolkit-SDK/blob/main/XMPFiles/source/FileHandlers/JPEG_Handler.cpp).
 This embeds Exif metadata in a JFIF JPEG; it does not claim conformance to the
 complete Exif file standard, which requires APP1 immediately after SOI.
@@ -371,7 +423,7 @@ Set `IccProfile` to raw ICC profile bytes to embed them unchanged in numbered
 APP2 markers. An empty profile, the default, writes no ICC markers. The profile
 is opaque unless the opt-in CICP lookup described below is enabled. The encoder
 does not apply a color transform or provide a built-in profile;
-use a profile describing the source RGB or grayscale values. Do not change its
+use a profile describing the output's RGB or grayscale interpretation. Do not change its
 backing memory or dispose its owner until encoding returns. Profiles can contain
 at most 16,707,345 bytes (255 chunks of up to 65,519 bytes), following
 [ICC.1 Annex B.5](https://www.color.org/ICC1V42old.pdf).
@@ -413,7 +465,8 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 });
 ```
 
-Metadata is written after the mandatory JFIF marker in this order: Exif APP1,
+Metadata is written after JFIF for grayscale/YCbCr, or directly after SOI for RGB,
+in this order: Exif APP1,
 standard XMP APP1, extended XMP APP1 chunks, ICC APP2 chunks, IPTC APP13 and COM,
 followed by the coding tables and scans.
 Defaults preserve the previous JPEG bytes. Metadata does not change coefficients
@@ -547,6 +600,7 @@ The standard matrices use the pinned upstream's piecewise linear-quality scale
 from that distance, with rounding and clamping to 1..255. Both chroma components
 share table 1; grayscale uses only the luma matrix in table 0. Sampling factors
 still select the output resolution, but standard tables have no 4:2:0 compensation.
+RGB output always uses the shared luma matrix in table 0, independently of this option.
 The managed encoder clamps before converting to integers, including immediately
 below distance 25 where upstream's scale can overflow its integer conversion.
 Those cases retain legal saturated tables; they do not establish native parity.
@@ -584,6 +638,7 @@ Adaptive quantization infers its coefficient thresholds using the same
 transfer-function scale. With `UseStandardQuantizationTables`, the emitted Annex K
 tables ignore the hint, but adaptive thresholds still use it, following upstream.
 Grayscale retains its constant adaptive coefficient multipliers.
+RGB output ignores transfer-function hints for both tables and adaptive thresholds.
 
 The hint follows [the pinned upstream quantizer](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/quant.cc).
 It does not convert transfer functions, apply a profile, tone-map or write CICP
@@ -628,7 +683,8 @@ generated, reconciled with an explicit hint, or applied to the samples.
 ## Port status
 
 Implemented: baseline sequential and optional spectral-selection and successive-approximation progressive
-JPEG/JFIF; RGB, grayscale and direct interleaved full-range YCbCr input; 4:4:4,
+JPEG; grayscale/YCbCr JFIF and explicit RGB output; RGB, grayscale and direct
+interleaved full-range YCbCr input with explicit output color-space selection; 4:4:4,
 4:2:2, 4:2:0, 4:4:0, 4:1:1 and 4:1:0, plus 3x1, 3x2, 1x4, 2x4, 1x3 and 2x3 chroma
 sample areas, using upstream scalar box sampling with edge replication and empty
 dummy-block coding that preserves DC predictors at MCU edges; optional upstream
@@ -732,6 +788,13 @@ profile bytes and cover sliced storage, marker boundaries, missing and malformed
 directories, extreme unsigned fields and last-entry selection. Native helper
 fixtures check the pinned lookup's permissive field handling. Cancellation,
 nonseekable streams and out-of-range coefficient rejection before output are covered.
+
+Output color-space regressions independently parse RGB frame/scan identifiers,
+shared table selectors and marker framing, and check unequal constant-channel DC
+coefficients against analytical values. They cover grayscale conversion and neutral
+chroma, source precision/layout/stride compatibility, green-channel adaptive analysis,
+custom sampling and progressive/restart coefficient parity. Default bytes and
+validation before output remain covered by focused input regressions.
 
 Additional 4:4:0 and 4:1:1 regressions use independent scalar C++ fixtures for
 vertical and pairwise horizontal averaging, odd edges, block seams and smoothing.

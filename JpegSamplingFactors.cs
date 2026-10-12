@@ -1,11 +1,12 @@
 namespace DotJpegli;
 
-/// <summary>Custom Y, Cb and Cr sampling factors, validated when encoding.</summary>
+/// <summary>Custom component sampling factors, validated when encoding.</summary>
 /// <remarks>
 /// Each factor must be 1..4 and divide the largest corresponding factor across
-/// all three components. Luma may be subsampled; this disables adaptive quantization.
+/// all three components. Subsampled YCbCr luma disables adaptive quantization.
 /// The sum of Horizontal * Vertical over all three components must not exceed ten.
 /// Grayscale encoding ignores valid color sampling factors and always uses 1x1.
+/// RGB output maps Luma, Cb and Cr to R, G and B; subsampled green disables adaptive quantization.
 /// </remarks>
 public sealed record JpegSamplingFactors(
     JpegComponentSampling Luma, JpegComponentSampling Cb, JpegComponentSampling Cr)

@@ -12,6 +12,7 @@ internal readonly ref struct PixelSource
     private readonly SourceType sourceType;
     private readonly bool bgr;
     private readonly bool ycbcr;
+    private readonly JpegColorSpace colorSpace;
 
     internal PixelSource(ReadOnlySpan<byte> pixels, PixelLayout layout)
     {
@@ -47,7 +48,32 @@ internal readonly ref struct PixelSource
     }
 
     internal int ComponentsPerPixel { get; }
-    internal bool IsGrayscale => ComponentsPerPixel == 1;
+    private bool IsGrayscaleInput => ComponentsPerPixel == 1;
+    internal JpegColorSpace ColorSpace => colorSpace == JpegColorSpace.Automatic
+        ? (IsGrayscaleInput ? JpegColorSpace.Grayscale : JpegColorSpace.YCbCr) : colorSpace;
+    internal bool IsGrayscale => ColorSpace == JpegColorSpace.Grayscale;
+    internal bool IsRgb => ColorSpace == JpegColorSpace.Rgb;
+    internal int AnalysisComponent => IsRgb ? 1 : 0;
+
+    private PixelSource(PixelSource source, JpegColorSpace colorSpace)
+    {
+        bytes = source.bytes;
+        words = source.words;
+        floats = source.floats;
+        sourceType = source.sourceType;
+        bgr = source.bgr;
+        ycbcr = source.ycbcr;
+        ComponentsPerPixel = source.ComponentsPerPixel;
+        this.colorSpace = colorSpace;
+    }
+
+    internal PixelSource WithColorSpace(JpegColorSpace outputColorSpace)
+    {
+        if (outputColorSpace == JpegColorSpace.Rgb && ycbcr)
+            throw new ArgumentException("Direct YCbCr input cannot be converted to RGB output.",
+                nameof(JpegliEncoderOptions.ColorSpace));
+        return new PixelSource(this, outputColorSpace);
+    }
     internal int Length => sourceType switch
     {
         SourceType.Byte => bytes.Length,
@@ -63,7 +89,7 @@ internal readonly ref struct PixelSource
 
         // Check only consumed components. Padding, trailing storage and alpha
         // are intentionally ignored, just as in the byte input path.
-        int activeComponents = IsGrayscale ? 1 : 3;
+        int activeComponents = IsGrayscaleInput || (ycbcr && IsGrayscale) ? 1 : 3;
         bool hasOutOfRangeSamples = false;
         for (int row = 0; row < height; row++)
         {
@@ -91,13 +117,17 @@ internal readonly ref struct PixelSource
 
     internal float ReadSample(int offset, int component)
     {
-        if (IsGrayscale)
-            return ReadComponent(offset);
+        if (IsGrayscaleInput)
+            return ColorSpace == JpegColorSpace.YCbCr && component > 0 ? 128f : ReadComponent(offset);
         // ChooseColorTransform in the pinned upstream uses NullTransform when
         // both input and output are JCS_YCbCr. Read the supplied component after
         // the same input scaling; smoothing and subsampling still follow below.
         if (ycbcr)
             return ReadComponent(offset + component);
+
+        // RGB JPEGs preserve the source values, normalizing BGR order and ignoring alpha.
+        if (IsRgb)
+            return ReadComponent(offset + (bgr ? 2 - component : component));
 
         float r = ReadComponent(offset + (bgr ? 2 : 0));
         float g = ReadComponent(offset + 1);

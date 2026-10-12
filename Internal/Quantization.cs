@@ -251,14 +251,15 @@ internal static class Quantization
     /// <summary>Creates upstream per-frequency adaptive zero-bias multipliers.</summary>
     internal static float[][] CreateAdaptiveZeroBiasMultipliers(ushort[][] tables,
         int horizontalSampling, int verticalSampling, bool grayscale, bool sharedChromaTable = false,
-        int cicpTransferFunction = 2)
+        int cicpTransferFunction = 2, bool rgb = false)
     {
         ArgumentNullException.ThrowIfNull(tables);
         ValidateSampling(horizontalSampling, verticalSampling);
         if (tables.Length != (grayscale ? 1 : 3))
-            throw new ArgumentException("Supply one grayscale table or three YCbCr tables.", nameof(tables));
+            throw new ArgumentException("Supply one grayscale table or three color component tables.", nameof(tables));
 
-        float distance = QuantValuesToDistance(tables, sharedChromaTable, cicpTransferFunction);
+        // InitQuantizer only performs table-derived distance inference for YCbCr.
+        float distance = rgb ? 1f : QuantValuesToDistance(tables, sharedChromaTable, cicpTransferFunction);
         float lowQualityMix = Math.Clamp((distance - 1f) / 2f, 0f, 1f);
         float highQualityMix = 1f - lowQualityMix;
         float[][] multipliers = new float[tables.Length][];
@@ -268,7 +269,7 @@ internal static class Quantization
             for (int frequency = 1; frequency < BlockSize; frequency++)
             {
                 int index = component * BlockSize + frequency;
-                multipliers[component][frequency] = grayscale ? 0.5f
+                multipliers[component][frequency] = grayscale || rgb ? 0.5f
                     : lowQualityMix * ZeroBiasMultipliersLowQuality[index]
                         + highQualityMix * ZeroBiasMultipliersHighQuality[index];
             }
@@ -335,14 +336,14 @@ internal static class Quantization
     /// <summary>Quantizes a level-shifted block in standard JPEG DCT units.</summary>
     /// <remarks>
     /// YCbCr uses component-specific AC zero-bias offsets. Adaptive grayscale
-    /// uses a 0.5 offset; AQ-disabled grayscale uses zero. DC uses
+    /// and RGB use a 0.5 offset; disabling AQ uses zero for those color spaces. DC uses
     /// ties-away-from-zero rounding; AC uses Highway's ties-to-even rounding.
     /// </remarks>
     internal static void Quantize(ReadOnlySpan<float> coefficients,
         ReadOnlySpan<ushort> table, Span<short> output, int component, float distance,
         bool grayscale = false, bool adaptiveQuantization = false,
         float adaptiveStrength = 0f, ReadOnlySpan<float> adaptiveMultipliers = default,
-        int previousDc = 0, bool requireEightBitCoefficients = false)
+        int previousDc = 0, bool requireEightBitCoefficients = false, bool rgb = false)
     {
         ValidateComponent(component);
         if (grayscale && component != 0)
@@ -363,7 +364,7 @@ internal static class Quantization
                 throw new ArgumentException("Adaptive quantization requires 64 multipliers.", nameof(adaptiveMultipliers));
         }
 
-        float acOffset = grayscale ? (adaptiveQuantization ? 0.5f : 0f) : component switch
+        float acOffset = grayscale || rgb ? (adaptiveQuantization ? 0.5f : 0f) : component switch
         {
             0 => 0.59082f,
             1 => 0.58146f,
