@@ -157,6 +157,12 @@ DC predictor continuity. Future parity work should encode the same corpus with t
 compare decoded quality at matched sizes. Execute performance benchmarks only
 on CI.
 
+Input smoothing regressions compare converted, filtered and subsampled block
+bits with independently compiled scalar C++ fixtures, including block seams,
+odd edges and padding. An independent grayscale filter and cosine DCT oracle
+checks the emitted coefficients. Encoding checks cover scan and Huffman modes,
+refinement, restart intervals, padded layouts, alpha handling and cancellation.
+
 Restart regressions independently parse marker definitions and entropy segments
 to check MCU boundaries, all-component DC resets, one-bit padding and marker
 cycling, and compare decoded pixels with restart markers disabled. The marker
