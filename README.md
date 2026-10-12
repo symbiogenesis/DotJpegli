@@ -59,14 +59,17 @@ The default, zero, keeps the original full-precision initial scans. More refinem
 rounds require more encoding passes and CPU time. This scan script does not reproduce
 upstream Jpegli's default script or promise smaller files.
 
-With `OptimizeHuffmanTables = true` (the default), initial progressive AC scans combine
-trailing zero coefficients across consecutive blocks into end-of-block (EOB)
-runs, up to 32,767 blocks per run. Runs finish before nonzero AC coefficients,
-restart markers and scan boundaries. With optimization disabled, the standard
-Huffman tables use only single-block EOB symbols. Aggregation changes the entropy coding,
+With `OptimizeHuffmanTables = true` (the default), progressive initial and refinement
+AC scans combine trailing zero coefficients across consecutive blocks into end-of-block (EOB)
+runs, up to 32,767 blocks per run. Initial scans finish runs before nonzero AC
+coefficients; refinement scans finish them before newly significant coefficients.
+Both finish runs at restart markers and scan boundaries. With optimization disabled,
+the standard Huffman tables use only single-block EOB symbols. Aggregation changes the entropy coding,
 preserving the quantized coefficients and decoded pixels. AC refinement scans
-emit one-block EOB symbols and their correction bits, even with optimized tables;
-they retain at most one block's correction bits. DC refinement uses raw bits.
+buffer up to 255 correction bits in fixed storage, matching the pinned upstream
+token limit and flushing a run before another block would exceed that limit.
+Correction bits follow the run symbol and its
+length bits in block order. DC refinement uses raw bits.
 
 In progressive AC scans, a single component block counts as one MCU, so
 `RestartInterval` can produce more markers than in the DC scan. Restart counting
@@ -100,10 +103,10 @@ gamma modulation, quality dampening and frequency-specific coefficient threshold
 optimized length-limited canonical Huffman coding;
 byte stuffing and marker output; optional MCU restart intervals with DRI and
 cycling RST markers, including predictor resets during Huffman optimization;
-initial progressive EOB-run aggregation with optimized Huffman tables;
+progressive initial and refinement EOB-run aggregation with optimized Huffman tables;
 optional DC and AC refinement scans with bounded correction-bit storage.
 
-Pending: refinement EOB-run aggregation, optional input smoothing and other sampling ratios,
+Pending: optional input smoothing and other sampling ratios,
 XYB and ICC profiles, higher precision input,
 metadata options, SIMD/parallel paths, and decoder functionality.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
@@ -161,6 +164,8 @@ ZRL and EOB symbols, and optimized frequency collection. An independent scan
 parser reconstructs coefficients across refinement rounds and compares them
 with baseline output, alongside decoded-pixel, restart, edge, layout and
 cancellation checks.
+Refinement EOB-run regressions also check correction-bit ordering across blocks,
+fixed-buffer flushes, the 32,767-block limit, and restart and scan boundaries.
 
 `Directory.Build.targets` rejects `AllowUnsafeBlocks=true`, including a command
 line override. Library and tests compile with warnings treated as errors.

@@ -13,7 +13,8 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>
     /// Collect symbol frequencies before writing scans to reduce entropy-coded size.
-    /// Initial progressive AC scans also aggregate end-of-block runs when enabled.
+    /// Progressive initial and refinement AC scans also aggregate end-of-block runs
+    /// when enabled, using bounded correction-bit storage for refinement scans.
     /// </summary>
     public bool OptimizeHuffmanTables { get; init; } = true;
 

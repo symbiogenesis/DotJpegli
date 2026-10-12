@@ -98,7 +98,7 @@ public static class JpegliEncoder
                         ProcessAcBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
                             tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers,
                             component, acTables, null, acFrequencies, cancellationToken,
-                            aggregateEobRuns: false, successiveLow: low, refine: true);
+                            aggregateEobRuns: true, successiveLow: low, refine: true);
             }
             for (int index = 0; index < dcTables.Length; index++)
             {
@@ -157,7 +157,7 @@ public static class JpegliEncoder
                     ProcessAcBlocks(pixels, width, height, stride, bytesPerPixel, layout, horizontal, vertical,
                         tables, options.Quality, options.RestartInterval, adaptive, adaptiveMultipliers,
                         component, acTables, bits, null, cancellationToken,
-                        aggregateEobRuns: false, successiveLow: low, refine: true);
+                        aggregateEobRuns: options.OptimizeHuffmanTables, successiveLow: low, refine: true);
                     bits.Flush();
                 }
             }
@@ -289,6 +289,23 @@ public static class JpegliEncoder
         int mcusRemaining = restartInterval;
         int restartIndex = 0;
         int pendingEobRun = 0;
+        var refinementState = refine ? new ProgressiveAcRefinementState() : null;
+
+        void FlushEobRun()
+        {
+            if (refine)
+            {
+                if (writer is null)
+                    ProgressiveEntropyEncoder.FlushAcRefinementFrequencies(acFrequencies![tableIndex], refinementState!);
+                else
+                    ProgressiveEntropyEncoder.FlushAcRefinement(writer, acTables[tableIndex], refinementState!);
+            }
+            else if (writer is null)
+                ProgressiveEntropyEncoder.FlushAcFrequencies(acFrequencies![tableIndex], ref pendingEobRun);
+            else
+                ProgressiveEntropyEncoder.FlushAc(writer, acTables[tableIndex], ref pendingEobRun);
+        }
+
         for (int top = 0; top < height; top += 8 * sampleHeight)
         {
             int analysisTop = top / (8 * vertical) * (8 * vertical);
@@ -305,10 +322,7 @@ public static class JpegliEncoder
                 {
                     // EOB runs cannot cross restart intervals. The frequency
                     // pass must terminate runs at the same boundaries as output.
-                    if (writer is null)
-                        ProgressiveEntropyEncoder.FlushAcFrequencies(acFrequencies![tableIndex], ref pendingEobRun);
-                    else
-                        ProgressiveEntropyEncoder.FlushAc(writer, acTables[tableIndex], ref pendingEobRun);
+                    FlushEobRun();
                     writer?.WriteRestartMarker(restartIndex);
                     restartIndex = (restartIndex + 1) & 7;
                     mcusRemaining = restartInterval;
@@ -328,9 +342,10 @@ public static class JpegliEncoder
                 {
                     if (writer is null)
                         ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(quantized,
-                            acFrequencies![tableIndex], successiveLow);
+                            acFrequencies![tableIndex], refinementState!, successiveLow);
                     else
-                        ProgressiveEntropyEncoder.WriteAcRefinement(writer, quantized, acTables[tableIndex], successiveLow);
+                        ProgressiveEntropyEncoder.WriteAcRefinement(writer, quantized, acTables[tableIndex],
+                            refinementState!, successiveLow);
                 }
                 else if (writer is null)
                     ProgressiveEntropyEncoder.AccumulateAcFrequencies(quantized, acFrequencies![tableIndex],
@@ -340,20 +355,12 @@ public static class JpegliEncoder
                 // Annex K default AC tables only contain the one-block EOB
                 // symbol. Aggregated runs use the collected, optimized tables.
                 if (!aggregateEobRuns)
-                {
-                    if (writer is null)
-                        ProgressiveEntropyEncoder.FlushAcFrequencies(acFrequencies![tableIndex], ref pendingEobRun);
-                    else
-                        ProgressiveEntropyEncoder.FlushAc(writer, acTables[tableIndex], ref pendingEobRun);
-                }
+                    FlushEobRun();
                 if (restartInterval != 0)
                     mcusRemaining--;
             }
         }
-        if (writer is null)
-            ProgressiveEntropyEncoder.FlushAcFrequencies(acFrequencies![tableIndex], ref pendingEobRun);
-        else
-            ProgressiveEntropyEncoder.FlushAc(writer, acTables[tableIndex], ref pendingEobRun);
+        FlushEobRun();
     }
 
 }
