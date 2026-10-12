@@ -227,6 +227,168 @@ public sealed class ProgressiveRefinementEntropyTests
         Assert.Equal(new byte[] { 0x3f }, stream.ToArray());
     }
 
+    [Fact]
+    public void AggregateRefinementWritesEobExtensionBeforeCorrectionsInBlockOrder()
+    {
+        short[] first = new short[64];
+        first[JpegConstants.ZigZag[1]] = -3;
+        first[JpegConstants.ZigZag[63]] = 2;
+        short[] second = new short[64];
+        second[JpegConstants.ZigZag[4]] = -2;
+        second[JpegConstants.ZigZag[62]] = 3;
+
+        // Run two has an extension bit of zero, followed by first-block 10 and
+        // second-block 01. Neither block emits a ZRL for its trailing zeros.
+        CheckAcRefinementSequence([first, second], 0, null, (0x10, "01001"));
+    }
+
+    [Fact]
+    public void NewCoefficientsFlushPriorEobBeforeZrlAndFinalCoefficientLeavesNoEob()
+    {
+        short[] first = new short[64];
+        first[JpegConstants.ZigZag[1]] = -3;
+        first[JpegConstants.ZigZag[63]] = 2;
+        short[] second = new short[64];
+        second[JpegConstants.ZigZag[1]] = 3;
+        // Positions 2..17 are exactly sixteen still-zero coefficients.
+        second[JpegConstants.ZigZag[18]] = -2;
+        second[JpegConstants.ZigZag[19]] = -1;
+        second[JpegConstants.ZigZag[63]] = 3;
+        short[] third = new short[64];
+        third[JpegConstants.ZigZag[1]] = 2;
+        third[JpegConstants.ZigZag[63]] = -3;
+        short[] final = new short[64];
+        final[JpegConstants.ZigZag[63]] = -1;
+
+        CheckAcRefinementSequence([first, second, third, final], 0, null,
+            (0x00, "10"), (0xf0, "1"), (0x01, "00"),
+            (0x10, "0101"), (0xf0, ""), (0xf0, ""), (0xf0, ""), (0xe1, "0"));
+    }
+
+    [Fact]
+    public void AggregateRefinementSplitsOnlyWhenTheNextBlockExceedsCorrectionCapacity()
+    {
+        Assert.Equal(255, ProgressiveAcRefinementState.MaximumCorrectionBits);
+        short[] full = new short[64];
+        Array.Fill(full, (short)3);
+        short[] three = new short[64];
+        for (int position = 1; position <= 3; position++)
+        {
+            three[JpegConstants.ZigZag[position]] = 2;
+        }
+        short[] empty = new short[64];
+        short[] one = new short[64];
+        one[JpegConstants.ZigZag[63]] = -3;
+        short[][] blocks = [full, full, full, full, three, empty, one];
+        long[] frequencies = new long[256];
+        var state = new ProgressiveAcRefinementState();
+        foreach (short[] block in blocks[..6])
+        {
+            ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(block, frequencies, state, 0);
+        }
+        Assert.Equal(6, state.PendingEobRun);
+        Assert.Equal(255, state.CorrectionBitCount);
+        Assert.Equal(0, frequencies.Sum());
+
+        ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(one, frequencies, state, 0);
+        Assert.Equal(1, state.PendingEobRun);
+        Assert.Equal(1, state.CorrectionBitCount);
+        Assert.Equal(1, frequencies[0x20]);
+
+        // Run six extends by binary 10, then exactly 255 correction bits. A zero
+        // correction block joins the full buffer before the next old bit splits it.
+        CheckAcRefinementSequence(blocks, 0, null,
+            (0x20, "10" + new string('1', 252) + "000"), (0x00, "1"));
+    }
+
+    [Fact]
+    public void MixedTrailingCorrectionsStartAnAggregateRunWithoutCountingEarlierCorrections()
+    {
+        short[] mixed = new short[64];
+        Array.Fill(mixed, (short)3);
+        mixed[JpegConstants.ZigZag[60]] = -1;
+        short[] full = new short[64];
+        Array.Fill(full, (short)2);
+
+        // 59 correction bits follow the new sign immediately. Only the three
+        // trailing bits consume capacity, allowing four more 63-bit old blocks.
+        CheckAcRefinementSequence([mixed, full, full, full, full], 0, null,
+            (0x01, "0" + new string('1', 59)),
+            (0x20, "01" + "111" + new string('0', 252)));
+    }
+
+    [Fact]
+    public void AggregateRefinementRunLimitFlushesAt32767Blocks()
+    {
+        short[] empty = new short[64];
+        short[][] blocks = Enumerable.Repeat(empty, 32769).ToArray();
+        long[] frequencies = new long[256];
+        var state = new ProgressiveAcRefinementState();
+        for (int index = 0; index < 32767; index++)
+        {
+            ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(empty, frequencies, state, 0);
+        }
+        Assert.Equal(0, state.PendingEobRun);
+        Assert.Equal(0, state.CorrectionBitCount);
+        Assert.Equal(1, frequencies[0xe0]);
+
+        CheckAcRefinementSequence(blocks, 0, null, (0xe0, new string('1', 14)), (0x10, "0"));
+    }
+
+    [Fact]
+    public void ExplicitRefinementFlushResetsRunAndCorrectionsAtRestartBoundary()
+    {
+        short[] block = new short[64];
+        block[JpegConstants.ZigZag[1]] = -3;
+        block[JpegConstants.ZigZag[63]] = 2;
+        CheckAcRefinementSequence([block, block, block, block, block, block], 0, [2],
+            (0x10, "1101010"), (0x10, "1101010"));
+    }
+
+    [Fact]
+    public void InvalidAggregateRefinementInputPreservesPendingRunAndCorrectionBuffer()
+    {
+        using var stream = new MemoryStream();
+        var writer = new BitWriter(stream);
+        long[] frequencies = new long[256];
+        HuffmanTable ac = HuffmanTable.CreateOptimized(new long[256]);
+        var writeState = new ProgressiveAcRefinementState();
+        var frequencyState = new ProgressiveAcRefinementState();
+        short[] old = new short[64];
+        Array.Fill(old, (short)3);
+        ProgressiveEntropyEncoder.WriteAcRefinement(writer, old, ac, writeState, 0);
+        ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(old, frequencies, frequencyState, 0);
+
+        short[] invalid = new short[64];
+        invalid[JpegConstants.ZigZag[1]] = 1;
+        invalid[JpegConstants.ZigZag[63]] = 1024;
+        foreach (short[] block in new[] { invalid, new short[63], new short[65] })
+        {
+            Assert.ThrowsAny<ArgumentException>(() =>
+                ProgressiveEntropyEncoder.WriteAcRefinement(writer, block, ac, writeState, 0));
+            Assert.ThrowsAny<ArgumentException>(() =>
+                ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(block, frequencies, frequencyState, 0));
+        }
+        foreach (int successiveLow in new[] { -1, 10, int.MinValue, int.MaxValue })
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                ProgressiveEntropyEncoder.WriteAcRefinement(writer, old, ac, writeState, successiveLow));
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(old, frequencies, frequencyState, successiveLow));
+        }
+        Assert.Throws<ArgumentException>(() =>
+            ProgressiveEntropyEncoder.FlushAcRefinementFrequencies(new long[255], frequencyState));
+        Assert.Throws<ArgumentNullException>(() =>
+            ProgressiveEntropyEncoder.FlushAcRefinement(writer, null!, writeState));
+        Assert.Equal(1, writeState.PendingEobRun);
+        Assert.Equal(63, writeState.CorrectionBitCount);
+        Assert.Equal(writeState.PendingEobRun, frequencyState.PendingEobRun);
+        Assert.Equal(writeState.Corrections.ToArray(), frequencyState.Corrections.ToArray());
+        Assert.Equal(0, frequencies.Sum());
+        writer.Flush();
+        Assert.Empty(stream.ToArray());
+    }
+
     [Theory]
     [InlineData(-1)]
     [InlineData(11)]
@@ -323,6 +485,67 @@ public sealed class ProgressiveRefinementEntropyTests
         writer.Flush();
         Assert.Empty(stream.ToArray());
         Assert.Equal(0, frequencies.Sum());
+    }
+
+    private static void CheckAcRefinementSequence(
+        short[][] blocks,
+        int successiveLow,
+        int[]? flushAfter,
+        params (int Symbol, string Bits)[] tokens)
+    {
+        long[] expectedFrequencies = new long[256];
+        foreach ((int symbol, _) in tokens)
+        {
+            expectedFrequencies[symbol]++;
+        }
+        long[] frequencies = new long[256];
+        var frequencyState = new ProgressiveAcRefinementState();
+        for (int index = 0; index < blocks.Length; index++)
+        {
+            ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(blocks[index], frequencies, frequencyState, successiveLow);
+            if (flushAfter?.Contains(index) == true)
+            {
+                ProgressiveEntropyEncoder.FlushAcRefinementFrequencies(frequencies, frequencyState);
+                Assert.Equal(0, frequencyState.PendingEobRun);
+                Assert.Equal(0, frequencyState.CorrectionBitCount);
+            }
+        }
+        ProgressiveEntropyEncoder.FlushAcRefinementFrequencies(frequencies, frequencyState);
+        Assert.Equal(expectedFrequencies, frequencies);
+        Assert.Equal(0, frequencyState.PendingEobRun);
+        Assert.Equal(0, frequencyState.CorrectionBitCount);
+
+        HuffmanTable ac = HuffmanTable.CreateOptimized(expectedFrequencies);
+        using var expected = new MemoryStream();
+        var expectedWriter = new BitWriter(expected);
+        foreach ((int symbol, string bits) in tokens)
+        {
+            ac.WriteSymbol(expectedWriter, symbol);
+            foreach (char bit in bits)
+            {
+                expectedWriter.WriteBits((uint)(bit - '0'), 1);
+            }
+        }
+        expectedWriter.Flush();
+
+        using var actual = new MemoryStream();
+        var actualWriter = new BitWriter(actual);
+        var state = new ProgressiveAcRefinementState();
+        for (int index = 0; index < blocks.Length; index++)
+        {
+            ProgressiveEntropyEncoder.WriteAcRefinement(actualWriter, blocks[index], ac, state, successiveLow);
+            if (flushAfter?.Contains(index) == true)
+            {
+                ProgressiveEntropyEncoder.FlushAcRefinement(actualWriter, ac, state);
+                Assert.Equal(0, state.PendingEobRun);
+                Assert.Equal(0, state.CorrectionBitCount);
+            }
+        }
+        ProgressiveEntropyEncoder.FlushAcRefinement(actualWriter, ac, state);
+        actualWriter.Flush();
+        Assert.Equal(0, state.PendingEobRun);
+        Assert.Equal(0, state.CorrectionBitCount);
+        Assert.Equal(expected.ToArray(), actual.ToArray());
     }
 
     private static void CheckAcRefinement(short[] block, int successiveLow, params (int Symbol, string Bits)[] tokens)

@@ -10,7 +10,8 @@ namespace DotJpegli.Internal;
 // TokenizeProgressiveDC, TokenizeACProgressiveScan and TokenizeACRefinementScan
 // in google/jpegli lib/jpegli/entropy_coding.cc, revision
 // 031a0077f5799a6041004267fc12b956c1f52a20, and ITU T.81 Annex G.
-// DC and AC are emitted separately; refinement EOBs are limited to one block.
+// DC and AC are emitted separately. Optimized tables can aggregate AC EOB runs,
+// including refinement runs with a bounded buffer of correction bits.
 internal static class ProgressiveEntropyEncoder
 {
     private const int MaximumEobRun = 0x7fff;
@@ -195,23 +196,85 @@ internal static class ProgressiveEntropyEncoder
         HuffmanTable ac,
         int successiveLow)
     {
+        // Standard tables only define the one-block EOB symbol.
+        var state = new ProgressiveAcRefinementState();
+        WriteAcRefinement(writer, naturalCoefficients, ac, state, successiveLow);
+        FlushAcRefinement(writer, ac, state);
+    }
+
+    public static void WriteAcRefinement(
+        BitWriter writer,
+        ReadOnlySpan<short> naturalCoefficients,
+        HuffmanTable ac,
+        ProgressiveAcRefinementState state,
+        int successiveLow)
+    {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(ac);
+        ArgumentNullException.ThrowIfNull(state);
         ValidateSuccessiveLow(successiveLow, refinement: true);
         ValidateAc(naturalCoefficients);
+        ProcessAcRefinement(naturalCoefficients, state, successiveLow, writer, ac, null);
+    }
 
+    public static void AccumulateAcRefinementFrequencies(
+        ReadOnlySpan<short> naturalCoefficients,
+        long[] ac,
+        int successiveLow)
+    {
+        var state = new ProgressiveAcRefinementState();
+        AccumulateAcRefinementFrequencies(naturalCoefficients, ac, state, successiveLow);
+        FlushAcRefinementFrequencies(ac, state);
+    }
+
+    public static void AccumulateAcRefinementFrequencies(
+        ReadOnlySpan<short> naturalCoefficients,
+        long[] ac,
+        ProgressiveAcRefinementState state,
+        int successiveLow)
+    {
+        ValidateFrequencies(ac);
+        ArgumentNullException.ThrowIfNull(state);
+        ValidateSuccessiveLow(successiveLow, refinement: true);
+        ValidateAc(naturalCoefficients);
+        ProcessAcRefinement(naturalCoefficients, state, successiveLow, null, null, ac);
+    }
+
+    // Keep frequency decisions and emitted tokens on the same traversal, since
+    // both must split EOB runs at exactly the same buffer and block boundaries.
+    private static void ProcessAcRefinement(
+        ReadOnlySpan<short> naturalCoefficients,
+        ProgressiveAcRefinementState state,
+        int successiveLow,
+        BitWriter? writer,
+        HuffmanTable? ac,
+        long[]? frequencies)
+    {
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
         int lastNew = 0;
+        int oldCount = 0;
         for (int position = 1; position < 64; position++)
         {
-            if ((Math.Abs((int)naturalCoefficients[order[position]]) >> successiveLow) == 1)
+            int magnitude = Math.Abs((int)naturalCoefficients[order[position]]) >> successiveLow;
+            if (magnitude == 1)
             {
                 lastNew = position;
             }
+            else if (magnitude > 1)
+            {
+                oldCount++;
+            }
+        }
+
+        // A new coefficient terminates any preceding EOB run. A block without
+        // new coefficients contributes all its old-coefficient correction bits,
+        // and the run must split before that block if they would exceed capacity.
+        if (lastNew != 0 || state.CorrectionBitCount + oldCount > ProgressiveAcRefinementState.MaximumCorrectionBits)
+        {
+            FlushAcRefinementCore(state, writer, ac, frequencies);
         }
 
         // Annex G.1.2.3 appends correction bits after a symbol and its sign.
-        // A one-block EOB keeps buffering bounded, including with optimized tables.
         Span<byte> corrections = stackalloc byte[63];
         int correctionCount = 0;
         int run = 0;
@@ -224,8 +287,11 @@ internal static class ProgressiveEntropyEncoder
                 run++;
                 if (run == 16 && position < lastNew)
                 {
-                    ac.WriteSymbol(writer, 0xf0);
-                    WriteCorrectionBits(writer, corrections[..correctionCount]);
+                    WriteRefinementSymbol(0xf0, writer, ac, frequencies);
+                    if (writer is not null)
+                    {
+                        WriteCorrectionBits(writer, corrections[..correctionCount]);
+                    }
                     correctionCount = 0;
                     run = 0;
                 }
@@ -237,9 +303,12 @@ internal static class ProgressiveEntropyEncoder
             }
             else
             {
-                ac.WriteSymbol(writer, (run << 4) | 1);
-                writer.WriteBits(value > 0 ? 1U : 0U, 1);
-                WriteCorrectionBits(writer, corrections[..correctionCount]);
+                WriteRefinementSymbol((run << 4) | 1, writer, ac, frequencies);
+                if (writer is not null)
+                {
+                    writer.WriteBits(value > 0 ? 1U : 0U, 1);
+                    WriteCorrectionBits(writer, corrections[..correctionCount]);
+                }
                 correctionCount = 0;
                 run = 0;
             }
@@ -247,47 +316,59 @@ internal static class ProgressiveEntropyEncoder
 
         if (lastNew < 63)
         {
-            ac.WriteSymbol(writer, 0);
-            WriteCorrectionBits(writer, corrections[..correctionCount]);
+            state.AppendBlock(corrections[..correctionCount]);
+            if (state.PendingEobRun == MaximumEobRun)
+            {
+                FlushAcRefinementCore(state, writer, ac, frequencies);
+            }
         }
     }
 
-    public static void AccumulateAcRefinementFrequencies(
-        ReadOnlySpan<short> naturalCoefficients,
-        long[] ac,
-        int successiveLow)
+    public static void FlushAcRefinement(BitWriter writer, HuffmanTable ac, ProgressiveAcRefinementState state)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(ac);
+        ArgumentNullException.ThrowIfNull(state);
+        FlushAcRefinementCore(state, writer, ac, null);
+    }
+
+    public static void FlushAcRefinementFrequencies(long[] ac, ProgressiveAcRefinementState state)
     {
         ValidateFrequencies(ac);
-        ValidateSuccessiveLow(successiveLow, refinement: true);
-        ValidateAc(naturalCoefficients);
+        ArgumentNullException.ThrowIfNull(state);
+        FlushAcRefinementCore(state, null, null, ac);
+    }
 
-        int run = 0;
-        int lastNew = 0;
-        ReadOnlySpan<int> order = JpegConstants.ZigZag;
-        for (int position = 1; position < 64; position++)
+    private static void FlushAcRefinementCore(
+        ProgressiveAcRefinementState state,
+        BitWriter? writer,
+        HuffmanTable? ac,
+        long[]? frequencies)
+    {
+        if (state.PendingEobRun == 0)
         {
-            int magnitude = Math.Abs((int)naturalCoefficients[order[position]]) >> successiveLow;
-            if (magnitude == 0)
-            {
-                run++;
-            }
-            else if (magnitude == 1)
-            {
-                while (run >= 16)
-                {
-                    checked { ac[0xf0]++; }
-                    run -= 16;
-                }
-
-                checked { ac[(run << 4) | 1]++; }
-                run = 0;
-                lastNew = position;
-            }
+            return;
         }
 
-        if (lastNew < 63)
+        int bits = BitOperations.Log2((uint)state.PendingEobRun);
+        WriteRefinementSymbol(bits << 4, writer, ac, frequencies);
+        if (writer is not null)
         {
-            checked { ac[0]++; }
+            writer.WriteBits((uint)(state.PendingEobRun - (1 << bits)), bits);
+            WriteCorrectionBits(writer, state.Corrections);
+        }
+        state.Clear();
+    }
+
+    private static void WriteRefinementSymbol(int symbol, BitWriter? writer, HuffmanTable? ac, long[]? frequencies)
+    {
+        if (frequencies is not null)
+        {
+            checked { frequencies[symbol]++; }
+        }
+        else
+        {
+            ac!.WriteSymbol(writer!, symbol);
         }
     }
 
