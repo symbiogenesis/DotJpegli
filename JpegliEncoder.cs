@@ -121,6 +121,10 @@ public static class JpegliEncoder
             options.AllowOutOfRangeFloatSamples);
         ExtendedXmpMetadata? extendedXmp = ExtendedXmpMetadata.Prepare(options, cancellationToken);
 
+        int transferFunction = options.CicpTransferFunction;
+        if (options.InferCicpTransferFunctionFromIccProfile && transferFunction == 2)
+            transferFunction = IccProfile.LookupTransferFunction(options.IccProfile.Span, cancellationToken);
+
         bool grayscale = pixels.IsGrayscale;
         int componentCount = grayscale ? 1 : 3;
         JpegSamplingFactors sampling = grayscale
@@ -137,9 +141,9 @@ public static class JpegliEncoder
             if (options.UseStandardQuantizationTables)
                 tables[component] = component == 2 ? tables[1] : Quantization.CreateStandardTableForDistance(distance, component);
             else
-                tables[component] = grayscale ? Quantization.CreateGrayscaleTableForDistance(distance, options.CicpTransferFunction)
+                tables[component] = grayscale ? Quantization.CreateGrayscaleTableForDistance(distance, transferFunction)
                     : Quantization.CreateTableForDistance(distance, component, quantizationSampling, quantizationSampling,
-                        options.CicpTransferFunction);
+                        transferFunction);
         }
 
         // ProcessCompressionParams in the pinned upstream disables adaptive analysis
@@ -149,7 +153,7 @@ public static class JpegliEncoder
         float[][]? adaptiveMultipliers = useAdaptiveQuantization
             ? Quantization.CreateAdaptiveZeroBiasMultipliers(tables, quantizationSampling, quantizationSampling, grayscale,
                 sharedChromaTable: options.UseStandardQuantizationTables,
-                cicpTransferFunction: options.CicpTransferFunction) : null;
+                cicpTransferFunction: transferFunction) : null;
 
         var dcTables = new HuffmanTable[grayscale ? 1 : 2];
         var acTables = new HuffmanTable[dcTables.Length];

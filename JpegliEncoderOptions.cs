@@ -41,9 +41,23 @@ public sealed record JpegliEncoderOptions
     /// matrices ignore this hint when constructing tables, but adaptive thresholds
     /// still use it. This does not transform samples, tone-map, validate a registered
     /// code, or embed color metadata. Supply any required ICC profile separately.
+    /// With InferCicpTransferFunctionFromIccProfile enabled, code 2 permits lookup
+    /// from that profile; every other code overrides it.
     /// Output remains a lossy eight-bit JPEG; this hint does not establish HDR conformance.
     /// </summary>
     public int CicpTransferFunction { get; init; } = 2;
+
+    /// <summary>
+    /// Look up the CICP transfer-function byte in IccProfile when CicpTransferFunction is 2.
+    /// False (the default) keeps the profile independent of quantization. Every explicit
+    /// code other than 2 takes precedence. Missing or unreadable CICP data falls back to 2.
+    /// Follows the pinned upstream raw-profile helper: requires a complete tag directory,
+    /// uses its last cicp entry, and reads a 12-byte cicp payload with declared size at least 12.
+    /// Other ICC header fields, tag extent beyond those bytes, reserved bytes and CICP
+    /// fields are not validated. This is not ICC conformance validation or color management.
+    /// The profile is embedded unchanged; only codes 16/18 affect quantization tuning.
+    /// </summary>
+    public bool InferCicpTransferFunctionFromIccProfile { get; init; }
 
     /// <summary>Chroma sample area relative to luma. Defaults to 4:2:0 (2x2); SamplingFactors overrides it.</summary>
     public ChromaSubsampling Subsampling { get; init; } = ChromaSubsampling.Quarter;
@@ -135,8 +149,9 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>
     /// Raw ICC profile bytes to embed in APP2 markers. Empty (the default) omits the profile.
-    /// At most 16,707,345 bytes are supported. The profile is neither interpreted nor applied
-    /// to the pixels; supply a profile describing the input RGB or grayscale values.
+    /// At most 16,707,345 bytes are supported. The profile is not applied to the pixels;
+    /// supply a profile describing the input RGB or grayscale values. It remains opaque
+    /// unless InferCicpTransferFunctionFromIccProfile enables the narrow CICP lookup.
     /// Do not change the underlying memory or dispose its owner until encoding returns.
     /// </summary>
     public ReadOnlyMemory<byte> IccProfile { get; init; }

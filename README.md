@@ -368,8 +368,9 @@ envelope may be written if every property is selected. The existing XML envelope
 validation applies; this does not validate complete RDF graphs or XMP schemas.
 
 Set `IccProfile` to raw ICC profile bytes to embed them unchanged in numbered
-APP2 markers. An empty profile, the default, writes no ICC markers. The encoder
-does not parse the profile, apply a color transform, or provide a built-in profile;
+APP2 markers. An empty profile, the default, writes no ICC markers. The profile
+is opaque unless the opt-in CICP lookup described below is enabled. The encoder
+does not apply a color transform or provide a built-in profile;
 use a profile describing the source RGB or grayscale values. Do not change its
 backing memory or dispose its owner until encoding returns. Profiles can contain
 at most 16,707,345 bytes (255 chunks of up to 65,519 bytes), following
@@ -590,6 +591,40 @@ metadata. Supply appropriately encoded samples and any matching ICC profile
 yourself. Output remains a lossy eight-bit JPEG; this tuning alone does not
 establish HDR conformance or a measured perceptual quality guarantee.
 
+Set `InferCicpTransferFunctionFromIccProfile = true` to obtain the hint from the
+profile's `cicp` tag instead of specifying it separately:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(pqPixels, width, height, options: new()
+{
+    IccProfile = matchingProfile,
+    InferCicpTransferFunctionFromIccProfile = true
+});
+```
+
+The default is false and preserves the existing output for every attached
+profile. Lookup applies only when `CicpTransferFunction` is 2 (unspecified);
+every other explicit code takes precedence, including codes that retain default
+tuning. To request unspecified tuning independently of the profile, leave lookup
+disabled. Inferred codes feed both table generation and adaptive thresholds,
+including standard tables and out-of-range float coefficient validation.
+
+Lookup follows [the pinned upstream raw-profile helper](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/extras/enc/jpegli.cc).
+It requires at least 132 profile bytes and a complete directory of 12-byte tag
+entries. The last `cicp` entry wins, must declare at least 12 payload bytes, and
+must point to 12 readable bytes starting with the `cicp` type signature. Byte 9
+of that payload supplies the transfer code. Missing, truncated or mismatched
+data returns 2; an invalid last entry does not fall back to an earlier one.
+Unsigned counts and offsets are bounded before indexing. Directory scanning uses
+constant working storage and checks cancellation periodically, before JPEG output.
+The profile may span APP2 markers; lookup uses the original complete profile.
+
+This narrow lookup does not validate ICC conformance, the header signature,
+version or declared profile size, the rest of a larger declared tag, reserved
+bytes, or the primaries, matrix and range fields. Unreadable lookup data remains
+embedded unchanged. No other profile tags are interpreted, and no profile is
+generated, reconciled with an explicit hint, or applied to the samples.
+
 ## Port status
 
 Implemented: baseline sequential and optional spectral-selection and successive-approximation progressive
@@ -616,6 +651,8 @@ Optional conventional Annex K quantization matrices use upstream distance scalin
 with one luma table and a shared chroma table, retaining Jpegli adaptive quantization.
 Optional CICP transfer-function hints provide upstream PQ/HLG perceptual table
 scaling and adaptive threshold inference without changing or signaling the input color space.
+Opt-in lookup obtains those hints from attached ICC profiles using upstream's
+raw-profile CICP tag rules while preserving the profile bytes.
 Gamma-encoded 16-bit and normalized floating-point RGB and grayscale input are
 supported with fractional samples preserved through quantization.
 Direct YCbCr input supports the same three source precisions and downstream options.
@@ -687,6 +724,14 @@ cosine inputs that distinguish missing hints and incorrect table selectors. They
 also cover default and other-code byte compatibility, typed and padded inputs,
 custom sampling, scan/refinement parity, metadata and stream behavior, finite
 distance extremes, and out-of-range float coefficient validation before output.
+
+ICC transfer lookup regressions compare inferred and explicit hints across
+input precisions, layouts, sampling, adaptive and standard tables, scan modes
+and restarts. They independently reconstruct APP2 chunks to check unchanged
+profile bytes and cover sliced storage, marker boundaries, missing and malformed
+directories, extreme unsigned fields and last-entry selection. Native helper
+fixtures check the pinned lookup's permissive field handling. Cancellation,
+nonseekable streams and out-of-range coefficient rejection before output are covered.
 
 Additional 4:4:0 and 4:1:1 regressions use independent scalar C++ fixtures for
 vertical and pairwise horizontal averaging, odd edges, block seams and smoothing.
