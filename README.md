@@ -565,6 +565,34 @@ The factory returns fresh deterministic storage and requires explicit assignment
 Attaching the profile leaves sample conversion and JPEG coding unchanged. It does
 not make linear, PQ or HLG grayscale samples sRGB, and is unsuitable for color output.
 
+`CreateLinearSrgbProfile()` and `CreateLinearSrgbGrayscaleProfile()` provide
+the pinned builder's perceptual ICC v4.4 profiles for **already linear-light**
+samples. The 536-byte RGB profile retains sRGB primaries, Bradford adaptation
+from D65 to D50, and shared identity transfer curves; its CICP transfer code is 8.
+The 328-byte grayscale profile retains D65 media white, a D50 PCS header and an
+identity `kTRC`, with no chromatic-adaptation or CICP tag. Both factories return
+fresh deterministic arrays for explicit assignment:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(linearRgbSamples, width, height,
+    PixelComponentLayout.Rgb, options: new()
+    {
+        ColorSpace = JpegColorSpace.Rgb,
+        IccProfile = JpegliIccProfiles.CreateLinearSrgbProfile()
+    });
+```
+
+Supply normalized linear-light float samples, or integer samples scaled to the
+input type's full range. RGB output stores them directly; YCbCr output applies
+the usual matrix to those same values. Use the grayscale profile for grayscale
+output. Attaching either profile preserves the samples and JPEG coding; it does
+not decode the sRGB transfer function. Explicit XYB conversion still requires
+gamma-encoded sRGB input and the scaled XYB profile. Quantization and adaptive
+analysis retain their existing tuning; these factories do not establish a
+perceptual-quality guarantee for linear-light JPEGs. Opt-in CICP lookup returns
+8 for the RGB profile and unspecified (2) for grayscale, both retaining default
+quantization tuning.
+
 Set `IptcData` to raw IPTC-IIM bytes to embed them unchanged in one Photoshop
 APP13 marker. Supply only the IIM datasets, without Photoshop or JPEG framing.
 Empty (the default) writes no IPTC. The encoder adds `Photoshop 3.0\0` and one
@@ -862,6 +890,8 @@ The same API provides a fixed perceptual sRGB RGB display profile for explicit
 attachment to RGB or YCbCr output, with shared transfer curves and a CICP tag.
 It also provides a fixed D65 grayscale profile with the sRGB transfer curve for
 explicit attachment to grayscale output.
+Linear-light variants provide identity transfer curves for RGB with sRGB
+primaries and D65 grayscale, using the same explicit output-profile assignment.
 
 Pending: fractional sampling ratios,
 additional built-in profiles and arbitrary source ICC color management,
@@ -970,6 +1000,15 @@ sRGB decoding curve. Encoding checks cover exact APP2 embedding, unchanged
 coding data, typed and padded inputs, explicit grayscale conversion, scan modes,
 restart markers, CICP lookup and nonseekable streams. These checks do not establish
 a color-managed lossy JPEG quality comparison.
+
+Linear-sRGB profile regressions compare both complete profiles with independently
+compiled pinned C++ fixtures, verify their ICC MD5 IDs and fresh storage, and
+parse aligned tags, shared identity curves, colorants, white points and CICP
+fields. Independent curve and matrix evaluation checks linear samples against
+D50 XYZ values. Encoding checks verify exact APP2 embedding and unchanged coding
+data with representative precisions, scan modes and CICP lookup settings. These
+checks validate profile serialization and sample preservation, without
+establishing a color-managed lossy JPEG quality comparison.
 
 Scaled XYB regressions compare complete emitted quantization tables with
 independently compiled pinned C++ scalar fixtures. Independent JPEG parsing

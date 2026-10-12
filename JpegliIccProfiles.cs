@@ -16,6 +16,16 @@ public static class JpegliIccProfiles
     public static byte[] CreateSrgbProfile() => SrgbIccProfile.Create();
 
     /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 RGB profile for linear-light samples
+    /// with sRGB primaries and D65 white adapted to D50 XYZ. Assign it explicitly
+    /// to JpegliEncoderOptions.IccProfile for RGB or YCbCr output whose RGB
+    /// interpretation is linear sRGB. Samples must already use a linear transfer
+    /// function; attaching this profile does not linearize gamma-encoded input.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateLinearSrgbProfile() => SrgbIccProfile.Create(linear: true);
+
+    /// <summary>
     /// Creates Jpegli's perceptual ICC v4 grayscale display profile for
     /// gamma-encoded samples with the sRGB transfer function and D65 media white.
     /// Assign it explicitly to JpegliEncoderOptions.IccProfile for grayscale
@@ -25,6 +35,17 @@ public static class JpegliIccProfiles
     /// Every call returns a separate mutable array with deterministic bytes.
     /// </summary>
     public static byte[] CreateSrgbGrayscaleProfile() => SrgbGrayscaleIccProfile.Create();
+
+    /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 grayscale display profile for
+    /// linear-light samples with D65 media white. Assign it explicitly to
+    /// JpegliEncoderOptions.IccProfile for grayscale output. The profile retains
+    /// upstream's D65 media-white tag and D50 PCS header, without a
+    /// chromatic-adaptation or CICP tag. Samples must already be linear;
+    /// attaching this profile does not linearize gamma-encoded input.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateLinearSrgbGrayscaleProfile() => SrgbGrayscaleIccProfile.Create(linear: true);
 
     /// <summary>
     /// Creates Jpegli's perceptual ICC v4 profile for scaled X, Y and B-minus-Y

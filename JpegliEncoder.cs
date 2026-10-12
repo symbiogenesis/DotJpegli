@@ -41,8 +41,10 @@ public static class JpegliEncoder
         => EncodeCore(output, new PixelSource(pixels, layout), width, height, options, stride, cancellationToken);
 
     /// <summary>
-    /// Encodes gamma-encoded RGB/grayscale, full-range JPEG YCbCr or already scaled XYB 16-bit samples.
+    /// Encodes RGB/grayscale, full-range JPEG YCbCr or already scaled XYB 16-bit samples.
     /// Values 0..65535 map to JPEG sample units 0..255; neutral YCbCr chroma is 32896.
+    /// Non-XYB output retains the source transfer function; use a matching output ICC profile.
+    /// Explicit XYB conversion requires gamma-encoded sRGB input.
     /// Fractional precision is retained until quantization; output JPEG sample precision is eight bits.
     /// </summary>
     /// <param name="stride">Source elements between rows, or zero for tightly packed rows.</param>
@@ -67,11 +69,12 @@ public static class JpegliEncoder
         => EncodeCore(output, new PixelSource(pixels, layout), width, height, options, stride, cancellationToken);
 
     /// <summary>
-    /// Encodes gamma-encoded RGB/grayscale, full-range JPEG YCbCr or already scaled XYB floating-point samples.
+    /// Encodes RGB/grayscale, full-range JPEG YCbCr or already scaled XYB floating-point samples.
     /// Consumed samples must be finite and in 0..1 by default; neutral YCbCr chroma is 128f / 255f.
     /// AllowOutOfRangeFloatSamples permits out-of-range values that fit eight-bit JPEG coefficients.
     /// Alpha, row padding and trailing elements are ignored. Explicit XYB output linearizes sRGB
     /// before its opsin transform. No HDR transform or source ICC transform is applied.
+    /// Non-XYB output retains the source transfer function; use a matching output ICC profile.
     /// Fractional precision is retained until quantization; output JPEG sample precision is eight bits.
     /// </summary>
     /// <param name="stride">Source elements between rows, or zero for tightly packed rows.</param>

@@ -7,9 +7,9 @@ namespace DotJpegli.Internal;
 
 internal static class SrgbGrayscaleIccProfile
 {
-    // Fixed D65/sRGB/perceptual grayscale branch of lib/cms/jpegli_cms_internal.h,
+    // Fixed D65/perceptual grayscale branches of lib/cms/jpegli_cms_internal.h,
     // google/jpegli 031a0077f5799a6041004267fc12b956c1f52a20.
-    internal static byte[] Create()
+    internal static byte[] Create(bool linear = false)
     {
         byte[] profile = new byte[328];
         Span<byte> bytes = profile;
@@ -19,7 +19,7 @@ internal static class SrgbGrayscaleIccProfile
         Tag(bytes, 1, "cprt"u8, 240, 36);
         Tag(bytes, 2, "wtpt"u8, 276, 20);
         Tag(bytes, 3, "kTRC"u8, 296, 32);
-        Mluc(bytes[180..240], "Gra_D65_Per_SRG");
+        Mluc(bytes[180..240], linear ? "Gra_D65_Per_Lin" : "Gra_D65_Per_SRG");
         Mluc(bytes[240..276], "CC0");
 
         // Upstream's grayscale branch keeps the source D65 media white, omits
@@ -30,8 +30,10 @@ internal static class SrgbGrayscaleIccProfile
         Fixed(bytes, 284, (float)(0.3127 * factor));
         Fixed(bytes, 288, 1f);
         Fixed(bytes, 292, (float)((1.0 - 0.3127 - 0.3290) * factor));
-        Curve(bytes[296..], [2.4f, (float)(1.0 / 1.055), (float)(0.055 / 1.055),
-            (float)(1.0 / 12.92), 0.04045f], 3);
+        Curve(bytes[296..], linear
+            ? [1f, 1f, 0f, 1f, 0f]
+            : [2.4f, (float)(1.0 / 1.055), (float)(0.055 / 1.055),
+                (float)(1.0 / 12.92), 0.04045f], 3);
         ProfileId(bytes);
         return profile;
     }
