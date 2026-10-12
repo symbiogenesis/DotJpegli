@@ -91,7 +91,8 @@ internal readonly ref struct PixelSource
     private float ReadComponent(int offset) => sourceType switch
     {
         SourceType.Byte => bytes[offset],
-        // Scalar ReadUint16Row and ReadFloatRow in pinned jpegli input.cc.
+        // Scalar ReadUint16Row and ReadFloatRow in lib/jpegli/input.cc,
+        // revision 031a0077f5799a6041004267fc12b956c1f52a20.
         // Upstream's double reciprocal matters before conversion to float.
         SourceType.UInt16 => (float)(words[offset] * (1.0 / 257.0)),
         _ => floats[offset] * 255f
