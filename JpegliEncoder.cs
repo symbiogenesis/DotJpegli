@@ -140,19 +140,31 @@ public static class JpegliEncoder
                     {
                         for (int blockX = 0; blockX < blocksWide; blockX++)
                         {
-                            FillBlock(pixels, width, height, stride, bytesPerPixel, layout, component,
-                                left + blockX * 8, top + blockY * 8, sampleWidth, sampleHeight, samples);
-                            ForwardDct.Transform(samples, coefficients);
-                            // Upstream samples the top-left luma field value for a chroma block.
-                            // Edge blocks beyond the real luma width reuse its last field value.
-                            float strength = adaptive is null ? 0f : strengths![
-                                (component == 0 ? blockY : 0) * adaptive.BlocksWide +
-                                Math.Min(left / 8 + (component == 0 ? blockX : 0), adaptive.BlocksWide - 1)];
-                            Quantization.Quantize(coefficients, tables[component], quantized, component, distance,
-                                grayscale: layout == PixelLayout.Gray8, adaptiveQuantization: adaptive is not null,
-                                adaptiveStrength: strength,
-                                adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                                previousDc: previousDc[component]);
+                            int blockLeft = left + blockX * 8;
+                            int blockTop = top + blockY * 8;
+                            if (blockLeft >= width || blockTop >= height)
+                            {
+                                // Upstream's baseline streaming path emits a zero DC difference
+                                // and AC EOB for a wholly padded MCU block. Keep the predictor,
+                                // and bypass sample conversion, the DCT and adaptive quantization.
+                                quantized.Clear();
+                                quantized[0] = checked((short)previousDc[component]);
+                            }
+                            else
+                            {
+                                Downsampling.FillBlock(pixels, width, height, stride, bytesPerPixel, layout, component,
+                                    blockLeft, blockTop, sampleWidth, sampleHeight, samples);
+                                ForwardDct.Transform(samples, coefficients);
+                                // Upstream samples the top-left luma field value for a chroma block.
+                                float strength = adaptive is null ? 0f : strengths![
+                                    (component == 0 ? blockY : 0) * adaptive.BlocksWide +
+                                    left / 8 + (component == 0 ? blockX : 0)];
+                                Quantization.Quantize(coefficients, tables[component], quantized, component, distance,
+                                    grayscale: layout == PixelLayout.Gray8, adaptiveQuantization: adaptive is not null,
+                                    adaptiveStrength: strength,
+                                    adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
+                                    previousDc: previousDc[component]);
+                            }
                             int tableIndex = component == 0 ? 0 : 1;
                             if (writer is null)
                                 EntropyEncoder.AccumulateFrequencies(quantized, ref previousDc[component],
@@ -167,39 +179,4 @@ public static class JpegliEncoder
         }
     }
 
-    // Replicate edge pixels before box downsampling so odd dimensions remain valid.
-    // This is a basic JPEG sampling path; SharpYUV and upstream streaming filters are pending.
-    private static void FillBlock(ReadOnlySpan<byte> pixels, int width, int height, int stride,
-        int bytesPerPixel, PixelLayout layout, int component, int left, int top,
-        int sampleWidth, int sampleHeight, Span<float> samples)
-    {
-        bool bgr = layout is PixelLayout.Bgr24 or PixelLayout.Bgra32;
-        for (int row = 0; row < 8; row++)
-        {
-            for (int column = 0; column < 8; column++)
-            {
-                float sum = 0;
-                for (int dy = 0; dy < sampleHeight; dy++)
-                {
-                    int y = Math.Min(top + row * sampleHeight + dy, height - 1);
-                    for (int dx = 0; dx < sampleWidth; dx++)
-                    {
-                        int x = Math.Min(left + column * sampleWidth + dx, width - 1);
-                        int offset = y * stride + x * bytesPerPixel;
-                        if (layout == PixelLayout.Gray8)
-                            sum += pixels[offset];
-                        else
-                        {
-                            byte r = pixels[offset + (bgr ? 2 : 0)];
-                            byte g = pixels[offset + 1];
-                            byte b = pixels[offset + (bgr ? 0 : 2)];
-                            ColorConversion.RgbToYCbCr(r, g, b, out float luma, out float cb, out float cr);
-                            sum += component switch { 0 => luma, 1 => cb, _ => cr };
-                        }
-                    }
-                }
-                samples[row * 8 + column] = sum / (sampleWidth * sampleHeight) - 128;
-            }
-        }
-    }
 }

@@ -39,8 +39,9 @@ must be 1..65535 and fit `MaxPixels` (100 million by default).
 
 Spatial adaptive quantization is enabled by default. It analyzes luma texture,
 brightness and neighboring regions to adjust coefficient zeroing thresholds.
-Set `AdaptiveQuantization = false` to use the original uniform quantization path;
-this preserves the initial managed encoder's output for the same options.
+Set `AdaptiveQuantization = false` to use uniform quantization. Upstream sampling
+arithmetic and dummy-block coding apply to both modes; partially filled MCUs can
+produce different JPEG bytes from earlier port versions.
 
 Huffman optimization makes two passes over the supplied pixels, keeping only
 block buffers, bounded rows of spatial-analysis data and symbol histograms
@@ -51,15 +52,16 @@ holds the encoded JPEG in memory; use the stream overload for larger outputs.
 ## Port status
 
 Implemented: baseline sequential JPEG/JFIF; RGB and grayscale input; 4:4:4,
-4:2:2 and 4:2:0 box sampling with edge replication; recursive scalar DCT; Jpegli
+4:2:2 and 4:2:0 upstream scalar box sampling with edge replication and empty
+dummy-block coding that preserves DC predictors at MCU edges; recursive scalar DCT; Jpegli
 quality-to-distance and perceptual Y/Cb/Cr quantization tables; scalar adaptive
 quantization with local differences, fuzzy erosion, masking, high-frequency and
 gamma modulation, quality dampening and frequency-specific coefficient thresholds;
 optimized length-limited canonical Huffman coding;
 byte stuffing and marker output.
 
-Pending: progressive scans, upstream downsampling filters and empty dummy-block
-coding at MCU edges, XYB and ICC profiles, higher precision input,
+Pending: progressive scans, optional input smoothing and other sampling ratios,
+XYB and ICC profiles, higher precision input,
 metadata/restart options, SIMD/parallel paths, and decoder functionality.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
 one eighth of those units. This scaling adaptation is accounted for during
@@ -76,7 +78,7 @@ MozJPEG and libjpeg-turbo in its tested conditions, rather than a universal
 
 ```text
 dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release
-dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -class DotJpegli.Tests.EncoderAdaptiveQuantizationTests
+dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -class DotJpegli.Tests.EncoderSamplingTests
 ```
 
 The second command is a focused local selection. Full suites run only in the
@@ -91,7 +93,9 @@ definition. Compiled C++ reference probes matched 120 color and grayscale quanti
 fixtures. Adaptive-analysis and coefficient regressions also use independently compiled
 C++ scalar fixtures from the pinned source, including edge padding and saturated
 quantization tables. These sampled numerical checks do not establish full encoder
-parity. Future parity work should encode the same corpus with this pinned C++ revision and
+parity. Sampling regressions retain independent scalar C++ fixtures for pairwise
+averaging and odd edge padding, and entropy parsing checks dummy-block tokens and
+DC predictor continuity. Future parity work should encode the same corpus with this pinned C++ revision and
 compare decoded quality at matched sizes. Execute performance benchmarks only
 on CI.
 

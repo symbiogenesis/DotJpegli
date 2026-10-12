@@ -33,12 +33,15 @@ public sealed class EncoderAdaptiveQuantizationTests
     }
 
     [Theory]
-    [InlineData(false, "28DE5C4D3F40CB55A73AB7B5385BECB5DD62978355CE9020302834F90DE0F1A7")]
-    [InlineData(true, "6591D26B56FD1B31CBD26930978463A09D55E89B910CDA36CDB5BDCE552CE341")]
-    public void DisablingAdaptiveQuantizationPreservesBaselineOutput(bool optimize, string expectedHash)
+    [InlineData(16, 16, false, "67E1DBDFF268E67A5F6D0655C3B909011B7FE1200D0B8B33EB2BD6107D0746C7")]
+    [InlineData(16, 16, true, "B0E45210E44251D9292308A92AB01F505A6F63EC5438206ACE4C87C2E9E8A4B6")]
+    [InlineData(19, 17, false, "202FD903163EC382260EDF412DA6A385522E7A18C84009B5ACF851FEF024B34A")]
+    [InlineData(19, 17, true, "BB2477D064A9283CC7BA94332553685F0F18D846F1B13BF80B44E3D85A17704F")]
+    public void UniformQuantizationOutputRemainsStable(int width, int height, bool optimize, string expectedHash)
     {
-        // Captured from the original managed baseline revision df35cb7.
-        byte[] jpeg = JpegliEncoder.Encode(TestImages.Gradient(19, 17), 19, 17, options: new()
+        // Aligned fixtures match revision d6554af. Partial MCU fixtures reflect
+        // upstream streaming dummy-block coding, checked independently in EncoderSamplingTests.
+        byte[] jpeg = JpegliEncoder.Encode(TestImages.Gradient(width, height), width, height, options: new()
         {
             Quality = 90, Subsampling = ChromaSubsampling.Quarter,
             AdaptiveQuantization = false, OptimizeHuffmanTables = optimize
