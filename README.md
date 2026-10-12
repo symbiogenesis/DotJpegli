@@ -53,7 +53,7 @@ edges. Only 4:2:0 applies upstream's specialized quantization-table compensation
 all other modes use the same perceptual tables as 4:4:4 and 4:2:2.
 The less common modes are identified by their sample areas where the usual
 4:a:b notation is ambiguous. Color MCUs contain at most ten blocks, including
-the two chroma blocks. Some image viewers may support only common sampling ratios.
+the two chroma blocks.
 
 The stream overload takes a writable stream as its first argument. It leaves
 the stream open and does not seek. Cancellation and I/O failures may leave a
@@ -302,6 +302,15 @@ vertical and pairwise horizontal averaging, odd edges, block seams and smoothing
 They also check emitted sampling factors, dummy-block DC continuity, restart counts,
 coefficient and decoded-pixel parity across scan modes, padded input layouts and
 grayscale's independence from color sampling settings.
+
+The 3x1, 3x2, 1x4, 4x2 and 2x4 regressions use independently compiled pinned
+scalar C++ fixtures for horizontal-first averaging, intermediate rounding,
+four-row pairwise sums, smoothing, block seams and replicated edges. Independent
+JPEG parsing checks sampling factors, ten-block MCUs, dummy DC continuity,
+restarts and coefficient parity across baseline and progressive refinement;
+an independent decoder checks final pixel parity. They also cover padded byte,
+16-bit and fractional float inputs. Four-block adaptive-analysis rows preserve
+the established two-block spatial field when both use the same padded height.
 
 Input smoothing regressions compare converted, filtered and subsampled block
 bits with independently compiled scalar C++ fixtures, including block seams,

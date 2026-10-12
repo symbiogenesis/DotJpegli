@@ -26,7 +26,7 @@ public sealed class EncoderRestartTests
     public void RestartSegmentsPreserveRealCoefficientsAndDecodedPixels(
         PixelLayout layout, ChromaSubsampling sampling, bool optimize, bool adaptive)
     {
-        // At least 15 MCUs even in 4:1:1: interval 1 wraps RST7 to RST0.
+        // At least 10 MCUs in every mode: interval 1 wraps RST7 to RST0.
         // Both odd edges also exercise wholly padded luma blocks in sampled MCUs.
         const int width = 145, height = 17;
         byte[] pixels = Pattern(width, height, layout);

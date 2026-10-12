@@ -28,7 +28,7 @@ public sealed class EncoderRefinementTests
         PixelLayout layout, ChromaSubsampling sampling, bool optimize, bool adaptive, int bits)
     {
         // Odd edges need dummy interleaved DC blocks, but no dummy AC blocks.
-        // Even 4:1:1 has 15 DC MCUs, enough to wrap at restart interval 1.
+        // Every mode has at least 10 DC MCUs, enough to wrap at restart interval 1.
         const int width = 145, height = 17;
         byte[] pixels = Pattern(width, height, layout);
         var options = new JpegliEncoderOptions
