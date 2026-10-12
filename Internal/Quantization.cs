@@ -3,7 +3,8 @@
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.
 // Ported directly from google/jpegli revision
 // 031a0077f5799a6041004267fc12b956c1f52a20:
-// lib/jpegli/quant.cc (YCbCr tables, DistanceToScale, SetQuantMatrices,
+// lib/jpegli/quant.cc (YCbCr and standard tables, DistanceToScale,
+// DistanceToLinearQuality, SetQuantMatrices,
 // InitQuantizer), lib/jpegli/encode.cc (jpegli_quality_to_distance), and
 // lib/jpegli/dct-inl.h (QuantizeBlock and ComputeCoefficientBlock).
 // https://github.com/google/jpegli/tree/031a0077f5799a6041004267fc12b956c1f52a20
@@ -16,6 +17,27 @@ internal static class Quantization
     private const float GlobalScale = 1.73966010f;
     private const float GlobalScale420 = 1.22f;
     private const float NonlinearThreshold = 1.5f;
+
+    // ITU T.81 Annex K matrices, as used by upstream's explicit standard-table mode.
+    private static ReadOnlySpan<byte> StandardMatrices =>
+    [
+        16, 11, 10, 16, 24, 40, 51, 61,
+        12, 12, 14, 19, 26, 58, 60, 55,
+        14, 13, 16, 24, 40, 57, 69, 56,
+        14, 17, 22, 29, 51, 87, 80, 62,
+        18, 22, 37, 56, 68, 109, 103, 77,
+        24, 35, 55, 64, 81, 104, 113, 92,
+        49, 64, 78, 87, 103, 121, 120, 101,
+        72, 92, 95, 98, 112, 100, 103, 99,
+        17, 18, 24, 47, 99, 99, 99, 99,
+        18, 21, 26, 66, 99, 99, 99, 99,
+        24, 26, 56, 99, 99, 99, 99, 99,
+        47, 66, 99, 99, 99, 99, 99, 99,
+        99, 99, 99, 99, 99, 99, 99, 99,
+        99, 99, 99, 99, 99, 99, 99, 99,
+        99, 99, 99, 99, 99, 99, 99, 99,
+        99, 99, 99, 99, 99, 99, 99, 99,
+    ];
 
     // Natural row-major frequency order, as used by SetQuantMatrices.
     private static ReadOnlySpan<float> FrequencyExponents =>
@@ -192,16 +214,45 @@ internal static class Quantization
 
     internal static ushort[] CreateGrayscaleTableForDistance(float distance) => CreateTableForDistance(distance, 0);
 
+    /// <summary>Creates the pinned upstream's optional baseline Annex K table.</summary>
+    internal static ushort[] CreateStandardTableForDistance(float distance, int component)
+    {
+        ValidateComponent(component);
+        if (!float.IsFinite(distance) || distance <= 0f)
+            throw new ArgumentOutOfRangeException(nameof(distance), "Distance must be finite and greater than zero.");
+
+        float scale = 0.01f * DistanceToLinearQuality(distance);
+        ReadOnlySpan<byte> matrix = StandardMatrices.Slice(component == 0 ? 0 : BlockSize, BlockSize);
+        ushort[] table = new ushort[BlockSize];
+        for (int i = 0; i < table.Length; i++)
+            table[i] = (ushort)Math.Clamp(MathF.Round(scale * matrix[i], MidpointRounding.AwayFromZero), 1f, 255f);
+        return table;
+    }
+
+    // Preserve the C++ float operation order, including at piecewise boundaries.
+    private static float DistanceToLinearQuality(float distance)
+    {
+        if (distance <= 0.1f)
+            return 1f;
+        if (distance <= 4.6f)
+            return (200f / 9f) * (distance - 0.1f);
+        if (distance <= 6.4f)
+            return 5000f / (100f - (distance - 0.1f) / 0.09f);
+        if (distance < 25f)
+            return 530000f / (3450f - 300f * MathF.Sqrt((848f * distance - 5330f) / 120f));
+        return 5000f;
+    }
+
     /// <summary>Creates upstream per-frequency adaptive zero-bias multipliers.</summary>
     internal static float[][] CreateAdaptiveZeroBiasMultipliers(ushort[][] tables,
-        int horizontalSampling, int verticalSampling, bool grayscale)
+        int horizontalSampling, int verticalSampling, bool grayscale, bool sharedChromaTable = false)
     {
         ArgumentNullException.ThrowIfNull(tables);
         ValidateSampling(horizontalSampling, verticalSampling);
         if (tables.Length != (grayscale ? 1 : 3))
             throw new ArgumentException("Supply one grayscale table or three YCbCr tables.", nameof(tables));
 
-        float distance = QuantValuesToDistance(tables);
+        float distance = QuantValuesToDistance(tables, sharedChromaTable);
         float lowQualityMix = Math.Clamp((distance - 1f) / 2f, 0f, 1f);
         float highQualityMix = 1f - lowQualityMix;
         float[][] multipliers = new float[tables.Length][];
@@ -231,10 +282,13 @@ internal static class Quantization
     /// <summary>Infers upstream quantizer distance from the emitted baseline tables.</summary>
     /// <remarks>
     /// QuantValsToDistance uses the unscaled YCbCr base matrices, including for
-    /// tables emitted with 4:2:0 rescaling. It reconstructs an interval from
+    /// tables emitted with 4:2:0 rescaling or standard matrices. Shared chroma
+    /// selectors use the perceptual Cb base for both components, following upstream's
+    /// quant_tbl_no indexing; their zero-bias multipliers remain component-specific.
+    /// It reconstructs an interval from
     /// rounded values, leaving saturated 1 and 255 endpoints unbounded.
     /// </remarks>
-    internal static float QuantValuesToDistance(ushort[][] tables)
+    internal static float QuantValuesToDistance(ushort[][] tables, bool sharedChromaTable = false)
     {
         ArgumentNullException.ThrowIfNull(tables);
         if (tables.Length is not (1 or 3))
@@ -252,7 +306,8 @@ internal static class Quantization
                 int quant = table[frequency];
                 if (quant is < 1 or > 255)
                     throw new ArgumentException("Baseline quantization values must be between 1 and 255.", nameof(tables));
-                float inverseQuant = 1f / BaseMatrices[component * BlockSize + frequency] / GlobalScale;
+                int tableIndex = sharedChromaTable && component > 0 ? 1 : component;
+                float inverseQuant = 1f / BaseMatrices[tableIndex * BlockSize + frequency] / GlobalScale;
                 float min = quant > 1 ? ScaleToDistance((quant - 0.5f) * inverseQuant, frequency) : 0f;
                 float max = quant < 255 ? ScaleToDistance((quant + 0.5f) * inverseQuant, frequency) : distanceLimit;
                 if (min <= distanceMax)

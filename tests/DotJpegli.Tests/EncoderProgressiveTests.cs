@@ -454,7 +454,8 @@ public sealed class EncoderProgressiveTests
             Assert.Equal(expectedInterval == 0 ? 0 : 1, driCount);
             Assert.Equal(progressive ? (components.Count + 1) * (expectedRefinementBits + 1) : 1, scans.Count);
             Assert.Equal(blocks.Count(pair => !pair.Value.IsDummy), acBlocks.Count);
-            Assert.Equal(components.Count, quantizers.Count);
+            Assert.Equal(components.Values.Select(component => component.Quantizer).Distinct().Count(), quantizers.Count);
+            Assert.All(components.Values, component => Assert.True(quantizers.ContainsKey(component.Quantizer)));
             int maxH = components.Values.Max(component => component.H);
             int maxV = components.Values.Max(component => component.V);
             int mcuCount = Ceiling(width, 8 * maxH) * Ceiling(height, 8 * maxV);

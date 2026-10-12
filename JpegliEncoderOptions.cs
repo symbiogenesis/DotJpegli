@@ -20,6 +20,17 @@ public sealed record JpegliEncoderOptions
     /// </summary>
     public float? Distance { get; init; }
 
+    /// <summary>
+    /// Use the conventional JPEG Annex K luma and shared chroma quantization matrices.
+    /// False (the default) uses Jpegli's perceptual matrices. Quality still maps to Jpegli
+    /// distance, and an explicit Distance still overrides it; the standard matrices use
+    /// the pinned upstream's linear scaling from that distance without 4:2:0 compensation.
+    /// Values remain clamped to baseline JPEG's 1..255 range. Adaptive quantization and
+    /// Jpegli's coefficient thresholds remain available; this is not libjpeg byte parity
+    /// or a promise of equivalent quality, size or speed.
+    /// </summary>
+    public bool UseStandardQuantizationTables { get; init; }
+
     /// <summary>Chroma sample area relative to luma. Defaults to 4:2:0 (2x2); SamplingFactors overrides it.</summary>
     public ChromaSubsampling Subsampling { get; init; } = ChromaSubsampling.Quarter;
 

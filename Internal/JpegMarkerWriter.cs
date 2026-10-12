@@ -30,9 +30,10 @@ internal static class JpegMarkerWriter
 
         WriteMetadata(output, options, extendedXmp, cancellationToken);
 
+        int tableCount = options.UseStandardQuantizationTables && quantization.Length == 3 ? 2 : quantization.Length;
         Marker(output, 0xdb);
-        Word(output, 2 + quantization.Length * 65);
-        for (int component = 0; component < quantization.Length; component++)
+        Word(output, 2 + tableCount * 65);
+        for (int component = 0; component < tableCount; component++)
         {
             output.WriteByte((byte)component);
             foreach (int naturalIndex in JpegConstants.ZigZag)
@@ -50,7 +51,7 @@ internal static class JpegMarkerWriter
             output.WriteByte((byte)(component + 1));
             JpegComponentSampling factor = sampling[component];
             output.WriteByte((byte)((factor.Horizontal << 4) | factor.Vertical));
-            output.WriteByte((byte)component);
+            output.WriteByte((byte)(options.UseStandardQuantizationTables && component > 0 ? 1 : component));
         }
 
         for (int index = 0; index < dcTables.Length; index++)

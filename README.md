@@ -527,6 +527,35 @@ additional passes and CPU time to retain bounded working memory. Optimized
 progressive output collects frequencies from the initial DC and all AC scans before
 writing them. Neither mode retains an image-sized coefficient buffer.
 
+### Standard quantization tables
+
+Set `UseStandardQuantizationTables = true` to use the conventional JPEG Annex K
+luma and chroma matrices instead of Jpegli's perceptual matrices:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    Quality = 85,
+    UseStandardQuantizationTables = true
+});
+```
+
+The default is false and preserves existing JPEG bytes. `Quality` still maps
+through `QualityToDistance`; a positive finite `Distance` still overrides it.
+The standard matrices use the pinned upstream's piecewise linear-quality scale
+from that distance, with rounding and clamping to 1..255. Both chroma components
+share table 1; grayscale uses only the luma matrix in table 0. Sampling factors
+still select the output resolution, but standard tables have no 4:2:0 compensation.
+
+Adaptive quantization, Jpegli's coefficient thresholds, smoothing, higher-precision
+and direct YCbCr input, restart markers and progressive refinement remain available.
+Adaptive thresholds follow upstream's shared chroma table selectors when inferring
+distance from emitted tables. This option changes the matrices and their scaling;
+it does not promise libjpeg byte parity, equivalent quality, size or speed.
+In particular, fractional scaling can differ from libjpeg's integer quality scale.
+The scaling and shared-table rules are ported from
+[the pinned upstream quantizer](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/quant.cc).
+
 ## Port status
 
 Implemented: baseline sequential and optional spectral-selection and successive-approximation progressive
@@ -549,6 +578,8 @@ with APP2 chunking, raw IPTC-IIM in Photoshop APP13, UTF-8 COM comments, and
 configurable JFIF density fields are also implemented.
 Direct perceptual-distance control and a public quality-to-distance mapping
 are available, retaining baseline quantization tables and existing quality bytes.
+Optional conventional Annex K quantization matrices use upstream distance scaling,
+with one luma table and a shared chroma table, retaining Jpegli adaptive quantization.
 Gamma-encoded 16-bit and normalized floating-point RGB and grayscale input are
 supported with fractional samples preserved through quantization.
 Direct YCbCr input supports the same three source precisions and downstream options.
@@ -605,6 +636,13 @@ fixtures cover direct distances and nonlinear scaling. Independent marker and
 coefficient parsing checks table clamping and constant-block DC values, including
 positive finite distance extremes; these extremes do not establish upstream
 encoder parity.
+
+Standard-table regressions independently parse table IDs and frame selectors,
+check Annex K table scaling and constant-block coefficients, and retain native
+scalar fixtures for table values and shared-selector adaptive distance inference.
+They also cover default byte compatibility, direct-distance precedence, source
+precision, padded layouts, custom sampling, restart markers, baseline and
+progressive coefficient/decoded-pixel parity, and validation before output.
 
 Additional 4:4:0 and 4:1:1 regressions use independent scalar C++ fixtures for
 vertical and pairwise horizontal averaging, odd edges, block seams and smoothing.
