@@ -144,7 +144,7 @@ invalid values are rejected before output is written. Ignored alpha and padding
 need not satisfy that range. This is narrower than upstream Jpegli's float input,
 which also permits out-of-gamut values. XYB output linearizes sRGB before its
 opsin transform; other output modes retain gamma-encoded samples. No HDR tone
-mapping or source ICC transform is applied. For XYB output supply sRGB input and
+mapping or source ICC transform is applied. For conversion to XYB supply sRGB input and
 a scaled XYB output profile; other modes use the color space described by the
 attached profile. Typed spans contain native numeric
 values; deserialize byte-oriented source data with its correct endianness first.
@@ -518,7 +518,7 @@ Set `IccProfile` to raw ICC profile bytes to embed them unchanged in numbered
 APP2 markers. An empty profile, the default, writes no ICC markers except that
 XYB output requires a nonempty matching scaled XYB profile. The profile
 is opaque unless the opt-in CICP lookup described below is enabled. The encoder
-does not apply a color transform or provide a built-in profile;
+does not apply the profile's color transform or provide a built-in profile;
 use a profile describing the output's RGB or grayscale interpretation. Do not change its
 backing memory or dispose its owner until encoding returns. Profiles can contain
 at most 16,707,345 bytes (255 chunks of up to 65,519 bytes), following
