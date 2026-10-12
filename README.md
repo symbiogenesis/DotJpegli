@@ -81,6 +81,17 @@ Set `AdaptiveQuantization = false` to use uniform quantization. Upstream samplin
 arithmetic and dummy-block coding apply to both modes; partially filled MCUs can
 produce different JPEG bytes from earlier port versions.
 
+Set `SmoothingFactor` to 1..100 to apply upstream's optional 3x3 input filter.
+The default, zero, disables smoothing. For example,
+`new JpegliEncoderOptions { SmoothingFactor = 25 }` mildly softens the input;
+higher values suppress more noise and fine detail. The filter operates on
+converted Y/Cb/Cr (or grayscale) samples before chroma subsampling. Each of the
+eight neighbors receives weight `SmoothingFactor / 1024`, with the remaining
+weight on the center sample. Original image edges are replicated before
+filtering, including partially filled blocks. Adaptive quantization analyzes
+the original, unsmoothed luma, matching upstream. Both baseline and progressive
+encoding recompute filtered samples on demand with fixed block storage.
+
 Baseline Huffman optimization makes two passes over the supplied pixels, keeping only
 block buffers, bounded rows of spatial-analysis data and symbol histograms
 rather than a full image of coefficients or an image-sized adaptive map.
@@ -96,7 +107,8 @@ writing them. Neither mode retains an image-sized coefficient buffer.
 Implemented: baseline sequential and optional spectral-selection and successive-approximation progressive
 JPEG/JFIF; RGB and grayscale input; 4:4:4,
 4:2:2 and 4:2:0 upstream scalar box sampling with edge replication and empty
-dummy-block coding that preserves DC predictors at MCU edges; recursive scalar DCT; Jpegli
+dummy-block coding that preserves DC predictors at MCU edges; optional upstream
+3x3 input smoothing before sampling; recursive scalar DCT; Jpegli
 quality-to-distance and perceptual Y/Cb/Cr quantization tables; scalar adaptive
 quantization with local differences, fuzzy erosion, masking, high-frequency and
 gamma modulation, quality dampening and frequency-specific coefficient thresholds;
@@ -106,7 +118,7 @@ cycling RST markers, including predictor resets during Huffman optimization;
 progressive initial and refinement EOB-run aggregation with optimized Huffman tables;
 optional DC and AC refinement scans with bounded correction-bit storage.
 
-Pending: optional input smoothing and other sampling ratios,
+Pending: other sampling ratios,
 XYB and ICC profiles, higher precision input,
 metadata options, SIMD/parallel paths, and decoder functionality.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is

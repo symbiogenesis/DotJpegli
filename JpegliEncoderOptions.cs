@@ -8,6 +8,14 @@ public sealed record JpegliEncoderOptions
 
     public ChromaSubsampling Subsampling { get; init; } = ChromaSubsampling.Quarter;
 
+    /// <summary>
+    /// Strength of the upstream 3x3 input smoothing filter, from 0 to 100.
+    /// Zero (the default) disables smoothing. Applied to converted components
+    /// before chroma subsampling; adaptive analysis still uses the original luma.
+    /// Increasing the value softens fine detail as well as noise.
+    /// </summary>
+    public int SmoothingFactor { get; init; }
+
     /// <summary>Use Jpegli's spatial analysis to suppress perceptually masked coefficients.</summary>
     public bool AdaptiveQuantization { get; init; } = true;
 
@@ -51,6 +59,8 @@ public sealed record JpegliEncoderOptions
             throw new ArgumentOutOfRangeException(nameof(Quality), "Quality must be finite and between 0 and 100.");
         if (!Enum.IsDefined(Subsampling))
             throw new ArgumentOutOfRangeException(nameof(Subsampling));
+        if (SmoothingFactor is < 0 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(SmoothingFactor), "Smoothing factor must be between 0 and 100.");
         if (ProgressiveRefinementBits is < 0 or > 10)
             throw new ArgumentOutOfRangeException(nameof(ProgressiveRefinementBits), "Progressive refinement bits must be between 0 and 10.");
         if (ProgressiveRefinementBits != 0 && !Progressive)
