@@ -287,7 +287,7 @@ input to Jpegli's scaled XYB representation:
 byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 {
     ColorSpace = JpegColorSpace.Xyb,
-    IccProfile = File.ReadAllBytes("jpegli-scaled-xyb.icc"),
+    IccProfile = JpegliIccProfiles.CreateXybProfile(),
     Quality = 90
 });
 ```
@@ -300,9 +300,11 @@ at its default intensity target of 255, then scaled to X, Y and B-minus-Y.
 Fractional values pass to the existing XYB quantization and sampling paths;
 conversion is performed on demand without a full-image conversion buffer.
 
-A nonempty matching **scaled XYB output** ICC profile is required. It is embedded
-unchanged; it does not describe or transform the source RGB. No built-in profile,
-arbitrary source ICC conversion or tone mapping is provided. Direct YCbCr input
+A nonempty matching **scaled XYB output** ICC profile is required. Use
+`JpegliIccProfiles.CreateXybProfile()` for the built-in Jpegli profile at the
+default intensity target of 255, or supply a matching external profile. It is
+embedded unchanged; it describes the stored channels. Arbitrary source ICC
+conversion and tone mapping are not provided. Direct YCbCr input
 cannot be converted to XYB. `Automatic` continues to select YCbCr for RGB input
 and grayscale for grayscale input.
 
@@ -330,7 +332,7 @@ linearization, the opsin transform and XYB scaling.
 byte[] jpeg = JpegliEncoder.Encode(scaledXybSamples, width, height,
     PixelComponentLayout.Xyb, options: new()
     {
-        IccProfile = File.ReadAllBytes("jpegli-scaled-xyb.icc"),
+        IccProfile = JpegliIccProfiles.CreateXybProfile(),
         Quality = 90
     });
 ```
@@ -343,10 +345,20 @@ output; explicit `JpegColorSpace.Xyb` is equivalent. Scaled XYB input cannot
 be converted to any other output color space.
 
 A nonempty `IccProfile` is required to describe the stored scaled channels.
-Supply a matching Jpegli XYB profile; an ordinary sRGB profile is unsuitable.
-The profile is embedded unchanged and its transform is not validated. No
-profile is generated. Correct display requires a reader that applies that
+Supply the built-in profile from `JpegliIccProfiles.CreateXybProfile()` or a
+matching Jpegli XYB profile; an ordinary sRGB profile is unsuitable.
+The profile is embedded unchanged and an external profile's transform is not
+validated. Correct display requires a reader that applies that
 profile; readers ignoring ICC will interpret the scaled channels as RGB.
+
+`CreateXybProfile()` builds the pinned upstream's 720-byte perceptual ICC v4.4
+profile in managed code. Every call returns a separate mutable array with
+deterministic bytes, including upstream's fixed date and ICC profile ID.
+Its forward transform maps scaled X/Y/B-minus-Y to D50 XYZ using a small linear
+CLUT, cubic curves and a matrix. The compatibility `B2A0` tag is an identity,
+not an inverse transform; this profile is intended for displaying XYB output
+and must not be used to convert RGB input to XYB. Profiles remain explicitly
+assigned through `IccProfile`; the encoder does not attach one automatically.
 
 XYB JPEGs use `R/G/B` component identifiers, shared Huffman table 0, and three
 separate perceptual quantization tables with selectors 0/1/2. The matrices and
@@ -518,7 +530,8 @@ Set `IccProfile` to raw ICC profile bytes to embed them unchanged in numbered
 APP2 markers. An empty profile, the default, writes no ICC markers except that
 XYB output requires a nonempty matching scaled XYB profile. The profile
 is opaque unless the opt-in CICP lookup described below is enabled. The encoder
-does not apply the profile's color transform or provide a built-in profile;
+does not apply the profile's color transform; the built-in scaled XYB profile
+is available separately through `JpegliIccProfiles.CreateXybProfile()`;
 use a profile describing the output's RGB or grayscale interpretation. Do not change its
 backing memory or dispose its owner until encoding returns. Profiles can contain
 at most 16,707,345 bytes (255 chunks of up to 65,519 bytes), following
@@ -815,10 +828,11 @@ integer sample areas including subsampled luma, and at most ten blocks per MCU.
 
 Direct already scaled XYB input and explicit sRGB/grayscale-to-XYB output use
 the upstream XYB quantizers, sampling defaults and Y-based adaptive analysis,
-with a required caller-supplied output ICC profile.
+with a required explicitly assigned output ICC profile. A managed factory
+provides the pinned upstream's perceptual scaled XYB profile.
 
 Pending: fractional sampling ratios,
-built-in profiles and arbitrary source ICC color management,
+other built-in profiles and arbitrary source ICC color management,
 structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.
 Fractional sampling ratios are also rejected by the pinned upstream encoder.
@@ -896,6 +910,16 @@ sampling and smoothing, adaptive analysis, progressive/restart coefficient
 parity, unchanged default behavior and rejection before output. Native transform
 fixtures allow the documented difference from upstream's fast approximations;
 these checks do not establish an ICC color-managed RGB roundtrip.
+
+Built-in XYB profile regressions check the complete profile against a SHA-256
+fixture generated by compiling the pinned C++ builder unchanged. Independent
+parsing checks header fields, aligned tag extents, curve/CLUT/matrix structure
+and the ICC MD5 profile ID. An independent forward-profile evaluator compares
+scaled XYB samples with analytical sRGB-to-D50-XYZ values, including black,
+white and saturated colors. Encoding checks verify exact APP2 embedding,
+unchanged coding bytes, typed source input, progressive output and nonseekable
+streams. These checks validate the profile transform, without establishing a
+color-managed lossy JPEG quality comparison.
 
 Scaled XYB regressions compare complete emitted quantization tables with
 independently compiled pinned C++ scalar fixtures. Independent JPEG parsing

@@ -22,6 +22,7 @@ public sealed record JpegliEncoderOptions
     /// the opsin transform and Jpegli scaling, or accepts already scaled XYB input.
     /// It requires a nonempty IccProfile describing the scaled output channels;
     /// the source is assumed to be sRGB and no source ICC transform is applied.
+    /// JpegliIccProfiles.CreateXybProfile provides the built-in output profile.
     /// Direct YCbCr-to-XYB and XYB-to-other conversions are unsupported.
     /// It uses RGB identifiers with three perceptual XYB tables and defaults to
     /// X/Y factors 2x2 and B-minus-Y factors 1x1. Its adaptive analysis uses Y.
@@ -185,7 +186,9 @@ public sealed record JpegliEncoderOptions
     /// At most 16,707,345 bytes are supported. The profile is not applied to the pixels;
     /// supply a profile describing the output's RGB or grayscale interpretation. XYB output
     /// requires a nonempty profile describing Jpegli's scaled XYB channels, rather than an
-    /// ordinary RGB profile. The encoder does not validate that transform or generate a profile. It remains opaque
+    /// ordinary RGB profile. JpegliIccProfiles.CreateXybProfile provides a matching
+    /// built-in profile; it must be assigned explicitly. The encoder does not validate
+    /// an external profile's transform. It remains opaque
     /// unless InferCicpTransferFunctionFromIccProfile enables the narrow CICP lookup.
     /// Do not change the underlying memory or dispose its owner until encoding returns.
     /// </summary>
