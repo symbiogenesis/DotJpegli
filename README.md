@@ -173,6 +173,12 @@ DC predictor continuity. Future parity work should encode the same corpus with t
 compare decoded quality at matched sizes. Execute performance benchmarks only
 on CI.
 
+Additional 4:4:0 and 4:1:1 regressions use independent scalar C++ fixtures for
+vertical and pairwise horizontal averaging, odd edges, block seams and smoothing.
+They also check emitted sampling factors, dummy-block DC continuity, restart counts,
+coefficient and decoded-pixel parity across scan modes, padded input layouts and
+grayscale's independence from color sampling settings.
+
 Input smoothing regressions compare converted, filtered and subsampled block
 bits with independently compiled scalar C++ fixtures, including block seams,
 odd edges and padding. An independent grayscale filter and cosine DCT oracle

@@ -26,8 +26,8 @@ public sealed class EncoderProgressiveTests
     public void InitialDcAndComponentAcScansPreserveBaselineCoefficientsAndPixels(
         PixelLayout layout, ChromaSubsampling sampling, bool optimize, bool adaptive)
     {
-        // Odd edges create wholly padded interleaved luma blocks. Even 4:2:0
-        // has 20 DC MCUs, so short restart intervals wrap RST7 to RST0.
+        // Odd edges create wholly padded interleaved luma blocks. Even 4:1:1
+        // has 15 DC MCUs, so restart interval 1 wraps RST7 to RST0.
         const int width = 145, height = 17;
         byte[] pixels = Pattern(width, height, layout);
         var options = new JpegliEncoderOptions
