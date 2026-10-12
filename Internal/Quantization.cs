@@ -270,7 +270,7 @@ internal static class Quantization
         ReadOnlySpan<ushort> table, Span<short> output, int component, float distance,
         bool grayscale = false, bool adaptiveQuantization = false,
         float adaptiveStrength = 0f, ReadOnlySpan<float> adaptiveMultipliers = default,
-        int previousDc = 0)
+        int previousDc = 0, bool requireEightBitCoefficients = false)
     {
         ValidateComponent(component);
         if (grayscale && component != 0)
@@ -323,6 +323,14 @@ internal static class Quantization
             else
                 // Highway Round in QuantizeBlock uses ties-to-even for AC.
                 value = MathF.Round(quantized, MidpointRounding.ToEven);
+            // T.81 F.1.1.4 requires signed 11-bit quantized coefficients for
+            // eight-bit input. AC entropy categories further exclude -1024.
+            // Out-of-range float preflight checks before the upstream int16
+            // demotion can hide an unrepresentable value through saturation.
+            if (requireEightBitCoefficients &&
+                (value < (i == 0 ? -1024f : -1023f) || value > 1023f))
+                throw new ArgumentOutOfRangeException(nameof(coefficients),
+                    "A quantized coefficient exceeds eight-bit JPEG's supported range.");
             // Saturating int16 demotion matches StoreQuantizedValue's DemoteTo.
             output[i] = (short)Math.Clamp(value, short.MinValue, short.MaxValue);
         }

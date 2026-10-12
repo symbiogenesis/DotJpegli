@@ -55,14 +55,16 @@ internal readonly ref struct PixelSource
         _ => floats.Length
     };
 
-    internal void ValidateSamples(int width, int height, int stride, CancellationToken cancellationToken)
+    internal bool ValidateSamples(int width, int height, int stride, CancellationToken cancellationToken,
+        bool allowOutOfRangeFloatSamples = false)
     {
         if (sourceType != SourceType.Float)
-            return;
+            return false;
 
         // Check only consumed components. Padding, trailing storage and alpha
         // are intentionally ignored, just as in the byte input path.
         int activeComponents = IsGrayscale ? 1 : 3;
+        bool hasOutOfRangeSamples = false;
         for (int row = 0; row < height; row++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -73,11 +75,18 @@ internal readonly ref struct PixelSource
                 for (int component = 0; component < activeComponents; component++)
                 {
                     float value = floats[offset + component];
-                    if (!float.IsFinite(value) || value is < 0f or > 1f)
-                        throw new ArgumentException("Floating-point color and grayscale samples must be finite and between 0 and 1.", "pixels");
+                    if (!float.IsFinite(value) || !float.IsFinite(value * 255f))
+                        throw new ArgumentException("Floating-point color and grayscale samples and their scaling to JPEG units must be finite.", "pixels");
+                    if (value is < 0f or > 1f)
+                    {
+                        if (!allowOutOfRangeFloatSamples)
+                            throw new ArgumentException("Floating-point color and grayscale samples must be between 0 and 1 unless AllowOutOfRangeFloatSamples is enabled.", "pixels");
+                        hasOutOfRangeSamples = true;
+                    }
                 }
             }
         }
+        return hasOutOfRangeSamples;
     }
 
     internal float ReadSample(int offset, int component)

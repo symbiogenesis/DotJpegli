@@ -3,7 +3,8 @@
   "revision": "031a0077f5799a6041004267fc12b956c1f52a20",
   "retrieved": "2026-10-12",
   "license": "BSD-3-Clause",
-  "portStage": "managed-adaptive-quantization-custom-component-sampling-subsampled-luma-restarts-progressive-refinement-eob-runs-smoothing-440-411-410-3x1-3x2-1x4-2x4-1x3-2x3-icc-exif-xmp-extended-xmp-metadata-16bit-float-ycbcr-input",
+  "portStage": "managed-adaptive-quantization-custom-component-sampling-subsampled-luma-restarts-progressive-refinement-eob-runs-smoothing-440-411-410-3x1-3x2-1x4-2x4-1x3-2x3-icc-exif-xmp-extended-xmp-metadata-16bit-float-ycbcr-out-of-range-input",
   "samplingNotes": "Integer sample areas use frame-wide component factor maxima, including subsampled luma with adaptive quantization disabled as upstream. Three-row areas include all three rows; the pinned ChooseDownsampleMethods instead selects two-row kernels for vertical factor 3.",
+  "floatInputNotes": "Out-of-range float input is opt-in and retains samples without clipping. Unlike upstream coefficient storage, a bounded preflight requires finite scaling and computation, rounded DC -1024..1023 and AC -1023..1023 before output, independently of scan or Huffman settings.",
   "parityEstablished": false
 }

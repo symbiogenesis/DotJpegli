@@ -22,6 +22,18 @@ public sealed record JpegliEncoderOptions
     public JpegSamplingFactors? SamplingFactors { get; init; }
 
     /// <summary>
+    /// Allow consumed floating-point samples outside 0..1 without clipping them before quantization.
+    /// False (the default) requires normalized samples. Ignored for byte and 16-bit input.
+    /// Samples and their scaling to JPEG units must be finite. If any consumed sample is outside
+    /// 0..1, a bounded coefficient pass validates the image before output: computations must remain
+    /// finite, quantized DC must be -1024..1023 and AC -1023..1023. Unencodable input is rejected
+    /// with an ArgumentException for pixels, independently of Huffman or scan settings.
+    /// Acceptance depends on quality, smoothing and sampling; this does not enable HDR output,
+    /// tone mapping, linear-light conversion or color management.
+    /// </summary>
+    public bool AllowOutOfRangeFloatSamples { get; init; }
+
+    /// <summary>
     /// Raw Exif TIFF bytes, starting with the TIFF header, to embed unchanged in one APP1 marker.
     /// Do not include the Exif signature or JPEG marker/length bytes; the encoder adds them.
     /// Empty (the default) omits Exif. At most 65,527 bytes are supported; TIFF data is not validated.

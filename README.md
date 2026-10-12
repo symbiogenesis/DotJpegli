@@ -137,7 +137,7 @@ first rounding to bytes. Expanding byte samples to `ushort` with `value * 257`
 preserves the byte encoder's JPEG output. Float arithmetic can differ near coefficient
 rounding boundaries, so `value / 255f` does not promise byte-identical encoding.
 
-Consumed float color or grayscale samples must be finite and between 0 and 1;
+By default, consumed float color or grayscale samples must be finite and between 0 and 1;
 invalid values are rejected before output is written. Ignored alpha and padding
 need not satisfy that range. This is narrower than upstream Jpegli's float input,
 which also permits out-of-gamut values. These overloads do not linearize samples,
@@ -151,6 +151,43 @@ lossless encoding. Stream behavior, cancellation, pixel limits and source lifeti
 requirements are the same as for byte input. Samples are read on demand with
 bounded working storage; no full-image conversion buffer is allocated. Float
 validation adds one input pass, with cancellation checks between rows.
+
+### Out-of-range floating-point input
+
+Set `AllowOutOfRangeFloatSamples = true` to retain gamma-encoded RGB, grayscale
+or direct YCbCr samples outside the nominal 0..1 range until quantization:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(floatPixels, width, height, options: new()
+{
+    Quality = 85,
+    AllowOutOfRangeFloatSamples = true
+});
+```
+
+The encoder multiplies samples by 255 without clipping them to 0..255, following
+the pinned upstream input reader. NaN, infinities and samples whose scaling
+overflows are rejected. Alpha, padding and trailing storage remain ignored.
+The option has no effect on byte or 16-bit input, and normalized float input
+retains its existing JPEG bytes.
+
+If any consumed float is outside 0..1, an additional pass checks the complete
+image before writing output. Analysis and DCT computations must remain finite;
+rounded quantized DC coefficients must be -1024..1023 and AC coefficients
+-1023..1023. These bounds follow eight-bit JPEG's signed coefficient precision
+and Huffman categories in [ITU T.81, F.1.1.4 and F.1.2](https://www.w3.org/Graphics/JPEG/itu-t81.pdf).
+They are deliberately stricter than upstream's coefficient storage. The check
+uses full coefficients, including when progressive scans initially defer bits,
+and bounded row/block storage instead of a full-image coefficient buffer.
+Cancellation is checked between rows and MCUs during validation.
+
+Acceptance depends on quality, smoothing and sampling. For example, a constant
+slightly negative grayscale image may fit after coarse quantization yet exceed
+the DC limit at quality 100. Unencodable input throws an `ArgumentException`
+with `ParamName` equal to `pixels` before any output, with the same acceptance
+across baseline/progressive and Huffman settings. This option adds no tone
+mapping, linear-light conversion, HDR JPEG output or color management. Decoders
+can clamp reconstructed samples to their output range.
 
 ### Direct YCbCr input
 
@@ -168,7 +205,7 @@ byte[] jpeg = JpegliEncoder.Encode(ycbcrPixels, width, height,
 
 Byte samples span 0..255, with neutral chroma at 128. Sixteen-bit samples span
 0..65535, with neutral chroma at 32896 (`128 * 257`). Float samples must be
-finite and in 0..1, with neutral chroma at `128f / 255f`; normalized 0.5 is not
+finite and, by default, in 0..1, with neutral chroma at `128f / 255f`; normalized 0.5 is not
 the exact neutral value. Fractional precision is retained until quantization.
 These inputs use JPEG's full-range component values, not limited-range video
 levels; convert video ranges and other YCbCr matrices before encoding.
@@ -389,11 +426,13 @@ also implemented.
 Gamma-encoded 16-bit and normalized floating-point RGB and grayscale input are
 supported with fractional samples preserved through quantization.
 Direct YCbCr input supports the same three source precisions and downstream options.
+Opt-in out-of-range floating-point input retains samples through quantization,
+with finite-computation and eight-bit coefficient validation before output.
 Custom per-component sampling factors support different Cb and Cr resolutions,
 integer sample areas including subsampled luma, and at most ten blocks per MCU.
 
 Pending: fractional sampling ratios,
-XYB color encoding and built-in profiles or color management, out-of-gamut float input,
+XYB color encoding and built-in profiles or color management,
 automatic XMP partitioning, structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
@@ -532,6 +571,13 @@ encoder, and compare baseline and progressive coefficients and decoded pixels.
 They cover color and grayscale layouts, element strides, alpha and padding,
 smoothing, sampling, adaptive and Huffman modes, restarts, stream behavior, and
 float validation before output.
+
+Out-of-range float regressions compare emitted coefficients against independent
+constant-block and smoothing/box-average/cosine-DCT oracles, including values
+that distinguish retaining source samples from clipping them. They check odd
+edges, custom sampling, baseline/progressive/refinement and Huffman parity,
+ignored alpha and padding, default compatibility, and rejection before output
+for nonfinite samples, scaling overflow and unrepresentable DC/AC coefficients.
 
 Direct YCbCr regressions use independent all-component constant-block DC and
 smoothed box-average/cosine-DCT oracles, including custom sampling, subsampled

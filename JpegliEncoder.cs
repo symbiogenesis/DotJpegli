@@ -3,7 +3,7 @@ using DotJpegli.Internal;
 namespace DotJpegli;
 
 /// <summary>
-/// Encodes byte, 16-bit or normalized floating-point RGB, grayscale or YCbCr pixels
+/// Encodes byte, 16-bit or floating-point RGB, grayscale or YCbCr pixels
 /// to eight-bit baseline or progressive JPEG.
 /// Includes spatial adaptive quantization; XYB remains pending.
 /// </summary>
@@ -58,8 +58,9 @@ public static class JpegliEncoder
         => EncodeCore(output, new PixelSource(pixels, layout), width, height, options, stride, cancellationToken);
 
     /// <summary>
-    /// Encodes normalized gamma-encoded RGB/grayscale or full-range JPEG YCbCr samples.
-    /// Consumed samples must be finite and in 0..1; neutral YCbCr chroma is 128f / 255f.
+    /// Encodes gamma-encoded RGB/grayscale or full-range JPEG YCbCr floating-point samples.
+    /// Consumed samples must be finite and in 0..1 by default; neutral YCbCr chroma is 128f / 255f.
+    /// AllowOutOfRangeFloatSamples permits out-of-range values that fit eight-bit JPEG coefficients.
     /// Alpha, row padding and trailing elements are ignored. This API does not apply a linear-light or HDR transform.
     /// Fractional precision is retained until quantization; output JPEG sample precision is eight bits.
     /// </summary>
@@ -74,8 +75,9 @@ public static class JpegliEncoder
     }
 
     /// <summary>
-    /// Writes an eight-bit JPEG from normalized RGB/grayscale or full-range JPEG YCbCr samples in 0..1
+    /// Writes an eight-bit JPEG from RGB/grayscale or full-range JPEG YCbCr floating-point samples
     /// without closing or seeking the stream.
+    /// Samples must be in 0..1 unless AllowOutOfRangeFloatSamples is enabled.
     /// Consumed samples are validated before output. Source pixels must remain unchanged until encoding returns.
     /// Alpha and padding are ignored. Cancellation or I/O errors may leave partial output.
     /// </summary>
@@ -107,7 +109,8 @@ public static class JpegliEncoder
         if ((long)(height - 1) * stride + rowElements > pixels.Length)
             throw new ArgumentException("The source buffer does not contain all image rows.", nameof(pixels));
         cancellationToken.ThrowIfCancellationRequested();
-        pixels.ValidateSamples(width, height, stride, cancellationToken);
+        bool hasOutOfRangeFloatSamples = pixels.ValidateSamples(width, height, stride, cancellationToken,
+            options.AllowOutOfRangeFloatSamples);
         ExtendedXmpMetadata? extendedXmp = ExtendedXmpMetadata.Prepare(options, cancellationToken);
 
         bool grayscale = pixels.IsGrayscale;
@@ -133,6 +136,31 @@ public static class JpegliEncoder
 
         var dcTables = new HuffmanTable[grayscale ? 1 : 2];
         var acTables = new HuffmanTable[dcTables.Length];
+        if (hasOutOfRangeFloatSamples)
+        {
+            // Validate full coefficients with baseline MCU ordering and restart
+            // resets, even when the selected progressive preview shifts DC bits.
+            // Recompute blocks instead of storing a full-image coefficient buffer.
+            var dcValidation = new long[dcTables.Length][];
+            var acValidation = new long[acTables.Length][];
+            for (int index = 0; index < dcTables.Length; index++)
+            {
+                dcValidation[index] = new long[256];
+                acValidation[index] = new long[256];
+            }
+            try
+            {
+                ProcessBlocks(pixels, width, height, stride, sampling,
+                    tables, options.Quality, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
+                    dcTables, acTables, null, dcValidation, acValidation, cancellationToken,
+                    requireEightBitCoefficients: true);
+            }
+            catch (ArgumentException error) when (error.ParamName is "coefficients" or "adaptiveStrength")
+            {
+                throw new ArgumentException("The floating-point pixels cannot be encoded with finite computations and eight-bit JPEG coefficient limits using these settings.",
+                    nameof(pixels), error);
+            }
+        }
         if (options.OptimizeHuffmanTables)
         {
             var dcFrequencies = new long[dcTables.Length][];
@@ -233,7 +261,7 @@ public static class JpegliEncoder
         float quality, int smoothingFactor, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
-        bool dcOnly = false, int successiveLow = 0, bool refine = false)
+        bool dcOnly = false, int successiveLow = 0, bool refine = false, bool requireEightBitCoefficients = false)
     {
         Span<float> samples = stackalloc float[64];
         Span<float> coefficients = stackalloc float[64];
@@ -301,7 +329,7 @@ public static class JpegliEncoder
                                     grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
                                     adaptiveStrength: strength,
                                     adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                                    previousDc: previousDc[component]);
+                                    previousDc: previousDc[component], requireEightBitCoefficients: requireEightBitCoefficients);
                             }
                             int tableIndex = component == 0 ? 0 : 1;
                             if (dcOnly)
