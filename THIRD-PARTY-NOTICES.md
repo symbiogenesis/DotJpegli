@@ -13,7 +13,7 @@ distributed under BSD-3-Clause:
 | --- | --- |
 | `Internal/ForwardDct.cs` | `lib/jpegli/dct-inl.h`: recursive DCT and transform ordering |
 | `Internal/ColorConversion.cs` | `lib/jpegli/color_transform.cc`: scalar RGB to YCbCr |
-| `Internal/Downsampling.cs` | `lib/jpegli/downsample.cc`, `encode.cc`: scalar box filters and input edge padding |
+| `Internal/Downsampling.cs` | `lib/jpegli/downsample.cc`, `encode.cc`: scalar 2x1, 2x2, 1x2 and 4x1 box filters, input smoothing and edge padding |
 | `JpegliEncoder.cs` | `lib/jpegli/encode_streaming.cc`: empty MCU block tokens and DC predictor continuity |
 | `Internal/Quantization.cs` | `lib/jpegli/quant.cc`, `encode.cc`, `dct-inl.h`: constants, distance scaling and quantization |
 | `Internal/AdaptiveQuantization.cs` | `lib/jpegli/adaptive_quantization.cc`: spatial analysis, fuzzy erosion and perceptual modulation |

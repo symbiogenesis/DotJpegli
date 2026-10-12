@@ -32,6 +32,21 @@ last row needs only its pixel bytes, without trailing padding. Negative strides
 are not supported. The input must contain every row; extra trailing bytes are
 allowed.
 
+`Subsampling` selects the color component sampling:
+
+| Setting | Ratio | Chroma sample area | MCU size |
+| --- | --- | --- | --- |
+| `None` | 4:4:4 | 1x1 pixels | 8x8 pixels |
+| `HalfHorizontal` | 4:2:2 | 2x1 pixels | 16x8 pixels |
+| `Quarter` (default) | 4:2:0 | 2x2 pixels | 16x16 pixels |
+| `HalfVertical` | 4:4:0 | 1x2 pixels | 8x16 pixels |
+| `QuarterHorizontal` | 4:1:1 | 4x1 pixels | 32x8 pixels |
+
+Grayscale always uses one sample per pixel and 8x8 MCUs. All color modes use
+upstream scalar box averaging after optional smoothing, with replicated image
+edges. Only 4:2:0 applies upstream's specialized quantization-table compensation;
+4:4:0 and 4:1:1 use the same perceptual tables as 4:4:4 and 4:2:2.
+
 The stream overload takes a writable stream as its first argument. It leaves
 the stream open and does not seek. Cancellation and I/O failures may leave a
 partial JPEG. Pass a `CancellationToken` for cancellation between MCUs. Dimensions
@@ -39,7 +54,8 @@ must be 1..65535 and fit `MaxPixels` (100 million by default).
 
 Set `RestartInterval` to 1..65535 to insert restart markers after that many
 minimum coded units (MCUs); zero, the default, disables them. MCUs span 8x8 pixels
-for grayscale and 4:4:4, 16x8 for 4:2:2, and 16x16 for 4:2:0. Partial edge MCUs
+for grayscale and 4:4:4, 16x8 for 4:2:2, 16x16 for 4:2:0, 8x16 for 4:4:0,
+and 32x8 for 4:1:1. Partial edge MCUs
 count toward the interval, which can cross row boundaries. Restart markers
 reset DC prediction and align the entropy stream between intervals, adding a
 small amount of output overhead without changing the decoded image. For example,
@@ -106,7 +122,7 @@ writing them. Neither mode retains an image-sized coefficient buffer.
 
 Implemented: baseline sequential and optional spectral-selection and successive-approximation progressive
 JPEG/JFIF; RGB and grayscale input; 4:4:4,
-4:2:2 and 4:2:0 upstream scalar box sampling with edge replication and empty
+4:2:2, 4:2:0, 4:4:0 and 4:1:1 upstream scalar box sampling with edge replication and empty
 dummy-block coding that preserves DC predictors at MCU edges; optional upstream
 3x3 input smoothing before sampling; recursive scalar DCT; Jpegli
 quality-to-distance and perceptual Y/Cb/Cr quantization tables; scalar adaptive
