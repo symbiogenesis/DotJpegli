@@ -709,6 +709,35 @@ Attaching these profiles leaves JPEG coding unchanged and does not convert
 primaries, decode the source transfer function or apply tone mapping. Use the
 existing profiles for sRGB, linear-light, grayscale or scaled XYB output.
 
+`CreateRec709DisplayP3Profile()` and `CreateSrgbRec2020Profile()` complete two
+additional D65/perceptual RGB profile combinations from the pinned builder:
+
+| Factory | RGB primaries | Transfer function | CICP fields |
+| --- | --- | --- | --- |
+| `CreateRec709DisplayP3Profile()` | Display P3 | BT.709 | `[12, 1, 0, 1]` |
+| `CreateSrgbRec2020Profile()` | Rec.2020 | sRGB | `[9, 13, 0, 1]` |
+
+Both produce fresh deterministic 536-byte ICC v4.4 profiles with D65-to-D50
+Bradford adaptation, adapted colorants and shared piecewise parametric decoding
+curves. Assign them explicitly to `IccProfile` for RGB output or YCbCr output
+with the corresponding RGB interpretation. For example:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(p3Bt709Samples, width, height,
+    PixelComponentLayout.Rgb, options: new()
+    {
+        IccProfile = JpegliIccProfiles.CreateRec709DisplayP3Profile()
+    });
+```
+
+Supply full-range samples already using the selected primaries and transfer
+function. Ordinary Display P3 uses the sRGB curve and `CreateDisplayP3Profile()`;
+BT.709-transfer Rec.2020 uses `CreateRec2020Profile()`. These combinations preserve
+the upstream descriptions `RGB_D65_DCI_Per_709` and `RGB_D65_202_Per_SRG`, respectively.
+Opt-in CICP lookup returns 1 or 13 and retains default quantization tuning.
+Profile attachment preserves JPEG coding without converting the source,
+expanding limited-range video or applying tone mapping.
+
 `CreateDciP3Profile()` provides the pinned builder's perceptual ICC v4.4 RGB
 display profile for samples already encoded as **DCI-P3**. It uses P3 primaries,
 DCI white at xy `(0.314, 0.351)`, Bradford adaptation to D50 and shared gamma
@@ -1455,6 +1484,8 @@ Linear Display P3 and Rec.2020 RGB variants use the corresponding primaries,
 D65-to-D50 adaptation, identity transfer curves and linear CICP signaling.
 Rec.709 and Rec.2020 RGB profiles use the pinned BT.709 parametric transfer
 curve, D65-to-D50 adaptation and CICP transfer code 1.
+Additional RGB combinations provide Display P3 primaries with BT.709 transfer
+and Rec.2020 primaries with sRGB transfer, including adapted colorants and CICP.
 The DCI-P3 RGB profile uses DCI-to-D50 adaptation, gamma 2.6 decoding curves
 and CICP primaries/transfer codes 11/17.
 Rec.2100 PQ and HLG RGB profiles use Rec.2020 colorants and CICP signaling,
@@ -1466,7 +1497,7 @@ RGB primaries with D65-to-D50 adaptation, plus D65 grayscale, with type-0
 decoding curves and no CICP tag.
 
 Pending: fractional sampling ratios,
-remaining built-in profile combinations and arbitrary source ICC color management,
+other built-in profile transfer/white-point/intent combinations and arbitrary source ICC color management,
 structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.
 Fractional sampling ratios are also rejected by the pinned upstream encoder.
@@ -1667,6 +1698,15 @@ primary/Bradford matrix oracles check parsed profiles, including the original
 and fixed-point-rounded transfer knee. Encoding checks verify exact APP2
 embedding and unchanged coding across input precisions, RGB/YCbCr output,
 progressive refinement, restarts and CICP lookup settings.
+
+Additional RGB profile regressions compare complete bytes with independently
+compiled pinned C++ fixtures and verify ICC MD5 IDs, fresh storage, aligned tags
+and CICP fields. Independent transfer-curve and primary/Bradford matrix oracles
+check P3 with BT.709 transfer and Rec.2020 with sRGB transfer. Encoding checks
+verify exact APP2 embedding and unchanged coding across representative source
+precisions, RGB/YCbCr output, scan modes, restarts and nonseekable streams.
+These checks validate serialization and sample preservation without establishing
+a color-managed lossy JPEG quality comparison.
 
 DCI-P3 profile regressions compare complete bytes with an independently compiled
 pinned C++ fixture and verify the ICC MD5 ID, fresh storage, aligned tags, shared
