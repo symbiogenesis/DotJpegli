@@ -873,6 +873,43 @@ The default, zero, keeps the original full-precision initial scans. More refinem
 rounds require more encoding passes and CPU time. This scan script does not reproduce
 upstream Jpegli's default script or promise smaller files.
 
+Set `ProgressiveLevel` to select the pinned upstream's scan presets directly:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    ProgressiveLevel = 2,
+    RestartInterval = 64
+});
+```
+
+| Level | DC | AC in JPEG zigzag order |
+| --- | --- | --- |
+| `0` | Baseline sequential scan with AC | All coefficients at full precision |
+| `1` | Full precision | Positions 1..63, then one refinement round |
+| `2` or greater | Full precision | Positions 1..2 at full precision; 3..63, then two refinement rounds |
+
+The level overrides `Progressive`, so setting it alone selects the corresponding
+encoding mode. Null, the default, keeps the existing progressive controls and
+JPEG bytes. Negative levels are rejected; all values at least two use the same
+script, as in upstream's setter.
+
+Progressive presets interleave DC only when both maximum **output** sampling
+factors are one. Otherwise they send separate component DC scans in raster order,
+with one real block per restart MCU. Grayscale always has 1x1 output factors;
+RGB's default full resolution interleaves DC, while XYB's default 2x2 factors
+select separate DC scans. Explicit `SamplingFactors` determine this choice for
+color output, including schemes where all components have identical factors.
+Every initial spectral range and each refinement round is sent for all components
+in frame order before the next range or round, following the pinned script.
+
+An explicit level cannot be combined with `ProgressiveAcScanEnds`,
+`ProgressiveAcRefinementBits`, nonzero `ProgressiveRefinementBits`, or
+`ProgressiveInterleaveDc = false`. Such combinations are rejected before output.
+Quality, adaptive quantization, smoothing, sampling, metadata and Huffman settings
+retain their usual behavior. The final quantized coefficients are preserved;
+these presets do not establish upstream JPEG byte parity or guarantee smaller files.
+
 Set `ProgressiveAcScanEnds` to send AC coefficients in several spectral bands:
 
 ```csharp
@@ -1132,6 +1169,8 @@ progressive initial and refinement EOB-run aggregation with optimized Huffman ta
 optional DC and AC refinement scans with bounded correction-bit storage;
 configurable complete AC spectral bands with optional separate refinement depths,
 and optional separate component DC scans with real-block raster traversal.
+Optional upstream progression-level presets select baseline or the pinned
+level-1/level-2 spectral and refinement scripts with sampling-based DC interleaving.
 Raw Exif TIFF embedding, standard and extended UTF-8 XMP packets in APP1,
 opt-in automatic partitioning of oversized XMP with selected standard properties, raw ICC profiles
 with APP2 chunking, raw IPTC-IIM in Photoshop APP13, UTF-8 COM comments, and
@@ -1203,6 +1242,12 @@ GitHub Actions workflow, on Windows and Linux; benchmarks also belong on CI and
 none are included yet. Do not batch local selections to approximate a full suite.
 Tests use xUnit and a separate StbImageSharp decoder; these packages are test-only
 and are not part of the encoder or its package dependency graph.
+
+Progression-level regressions independently parse the emitted scan descriptors,
+coefficients and restart boundaries, compare final coefficients and decoded pixels
+with baseline output, and verify sampling-based DC interleaving across output
+color spaces. They also cover input precisions, strides, preset aliases, custom
+setting rejection before output, stream behavior and cancellation.
 
 Spectral-band regressions independently parse each scan's spectral range and
 initial/refinement entropy, verify complete per-block coefficient coverage,

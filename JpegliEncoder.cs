@@ -108,9 +108,6 @@ public static class JpegliEncoder
             throw new ArgumentException("The destination stream must be writable.", nameof(output));
         options ??= new JpegliEncoderOptions();
         options.Validate();
-        int[] acScanEnds = options.PrepareProgressiveAcScanEnds();
-        int[] acRefinementBits = options.PrepareProgressiveAcRefinementBits(acScanEnds.Length);
-        int maxRefinementBits = Math.Max(options.ProgressiveRefinementBits, acRefinementBits.Max());
         pixels = pixels.WithColorSpace(options.ColorSpace);
         if (pixels.IsXyb && options.IccProfile.IsEmpty)
             throw new ArgumentException("Scaled XYB encoding requires an ICC profile describing the stored channels.",
@@ -145,6 +142,10 @@ public static class JpegliEncoder
             ? JpegSamplingFactors.FromSubsampling(ChromaSubsampling.None)
             : options.SamplingFactors ?? (xyb ? new JpegSamplingFactors(new(2, 2), new(2, 2), new(1, 1))
                 : JpegSamplingFactors.FromSubsampling(rgb ? ChromaSubsampling.None : options.Subsampling));
+        options = options.ResolveProgressiveLevel(sampling);
+        int[] acScanEnds = options.PrepareProgressiveAcScanEnds();
+        int[] acRefinementBits = options.PrepareProgressiveAcRefinementBits(acScanEnds.Length);
+        int maxRefinementBits = Math.Max(options.ProgressiveRefinementBits, acRefinementBits.Max());
         // Quantization's sampling arguments select the upstream 4:2:0 table
         // compensation. Asymmetric schemes use uncompensated tables even when
         // the luma factors are 2x2.

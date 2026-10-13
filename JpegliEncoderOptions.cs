@@ -262,6 +262,22 @@ public sealed record JpegliEncoderOptions
     public bool Progressive { get; init; }
 
     /// <summary>
+    /// Optional pinned Jpegli scan preset, overriding Progressive. Null (the default)
+    /// preserves the existing scan settings. Zero selects baseline; one sends DC
+    /// at full precision and all AC coefficients with one refinement bit; two or
+    /// greater sends AC positions 1..2 at full precision and 3..63 with two refinement
+    /// bits. Positions use JPEG zigzag order. Negative values are invalid.
+    /// Progressive presets interleave DC only when both maximum output sampling
+    /// factors are one; otherwise they send separate component DC scans.
+    /// Cannot be combined with explicit ProgressiveAcScanEnds or
+    /// ProgressiveAcRefinementBits, nonzero ProgressiveRefinementBits, or
+    /// ProgressiveInterleaveDc=false. Other encoding settings still apply.
+    /// Final coefficients are unchanged; this does not promise upstream byte parity,
+    /// smaller files or faster encoding. Presets recompute coefficients per scan.
+    /// </summary>
+    public int? ProgressiveLevel { get; init; }
+
+    /// <summary>
     /// Interleave all components in each progressive DC scan. True (the default)
     /// preserves existing output. False requires Progressive and sends separate
     /// component DC scans, visiting only real blocks in raster order, both initially
@@ -329,6 +345,23 @@ public sealed record JpegliEncoderOptions
     /// <summary>Maximum accepted pixel count. Override deliberately for larger images.</summary>
     public long MaxPixels { get; init; } = 100_000_000;
 
+    internal JpegliEncoderOptions ResolveProgressiveLevel(JpegSamplingFactors sampling)
+    {
+        if (ProgressiveLevel is not int level)
+            return this;
+        if (level == 0)
+            return this with { Progressive = false };
+        // SetDefaultScanScript, lib/jpegli/encode.cc, pinned revision
+        // 031a0077f5799a6041004267fc12b956c1f52a20. All levels >= 2 share a script.
+        return this with
+        {
+            Progressive = true,
+            ProgressiveInterleaveDc = sampling.MaxHorizontal == 1 && sampling.MaxVertical == 1,
+            ProgressiveAcScanEnds = level == 1 ? [63] : [2, 63],
+            ProgressiveAcRefinementBits = level == 1 ? [1] : [0, 2]
+        };
+    }
+
     internal int[] PrepareProgressiveAcScanEnds()
     {
         if (ProgressiveAcScanEnds is not { } ends)
@@ -377,6 +410,15 @@ public sealed record JpegliEncoderOptions
 
     internal void Validate()
     {
+        if (ProgressiveLevel is int level)
+        {
+            if (level < 0)
+                throw new ArgumentOutOfRangeException(nameof(ProgressiveLevel), "The progressive level must be nonnegative.");
+            if (ProgressiveAcScanEnds is not null || ProgressiveAcRefinementBits is not null
+                || ProgressiveRefinementBits != 0 || !ProgressiveInterleaveDc)
+                throw new ArgumentException("A progressive level cannot be combined with custom progressive scan settings.",
+                    nameof(ProgressiveLevel));
+        }
         if (!Enum.IsDefined(ColorSpace))
             throw new ArgumentOutOfRangeException(nameof(ColorSpace));
         if (!float.IsFinite(Quality) || Quality is < 0 or > 100)
