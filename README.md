@@ -365,8 +365,9 @@ three separate perceptual quantization tables with selectors 0/1/2. The matrices
 nonlinear distance scaling come from the pinned upstream XYB mode.
 `UseStandardQuantizationTables` and transfer-function hints do not change
 XYB quantization. Quality and explicit distance retain their usual precedence
-and tables remain clamped to 1..255. `QuantizationTables` can override these
-generated tables with final baseline values.
+and tables are clamped to the `ForceBaseline` range, 1..255 by default or
+1..32767 when false. `QuantizationTables` can override these generated tables
+with final values in the selected range.
 
 Default factors are X=2x2, Y=2x2, B-minus-Y=1x1: a 16x16 MCU with nine blocks,
 retaining full-resolution X/Y and averaging B-minus-Y over 2x2 pixels. The
@@ -841,7 +842,7 @@ and 100 to 0.01. The special value at 100 is distinct from the approximately
 0.1 distance approached by qualities just below 100.
 
 Direct distance also accepts values outside that quality range, such as 0.001
-or 30. Tables remain clamped to the baseline JPEG range of 1..255; tiny distances
+or 30. Tables are clamped to 1..255 by default, or 1..32767 with `ForceBaseline = false`; tiny distances
 can share all-one tables and large distances can share saturated tables.
 Distance is a quantization setting, not a measured or guaranteed perceptual
 error. Very small distances and quality 100 remain lossy. This option applies
@@ -885,8 +886,8 @@ Intervals that reach the cap can cease to align with complete rows. The option
 applies to all output color spaces, sampling factors, input precisions and scan
 scripts, retaining final coefficients, decoded samples and stream behavior.
 
-Set `SequentialInterleaveComponents = false` to write one complete baseline
-sequential scan for each output component, in frame order:
+Set `SequentialInterleaveComponents = false` to write one complete sequential
+scan for each output component, in frame order:
 
 ```csharp
 byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
@@ -903,7 +904,7 @@ component blocks in raster order, and omits wholly padded MCU blocks. Each block
 counts as one MCU for restarts; row-based intervals use that component's real
 block columns. DC predictors reset at each scan and restart; RST numbering starts
 at RST0 in each scan and advances modulo eight.
-The output retains its baseline SOF0 frame and quantization tables, final
+The output retains its sequential frame (SOF0 by default, SOF1 for wide quantizers), quantization tables, final
 coefficients and decoded samples. Color encoding needs additional passes but
 retains bounded working storage. JPEG reader support can vary.
 
@@ -934,7 +935,7 @@ scaled X/Y/B-minus-Y, or just zero for grayscale. Selectors must be strictly
 increasing within a scan; scans may send component groups in any order.
 The defaults `0, 63, 0, 0` send a complete sequential scan. Each component
 must occur exactly once in a sequential script. The first scan's spectral
-range determines SOF0 sequential or SOF2 progressive output, overriding
+range determines sequential SOF0/SOF1 or progressive SOF2 output, overriding
 `Progressive`; the two modes cannot be mixed.
 
 Progressive DC scans use spectral range `0..0` and may select several components.
@@ -1007,7 +1008,7 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 
 | Level | DC | AC in JPEG zigzag order |
 | --- | --- | --- |
-| `0` | Baseline sequential scan with AC | All coefficients at full precision |
+| `0` | Sequential scan with AC | All coefficients at full precision |
 | `1` | Full precision | Positions 1..63, then one refinement round |
 | `2` or greater | Full precision | Positions 1..2 at full precision; 3..63, then two refinement rounds |
 
@@ -1189,7 +1190,8 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 The default is false and preserves existing JPEG bytes. `Quality` still maps
 through `QualityToDistance`; a positive finite `Distance` still overrides it.
 The standard matrices use the pinned upstream's piecewise linear-quality scale
-from that distance, with rounding and clamping to 1..255. Both chroma components
+from that distance, with rounding and clamping to the `ForceBaseline` range
+(1..255 by default, or 1..32767 when false). Both chroma components
 share table 1; grayscale uses only the luma matrix in table 0. Sampling factors
 still select the output resolution, but standard tables have no 4:2:0 compensation.
 Automatic RGB tables use the shared luma matrix in table 0, independently of this option.
@@ -1208,8 +1210,9 @@ The scaling and shared-table rules are ported from
 
 ### Custom quantization tables
 
-Set `QuantizationTables` to supply final baseline quantizers in natural row-major
-8x8 frequency order. Each table must contain exactly 64 `ushort` values in 1..255;
+Set `QuantizationTables` to supply final quantizers in natural row-major
+8x8 frequency order. Each table must contain exactly 64 `ushort` values in 1..255
+(or 1..32767 with `ForceBaseline = false`);
 the first value controls DC. The encoder writes them in JPEG zigzag order:
 
 ```csharp
@@ -1226,7 +1229,7 @@ Grayscale output requires one table. Color output accepts one shared table
 (0/1/1), or three separate tables (0/1/2). Component order follows the output:
 Y/Cb/Cr, R/G/B, or scaled X/Y/B-minus-Y. Equal-valued tables retain separate
 selectors when supplied separately. Null, the default, preserves automatic tables
-and existing bytes. Empty lists and values outside the baseline range are rejected
+and existing bytes. Empty lists and values outside the selected range are rejected
 with an `ArgumentException` for `QuantizationTables` before output.
 
 Supplied values are used unchanged. They override table construction from
@@ -1239,12 +1242,48 @@ YCbCr coefficients with adaptive quantization enabled without changing the table
 
 The list and all table data are copied before writing output. Do not mutate them
 while encoding starts; the encoder leaves caller storage unchanged. The same
-tables serve coefficient preflight, Huffman optimization, baseline and progressive
+tables serve coefficient preflight, Huffman optimization, sequential and progressive
 scans, restarts, all input precisions and custom sampling. XYB still requires its
-output ICC profile. Custom tables do not enable 16-bit DQT values or lossless JPEG.
-This final-value API corresponds to baseline table installation with scale 100 in
+output ICC profile. Custom tables do not enable lossless JPEG.
+This final-value API corresponds to table installation with scale 100 in
 [the pinned upstream encoder](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/encode.cc);
 DotJpegli rejects invalid quantizers instead of scaling or clamping them.
+
+### Extended quantization
+
+Set `ForceBaseline = false` to use the pinned upstream's nonbaseline quantizer
+range of 1..32767 for automatic and caller-supplied tables:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    Quality = 10,
+    ForceBaseline = false
+});
+```
+
+Each table uses eight-bit DQT entries when all its values are at most 255;
+otherwise its 64 entries are unsigned 16-bit values in network byte order.
+Tables with different precisions can share one DQT marker. Sequential output
+uses extended sequential SOF1 when any table needs 16 bits, and otherwise
+retains baseline SOF0. Progressive output always retains SOF2. Separate
+component scans and caller-supplied scan scripts follow the same frame rule.
+
+`ForceBaseline` defaults to `true` and preserves existing JPEG bytes. The opt-in
+range applies to perceptual YCbCr/grayscale and XYB matrices and standard
+matrices, including RGB's shared standard luma table. Adaptive YCbCr distance
+inference treats 32767 as its saturated upper endpoint when the option is false;
+255 then becomes an ordinary rounded value, which can change adaptive thresholds
+even for eight-bit tables. Grayscale, RGB and XYB retain their uniform adaptive
+multipliers. Custom tables are snapshotted and checked against the selected range
+before output; zero and values above 32767 are rejected in extended mode.
+
+Sampling, smoothing, source precision, metadata, restarts, bounded storage,
+coefficient validation and stream behavior retain their existing contracts.
+JPEG sample precision remains eight bits. Sixteen-bit quantizers do not enable
+12-bit samples or lossless encoding. Some readers have limited SOF1 support.
+This ports the quantizer range and marker rules from the pinned upstream
+`quant.cc`, `encode.cc` and `bitstream.cc`; it does not establish encoder parity.
 
 ### Transfer-function quantization tuning
 
@@ -1314,7 +1353,7 @@ generated, reconciled with an explicit hint, or applied to the samples.
 
 ## Port status
 
-Implemented: baseline sequential with interleaved or separate component scans,
+Implemented: baseline or extended sequential with interleaved or separate component scans,
 and optional spectral-selection and successive-approximation progressive
 JPEG; grayscale/YCbCr JFIF and explicit RGB output; RGB, grayscale and direct
 interleaved full-range YCbCr input with explicit output color-space selection; 4:4:4,
@@ -1333,7 +1372,7 @@ progressive initial and refinement EOB-run aggregation with optimized Huffman ta
 optional DC and AC refinement scans with bounded correction-bit storage;
 configurable complete AC spectral bands with optional separate refinement depths,
 and optional separate component DC scans with real-block raster traversal.
-Optional upstream progression-level presets select baseline or the pinned
+Optional upstream progression-level presets select sequential output or the pinned
 level-1/level-2 spectral and refinement scripts with sampling-based DC interleaving.
 Complete caller-supplied scan scripts support component subsets, arbitrary
 spectral schedules and changing refinement bands or DC component groups,
@@ -1343,11 +1382,13 @@ opt-in automatic partitioning of oversized XMP with selected standard properties
 with APP2 chunking, raw IPTC-IIM in Photoshop APP13, UTF-8 COM comments, and
 configurable JFIF density fields are also implemented.
 Direct perceptual-distance control and a public quality-to-distance mapping
-are available, retaining baseline quantization tables and existing quality bytes.
+are available, retaining baseline quantization tables by default and existing quality bytes.
 Optional conventional Annex K quantization matrices use upstream distance scaling,
 with one luma table and a shared chroma table, retaining Jpegli adaptive quantization.
-Caller-supplied baseline quantization tables support shared or separate output
+Caller-supplied quantization tables support shared or separate output
 component selectors, with strict validation and snapshots before output.
+Opt-in nonbaseline quantization permits 1..32767 values, mixed eight/sixteen-bit
+DQT tables and extended sequential SOF1 frames while keeping eight-bit samples.
 Optional CICP transfer-function hints provide upstream PQ/HLG perceptual table
 scaling and adaptive threshold inference without changing or signaling the input color space.
 Opt-in lookup obtains those hints from attached ICC profiles using upstream's
@@ -1433,6 +1474,15 @@ check table-sharing effects on adaptive thresholds. They cover default-table byt
 compatibility, coefficient and decoded-pixel parity across source precisions and
 scan/Huffman/restart modes, custom sampling, validation before output, floating-point
 coefficient preflight, and mutation of caller tables after the first stream write.
+
+Extended-quantization regressions independently parse mixed DQT precisions,
+network-byte-order words, zigzag values and SOF0/SOF1/SOF2 selection. Pinned scalar
+C++ fixtures check complete coarse YCbCr tables and adaptive distance inference
+at both saturation endpoints. Independent DC/cosine-DCT and entropy checks cover
+coefficient parity across scan scripts, refinement and restarts; an independent
+decoder compares sequential and progressive pixels. They also cover default bytes,
+automatic table modes, extreme-distance clamping, typed and padded input,
+out-of-range float preflight, validation before output, snapshots and cancellation.
 
 Progression-level regressions independently parse the emitted scan descriptors,
 coefficients and restart boundaries, compare final coefficients and decoded pixels

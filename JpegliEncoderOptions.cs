@@ -290,7 +290,8 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>
     /// Write a progressive JPEG with a DC preview followed by an AC scan
-    /// per component and optional refinement scans. False (the default) writes baseline JPEG.
+    /// per component and optional refinement scans. False (the default) writes sequential JPEG,
+    /// using SOF0 or SOF1 according to the emitted quantizers.
     /// Coefficients are recomputed for each scan to keep working memory bounded.
     /// </summary>
     public bool Progressive { get; init; }
@@ -318,7 +319,7 @@ public sealed record JpegliEncoderOptions
     public IReadOnlyList<JpegScan>? ScanScript { get; init; }
 
     /// <summary>
-    /// Interleave all components in the baseline sequential scan. True (the default)
+    /// Interleave all components in the sequential scan. True (the default)
     /// preserves existing bytes. False writes one complete DC/AC scan per component,
     /// in frame component order, visiting only real blocks in raster order.
     /// Each block is one MCU for restart counting; RestartRows uses the selected
@@ -332,7 +333,7 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>
     /// Optional pinned Jpegli scan preset, overriding Progressive. Null (the default)
-    /// preserves the existing scan settings. Zero selects baseline; one sends DC
+    /// preserves the existing scan settings. Zero selects sequential output; one sends DC
     /// at full precision and all AC coefficients with one refinement bit; two or
     /// greater sends AC positions 1..2 at full precision and 3..63 with two refinement
     /// bits. Positions use JPEG zigzag order. Negative values are invalid.
