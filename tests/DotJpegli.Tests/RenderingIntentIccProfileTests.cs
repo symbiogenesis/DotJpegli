@@ -46,7 +46,7 @@ public sealed class RenderingIntentIccProfileTests
         Assert.Equal(new[] { "Perceptual", "RelativeColorimetric", "Saturation", "AbsoluteColorimetric" },
             Enum.GetNames<IccRenderingIntent>());
         Assert.Equal(new[] { 0, 1, 2, 3 }, Enum.GetValues<IccRenderingIntent>().Select(value => (int)value));
-        Assert.Equal(Factories.Select(factory => factory.Name).Append("CreateXybProfile").Order(),
+        Assert.Equal(Factories.Select(factory => factory.Name).Concat(new[] { "CreateXybProfile", "CreateRgbProfile", "CreateGrayscaleProfile", "CreateGammaRgbProfile" }).Order(),
             typeof(JpegliIccProfiles).GetMethods(BindingFlags.Public | BindingFlags.Static)
                 .Select(method => method.Name).Distinct().Order());
         foreach ((string name, _) in Factories)
