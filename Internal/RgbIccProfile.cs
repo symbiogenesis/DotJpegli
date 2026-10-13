@@ -59,7 +59,7 @@ internal static class RgbIccProfile
     internal static byte[] CreateRec2020() => Create(
         "RGB_D65_202_Per_709", 9, TransferFunction.Rec709, Rec2020Colorants);
 
-    private static ReadOnlySpan<float> Rec2020Colorants =>
+    internal static ReadOnlySpan<float> Rec2020Colorants =>
         // Rec.2020 (upstream PRIMARIES_2100) primaries:
         // R=(0.708,0.292), G=(0.170,0.797), B=(0.131,0.046).
         // Canonical upstream float results before ICC s15Fixed16 serialization.

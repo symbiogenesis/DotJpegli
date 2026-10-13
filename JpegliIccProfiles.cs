@@ -39,6 +39,30 @@ public static class JpegliIccProfiles
     public static byte[] CreateRec2020Profile() => RgbIccProfile.CreateRec2020();
 
     /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 RGB display profile for full-range
+    /// Rec.2100 PQ samples with Rec.2020 primaries and D65 white. Its forward
+    /// transform contains the pinned builder's 10,000-to-250-nit tone mapping
+    /// and gamut mapping to D50 Lab. Assign it explicitly to
+    /// JpegliEncoderOptions.IccProfile for RGB or corresponding YCbCr output.
+    /// Attaching it does not convert or tone-map the encoded source samples.
+    /// Its compatibility B2A tag is an identity, not an inverse transform.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateRec2100PqProfile() => HdrIccProfile.Create(pq: true);
+
+    /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 RGB display profile for full-range
+    /// Rec.2100 HLG samples with Rec.2020 primaries and D65 white. Its forward
+    /// transform contains the pinned builder's 300-to-80-nit HLG OOTF
+    /// adjustment and gamut mapping to D50 Lab. Assign it explicitly to
+    /// JpegliEncoderOptions.IccProfile for RGB or corresponding YCbCr output.
+    /// Attaching it does not convert or tone-map the encoded source samples.
+    /// Its compatibility B2A tag is an identity, not an inverse transform.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateRec2100HlgProfile() => HdrIccProfile.Create(pq: false);
+
+    /// <summary>
     /// Creates Jpegli's perceptual ICC v4 RGB display profile for Display P3
     /// samples, with P3 primaries, the sRGB transfer function and D65 white
     /// adapted to D50 XYZ. Assign it explicitly to JpegliEncoderOptions.IccProfile

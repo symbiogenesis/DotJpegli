@@ -692,6 +692,44 @@ not describe cinema XYZ, grayscale or scaled XYB data. Opt-in CICP lookup return
 17 and retains default quantization tuning. The JPEG remains lossy eight-bit
 output and does not provide digital-cinema packaging or conformance.
 
+`CreateRec2100PqProfile()` and `CreateRec2100HlgProfile()` provide the pinned
+builder's 4,344-byte perceptual ICC v4.4 RGB display profiles for **already
+Rec.2100 PQ or HLG** samples with Rec.2020 primaries and D65 white. Their CICP
+tags contain `[9, 16, 0, 1]` and `[9, 18, 0, 1]`. For example:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(pqSamples, width, height,
+    PixelComponentLayout.Rgb, options: new()
+    {
+        IccProfile = JpegliIccProfiles.CreateRec2100PqProfile(),
+        InferCicpTransferFunctionFromIccProfile = true
+    });
+```
+
+Each factory returns a fresh deterministic array for explicit attachment to RGB
+output or YCbCr output with the corresponding RGB interpretation. Supply
+full-range samples; expand limited-range video before encoding. Attaching the
+profile preserves the source samples. Opt-in CICP lookup selects the existing
+PQ or HLG perceptual quantization tuning for YCbCr output; RGB output continues
+to use its standard quantization tables. Explicit transfer hints override lookup.
+
+These profiles retain upstream's default three-dimensional ICC tone mapping.
+The `A2B0` tag contains a 9x9x9 eight-bit RGB-to-D50-Lab lookup table, with
+identity input/output curves. PQ uses upstream's BT.2408 tone mapper from
+10,000 to 250 nits; HLG applies its 300-to-80-nit OOTF adjustment. Both apply
+upstream's gamut mapping with saturation-preservation weight 0.3. These display
+transforms live in the profile and are applied by compatible color-managed
+readers, rather than by the JPEG encoder. Readers may instead interpret CICP
+directly; rendering varies by reader. The `B2A0` tag is an identity for
+reader compatibility, not an inverse transform for source conversion.
+
+The factories retain perceptual rendering intent and upstream's generic
+`RGB_D65_202_Per_PeQ` / `RGB_D65_202_Per_HLG` descriptions. Their fixed display
+assumptions and coarse lookup grid do not provide configurable HDR rendering.
+The JPEG remains lossy eight-bit output; embedding an ICC profile does not
+establish HDR display or Rec.2100 conformance. These RGB profiles are unsuitable
+for grayscale, scaled XYB, or samples using other primaries or transfers.
+
 Set `IptcData` to raw IPTC-IIM bytes to embed them unchanged in one Photoshop
 APP13 marker. Supply only the IIM datasets, without Photoshop or JPEG framing.
 Empty (the default) writes no IPTC. The encoder adds `Photoshop 3.0\0` and one
@@ -999,6 +1037,8 @@ Rec.709 and Rec.2020 RGB profiles use the pinned BT.709 parametric transfer
 curve, D65-to-D50 adaptation and CICP transfer code 1.
 The DCI-P3 RGB profile uses DCI-to-D50 adaptation, gamma 2.6 decoding curves
 and CICP primaries/transfer codes 11/17.
+Rec.2100 PQ and HLG RGB profiles use Rec.2020 colorants and CICP signaling,
+with upstream's default tone/gamut-mapped 9x9x9 RGB-to-Lab display transforms.
 
 Pending: fractional sampling ratios,
 additional built-in profiles and arbitrary source ICC color management,
