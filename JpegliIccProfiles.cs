@@ -16,6 +16,32 @@ public static class JpegliIccProfiles
     public static byte[] CreateSrgbProfile() => RgbIccProfile.CreateSrgb();
 
     /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 RGB display profile for full-range
+    /// power-law samples with sRGB/Rec.709 primaries and D65 white adapted to D50.
+    /// Gamma is the decoding exponent (linear = encoded^gamma), finite and from
+    /// 1 to 8192; for example, 2.2 specifies a pure gamma 2.2 curve. The profile
+    /// uses a shared type-0 parametric curve and has no CICP tag. This is a pure
+    /// power law rather than the piecewise sRGB transfer function. Assign it
+    /// explicitly to JpegliEncoderOptions.IccProfile for RGB or corresponding
+    /// YCbCr output. Attaching it preserves samples without color conversion.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">Gamma is nonfinite or outside 1..8192.</exception>
+    public static byte[] CreateGammaSrgbProfile(double gamma) => RgbIccProfile.CreateGamma(gamma);
+
+    /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 grayscale display profile for full-range
+    /// power-law samples with D65 media white and a D50 XYZ PCS header. Gamma is
+    /// the decoding exponent (linear = encoded^gamma), finite and from 1 to 8192.
+    /// The profile uses a type-0 parametric curve without chad or CICP tags.
+    /// Assign it explicitly to JpegliEncoderOptions.IccProfile for grayscale output
+    /// already using that power law. Attaching it does not convert source samples.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">Gamma is nonfinite or outside 1..8192.</exception>
+    public static byte[] CreateGammaGrayscaleProfile(double gamma) => GrayscaleIccProfile.CreateGamma(gamma);
+
+    /// <summary>
     /// Creates Jpegli's perceptual ICC v4 RGB display profile for samples with
     /// Rec.709 primaries, the BT.709 transfer function and D65 white adapted
     /// to D50 XYZ. Assign it explicitly to JpegliEncoderOptions.IccProfile for

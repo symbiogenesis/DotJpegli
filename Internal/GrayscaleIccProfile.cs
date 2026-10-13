@@ -31,18 +31,33 @@ internal static class GrayscaleIccProfile
             TransferFunction.Hlg => "Gra_D65_Per_HLG",
             _ => throw new ArgumentOutOfRangeException(nameof(transfer))
         };
+        return Create(transfer, description);
+    }
+
+    internal static byte[] CreateGamma(double gamma)
+    {
+        GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
+        return Create(TransferFunction.Linear, "Gra_D65_Per_" + curve.Description, curve.Exponent);
+    }
+
+    private static byte[] Create(TransferFunction transfer, string description, float? gamma = null)
+    {
         bool tableCurve = transfer is TransferFunction.Pq or TransferFunction.Hlg;
-        int curveSize = tableCurve ? 12 + 64 * 2 : 32;
-        byte[] profile = new byte[296 + curveSize];
+        int curveSize = gamma is not null ? 16 : tableCurve ? 12 + 64 * 2 : 32;
+        int descriptionSize = (28 + description.Length * 2 + 3) & ~3;
+        int copyrightOffset = 180 + descriptionSize;
+        int whiteOffset = copyrightOffset + 36;
+        int curveOffset = whiteOffset + 20;
+        byte[] profile = new byte[curveOffset + curveSize];
         Span<byte> bytes = profile;
         Header(bytes, "mntr"u8, "GRAY"u8);
         UInt32(bytes, 128, 4);
-        Tag(bytes, 0, "desc"u8, 180, 60);
-        Tag(bytes, 1, "cprt"u8, 240, 36);
-        Tag(bytes, 2, "wtpt"u8, 276, 20);
-        Tag(bytes, 3, "kTRC"u8, 296, (uint)curveSize);
-        Mluc(bytes[180..240], description);
-        Mluc(bytes[240..276], "CC0");
+        Tag(bytes, 0, "desc"u8, 180, (uint)descriptionSize);
+        Tag(bytes, 1, "cprt"u8, (uint)copyrightOffset, 36);
+        Tag(bytes, 2, "wtpt"u8, (uint)whiteOffset, 20);
+        Tag(bytes, 3, "kTRC"u8, (uint)curveOffset, (uint)curveSize);
+        Mluc(bytes[180..copyrightOffset], description);
+        Mluc(bytes[copyrightOffset..whiteOffset], "CC0");
 
         // Upstream's grayscale branch keeps the source media white, omits
         // chad/CICP, and uses a D50 PCS illuminant in the common ICC header.
@@ -50,12 +65,14 @@ internal static class GrayscaleIccProfile
         double whiteX = transfer == TransferFunction.Dci ? 0.314 : 0.3127;
         double whiteY = transfer == TransferFunction.Dci ? 0.351 : 0.3290;
         float factor = (float)(1.0 / whiteY);
-        Signature(bytes, 276, "XYZ "u8);
-        Fixed(bytes, 284, (float)(whiteX * factor));
-        Fixed(bytes, 288, 1f);
-        Fixed(bytes, 292, (float)((1.0 - whiteX - whiteY) * factor));
-        if (tableCurve)
-            WriteTableCurve(bytes[296..], transfer == TransferFunction.Pq);
+        Signature(bytes, whiteOffset, "XYZ "u8);
+        Fixed(bytes, whiteOffset + 8, (float)(whiteX * factor));
+        Fixed(bytes, whiteOffset + 12, 1f);
+        Fixed(bytes, whiteOffset + 16, (float)((1.0 - whiteX - whiteY) * factor));
+        if (gamma is float exponent)
+            Curve(bytes[curveOffset..], [exponent], 0);
+        else if (tableCurve)
+            WriteTableCurve(bytes[curveOffset..], transfer == TransferFunction.Pq);
         else
         {
             ReadOnlySpan<float> parameters = transfer switch
@@ -67,7 +84,7 @@ internal static class GrayscaleIccProfile
                 _ => [2.4f, (float)(1.0 / 1.055), (float)(0.055 / 1.055),
                     (float)(1.0 / 12.92), 0.04045f]
             };
-            Curve(bytes[296..], parameters, 3);
+            Curve(bytes[curveOffset..], parameters, 3);
         }
         ProfileId(bytes);
         return profile;

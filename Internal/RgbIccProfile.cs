@@ -24,6 +24,13 @@ internal static class RgbIccProfile
     internal static byte[] CreateRec709() => Create(
         "RGB_D65_SRG_Per_709", 1, TransferFunction.Rec709, SrgbColorants);
 
+    internal static byte[] CreateGamma(double gamma)
+    {
+        GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
+        return Create("RGB_D65_SRG_Per_" + curve.Description, 1,
+            TransferFunction.Linear, SrgbColorants, gamma: curve.Exponent);
+    }
+
     private static ReadOnlySpan<float> SrgbColorants =>
         // Precomputed columns of upstream's PrimariesToXYZD50 with its fixed
         // sRGB primaries from color_encoding_cms.h: R=(0.639998686,0.330010138),
@@ -68,59 +75,73 @@ internal static class RgbIccProfile
          0.12510021030902863f, 0.045628782361745834f, 0.79716199636459351f];
 
     private static byte[] Create(string description, byte primaries, TransferFunction transfer,
-        ReadOnlySpan<float> colorants, bool dciWhite = false)
+        ReadOnlySpan<float> colorants, bool dciWhite = false, float? gamma = null)
     {
+        bool includeCicp = gamma is null;
+        int tagCount = includeCicp ? 11 : 10;
+        int descriptionOffset = 132 + tagCount * 12;
         int descriptionSize = (28 + description.Length * 2 + 3) & ~3;
-        int copyrightOffset = 264 + descriptionSize;
+        int copyrightOffset = descriptionOffset + descriptionSize;
         int whiteOffset = copyrightOffset + 36;
         int adaptationOffset = whiteOffset + 20;
         int cicpOffset = adaptationOffset + 44;
-        int redOffset = cicpOffset + 12;
+        int redOffset = cicpOffset + (includeCicp ? 12 : 0);
         int greenOffset = redOffset + 20;
         int blueOffset = greenOffset + 20;
         int curveOffset = blueOffset + 20;
-        byte[] profile = new byte[curveOffset + 32];
+        int curveSize = includeCicp ? 32 : 16;
+        byte[] profile = new byte[curveOffset + curveSize];
         Span<byte> bytes = profile;
         Header(bytes, "mntr"u8, "RGB "u8);
-        UInt32(bytes, 128, 11);
-        Tag(bytes, 0, "desc"u8, 264, (uint)descriptionSize);
+        UInt32(bytes, 128, (uint)tagCount);
+        Tag(bytes, 0, "desc"u8, (uint)descriptionOffset, (uint)descriptionSize);
         Tag(bytes, 1, "cprt"u8, (uint)copyrightOffset, 36);
         Tag(bytes, 2, "wtpt"u8, (uint)whiteOffset, 20);
         Tag(bytes, 3, "chad"u8, (uint)adaptationOffset, 44);
-        Tag(bytes, 4, "cicp"u8, (uint)cicpOffset, 12);
-        Tag(bytes, 5, "rXYZ"u8, (uint)redOffset, 20);
-        Tag(bytes, 6, "gXYZ"u8, (uint)greenOffset, 20);
-        Tag(bytes, 7, "bXYZ"u8, (uint)blueOffset, 20);
+        int nextTag = 4;
+        if (includeCicp)
+            Tag(bytes, nextTag++, "cicp"u8, (uint)cicpOffset, 12);
+        Tag(bytes, nextTag++, "rXYZ"u8, (uint)redOffset, 20);
+        Tag(bytes, nextTag++, "gXYZ"u8, (uint)greenOffset, 20);
+        Tag(bytes, nextTag++, "bXYZ"u8, (uint)blueOffset, 20);
         // Upstream shares one decoding curve among all three channels.
-        Tag(bytes, 8, "rTRC"u8, (uint)curveOffset, 32);
-        Tag(bytes, 9, "gTRC"u8, (uint)curveOffset, 32);
-        Tag(bytes, 10, "bTRC"u8, (uint)curveOffset, 32);
-        Mluc(bytes[264..copyrightOffset], description);
+        Tag(bytes, nextTag++, "rTRC"u8, (uint)curveOffset, (uint)curveSize);
+        Tag(bytes, nextTag++, "gTRC"u8, (uint)curveOffset, (uint)curveSize);
+        Tag(bytes, nextTag, "bTRC"u8, (uint)curveOffset, (uint)curveSize);
+        Mluc(bytes[descriptionOffset..copyrightOffset], description);
         Mluc(bytes[copyrightOffset..whiteOffset], "CC0");
         Xyz(bytes[whiteOffset..adaptationOffset], [0.964203f, 1f, 0.824905f]);
         if (dciWhite)
             WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset], 0.314f, 0.351f);
         else
             WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset]);
-        Signature(bytes, cicpOffset, "cicp"u8);
-        bytes[cicpOffset + 8] = primaries;
-        bytes[cicpOffset + 9] = (byte)transfer;
-        bytes[cicpOffset + 11] = 1; // RGB matrix (zero), full range.
+        if (includeCicp)
+        {
+            Signature(bytes, cicpOffset, "cicp"u8);
+            bytes[cicpOffset + 8] = primaries;
+            bytes[cicpOffset + 9] = (byte)transfer;
+            bytes[cicpOffset + 11] = 1; // RGB matrix (zero), full range.
+        }
 
         Xyz(bytes[redOffset..greenOffset], colorants[..3]);
         Xyz(bytes[greenOffset..blueOffset], colorants[3..6]);
         Xyz(bytes[blueOffset..curveOffset], colorants[6..9]);
-        ReadOnlySpan<float> parameters = transfer switch
+        if (gamma is float exponent)
+            Curve(bytes[curveOffset..], [exponent], 0);
+        else
         {
-            TransferFunction.Linear => [1f, 1f, 0f, 1f, 0f],
-            TransferFunction.Dci => [2.6f, 1f, 0f, 1f, 0f],
-            TransferFunction.Rec709 => [(float)(1.0 / 0.45), (float)(1.0 / 1.099),
-                (float)(0.099 / 1.099), (float)(1.0 / 4.5), 0.081f],
-            TransferFunction.Srgb => [2.4f, (float)(1.0 / 1.055), (float)(0.055 / 1.055),
-                (float)(1.0 / 12.92), 0.04045f],
-            _ => throw new ArgumentOutOfRangeException(nameof(transfer))
-        };
-        Curve(bytes[curveOffset..], parameters, 3);
+            ReadOnlySpan<float> parameters = transfer switch
+            {
+                TransferFunction.Linear => [1f, 1f, 0f, 1f, 0f],
+                TransferFunction.Dci => [2.6f, 1f, 0f, 1f, 0f],
+                TransferFunction.Rec709 => [(float)(1.0 / 0.45), (float)(1.0 / 1.099),
+                    (float)(0.099 / 1.099), (float)(1.0 / 4.5), 0.081f],
+                TransferFunction.Srgb => [2.4f, (float)(1.0 / 1.055), (float)(0.055 / 1.055),
+                    (float)(1.0 / 12.92), 0.04045f],
+                _ => throw new ArgumentOutOfRangeException(nameof(transfer))
+            };
+            Curve(bytes[curveOffset..], parameters, 3);
+        }
         ProfileId(bytes);
         return profile;
     }
