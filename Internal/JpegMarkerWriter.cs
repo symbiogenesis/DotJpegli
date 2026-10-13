@@ -172,16 +172,17 @@ internal static class JpegMarkerWriter
 
     public static void WriteScanHeader(Stream output, int componentCount, bool progressive,
         int acComponent = -1, int successiveHigh = 0, int successiveLow = 0, bool rgb = false,
-        int spectralStart = 1, int spectralEnd = 63)
+        int spectralStart = 1, int spectralEnd = 63, int dcComponent = -1)
     {
         // Progressive DC may be interleaved; AC scans must select one component.
-        int scanComponents = acComponent < 0 ? componentCount : 1;
+        int selectedComponent = acComponent >= 0 ? acComponent : dcComponent;
+        int scanComponents = selectedComponent < 0 ? componentCount : 1;
         Marker(output, 0xda);
         Word(output, 6 + scanComponents * 2);
         output.WriteByte((byte)scanComponents);
         for (int index = 0; index < scanComponents; index++)
         {
-            int component = acComponent < 0 ? index : acComponent;
+            int component = selectedComponent < 0 ? index : selectedComponent;
             output.WriteByte(ComponentId(component, rgb));
             int tableIndex = rgb || component == 0 ? 0 : 1;
             // Unused DC/AC selectors are zero in progressive scan headers.

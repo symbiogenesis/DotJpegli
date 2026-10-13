@@ -913,9 +913,10 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 This sends DC and positions 1..2 at full precision, followed by positions 3..63
 with two bits deferred and then two refinement rounds of only that higher band.
 The spectral ranges and bit schedule match the pinned upstream's level 2.
-DotJpegli still interleaves color DC in subsampled MCUs, while upstream sends
-separate component DC scans when its maximum sampling factors exceed one.
-This setting therefore does not establish native scan-script or JPEG byte parity.
+By default DotJpegli interleaves color DC in subsampled MCUs. Upstream sends
+separate component DC scans when its maximum sampling factors exceed one;
+use `ProgressiveInterleaveDc = false` to select that ordering, as described below.
+These settings do not establish JPEG byte parity.
 
 The new list requires `Progressive = true`, exactly one value per resolved AC
 band, and values in 0..10. When `ProgressiveAcScanEnds` is null there is one
@@ -929,9 +930,44 @@ All initial scans are sent first. Refinement rounds descend from the largest
 DC or AC depth minus one to zero; each round sends DC if it has a bit left,
 then each unfinished band for every component. Completed ranges are skipped.
 With DC depth `D` and band depths `A[b]`, the scan count is
-`D + 1 + C * sum(A[b] + 1)`. Every coefficient still reaches full precision,
+`D + 1 + C * sum(A[b] + 1)` with the default interleaved DC. Every coefficient still reaches full precision,
 including when AC depth exceeds DC depth or all AC bands finish before DC.
 Restart counting and EOB runs reset per scan, and storage remains bounded.
+
+Set `ProgressiveInterleaveDc = false` to send separate component DC scans:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    Progressive = true,
+    ProgressiveInterleaveDc = false,
+    ProgressiveAcScanEnds = [2, 63],
+    ProgressiveAcRefinementBits = [0, 2]
+});
+```
+
+For subsampled color, this combination follows the pinned upstream level-2
+component, spectral and refinement schedule: three full-precision DC scans,
+three scans for positions 1..2, then three initial scans for positions 3..63
+and two rounds of their refinement. It has fifteen color scans. For full-resolution
+1x1 sampling, upstream interleaves DC; keep the default `true` to follow that rule.
+This option selects DC ordering explicitly and does not change sampling or AC bands.
+
+Separate DC scans visit only real component blocks in raster order, including
+partially filled edge blocks; wholly padded MCU blocks are omitted. Initial
+DC and each later DC refinement round send components in frame order before
+their AC scans. Each real component block counts as one MCU for restarts,
+and DC prediction and RST0..RST7 numbering restart at every scan. Optimized
+Huffman frequency collection uses the same traversal and predictor resets.
+
+False requires `Progressive = true` and is rejected before output otherwise.
+The default `true` preserves existing JPEG bytes, and grayscale bytes are
+unchanged with either setting. For `C` components, DC depth `D` and band
+depths `A[b]`, separate DC produces `C * (D + 1 + sum(A[b] + 1))` scans.
+Final coefficients and decoded pixels are preserved. Color output needs
+additional scans and passes; it does not promise smaller files or encoder-byte
+parity with upstream. Working storage remains bounded, and existing typed-input,
+stream, cancellation, smoothing and adaptive-quantization behavior applies.
 
 With `OptimizeHuffmanTables = true` (the default), progressive initial and refinement
 AC scans combine consecutive block endings into end-of-block (EOB) runs,
@@ -945,8 +981,9 @@ token limit and flushing a run before another block would exceed that limit.
 Buffered correction bits follow the run symbol and its length bits in block order.
 DC refinement uses raw bits.
 
-In progressive AC scans, a single component block counts as one MCU, so
-`RestartInterval` can produce more markers than in the DC scan. Restart counting
+In progressive AC scans and separate component DC scans, a single component
+block counts as one MCU, so `RestartInterval` can produce more markers than in
+an interleaved DC scan. Restart counting
 and the RST0..RST7 sequence begin again in each scan.
 
 Spatial adaptive quantization is enabled by default. It analyzes luma texture,
@@ -1093,7 +1130,8 @@ byte stuffing and marker output; optional MCU restart intervals with DRI and
 cycling RST markers, including predictor resets during Huffman optimization;
 progressive initial and refinement EOB-run aggregation with optimized Huffman tables;
 optional DC and AC refinement scans with bounded correction-bit storage;
-configurable complete AC spectral bands with optional separate refinement depths.
+configurable complete AC spectral bands with optional separate refinement depths,
+and optional separate component DC scans with real-block raster traversal.
 Raw Exif TIFF embedding, standard and extended UTF-8 XMP packets in APP1,
 opt-in automatic partitioning of oversized XMP with selected standard properties, raw ICC profiles
 with APP2 chunking, raw IPTC-IIM in Photoshop APP13, UTF-8 COM comments, and
@@ -1180,6 +1218,13 @@ depth. Independent scan parsing checks range coverage, refinement order, EOB
 runs, correction bits, restart boundaries and padding, then compares complete
 coefficients and decoded pixels with baseline output. They also cover typed
 inputs, default-byte compatibility, list snapshots and validation before output.
+
+Separate-DC regressions independently parse component selectors, spectral and
+refinement schedules, real-block traversal, restart counts, cycling and padding.
+They compare coefficients with baseline output across odd edges, custom sampling,
+mixed refinement depths and Huffman settings, with decoder checks for supported
+color modes. They also cover typed input, grayscale and default compatibility,
+nonseekable streams, cancellation and validation before output.
 
 Numerical development probes checked the DCT against an independent cosine
 definition. Compiled C++ reference probes matched 120 color and grayscale quantization tables

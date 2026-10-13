@@ -262,6 +262,18 @@ public sealed record JpegliEncoderOptions
     public bool Progressive { get; init; }
 
     /// <summary>
+    /// Interleave all components in each progressive DC scan. True (the default)
+    /// preserves existing output. False requires Progressive and sends separate
+    /// component DC scans, visiting only real blocks in raster order, both initially
+    /// and during refinement. Each block is one MCU for restart counting.
+    /// Grayscale output is unchanged. Final coefficients are unchanged; color
+    /// output requires more scans and encoding passes. Combined with AC ends
+    /// [2, 63], AC depths [0, 2] and DC depth zero, false matches the pinned
+    /// upstream level-2 scan descriptors for subsampled color output.
+    /// </summary>
+    public bool ProgressiveInterleaveDc { get; init; } = true;
+
+    /// <summary>
     /// Number of coefficient bits delivered in successive refinement scans, from 0 to 10.
     /// Zero (the default) uses full-precision initial scans. A positive value requires
     /// Progressive and adds that many rounds of DC and component AC refinement scans.
@@ -295,8 +307,8 @@ public sealed record JpegliEncoderOptions
     /// when that coefficient range has a bit left to deliver. Each scan resets
     /// restart counting and EOB runs. Final coefficients are unchanged.
     /// For ends [2, 63], depths [0, 2] and DC depth zero, the spectral ranges and
-    /// bit schedule match upstream's level 2; color DC remains interleaved even
-    /// when maximum sampling factors exceed one, unlike upstream.
+    /// bit schedule match upstream's level 2. Set ProgressiveInterleaveDc to false
+    /// when maximum sampling factors exceed one to match its separate DC scans.
     /// This does not promise encoder-byte parity.
     /// The list is copied and validated before output; do not modify it while
     /// encoding starts. Larger depths require additional encoding passes.
@@ -309,7 +321,7 @@ public sealed record JpegliEncoderOptions
     /// otherwise eight times the horizontal and vertical chroma sample area dimensions,
     /// including partial edge units. For example, 4:2:0 uses 16x16 and 4:1:0 uses 32x16.
     /// Custom factors use eight times the largest horizontal and vertical component factors.
-    /// In progressive AC scans, each component block is one MCU. The interval
+    /// In progressive AC scans and noninterleaved DC scans, each component block is one MCU. The interval
     /// and restart marker sequence start afresh in every scan.
     /// </summary>
     public int RestartInterval { get; init; }
@@ -414,6 +426,8 @@ public sealed record JpegliEncoderOptions
             throw new ArgumentOutOfRangeException(nameof(ProgressiveRefinementBits), "Progressive refinement bits must be between 0 and 10.");
         if (ProgressiveRefinementBits != 0 && !Progressive)
             throw new ArgumentException("Progressive refinement requires progressive encoding.", nameof(ProgressiveRefinementBits));
+        if (!ProgressiveInterleaveDc && !Progressive)
+            throw new ArgumentException("Separate DC scans require progressive encoding.", nameof(ProgressiveInterleaveDc));
         if (RestartInterval is < 0 or > 65535)
             throw new ArgumentOutOfRangeException(nameof(RestartInterval), "Restart interval must be between 0 and 65535 MCUs.");
         if (MaxPixels <= 0)
