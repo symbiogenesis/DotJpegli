@@ -549,6 +549,25 @@ Do not change its backing memory or dispose its owner until encoding returns.
 Profiles can contain at most 16,707,345 bytes (255 chunks of up to 65,519 bytes), following
 [ICC.1 Annex B.5](https://www.color.org/ICC1V42old.pdf).
 
+Every RGB and grayscale profile factory also has an overload accepting
+`IccRenderingIntent.Perceptual`, `RelativeColorimetric`, `Saturation` or
+`AbsoluteColorimetric`. Gamma factories take the intent after `gamma`:
+
+```csharp
+byte[] profile = JpegliIccProfiles.CreateSrgbProfile(IccRenderingIntent.RelativeColorimetric);
+byte[] gammaProfile = JpegliIccProfiles.CreateGammaGrayscaleProfile(2.2, IccRenderingIntent.AbsoluteColorimetric);
+```
+
+Existing overloads retain their perceptual intent and exact bytes. The new
+overloads use upstream's intent-dependent descriptions, header intent and ICC
+MD5 identification. Invalid enum values throw `ArgumentOutOfRangeException`
+for `renderingIntent`. Intent is a preference for the reader's color-management
+system: the encoder preserves samples, and the profile's colorants, curves,
+adaptation and HDR tone/gamut transforms are the same across intents. HDR
+profiles retain `A2B0` and the identity compatibility `B2A0`; reader behavior can
+vary. `CreateXybProfile()` remains perceptual-only, matching the pinned builder.
+Other white-point and transfer-function combinations remain pending.
+
 `CreateSrgbProfile()` provides the pinned Jpegli builder's 504-byte perceptual
 ICC v4.4 display profile, with sRGB transfer curves, D65-to-D50 Bradford
 adaptation and RGB-to-D50-XYZ colorants. Its `cicp` tag describes sRGB/BT.709
@@ -798,9 +817,11 @@ readers, rather than by the JPEG encoder. Readers may instead interpret CICP
 directly; rendering varies by reader. The `B2A0` tag is an identity for
 reader compatibility, not an inverse transform for source conversion.
 
-The factories retain perceptual rendering intent and upstream's generic
+The parameterless factories retain perceptual rendering intent and upstream's generic
 `RGB_D65_202_Per_PeQ` / `RGB_D65_202_Per_HLG` descriptions. Their fixed display
 assumptions and coarse lookup grid do not provide configurable HDR rendering.
+The intent overloads select the reader preference described above; relative
+colorimetric profiles use upstream's `Rec2100PQ` / `Rec2100HLG` descriptions.
 The JPEG remains lossy eight-bit output; embedding an ICC profile does not
 establish HDR display or Rec.2100 conformance. These RGB profiles are unsuitable
 for grayscale, scaled XYB, or samples using other primaries or transfers.
@@ -1504,9 +1525,13 @@ and untone-mapped 64-entry PQ/HLG curves at D65, without CICP signaling.
 Configurable pure-gamma profiles provide sRGB/Rec.709, Display P3 and Rec.2020
 RGB primaries with D65-to-D50 adaptation, plus D65 grayscale, with type-0
 decoding curves and no CICP tag.
+All built-in RGB and grayscale profiles also support selectable perceptual,
+relative colorimetric, saturation and absolute colorimetric rendering intents,
+with upstream descriptions and ICC profile identification. Existing overloads
+retain their default bytes; scaled XYB remains perceptual-only as upstream requires.
 
 Pending encoder work: fractional sampling ratios,
-other built-in profile transfer/white-point/intent combinations and arbitrary source ICC color management,
+other built-in profile transfer/white-point combinations and arbitrary source ICC color management,
 structured metadata editing, other metadata, and SIMD/parallel paths.
 Fractional sampling ratios are also rejected by the pinned upstream encoder.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
@@ -1533,6 +1558,16 @@ none are included yet. Do not batch local selections to approximate a full suite
 Tests use xUnit and a separate StbImageSharp decoder; these packages are test-only
 and are not part of the encoder or its package dependency graph.
 The external decoder validates encoder output and is not a port target.
+
+Rendering-intent regressions compare complete profiles with independently compiled
+pinned C++ fixtures across every RGB and grayscale factory and all four intents.
+Independent parsing checks header intents, descriptions, aligned tag extents and
+the ICC MD5 ID, including the fields excluded from identification. They check
+preserved transform payloads, existing overload bytes, fresh storage, invalid
+intent rejection and exact APP2 embedding with unchanged JPEG coding across
+representative source precisions and scan modes. These checks validate profile
+serialization and sample preservation without establishing color-managed lossy
+JPEG quality or reader-specific rendering.
 
 Custom-script regressions independently parse explicit scan descriptors and
 per-coefficient progression, reconstruct final real coefficients and check
