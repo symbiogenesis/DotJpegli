@@ -32,17 +32,48 @@ internal static class GrayscaleIccProfile
             TransferFunction.Hlg => "Gra_D65_Per_HLG",
             _ => throw new ArgumentOutOfRangeException(nameof(transfer))
         };
-        return Create(transfer, description, renderingIntent: renderingIntent);
+        return Create(transfer, description,
+            transfer == TransferFunction.Dci ? IccWhitePoint.Dci : IccWhitePoint.D65,
+            renderingIntent: renderingIntent);
     }
 
     internal static byte[] CreateGamma(double gamma,
         IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual)
     {
         GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
-        return Create(TransferFunction.Linear, "Gra_D65_Per_" + curve.Description, curve.Exponent, renderingIntent);
+        return Create(TransferFunction.Linear, "Gra_D65_Per_" + curve.Description,
+            IccWhitePoint.D65, curve.Exponent, renderingIntent);
     }
 
-    private static byte[] Create(TransferFunction transfer, string description, float? gamma = null,
+    internal static byte[] Create(IccWhitePoint whitePoint, IccTransferFunction transferFunction,
+        IccRenderingIntent renderingIntent)
+    {
+        string description = "Gra_" + BuiltInIccColorEncoding.WhitePointName(whitePoint) + "_Per_" +
+            BuiltInIccColorEncoding.TransferFunctionName(transferFunction);
+        TransferFunction transfer = transferFunction switch
+        {
+            IccTransferFunction.Srgb => TransferFunction.Srgb,
+            IccTransferFunction.Linear => TransferFunction.Linear,
+            IccTransferFunction.Rec709 => TransferFunction.Rec709,
+            IccTransferFunction.Dci => TransferFunction.Dci,
+            IccTransferFunction.Pq => TransferFunction.Pq,
+            IccTransferFunction.Hlg => TransferFunction.Hlg,
+            _ => throw new ArgumentOutOfRangeException(nameof(transferFunction))
+        };
+        return Create(transfer, description, whitePoint, renderingIntent: renderingIntent);
+    }
+
+    internal static byte[] CreateGamma(IccWhitePoint whitePoint, double gamma, IccRenderingIntent renderingIntent)
+    {
+        string whiteName = BuiltInIccColorEncoding.WhitePointName(whitePoint);
+        _ = RenderingIntentName(renderingIntent);
+        GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
+        return Create(TransferFunction.Linear, "Gra_" + whiteName + "_Per_" + curve.Description,
+            whitePoint, curve.Exponent, renderingIntent);
+    }
+
+    private static byte[] Create(TransferFunction transfer, string description, IccWhitePoint whitePoint,
+        float? gamma = null,
         IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual)
     {
         description = description.Replace("_Per_", "_" + RenderingIntentName(renderingIntent) + "_", StringComparison.Ordinal);
@@ -66,8 +97,7 @@ internal static class GrayscaleIccProfile
         // Upstream's grayscale branch keeps the source media white, omits
         // chad/CICP, and uses a D50 PCS illuminant in the common ICC header.
         // CIEXYZFromWhiteCIExy rounds the reciprocal to float before multiplying.
-        double whiteX = transfer == TransferFunction.Dci ? 0.314 : 0.3127;
-        double whiteY = transfer == TransferFunction.Dci ? 0.351 : 0.3290;
+        (double whiteX, double whiteY) = BuiltInIccColorEncoding.WhitePoint(whitePoint);
         float factor = (float)(1.0 / whiteY);
         Signature(bytes, whiteOffset, "XYZ "u8);
         Fixed(bytes, whiteOffset + 8, (float)(whiteX * factor));
@@ -94,7 +124,7 @@ internal static class GrayscaleIccProfile
         return profile;
     }
 
-    private static void WriteTableCurve(Span<byte> tag, bool pq)
+    internal static void WriteTableCurve(Span<byte> tag, bool pq)
     {
         // CreateTableCurve<64> uses a float grid and double intermediates, but
         // the transfer functions and roundf return through float. Grayscale

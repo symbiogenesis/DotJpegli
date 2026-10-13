@@ -5,11 +5,12 @@ namespace DotJpegli.Internal;
 
 internal static class HdrToneMapping
 {
-    // Fixed Rec.2020/D65 branch of ToneMapPixel, tone_mapping.h and
+    // Named-primary/white-point branches of ToneMapPixel, tone_mapping.h and
     // transfer_functions.h, google/jpegli 031a0077f5799a6041004267fc12b956c1f52a20.
     // Keep float evaluation order: the upstream transfer functions calculate in
     // double but return through copysignf before subsequent float arithmetic.
-    internal static void WriteClut(Span<byte> destination, bool pq)
+    internal static void WriteClut(Span<byte> destination, bool pq,
+        ReadOnlySpan<float> luminances, ReadOnlySpan<float> colorants)
     {
         const int gridSize = 9;
         const int byteCount = gridSize * gridSize * gridSize * 3;
@@ -38,39 +39,34 @@ internal static class HdrToneMapping
                     linear[1] = decoded[green];
                     linear[2] = decoded[blue];
                     if (pq)
-                        toneMapper.Apply(linear);
+                        toneMapper.Apply(linear, luminances);
                     else
-                        ApplyHlgOotf(linear, hlgExponent);
-                    GamutMap(linear);
-                    WriteLab(linear, destination.Slice(offset, 3));
+                        ApplyHlgOotf(linear, hlgExponent, luminances);
+                    GamutMap(linear, luminances);
+                    WriteLab(linear, destination.Slice(offset, 3), colorants);
                     offset += 3;
                 }
             }
         }
     }
 
-    // Canonical float results of upstream PrimariesToXYZ for Rec.2020/D65.
-    // The matrix helpers use double intermediates, then store each result as
-    // float; these fixed values retain exactly those final float bits.
-    private static float Luminance(ReadOnlySpan<float> rgb) =>
-        0.26270020008087158f * rgb[0] +
-        0.67799800634384155f * rgb[1] +
-        0.059301711618900299f * rgb[2];
+    private static float Luminance(ReadOnlySpan<float> rgb, ReadOnlySpan<float> luminances) =>
+        luminances[0] * rgb[0] + luminances[1] * rgb[1] + luminances[2] * rgb[2];
 
-    private static void ApplyHlgOotf(Span<float> rgb, float exponent)
+    private static void ApplyHlgOotf(Span<float> rgb, float exponent, ReadOnlySpan<float> luminances)
     {
         if (exponent >= -0.01f && exponent <= 0.01f)
             return;
-        float ratio = MathF.Min(MathF.Pow(Luminance(rgb), exponent), 1e9f);
+        float ratio = MathF.Min(MathF.Pow(Luminance(rgb, luminances), exponent), 1e9f);
         // Black has pow(0, negative) == infinity, capped before multiplication.
         rgb[0] *= ratio;
         rgb[1] *= ratio;
         rgb[2] *= ratio;
     }
 
-    private static void GamutMap(Span<float> rgb)
+    private static void GamutMap(Span<float> rgb, ReadOnlySpan<float> luminances)
     {
-        float luminance = Luminance(rgb);
+        float luminance = Luminance(rgb, luminances);
         float grayMixSaturation = 0f;
         float grayMixLuminance = 0f;
         for (int channel = 0; channel < 3; channel++)
@@ -94,20 +90,16 @@ internal static class HdrToneMapping
             rgb[channel] *= normalizer;
     }
 
-    private static void WriteLab(ReadOnlySpan<float> rgb, Span<byte> destination)
+    private static void WriteLab(ReadOnlySpan<float> rgb, Span<byte> destination, ReadOnlySpan<float> colorants)
     {
-        // Canonical AdaptToXYZD50 * PrimariesToXYZ matrix. Unlike matrix
-        // construction, ToneMapPixel accumulates the RGB products in float.
-        ReadOnlySpan<float> matrix =
-            [0.67345893383026123f, 0.16566081345081329f, 0.12510021030902863f,
-             0.27903327345848083f, 0.67533797025680542f, 0.045628782361745834f,
-             -0.0019313860684633255f, 0.029979368671774864f, 0.79716199636459351f];
+        // Colorants are columns of AdaptToXYZD50 * PrimariesToXYZ. Unlike
+        // matrix construction, ToneMapPixel accumulates products in float.
         Span<float> xyz = stackalloc float[3];
         for (int row = 0; row < 3; row++)
         {
             float value = 0f;
             for (int channel = 0; channel < 3; channel++)
-                value += rgb[channel] * matrix[row * 3 + channel];
+                value += rgb[channel] * colorants[channel * 3 + row];
             xyz[row] = value;
         }
         float fx = LabFunction(xyz[0] / 0.964212f);
@@ -193,9 +185,9 @@ internal static class HdrToneMapping
             inverseOneMinusKnee = 1f / MathF.Max(1e-6f, 1f - knee);
         }
 
-        internal void Apply(Span<float> rgb)
+        internal void Apply(Span<float> rgb, ReadOnlySpan<float> luminances)
         {
-            float luminance = 10000f * Luminance(rgb);
+            float luminance = 10000f * Luminance(rgb, luminances);
             float normalizedPq = MathF.Min(1f,
                 (PqEncodedFromDisplay(1f, luminance) - masteringMinimum) * inverseMasteringRange);
             float e2 = normalizedPq < knee ? normalizedPq : Polynomial(normalizedPq);

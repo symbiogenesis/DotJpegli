@@ -12,7 +12,9 @@ internal static class RgbIccProfile
         Rec709 = 1,
         Linear = 8,
         Srgb = 13,
-        Dci = 17
+        Pq = 16,
+        Dci = 17,
+        Hlg = 18
     }
 
     // Fixed D65 and DCI RGB branches of lib/cms/jpegli_cms_internal.h,
@@ -45,7 +47,7 @@ internal static class RgbIccProfile
             TransferFunction.Linear, colorants, gamma: curve.Exponent, renderingIntent: renderingIntent);
     }
 
-    private static ReadOnlySpan<float> SrgbColorants =>
+    internal static ReadOnlySpan<float> SrgbColorants =>
         // Precomputed columns of upstream's PrimariesToXYZD50 with its fixed
         // sRGB primaries from color_encoding_cms.h: R=(0.639998686,0.330010138),
         // G=(0.300003784,0.600003357), B=(0.150002046,0.059997204).
@@ -61,7 +63,7 @@ internal static class RgbIccProfile
         linear ? "RGB_D65_DCI_Per_Lin" : "DisplayP3", 12,
         linear ? TransferFunction.Linear : TransferFunction.Srgb, DisplayP3Colorants, renderingIntent: renderingIntent);
 
-    private static ReadOnlySpan<float> DisplayP3Colorants =>
+    internal static ReadOnlySpan<float> DisplayP3Colorants =>
         // P3 primaries: R=(0.680,0.320), G=(0.265,0.690), B=(0.150,0.060).
         // Canonical upstream float results before ICC s15Fixed16 serialization.
         [0.51510214805603027f, 0.2411818653345108f, -0.0010494081070646644f,
@@ -70,12 +72,14 @@ internal static class RgbIccProfile
 
     internal static byte[] CreateDciP3(IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) => Create(
         "RGB_DCI_DCI_Per_DCI", 11, TransferFunction.Dci,
+        DciP3Colorants, whitePoint: IccWhitePoint.Dci, renderingIntent: renderingIntent);
+
+    internal static ReadOnlySpan<float> DciP3Colorants =>
         // The same P3 primaries with DCI white xy=(0.314,0.351), adapted to D50.
         // Canonical upstream float columns before ICC s15Fixed16 serialization.
         [0.48614510893821716f, 0.22667698562145233f, -0.00080051715485751629f,
          0.32383733987808228f, 0.71032541990280151f, 0.04323844239115715f,
-         0.15423749387264252f, 0.062997661530971527f, 0.7827720046043396f],
-        dciWhite: true, renderingIntent: renderingIntent);
+         0.15423749387264252f, 0.062997661530971527f, 0.7827720046043396f];
 
     internal static byte[] CreateLinearRec2020(IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) => Create(
         "RGB_D65_202_Per_Lin", 9, TransferFunction.Linear, Rec2020Colorants, renderingIntent: renderingIntent);
@@ -94,8 +98,43 @@ internal static class RgbIccProfile
          0.16566081345081329f, 0.67533797025680542f, 0.029979368671774864f,
          0.12510021030902863f, 0.045628782361745834f, 0.79716199636459351f];
 
+    internal static byte[] Create(IccPrimaries primaries, IccWhitePoint whitePoint,
+        IccTransferFunction transferFunction, IccRenderingIntent renderingIntent)
+    {
+        string primariesName = BuiltInIccColorEncoding.PrimariesName(primaries);
+        string whiteName = BuiltInIccColorEncoding.WhitePointName(whitePoint);
+        string transferName = BuiltInIccColorEncoding.TransferFunctionName(transferFunction);
+        _ = RenderingIntentName(renderingIntent);
+        byte cicpPrimaries = BuiltInIccColorEncoding.CicpPrimaries(primaries, whitePoint);
+        if (cicpPrimaries != 0 && transferFunction is IccTransferFunction.Pq or IccTransferFunction.Hlg)
+            return HdrIccProfile.Create(primaries, whitePoint, transferFunction == IccTransferFunction.Pq, renderingIntent);
+
+        string description = "RGB_" + whiteName + "_" + primariesName + "_Per_" + transferName;
+        if (whitePoint == IccWhitePoint.D65 && transferFunction == IccTransferFunction.Srgb)
+            description = primaries switch
+            {
+                IccPrimaries.Srgb => "sRGB",
+                IccPrimaries.DisplayP3 => "DisplayP3",
+                _ => description
+            };
+        return Create(description, cicpPrimaries, (TransferFunction)transferFunction,
+            BuiltInIccColorEncoding.Colorants(primaries, whitePoint), whitePoint, renderingIntent: renderingIntent);
+    }
+
+    internal static byte[] CreateGamma(IccPrimaries primaries, IccWhitePoint whitePoint,
+        double gamma, IccRenderingIntent renderingIntent)
+    {
+        string primariesName = BuiltInIccColorEncoding.PrimariesName(primaries);
+        string whiteName = BuiltInIccColorEncoding.WhitePointName(whitePoint);
+        _ = RenderingIntentName(renderingIntent);
+        GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
+        return Create("RGB_" + whiteName + "_" + primariesName + "_Per_" + curve.Description,
+            0, TransferFunction.Linear, BuiltInIccColorEncoding.Colorants(primaries, whitePoint),
+            whitePoint, curve.Exponent, renderingIntent);
+    }
+
     private static byte[] Create(string description, byte primaries, TransferFunction transfer,
-        ReadOnlySpan<float> colorants, bool dciWhite = false, float? gamma = null,
+        ReadOnlySpan<float> colorants, IccWhitePoint whitePoint = IccWhitePoint.D65, float? gamma = null,
         IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual)
     {
         string intentName = RenderingIntentName(renderingIntent);
@@ -109,7 +148,7 @@ internal static class RgbIccProfile
             };
             description = description.Replace("_Per_", "_" + intentName + "_", StringComparison.Ordinal);
         }
-        bool includeCicp = gamma is null;
+        bool includeCicp = gamma is null && primaries != 0;
         int tagCount = includeCicp ? 11 : 10;
         int descriptionOffset = 132 + tagCount * 12;
         int descriptionSize = (28 + description.Length * 2 + 3) & ~3;
@@ -121,7 +160,8 @@ internal static class RgbIccProfile
         int greenOffset = redOffset + 20;
         int blueOffset = greenOffset + 20;
         int curveOffset = blueOffset + 20;
-        int curveSize = includeCicp ? 32 : 16;
+        bool tableCurve = transfer is TransferFunction.Pq or TransferFunction.Hlg;
+        int curveSize = gamma is not null ? 16 : tableCurve ? 140 : 32;
         byte[] profile = new byte[curveOffset + curveSize];
         Span<byte> bytes = profile;
         Header(bytes, "mntr"u8, "RGB "u8, renderingIntent);
@@ -143,10 +183,8 @@ internal static class RgbIccProfile
         Mluc(bytes[descriptionOffset..copyrightOffset], description);
         Mluc(bytes[copyrightOffset..whiteOffset], "CC0");
         Xyz(bytes[whiteOffset..adaptationOffset], [0.964203f, 1f, 0.824905f]);
-        if (dciWhite)
-            WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset], 0.314f, 0.351f);
-        else
-            WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset]);
+        (double whiteX, double whiteY) = BuiltInIccColorEncoding.WhitePoint(whitePoint);
+        WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset], (float)whiteX, (float)whiteY);
         if (includeCicp)
         {
             Signature(bytes, cicpOffset, "cicp"u8);
@@ -160,6 +198,8 @@ internal static class RgbIccProfile
         Xyz(bytes[blueOffset..curveOffset], colorants[6..9]);
         if (gamma is float exponent)
             Curve(bytes[curveOffset..], [exponent], 0);
+        else if (tableCurve)
+            GrayscaleIccProfile.WriteTableCurve(bytes[curveOffset..], transfer == TransferFunction.Pq);
         else
         {
             ReadOnlySpan<float> parameters = transfer switch

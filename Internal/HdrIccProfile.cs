@@ -7,16 +7,22 @@ namespace DotJpegli.Internal;
 
 internal static class HdrIccProfile
 {
-    // Fixed Rec.2020/D65 PQ and HLG branches with upstream's default
+    // CICP-representable RGB PQ and HLG branches with upstream's default
     // JPEGLI_ENABLE_3D_ICC_TONEMAPPING=1, lib/cms/jpegli_cms_internal.h,
     // google/jpegli 031a0077f5799a6041004267fc12b956c1f52a20.
     internal static byte[] Create(bool pq,
-        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual)
+        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) =>
+        Create(IccPrimaries.Rec2020, IccWhitePoint.D65, pq, renderingIntent);
+
+    internal static byte[] Create(IccPrimaries primaries, IccWhitePoint whitePoint, bool pq,
+        IccRenderingIntent renderingIntent)
     {
         string intentName = RenderingIntentName(renderingIntent);
-        string description = renderingIntent == IccRenderingIntent.RelativeColorimetric
+        string description = primaries == IccPrimaries.Rec2020 && whitePoint == IccWhitePoint.D65 &&
+            renderingIntent == IccRenderingIntent.RelativeColorimetric
             ? (pq ? "Rec2100PQ" : "Rec2100HLG")
-            : "RGB_D65_202_" + intentName + (pq ? "_PeQ" : "_HLG");
+            : "RGB_" + BuiltInIccColorEncoding.WhitePointName(whitePoint) + "_" +
+                BuiltInIccColorEncoding.PrimariesName(primaries) + "_" + intentName + (pq ? "_PeQ" : "_HLG");
         int descriptionSize = (28 + description.Length * 2 + 3) & ~3;
         int copyrightOffset = 252 + descriptionSize;
         int whiteOffset = copyrightOffset + 36;
@@ -43,21 +49,24 @@ internal static class HdrIccProfile
         Mluc(bytes[252..copyrightOffset], description);
         Mluc(bytes[copyrightOffset..whiteOffset], "CC0");
         Xyz(bytes[whiteOffset..adaptationOffset], [0.964203f, 1f, 0.824905f]);
-        WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset]);
+        (double whiteX, double whiteY) = BuiltInIccColorEncoding.WhitePoint(whitePoint);
+        WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset], (float)whiteX, (float)whiteY);
         Signature(bytes, cicpOffset, "cicp"u8);
-        bytes[cicpOffset + 8] = 9; // Rec.2020 primaries.
+        bytes[cicpOffset + 8] = BuiltInIccColorEncoding.CicpPrimaries(primaries, whitePoint);
         bytes[cicpOffset + 9] = pq ? (byte)16 : (byte)18;
         bytes[cicpOffset + 11] = 1; // RGB matrix (zero), full range.
-        ReadOnlySpan<float> colorants = RgbIccProfile.Rec2020Colorants;
+        ReadOnlySpan<float> colorants = BuiltInIccColorEncoding.Colorants(primaries, whitePoint);
         for (int channel = 0; channel < 3; channel++)
             Xyz(bytes.Slice(colorantsOffset + channel * 20, 20), colorants.Slice(channel * 3, 3));
-        WriteForwardTransform(bytes[forwardOffset..compatibilityOffset], pq);
+        WriteForwardTransform(bytes[forwardOffset..compatibilityOffset], pq,
+            BuiltInIccColorEncoding.Luminances(primaries, whitePoint), colorants);
         WriteCompatibilityTransform(bytes[compatibilityOffset..]);
         ProfileId(bytes);
         return profile;
     }
 
-    private static void WriteForwardTransform(Span<byte> tag, bool pq)
+    private static void WriteForwardTransform(Span<byte> tag, bool pq,
+        ReadOnlySpan<float> luminances, ReadOnlySpan<float> colorants)
     {
         Signature(tag, 0, "mft1"u8);
         tag[8] = tag[9] = 3;
@@ -71,7 +80,7 @@ internal static class HdrIccProfile
                 tag[48 + channel * 256 + value] = (byte)value;
                 tag[3003 + channel * 256 + value] = (byte)value;
             }
-        HdrToneMapping.WriteClut(tag.Slice(816, 2187), pq);
+        HdrToneMapping.WriteClut(tag.Slice(816, 2187), pq, luminances, colorants);
         // The last byte is zero alignment padding, included in upstream's tag size.
     }
 
