@@ -129,7 +129,7 @@ internal static class HdrToneMapping
     private static byte RoundByte(float value) =>
         (byte)MathF.Round(value, MidpointRounding.AwayFromZero);
 
-    private static float HlgDisplayFromEncoded(double encoded)
+    internal static float HlgDisplayFromEncoded(double encoded)
     {
         if (encoded == 0.0)
             return 0f;
@@ -150,7 +150,7 @@ internal static class HdrToneMapping
     private const double PqC2 = (2413.0 / 4096) * 32;
     private const double PqC3 = (2392.0 / 4096) * 32;
 
-    private static float PqDisplayFromEncoded(float intensityTarget, double encoded)
+    internal static float PqDisplayFromEncoded(float intensityTarget, double encoded)
     {
         if (encoded == 0.0)
             return 0f;

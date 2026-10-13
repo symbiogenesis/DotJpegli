@@ -126,7 +126,8 @@ public static class JpegliIccProfiles
     /// source samples and is not an RGB or scaled XYB profile.
     /// Every call returns a separate mutable array with deterministic bytes.
     /// </summary>
-    public static byte[] CreateSrgbGrayscaleProfile() => SrgbGrayscaleIccProfile.Create();
+    public static byte[] CreateSrgbGrayscaleProfile() =>
+        GrayscaleIccProfile.Create(GrayscaleIccProfile.TransferFunction.Srgb);
 
     /// <summary>
     /// Creates Jpegli's perceptual ICC v4 grayscale display profile for
@@ -137,7 +138,55 @@ public static class JpegliIccProfiles
     /// attaching this profile does not linearize gamma-encoded input.
     /// Every call returns a separate mutable array with deterministic bytes.
     /// </summary>
-    public static byte[] CreateLinearSrgbGrayscaleProfile() => SrgbGrayscaleIccProfile.Create(linear: true);
+    public static byte[] CreateLinearSrgbGrayscaleProfile() =>
+        GrayscaleIccProfile.Create(GrayscaleIccProfile.TransferFunction.Linear);
+
+    /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 grayscale display profile for
+    /// full-range BT.709-transfer samples with D65 media white. Assign it
+    /// explicitly to JpegliEncoderOptions.IccProfile for grayscale output.
+    /// Samples must already use the BT.709 transfer function; attaching the
+    /// profile does not convert samples or expand limited-range video.
+    /// The profile retains upstream's D50 PCS header without chad or CICP.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateRec709GrayscaleProfile() =>
+        GrayscaleIccProfile.Create(GrayscaleIccProfile.TransferFunction.Rec709);
+
+    /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 grayscale display profile for
+    /// gamma 2.6 samples with DCI media white at xy (0.314, 0.351). Assign it
+    /// explicitly to JpegliEncoderOptions.IccProfile for grayscale output.
+    /// Attaching it does not convert source samples. It retains upstream's
+    /// D50 PCS header without chad or CICP and does not describe cinema XYZ.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateDciGrayscaleProfile() =>
+        GrayscaleIccProfile.Create(GrayscaleIccProfile.TransferFunction.Dci);
+
+    /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 grayscale display profile for
+    /// full-range PQ samples with D65 media white and a 64-entry decoding
+    /// curve normalized to 10,000 nits. Assign it explicitly to
+    /// JpegliEncoderOptions.IccProfile for grayscale output. This profile
+    /// has no tone mapping or CICP tag; attaching it preserves source samples
+    /// and does not establish HDR display or Rec.2100 conformance.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateRec2100PqGrayscaleProfile() =>
+        GrayscaleIccProfile.Create(GrayscaleIccProfile.TransferFunction.Pq);
+
+    /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 grayscale display profile for
+    /// full-range HLG samples with D65 media white and a 64-entry decoding
+    /// curve. Assign it explicitly to JpegliEncoderOptions.IccProfile for
+    /// grayscale output. This profile has no tone mapping, HLG OOTF adjustment
+    /// or CICP tag; attaching it preserves source samples and does not
+    /// establish HDR display or Rec.2100 conformance.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateRec2100HlgGrayscaleProfile() =>
+        GrayscaleIccProfile.Create(GrayscaleIccProfile.TransferFunction.Hlg);
 
     /// <summary>
     /// Creates Jpegli's perceptual ICC v4 profile for scaled X, Y and B-minus-Y
