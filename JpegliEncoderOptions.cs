@@ -282,6 +282,28 @@ public sealed record JpegliEncoderOptions
     public bool Progressive { get; init; }
 
     /// <summary>
+    /// Optional complete JPEG scan script, overriding Progressive and determining
+    /// sequential or progressive output from its first spectral range. Null retains
+    /// the existing scan settings and JPEG bytes. Components are zero-based output
+    /// indices and must be strictly increasing within each scan. Sequential scans
+    /// send 0..63 at full precision, selecting each component exactly once.
+    /// Progressive DC scans send position 0; AC scans select one component and a
+    /// range of zigzag positions 1..63, after that component's first DC scan.
+    /// Each coefficient must be introduced with SuccessiveHigh=0, refined one bit
+    /// at a time, and finish at SuccessiveLow=0. Bands and component groups may
+    /// change between scans. The script permits at most 252 AC component scans,
+    /// following the pinned upstream encoder's context limit.
+    /// Cannot be combined with ProgressiveLevel, explicit AC ends/depths, nonzero
+    /// ProgressiveRefinementBits, ProgressiveInterleaveDc=false or
+    /// SequentialInterleaveComponents=false. Progressive itself is ignored.
+    /// The script and all component lists are copied and validated before output;
+    /// do not modify them while encoding starts. Each scan recomputes coefficients
+    /// using bounded storage, resets entropy/restart state, and uses its own MCU
+    /// geometry for RestartRows. Final real coefficients are unchanged.
+    /// </summary>
+    public IReadOnlyList<JpegScan>? ScanScript { get; init; }
+
+    /// <summary>
     /// Interleave all components in the baseline sequential scan. True (the default)
     /// preserves existing bytes. False writes one complete DC/AC scan per component,
     /// in frame component order, visiting only real blocks in raster order.
@@ -486,6 +508,11 @@ public sealed record JpegliEncoderOptions
 
     internal void Validate()
     {
+        if (ScanScript is not null && (ProgressiveLevel is not null
+            || ProgressiveAcScanEnds is not null || ProgressiveAcRefinementBits is not null
+            || ProgressiveRefinementBits != 0 || !ProgressiveInterleaveDc || !SequentialInterleaveComponents))
+            throw new ArgumentException("A scan script cannot be combined with other custom scan settings.",
+                nameof(ScanScript));
         bool progressiveOutput = ProgressiveLevel is int requestedLevel ? requestedLevel > 0 : Progressive;
         if (!SequentialInterleaveComponents && progressiveOutput)
             throw new ArgumentException("Separate sequential component scans require sequential encoding.",

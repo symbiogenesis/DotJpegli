@@ -138,6 +138,12 @@ public static class JpegliEncoder
         bool rgb = pixels.IsRgb;
         bool xyb = pixels.IsXyb;
         int componentCount = grayscale ? 1 : 3;
+        JpegScan[]? scanScript = null;
+        if (options.ScanScript is { } requestedScript)
+        {
+            scanScript = JpegScanScript.Prepare(requestedScript, componentCount, cancellationToken, out bool progressive);
+            options = options with { Progressive = progressive };
+        }
         ushort[][]? customTables = options.PrepareQuantizationTables(componentCount);
         JpegSamplingFactors sampling = grayscale
             ? JpegSamplingFactors.FromSubsampling(ChromaSubsampling.None)
@@ -230,7 +236,22 @@ public static class JpegliEncoder
                 dcFrequencies[index] = new long[256];
                 acFrequencies[index] = new long[256];
             }
-            if (interleaveInitialScan)
+            if (scanScript is not null)
+            {
+                foreach (JpegScan scan in scanScript)
+                {
+                    // DC refinement carries raw bits and contributes no Huffman symbols.
+                    if (scan.SpectralEnd == 0 && scan.SuccessiveHigh != 0)
+                        continue;
+                    int interval = scan.Components.Count == 1
+                        ? componentRestartIntervals[scan.Components[0]] : interleavedRestartInterval;
+                    ProcessScan(pixels, width, height, stride, sampling, tables, distance,
+                        options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
+                        dcTables, acTables, null, dcFrequencies, acFrequencies, cancellationToken,
+                        scan, options.Progressive, aggregateEobRuns: true);
+                }
+            }
+            else if (interleaveInitialScan)
                 ProcessBlocks(pixels, width, height, stride, sampling,
                     tables, distance, options.SmoothingFactor, interleavedRestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
                     null, dcFrequencies, acFrequencies, cancellationToken, dcOnly: options.Progressive,
@@ -242,7 +263,7 @@ public static class JpegliEncoder
                         component, acTables, null, acFrequencies, cancellationToken, aggregateEobRuns: false,
                         successiveLow: options.ProgressiveRefinementBits, dcOnly: options.Progressive,
                         dcTables: dcTables, dcFrequencies: dcFrequencies, sequential: !options.Progressive);
-            if (options.Progressive)
+            if (scanScript is null && options.Progressive)
             {
                 for (int band = 0; band < acScanEnds.Length; band++)
                     for (int component = 0; component < componentCount; component++)
@@ -293,7 +314,23 @@ public static class JpegliEncoder
             JpegMarkerWriter.WriteRestartInterval(output, interval);
             lastRestartInterval = interval;
         }
-        if (interleaveInitialScan)
+        if (scanScript is not null)
+        {
+            foreach (JpegScan scan in scanScript)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                int interval = scan.Components.Count == 1
+                    ? componentRestartIntervals[scan.Components[0]] : interleavedRestartInterval;
+                WriteRestartInterval(interval);
+                JpegMarkerWriter.WriteScanHeader(output, scan, options.Progressive, rgb);
+                ProcessScan(pixels, width, height, stride, sampling, tables, distance,
+                    options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
+                    dcTables, acTables, bits, null, null, cancellationToken,
+                    scan, options.Progressive, options.OptimizeHuffmanTables);
+                bits.Flush();
+            }
+        }
+        else if (interleaveInitialScan)
         {
             WriteRestartInterval(interleavedRestartInterval);
             JpegMarkerWriter.WriteScanHeader(output, componentCount, options.Progressive,
@@ -318,7 +355,7 @@ public static class JpegliEncoder
                     dcTables: dcTables, sequential: !options.Progressive);
                 bits.Flush();
             }
-        if (options.Progressive)
+        if (scanScript is null && options.Progressive)
         {
             for (int band = 0; band < acScanEnds.Length; band++)
             {
@@ -394,12 +431,35 @@ public static class JpegliEncoder
         output.WriteByte(0xd9);
     }
 
+    private static void ProcessScan(PixelSource pixels, int width, int height, int stride,
+        JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor,
+        int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
+        HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
+        long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
+        JpegScan scan, bool progressive, bool aggregateEobRuns)
+    {
+        bool dcOnly = progressive && scan.SpectralStart == 0;
+        bool refine = scan.SuccessiveHigh != 0;
+        if (scan.Components.Count == 1)
+            ProcessComponentBlocks(pixels, width, height, stride, sampling, tables, distance,
+                smoothingFactor, restartInterval, adaptive, adaptiveMultipliers,
+                scan.Components[0], acTables, writer, acFrequencies, cancellationToken,
+                aggregateEobRuns, scan.SuccessiveLow, refine, scan.SpectralStart, scan.SpectralEnd,
+                dcOnly, dcTables, dcFrequencies, sequential: !progressive);
+        else
+            ProcessBlocks(pixels, width, height, stride, sampling, tables, distance,
+                smoothingFactor, restartInterval, adaptive, adaptiveMultipliers,
+                dcTables, acTables, writer, dcFrequencies, acFrequencies, cancellationToken,
+                dcOnly, scan.SuccessiveLow, refine, scanComponents: (int[])scan.Components);
+    }
+
     private static void ProcessBlocks(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, ushort[][] tables,
         float distance, int smoothingFactor, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
-        bool dcOnly = false, int successiveLow = 0, bool refine = false, bool requireEightBitCoefficients = false)
+        bool dcOnly = false, int successiveLow = 0, bool refine = false, bool requireEightBitCoefficients = false,
+        ReadOnlySpan<int> scanComponents = default)
     {
         Span<float> samples = stackalloc float[64];
         Span<float> coefficients = stackalloc float[64];
@@ -432,8 +492,10 @@ public static class JpegliEncoder
                     restartIndex = (restartIndex + 1) & 7;
                     mcusRemaining = restartInterval;
                 }
-                for (int component = 0; component < tables.Length; component++)
+                int scanComponentCount = scanComponents.IsEmpty ? tables.Length : scanComponents.Length;
+                for (int scanIndex = 0; scanIndex < scanComponentCount; scanIndex++)
                 {
+                    int component = scanComponents.IsEmpty ? scanIndex : scanComponents[scanIndex];
                     JpegComponentSampling factor = sampling[component];
                     int blocksWide = factor.Horizontal;
                     int blocksHigh = factor.Vertical;

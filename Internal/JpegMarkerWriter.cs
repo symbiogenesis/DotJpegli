@@ -199,6 +199,26 @@ internal static class JpegMarkerWriter
         output.WriteByte((byte)((successiveHigh << 4) | successiveLow));
     }
 
+    public static void WriteScanHeader(Stream output, JpegScan scan, bool progressive, bool rgb)
+    {
+        Marker(output, 0xda);
+        Word(output, 6 + scan.Components.Count * 2);
+        output.WriteByte((byte)scan.Components.Count);
+        foreach (int component in scan.Components)
+        {
+            output.WriteByte(ComponentId(component, rgb));
+            int tableIndex = rgb || component == 0 ? 0 : 1;
+            int selector = (tableIndex << 4) | tableIndex;
+            if (progressive)
+                selector = scan.SpectralStart != 0 ? tableIndex
+                    : scan.SuccessiveHigh == 0 ? tableIndex << 4 : 0;
+            output.WriteByte((byte)selector);
+        }
+        output.WriteByte((byte)scan.SpectralStart);
+        output.WriteByte((byte)scan.SpectralEnd);
+        output.WriteByte((byte)((scan.SuccessiveHigh << 4) | scan.SuccessiveLow));
+    }
+
     private static byte ComponentId(int component, bool rgb)
         => rgb ? "RGB"u8[component] : (byte)(component + 1);
 

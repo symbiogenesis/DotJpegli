@@ -912,8 +912,74 @@ are unchanged with either value. False requires sequential output and rejects
 `Progressive = true` before output, except when `ProgressiveLevel = 0` selects
 sequential encoding. Positive progression levels are also rejected. Sampling,
 source precision, smoothing, adaptive quantization, custom quantization tables,
-metadata and stream behavior retain their usual contracts. This does not expose
-arbitrary scan scripts or promise upstream byte, size or speed parity.
+metadata and stream behavior retain their usual contracts. This setting selects
+a fixed script; `ScanScript` below provides explicit control. Neither promises
+upstream byte, size or speed parity.
+
+Set `ScanScript` to supply complete sequential or progressive scans explicitly.
+For example, this sends Y separately, then Cb and Cr together:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    ScanScript = [new JpegScan([0]), new JpegScan([1, 2])],
+    RestartRows = 1
+});
+```
+
+`JpegScan` contains `Components`, `SpectralStart`, `SpectralEnd`,
+`SuccessiveHigh` and `SuccessiveLow`, corresponding to upstream `jpeg_scan_info`.
+Component indices are zero-based in output frame order: Y/Cb/Cr, R/G/B or
+scaled X/Y/B-minus-Y, or just zero for grayscale. Selectors must be strictly
+increasing within a scan; scans may send component groups in any order.
+The defaults `0, 63, 0, 0` send a complete sequential scan. Each component
+must occur exactly once in a sequential script. The first scan's spectral
+range determines SOF0 sequential or SOF2 progressive output, overriding
+`Progressive`; the two modes cannot be mixed.
+
+Progressive DC scans use spectral range `0..0` and may select several components.
+AC scans select one component and an inclusive range of JPEG zigzag positions
+`1..63`, after that component's initial DC scan. For example, grayscale can
+send two initial AC bands and refine their combined range later:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(grayPixels, width, height, PixelLayout.Gray8,
+    options: new()
+    {
+        ScanScript =
+        [
+            new JpegScan([0], 0, 0),
+            new JpegScan([0], 1, 10, 0, 1),
+            new JpegScan([0], 11, 63, 0, 1),
+            new JpegScan([0], 1, 63, 1, 0)
+        ]
+    });
+```
+
+Each coefficient starts with `SuccessiveHigh = 0` and a deferred bit count
+`SuccessiveLow` in `0..10`. Refinement must use the coefficient's previous
+low bit as its high bit and deliver exactly the next bit (`low = high - 1`).
+Every coefficient of every component must finish at low bit zero. Missing
+ranges, repeated initial scans, skipped bits, AC before DC and incomplete
+scripts are rejected with `ArgumentException` for `ScanScript` before output.
+This follows the pinned upstream's `ValidateScanScript` and its limit of 252
+AC component scans. That limit plus at most 33 component DC scans bounds
+color scripts to 285 entries. Existing preset/band controls retain their limits.
+Bands and DC component groups may change between valid refinement scans.
+
+`ScanScript` cannot be combined with `ProgressiveLevel`, explicit
+`ProgressiveAcScanEnds` or `ProgressiveAcRefinementBits`, nonzero
+`ProgressiveRefinementBits`, `ProgressiveInterleaveDc = false` or
+`SequentialInterleaveComponents = false`. Null preserves existing bytes.
+The encoder copies the script and every component list before output; do not
+modify them while encoding starts. It recomputes full coefficients per scan,
+retaining bounded working storage and the existing input, quantization,
+metadata and stream contracts. Single-component scans visit real blocks in
+raster order; scans selecting two or three components use frame MCUs with
+dummy blocks. Histograms and output share that traversal and restart interval.
+Predictors, EOB runs and RST numbering reset per scan; DRI changes when the
+interval changes. Final real coefficients are preserved. Extra scans increase
+CPU work and do not guarantee smaller files or upstream byte parity.
 
 Set `Progressive = true` to write a progressive JPEG: an initial DC scan provides
 a coarse preview, followed by one full-precision AC scan per component. This
@@ -1269,6 +1335,9 @@ configurable complete AC spectral bands with optional separate refinement depths
 and optional separate component DC scans with real-block raster traversal.
 Optional upstream progression-level presets select baseline or the pinned
 level-1/level-2 spectral and refinement scripts with sampling-based DC interleaving.
+Complete caller-supplied scan scripts support component subsets, arbitrary
+spectral schedules and changing refinement bands or DC component groups,
+with upstream progression validation and per-scan restart geometry.
 Raw Exif TIFF embedding, standard and extended UTF-8 XMP packets in APP1,
 opt-in automatic partitioning of oversized XMP with selected standard properties, raw ICC profiles
 with APP2 chunking, raw IPTC-IIM in Photoshop APP13, UTF-8 COM comments, and
@@ -1342,6 +1411,13 @@ GitHub Actions workflow, on Windows and Linux; benchmarks also belong on CI and
 none are included yet. Do not batch local selections to approximate a full suite.
 Tests use xUnit and a separate StbImageSharp decoder; these packages are test-only
 and are not part of the encoder or its package dependency graph.
+
+Custom-script regressions independently parse explicit scan descriptors and
+per-coefficient progression, reconstruct final real coefficients and check
+decoded-pixel parity. They cover component subsets, changing DC groups,
+split and joined AC refinement bands, per-scan restart geometry, source
+precisions, compatible preset bytes, caller-list snapshots and rejection
+before output.
 
 Separate-sequential regressions independently parse frame/scan descriptors,
 Huffman symbols and coefficients, checking real-block raster traversal, predictor
