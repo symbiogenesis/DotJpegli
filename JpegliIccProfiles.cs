@@ -83,6 +83,19 @@ public static class JpegliIccProfiles
     public static byte[] CreateRec709Profile() => RgbIccProfile.CreateRec709();
 
     /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 RGB display profile for full-range
+    /// samples with Display P3 primaries, the BT.709 transfer function and D65
+    /// white adapted to D50 XYZ. Its CICP fields are [12, 1, 0, 1]. Assign it
+    /// explicitly to JpegliEncoderOptions.IccProfile for RGB or corresponding
+    /// YCbCr output already using those primaries and that transfer function.
+    /// Attaching it preserves samples without color conversion, limited-range
+    /// expansion or tone mapping. Ordinary Display P3 samples use the sRGB
+    /// transfer function and should use CreateDisplayP3Profile instead.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateRec709DisplayP3Profile() => RgbIccProfile.CreateRec709DisplayP3();
+
+    /// <summary>
     /// Creates Jpegli's perceptual ICC v4 RGB display profile for samples with
     /// Rec.2020 primaries, the pinned builder's BT.709 transfer function and
     /// D65 white adapted to D50 XYZ. Its CICP transfer code is 1. Assign it
@@ -93,6 +106,19 @@ public static class JpegliIccProfiles
     /// Every call returns a separate mutable array with deterministic bytes.
     /// </summary>
     public static byte[] CreateRec2020Profile() => RgbIccProfile.CreateRec2020();
+
+    /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 RGB display profile for full-range
+    /// samples with Rec.2020 primaries, the sRGB transfer function and D65 white
+    /// adapted to D50 XYZ. Its CICP fields are [9, 13, 0, 1]. Assign it explicitly
+    /// to JpegliEncoderOptions.IccProfile for RGB or corresponding YCbCr output
+    /// already using those primaries and that transfer function. Attaching it
+    /// preserves samples without color conversion, limited-range expansion or
+    /// tone mapping. For BT.709-transfer Rec.2020 use CreateRec2020Profile;
+    /// for PQ or HLG use the corresponding Rec.2100 factory instead.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateSrgbRec2020Profile() => RgbIccProfile.CreateSrgbRec2020();
 
     /// <summary>
     /// Creates Jpegli's perceptual ICC v4 RGB display profile for full-range

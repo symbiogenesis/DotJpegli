@@ -24,6 +24,9 @@ internal static class RgbIccProfile
     internal static byte[] CreateRec709() => Create(
         "RGB_D65_SRG_Per_709", 1, TransferFunction.Rec709, SrgbColorants);
 
+    internal static byte[] CreateRec709DisplayP3() => Create(
+        "RGB_D65_DCI_Per_709", 12, TransferFunction.Rec709, DisplayP3Colorants);
+
     internal static byte[] CreateGamma(double gamma) =>
         CreateGamma(gamma, "SRG", 1, SrgbColorants);
 
@@ -77,6 +80,9 @@ internal static class RgbIccProfile
 
     internal static byte[] CreateRec2020() => Create(
         "RGB_D65_202_Per_709", 9, TransferFunction.Rec709, Rec2020Colorants);
+
+    internal static byte[] CreateSrgbRec2020() => Create(
+        "RGB_D65_202_Per_SRG", 9, TransferFunction.Srgb, Rec2020Colorants);
 
     internal static ReadOnlySpan<float> Rec2020Colorants =>
         // Rec.2020 (upstream PRIMARIES_2100) primaries:
