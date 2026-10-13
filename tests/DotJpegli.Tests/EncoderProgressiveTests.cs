@@ -329,8 +329,9 @@ public sealed class EncoderProgressiveTests
         Dictionary<BlockKey, Block> Blocks, List<Scan> Scans)
     {
         public static JpegDocument Read(byte[] jpeg, bool progressive, int expectedInterval,
-            int expectedRefinementBits = 0)
+            int expectedRefinementBits = 0, IReadOnlyList<int>? expectedAcScanEnds = null)
         {
+            IReadOnlyList<int> acScanEnds = expectedAcScanEnds ?? [63];
             Assert.Equal(new byte[] { 0xff, 0xd8 }, jpeg[..2]);
             int position = 2, width = 0, height = 0, frameCount = 0, driCount = 0;
             var components = new Dictionary<int, Component>();
@@ -338,7 +339,7 @@ public sealed class EncoderProgressiveTests
             var tables = new Dictionary<int, Dictionary<int, int>>();
             var blocks = new Dictionary<BlockKey, Block>();
             var scans = new List<Scan>();
-            var acBlocks = new HashSet<BlockKey>();
+            var acBands = new HashSet<(BlockKey Key, int First, int Last, int Low)>();
             while (true)
             {
                 Assert.Equal(0xff, jpeg[position++]);
@@ -418,11 +419,12 @@ public sealed class EncoderProgressiveTests
                         int high = approximation >> 4, low = approximation & 15;
                         Assert.Equal(end, position);
                         var scan = new Scan(selectors, first, last, high, low, end);
-                        int cycle = progressive ? scans.Count / (components.Count + 1) : 0;
-                        int band = progressive ? scans.Count % (components.Count + 1) : 0;
+                        int scansPerCycle = 1 + components.Count * acScanEnds.Count;
+                        int cycle = progressive ? scans.Count / scansPerCycle : 0;
+                        int scanInCycle = progressive ? scans.Count % scansPerCycle : 0;
                         Assert.Equal(cycle == 0 ? 0 : expectedRefinementBits - cycle + 1, high);
                         Assert.Equal(progressive ? expectedRefinementBits - cycle : 0, low);
-                        if (band == 0)
+                        if (scanInCycle == 0)
                         {
                             Assert.Equal(components.Keys, selectors.Select(selector => selector.Component));
                             Assert.Equal(0, first);
@@ -437,14 +439,15 @@ public sealed class EncoderProgressiveTests
                         else
                         {
                             Selector selector = Assert.Single(selectors);
-                            Assert.Equal(components.Keys.ElementAt(band - 1), selector.Component);
-                            Assert.Equal(1, first);
-                            Assert.Equal(63, last);
+                            int band = (scanInCycle - 1) / components.Count;
+                            Assert.Equal(components.Keys.ElementAt((scanInCycle - 1) % components.Count), selector.Component);
+                            Assert.Equal(band == 0 ? 1 : acScanEnds[band - 1] + 1, first);
+                            Assert.Equal(acScanEnds[band], last);
                             Assert.Equal(0, selector.Dc);
                         }
                         List<EntropySegment> segments = ReadSegments(jpeg, ref position);
                         DecodeScan(scan, segments, width, height, components, tables,
-                            blocks, acBlocks, progressive, expectedInterval);
+                            blocks, acBands, progressive, expectedInterval);
                         scans.Add(scan);
                         continue;
                 }
@@ -452,8 +455,15 @@ public sealed class EncoderProgressiveTests
             }
             Assert.Equal(1, frameCount);
             Assert.Equal(expectedInterval == 0 ? 0 : 1, driCount);
-            Assert.Equal(progressive ? (components.Count + 1) * (expectedRefinementBits + 1) : 1, scans.Count);
-            Assert.Equal(blocks.Count(pair => !pair.Value.IsDummy), acBlocks.Count);
+            Assert.Equal(progressive ? (1 + components.Count * acScanEnds.Count) * (expectedRefinementBits + 1) : 1, scans.Count);
+            int bandCount = progressive ? acScanEnds.Count : 1;
+            int cycles = progressive ? expectedRefinementBits + 1 : 1;
+            Assert.Equal(blocks.Count(pair => !pair.Value.IsDummy) * bandCount * cycles, acBands.Count);
+            foreach (BlockKey key in blocks.Where(pair => !pair.Value.IsDummy).Select(pair => pair.Key))
+                for (int band = 0; band < bandCount; band++)
+                    for (int low = 0; low < cycles; low++)
+                        Assert.Contains((key, band == 0 ? 1 : acScanEnds[band - 1] + 1,
+                            progressive ? acScanEnds[band] : 63, low), acBands);
             Assert.Equal(components.Values.Select(component => component.Quantizer).Distinct().Count(), quantizers.Count);
             Assert.All(components.Values, component => Assert.True(quantizers.ContainsKey(component.Quantizer)));
             int maxH = components.Values.Max(component => component.H);
@@ -492,7 +502,8 @@ public sealed class EncoderProgressiveTests
 
         private static void DecodeScan(Scan scan, List<EntropySegment> segments, int width, int height,
             Dictionary<int, Component> components, Dictionary<int, Dictionary<int, int>> tables,
-            Dictionary<BlockKey, Block> blocks, HashSet<BlockKey> acBlocks, bool progressive, int interval)
+            Dictionary<BlockKey, Block> blocks,
+            HashSet<(BlockKey Key, int First, int Last, int Low)> acBands, bool progressive, int interval)
         {
             int maxH = components.Values.Max(component => component.H);
             int maxV = components.Values.Max(component => component.V);
@@ -550,14 +561,15 @@ public sealed class EncoderProgressiveTests
                                     Block block = blocks[key];
                                     if (scan.High == 0)
                                         ReadAc(reader, tables[selector.Ac], block.Coefficients,
-                                            progressive, scan.Low, scan.EobRuns, ref remainingEobBlocks);
+                                            progressive, Math.Max(1, scan.First), scan.Last,
+                                            scan.Low, scan.EobRuns, ref remainingEobBlocks);
                                     else
                                         ReadAcRefinement(reader, tables[selector.Ac], block.Coefficients,
-                                            scan.Low, scan.EobRuns, ref remainingEobBlocks);
+                                            scan.First, scan.Last, scan.Low, scan.EobRuns, ref remainingEobBlocks);
                                     if (dummy)
                                         Assert.All(block.Coefficients[1..], coefficient => Assert.Equal(0, coefficient));
-                                    else if (scan.High == 0)
-                                        Assert.True(acBlocks.Add(key));
+                                    else
+                                        Assert.True(acBands.Add((key, Math.Max(1, scan.First), scan.Last, scan.Low)));
                                 }
                             }
                     }
@@ -570,7 +582,7 @@ public sealed class EncoderProgressiveTests
         }
 
         private static void ReadAc(EntropyBits reader, Dictionary<int, int> table, int[] coefficients,
-            bool progressive, int low, List<int> eobRuns, ref int remainingEobBlocks)
+            bool progressive, int first, int last, int low, List<int> eobRuns, ref int remainingEobBlocks)
         {
             if (remainingEobBlocks > 0)
             {
@@ -578,13 +590,13 @@ public sealed class EncoderProgressiveTests
                 remainingEobBlocks--;
                 return;
             }
-            for (int coefficient = 1; coefficient < 64;)
+            for (int coefficient = first; coefficient <= last;)
             {
                 int symbol = reader.Symbol(table);
                 if (symbol == 0xf0)
                 {
                     coefficient += 16;
-                    Assert.InRange(coefficient, 1, 64);
+                    Assert.InRange(coefficient, first, last + 1);
                     continue;
                 }
                 if ((symbol & 15) == 0)
@@ -603,7 +615,7 @@ public sealed class EncoderProgressiveTests
                 }
                 Assert.InRange(symbol & 15, 1, 10);
                 coefficient += symbol >> 4;
-                Assert.InRange(coefficient, 1, 63);
+                Assert.InRange(coefficient, first, last);
                 int value = reader.SignedValue(symbol & 15);
                 Assert.NotEqual(0, value);
                 coefficients[coefficient++] = value << low;
@@ -614,11 +626,11 @@ public sealed class EncoderProgressiveTests
         // Each already significant coefficient consumes a correction bit, while
         // a newly significant coefficient consumes a sign bit before that run.
         private static void ReadAcRefinement(EntropyBits reader, Dictionary<int, int> table,
-            int[] coefficients, int low, List<int> eobRuns, ref int remainingEobBlocks)
+            int[] coefficients, int first, int last, int low, List<int> eobRuns, ref int remainingEobBlocks)
         {
-            int coefficient = 1;
+            int coefficient = first;
             if (remainingEobBlocks == 0)
-                while (coefficient < 64)
+                while (coefficient <= last)
                 {
                     int symbol = reader.Symbol(table), run = symbol >> 4, size = symbol & 15;
                     Assert.InRange(size, 0, 1);
@@ -631,7 +643,7 @@ public sealed class EncoderProgressiveTests
                     int newValue = size == 0 ? 0 : (reader.UnsignedValue(1) == 1 ? 1 : -1) << low;
                     int zeros = size == 0 ? 16 : run;
                     bool inserted = false;
-                    while (coefficient < 64)
+                    while (coefficient <= last)
                     {
                         if (coefficients[coefficient] != 0)
                             CorrectAc(reader, coefficients, coefficient, low);
@@ -658,7 +670,7 @@ public sealed class EncoderProgressiveTests
                 }
             if (remainingEobBlocks > 0)
             {
-                for (; coefficient < 64; coefficient++)
+                for (; coefficient <= last; coefficient++)
                     if (coefficients[coefficient] != 0)
                         CorrectAc(reader, coefficients, coefficient, low);
                 remainingEobBlocks--;
