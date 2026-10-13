@@ -319,6 +319,8 @@ public sealed class EncoderProgressiveTests
     internal sealed record Scan(List<Selector> Selectors, int First, int Last, int High, int Low, int DataStart)
     {
         public List<int> EobRuns { get; } = [];
+        public List<int> RestartMarkers { get; } = [];
+        public int CodingUnits { get; set; }
     }
 
     // This reader reconstructs the quantized coefficients using only the emitted
@@ -330,7 +332,7 @@ public sealed class EncoderProgressiveTests
     {
         public static JpegDocument Read(byte[] jpeg, bool progressive, int expectedInterval,
             int expectedRefinementBits = 0, IReadOnlyList<int>? expectedAcScanEnds = null,
-            IReadOnlyList<int>? expectedAcRefinementBits = null)
+            IReadOnlyList<int>? expectedAcRefinementBits = null, bool expectedInterleaveDc = true)
         {
             IReadOnlyList<int> acScanEnds = expectedAcScanEnds ?? [63];
             IReadOnlyList<int> acRefinementBits = expectedAcRefinementBits
@@ -425,7 +427,7 @@ public sealed class EncoderProgressiveTests
                         Assert.Equal(end, position);
                         var scan = new Scan(selectors, first, last, high, low, end);
                         expectedScans ??= ExpectedScans(progressive, components.Keys.ToArray(),
-                            expectedRefinementBits, acScanEnds, acRefinementBits);
+                            expectedRefinementBits, acScanEnds, acRefinementBits, expectedInterleaveDc);
                         Assert.InRange(scans.Count, 0, expectedScans.Count - 1);
                         var expectedScan = expectedScans[scans.Count];
                         Assert.Equal(expectedScan.Components, selectors.Select(selector => selector.Component));
@@ -457,7 +459,7 @@ public sealed class EncoderProgressiveTests
             }
             Assert.Equal(1, frameCount);
             Assert.Equal(expectedInterval == 0 ? 0 : 1, driCount);
-            Assert.Equal(progressive ? expectedRefinementBits + 1
+            Assert.Equal(progressive ? (expectedRefinementBits + 1) * (expectedInterleaveDc ? 1 : components.Count)
                 + components.Count * acRefinementBits.Sum(bits => bits + 1) : 1, scans.Count);
             int bandCount = progressive ? acScanEnds.Count : 1;
             Assert.Equal(blocks.Count(pair => !pair.Value.IsDummy)
@@ -476,7 +478,8 @@ public sealed class EncoderProgressiveTests
         }
 
         private static List<(int[] Components, int First, int Last, int High, int Low)> ExpectedScans(
-            bool progressive, int[] components, int dcBits, IReadOnlyList<int> ends, IReadOnlyList<int> acBits)
+            bool progressive, int[] components, int dcBits, IReadOnlyList<int> ends, IReadOnlyList<int> acBits,
+            bool interleaveDc)
         {
             var result = new List<(int[] Components, int First, int Last, int High, int Low)>();
             if (!progressive)
@@ -484,14 +487,17 @@ public sealed class EncoderProgressiveTests
                 result.Add((components, 0, 63, 0, 0));
                 return result;
             }
-            result.Add((components, 0, 0, 0, dcBits));
+            int[][] dcComponents = interleaveDc ? [components] : components.Select(component => new[] { component }).ToArray();
+            foreach (int[] selected in dcComponents)
+                result.Add((selected, 0, 0, 0, dcBits));
             for (int band = 0; band < ends.Count; band++)
                 foreach (int component in components)
                     result.Add(([component], band == 0 ? 1 : ends[band - 1] + 1, ends[band], 0, acBits[band]));
             for (int low = Math.Max(dcBits, acBits.Max()) - 1; low >= 0; low--)
             {
                 if (dcBits > low)
-                    result.Add((components, 0, 0, low + 1, low));
+                    foreach (int[] selected in dcComponents)
+                        result.Add((selected, 0, 0, low + 1, low));
                 for (int band = 0; band < ends.Count; band++)
                     if (acBits[band] > low)
                         foreach (int component in components)
@@ -537,17 +543,22 @@ public sealed class EncoderProgressiveTests
             int maxV = components.Values.Max(component => component.V);
             int mcuColumns = Ceiling(width, 8 * maxH);
             bool dcScan = scan.First == 0;
+            bool interleaved = scan.Selectors.Count > 1;
             Component firstComponent = components[scan.Selectors[0].Component];
             int acColumns = Ceiling(width * firstComponent.H, 8 * maxH);
-            int units = dcScan ? mcuColumns * Ceiling(height, 8 * maxV)
+            int units = interleaved ? mcuColumns * Ceiling(height, 8 * maxV)
                 : acColumns * Ceiling(height * firstComponent.V, 8 * maxV);
+            scan.CodingUnits = units;
             Assert.Equal(interval == 0 ? 1 : (units - 1) / interval + 1, segments.Count);
             int unit = 0;
             for (int segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
             {
                 EntropySegment segment = segments[segmentIndex];
                 if (segmentIndex != segments.Count - 1)
+                {
                     Assert.Equal(0xd0 + segmentIndex % 8, segment.Terminator);
+                    scan.RestartMarkers.Add(segment.Terminator);
+                }
                 else
                     Assert.False(segment.Terminator is >= 0xd0 and <= 0xd7); // No final restart marker.
                 var reader = new EntropyBits(segment.Bytes);
@@ -558,13 +569,13 @@ public sealed class EncoderProgressiveTests
                     foreach (Selector selector in scan.Selectors)
                     {
                         Component component = components[selector.Component];
-                        int horizontal = dcScan ? component.H : 1;
-                        int vertical = dcScan ? component.V : 1;
+                        int horizontal = interleaved ? component.H : 1;
+                        int vertical = interleaved ? component.V : 1;
                         for (int y = 0; y < vertical; y++)
                             for (int x = 0; x < horizontal; x++)
                             {
-                                int blockX = dcScan ? unit % mcuColumns * horizontal + x : unit % acColumns;
-                                int blockY = dcScan ? unit / mcuColumns * vertical + y : unit / acColumns;
+                                int blockX = interleaved ? unit % mcuColumns * horizontal + x : unit % acColumns;
+                                int blockY = interleaved ? unit / mcuColumns * vertical + y : unit / acColumns;
                                 var key = new BlockKey(selector.Component, blockX, blockY);
                                 bool dummy = blockX >= Ceiling(width * component.H, 8 * maxH)
                                     || blockY >= Ceiling(height * component.V, 8 * maxV);
