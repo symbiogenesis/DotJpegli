@@ -339,11 +339,29 @@ public sealed record JpegliEncoderOptions
     /// Custom factors use eight times the largest horizontal and vertical component factors.
     /// In progressive AC scans and noninterleaved DC scans, each component block is one MCU. The interval
     /// and restart marker sequence start afresh in every scan.
+    /// Positive RestartRows overrides this interval; this value must still be valid.
     /// </summary>
     public int RestartInterval { get; init; }
 
+    /// <summary>
+    /// Restart after this many MCU rows in each scan. Zero (the default) uses
+    /// RestartInterval and preserves existing bytes. Positive values override
+    /// RestartInterval, which must still be valid. Negative values are rejected.
+    /// Each scan's interval is its MCU columns times this value, capped at 65535.
+    /// Interleaved scans use the frame MCU width; single-component progressive
+    /// scans use that component's real block columns. Rows are scan rows, rather
+    /// than source pixel rows, so their height depends on sampling and scan type.
+    /// DRI markers update the interval when it changes between scans, and the
+    /// restart marker sequence starts afresh in every scan. Very large values
+    /// can reach the cap and therefore stop aligning with complete rows.
+    /// </summary>
+    public int RestartRows { get; init; }
+
     /// <summary>Maximum accepted pixel count. Override deliberately for larger images.</summary>
     public long MaxPixels { get; init; } = 100_000_000;
+
+    internal int ResolveRestartInterval(int mcusPerRow) => RestartRows == 0
+        ? RestartInterval : (int)Math.Min((long)RestartRows * mcusPerRow, 65535);
 
     internal JpegliEncoderOptions ResolveProgressiveLevel(JpegSamplingFactors sampling)
     {
@@ -472,6 +490,8 @@ public sealed record JpegliEncoderOptions
             throw new ArgumentException("Separate DC scans require progressive encoding.", nameof(ProgressiveInterleaveDc));
         if (RestartInterval is < 0 or > 65535)
             throw new ArgumentOutOfRangeException(nameof(RestartInterval), "Restart interval must be between 0 and 65535 MCUs.");
+        if (RestartRows < 0)
+            throw new ArgumentOutOfRangeException(nameof(RestartRows), "Restart rows must be nonnegative.");
         if (MaxPixels <= 0)
             throw new ArgumentOutOfRangeException(nameof(MaxPixels));
     }

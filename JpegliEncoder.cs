@@ -143,6 +143,14 @@ public static class JpegliEncoder
             : options.SamplingFactors ?? (xyb ? new JpegSamplingFactors(new(2, 2), new(2, 2), new(1, 1))
                 : JpegSamplingFactors.FromSubsampling(rgb ? ChromaSubsampling.None : options.Subsampling));
         options = options.ResolveProgressiveLevel(sampling);
+        int mcuWidth = 8 * sampling.MaxHorizontal;
+        int interleavedRestartInterval = options.ResolveRestartInterval((width + mcuWidth - 1) / mcuWidth);
+        var componentRestartIntervals = new int[componentCount];
+        for (int component = 0; component < componentCount; component++)
+        {
+            int blockWidth = mcuWidth / sampling[component].Horizontal;
+            componentRestartIntervals[component] = options.ResolveRestartInterval((width + blockWidth - 1) / blockWidth);
+        }
         int[] acScanEnds = options.PrepareProgressiveAcScanEnds();
         int[] acRefinementBits = options.PrepareProgressiveAcRefinementBits(acScanEnds.Length);
         int maxRefinementBits = Math.Max(options.ProgressiveRefinementBits, acRefinementBits.Max());
@@ -194,7 +202,7 @@ public static class JpegliEncoder
             try
             {
                 ProcessBlocks(pixels, width, height, stride, sampling,
-                    tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
+                    tables, distance, options.SmoothingFactor, interleavedRestartInterval, adaptive, adaptiveMultipliers,
                     dcTables, acTables, null, dcValidation, acValidation, cancellationToken,
                     requireEightBitCoefficients: true);
             }
@@ -215,13 +223,13 @@ public static class JpegliEncoder
             }
             if (!options.Progressive || options.ProgressiveInterleaveDc || grayscale)
                 ProcessBlocks(pixels, width, height, stride, sampling,
-                    tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
+                    tables, distance, options.SmoothingFactor, interleavedRestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
                     null, dcFrequencies, acFrequencies, cancellationToken, dcOnly: options.Progressive,
                     successiveLow: options.ProgressiveRefinementBits);
             else
                 for (int component = 0; component < componentCount; component++)
                     ProcessComponentBlocks(pixels, width, height, stride, sampling,
-                        tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
+                        tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
                         component, acTables, null, null, cancellationToken, aggregateEobRuns: false,
                         successiveLow: options.ProgressiveRefinementBits, dcOnly: true,
                         dcTables: dcTables, dcFrequencies: dcFrequencies);
@@ -230,7 +238,7 @@ public static class JpegliEncoder
                 for (int band = 0; band < acScanEnds.Length; band++)
                     for (int component = 0; component < componentCount; component++)
                         ProcessComponentBlocks(pixels, width, height, stride, sampling,
-                            tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
+                            tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
                             component, acTables, null, acFrequencies, cancellationToken, aggregateEobRuns: true,
                             successiveLow: acRefinementBits[band],
                             spectralStart: band == 0 ? 1 : acScanEnds[band - 1] + 1, spectralEnd: acScanEnds[band]);
@@ -243,7 +251,7 @@ public static class JpegliEncoder
                             continue;
                         for (int component = 0; component < componentCount; component++)
                             ProcessComponentBlocks(pixels, width, height, stride, sampling,
-                                tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
+                                tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
                                 component, acTables, null, acFrequencies, cancellationToken,
                                 aggregateEobRuns: true, successiveLow: low, refine: true,
                                 spectralStart: band == 0 ? 1 : acScanEnds[band - 1] + 1, spectralEnd: acScanEnds[band]);
@@ -268,12 +276,21 @@ public static class JpegliEncoder
         JpegMarkerWriter.WriteHeaders(output, width, height, sampling, tables, dcTables, acTables,
             options, extendedXmp, cancellationToken, rgb: rgb, xyb: xyb);
         var bits = new BitWriter(output);
+        int lastRestartInterval = 0;
+        void WriteRestartInterval(int interval)
+        {
+            if (interval == lastRestartInterval)
+                return;
+            JpegMarkerWriter.WriteRestartInterval(output, interval);
+            lastRestartInterval = interval;
+        }
         if (!options.Progressive || options.ProgressiveInterleaveDc || grayscale)
         {
+            WriteRestartInterval(interleavedRestartInterval);
             JpegMarkerWriter.WriteScanHeader(output, componentCount, options.Progressive,
                 successiveLow: options.ProgressiveRefinementBits, rgb: rgb);
             ProcessBlocks(pixels, width, height, stride, sampling,
-                tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
+                tables, distance, options.SmoothingFactor, interleavedRestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
                 bits, null, null, cancellationToken, dcOnly: options.Progressive,
                 successiveLow: options.ProgressiveRefinementBits);
             bits.Flush();
@@ -282,10 +299,11 @@ public static class JpegliEncoder
             for (int component = 0; component < componentCount; component++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                WriteRestartInterval(componentRestartIntervals[component]);
                 JpegMarkerWriter.WriteScanHeader(output, componentCount, true,
                     successiveLow: options.ProgressiveRefinementBits, rgb: rgb, dcComponent: component);
                 ProcessComponentBlocks(pixels, width, height, stride, sampling,
-                    tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
+                    tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
                     component, acTables, bits, null, cancellationToken, aggregateEobRuns: false,
                     successiveLow: options.ProgressiveRefinementBits, dcOnly: true, dcTables: dcTables);
                 bits.Flush();
@@ -298,11 +316,12 @@ public static class JpegliEncoder
                 for (int component = 0; component < componentCount; component++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    WriteRestartInterval(componentRestartIntervals[component]);
                     JpegMarkerWriter.WriteScanHeader(output, componentCount, true, component,
                         successiveLow: acRefinementBits[band], rgb: rgb,
                         spectralStart: spectralStart, spectralEnd: acScanEnds[band]);
                     ProcessComponentBlocks(pixels, width, height, stride, sampling,
-                        tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
+                        tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
                         component, acTables, bits, null, cancellationToken,
                         aggregateEobRuns: options.OptimizeHuffmanTables,
                         successiveLow: acRefinementBits[band],
@@ -317,10 +336,11 @@ public static class JpegliEncoder
                 {
                     if (options.ProgressiveInterleaveDc || grayscale)
                     {
+                        WriteRestartInterval(interleavedRestartInterval);
                         JpegMarkerWriter.WriteScanHeader(output, componentCount, true,
                             successiveHigh: low + 1, successiveLow: low, rgb: rgb);
                         ProcessBlocks(pixels, width, height, stride, sampling,
-                            tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
+                            tables, distance, options.SmoothingFactor, interleavedRestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
                             bits, null, null, cancellationToken, dcOnly: true, successiveLow: low, refine: true);
                         bits.Flush();
                     }
@@ -328,10 +348,11 @@ public static class JpegliEncoder
                         for (int component = 0; component < componentCount; component++)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
+                            WriteRestartInterval(componentRestartIntervals[component]);
                             JpegMarkerWriter.WriteScanHeader(output, componentCount, true,
                                 successiveHigh: low + 1, successiveLow: low, rgb: rgb, dcComponent: component);
                             ProcessComponentBlocks(pixels, width, height, stride, sampling,
-                                tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
+                                tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
                                 component, acTables, bits, null, cancellationToken, aggregateEobRuns: false,
                                 successiveLow: low, refine: true, dcOnly: true, dcTables: dcTables);
                             bits.Flush();
@@ -345,11 +366,12 @@ public static class JpegliEncoder
                     for (int component = 0; component < componentCount; component++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
+                        WriteRestartInterval(componentRestartIntervals[component]);
                         JpegMarkerWriter.WriteScanHeader(output, componentCount, true, component,
                             successiveHigh: low + 1, successiveLow: low, rgb: rgb,
                             spectralStart: spectralStart, spectralEnd: acScanEnds[band]);
                         ProcessComponentBlocks(pixels, width, height, stride, sampling,
-                            tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
+                            tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
                             component, acTables, bits, null, cancellationToken,
                             aggregateEobRuns: options.OptimizeHuffmanTables, successiveLow: low, refine: true,
                             spectralStart: spectralStart, spectralEnd: acScanEnds[band]);

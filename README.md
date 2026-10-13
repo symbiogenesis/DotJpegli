@@ -859,6 +859,31 @@ reset DC prediction and align the entropy stream between intervals, adding a
 small amount of output overhead without changing the decoded image. For example,
 `new JpegliEncoderOptions { RestartInterval = 64 }` restarts every 64 MCUs.
 
+Set `RestartRows` to a positive number to restart after that many MCU rows in
+each scan, following the pinned upstream's `restart_in_rows` setting:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    ProgressiveLevel = 2,
+    RestartRows = 1
+});
+```
+
+Zero, the default, keeps `RestartInterval` and its existing JPEG bytes. Positive
+values override that fixed interval, which must still be valid; negative row
+counts are rejected. The effective interval is the scan's MCU columns multiplied
+by `RestartRows`, capped at 65,535 with overflow-safe arithmetic. Rows refer to
+the current scan rather than source pixel rows: interleaved scans use frame MCUs,
+while single-component DC and AC scans use the component's real block columns
+and rows. For a 33-pixel-wide 4:2:0 image with `RestartRows = 1`, interleaved DC
+restarts every three MCUs, luma AC every five blocks, and chroma AC every three
+blocks. Separate luma DC scans also use five blocks per row. DRI markers update
+the interval only when it changes, and RST numbering starts at RST0 in each scan.
+Intervals that reach the cap can cease to align with complete rows. The option
+applies to all output color spaces, sampling factors, input precisions and scan
+scripts, retaining final coefficients, decoded samples and stream behavior.
+
 Set `Progressive = true` to write a progressive JPEG: an initial DC scan provides
 a coarse preview, followed by one full-precision AC scan per component. This
 uses two scans for grayscale and four for color, with the same final quantized
@@ -1165,6 +1190,7 @@ gamma modulation, quality dampening and frequency-specific coefficient threshold
 optimized length-limited canonical Huffman coding;
 byte stuffing and marker output; optional MCU restart intervals with DRI and
 cycling RST markers, including predictor resets during Huffman optimization;
+optional row-based restart intervals with per-scan geometry and DRI updates;
 progressive initial and refinement EOB-run aggregation with optimized Huffman tables;
 optional DC and AC refinement scans with bounded correction-bit storage;
 configurable complete AC spectral bands with optional separate refinement depths,
@@ -1474,6 +1500,13 @@ Restart regressions independently parse marker definitions and entropy segments
 to check MCU boundaries, all-component DC resets, one-bit padding and marker
 cycling, and compare decoded pixels with restart markers disabled. The marker
 and reset rules follow [ITU T.81, sections B.2.4.4 and E.1.3/E.1.4](https://www.w3.org/Graphics/JPEG/itu-t81.pdf).
+
+Row-restart regressions independently derive scan widths from frame and scan
+markers, verify changing DRI intervals, RST cycling, predictor resets, EOB-run
+boundaries and entropy padding, and reconstruct final coefficients. They check
+fixed-interval byte equivalence where scan widths match, unchanged decoded
+samples, odd edges, custom sampling, progressive refinement and level presets,
+overflow-safe clamping, typed inputs, validation before output and stream behavior.
 
 Progressive regressions reconstruct every real block from independently parsed
 DC and AC scans and compare it with baseline coefficients and decoded pixels.

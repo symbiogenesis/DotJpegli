@@ -321,6 +321,7 @@ public sealed class EncoderProgressiveTests
         public List<int> EobRuns { get; } = [];
         public List<int> RestartMarkers { get; } = [];
         public int CodingUnits { get; set; }
+        public int RestartInterval { get; set; }
     }
 
     // This reader reconstructs the quantized coefficients using only the emitted
@@ -332,7 +333,8 @@ public sealed class EncoderProgressiveTests
     {
         public static JpegDocument Read(byte[] jpeg, bool progressive, int expectedInterval,
             int expectedRefinementBits = 0, IReadOnlyList<int>? expectedAcScanEnds = null,
-            IReadOnlyList<int>? expectedAcRefinementBits = null, bool expectedInterleaveDc = true)
+            IReadOnlyList<int>? expectedAcRefinementBits = null, bool expectedInterleaveDc = true,
+            int expectedRestartRows = 0)
         {
             IReadOnlyList<int> acScanEnds = expectedAcScanEnds ?? [63];
             IReadOnlyList<int> acRefinementBits = expectedAcRefinementBits
@@ -340,6 +342,8 @@ public sealed class EncoderProgressiveTests
             Assert.Equal(acScanEnds.Count, acRefinementBits.Count);
             Assert.Equal(new byte[] { 0xff, 0xd8 }, jpeg[..2]);
             int position = 2, width = 0, height = 0, frameCount = 0, driCount = 0;
+            int activeInterval = 0, previousScanInterval = 0;
+            bool pendingDri = false;
             var components = new Dictionary<int, Component>();
             var quantizers = new Dictionary<int, byte[]>();
             var tables = new Dictionary<int, Dictionary<int, int>>();
@@ -409,8 +413,14 @@ public sealed class EncoderProgressiveTests
                     case 0xdd:
                         driCount++;
                         Assert.Equal(4, length);
-                        Assert.Equal(expectedInterval, Word(jpeg, position));
-                        Assert.Empty(scans);
+                        Assert.False(pendingDri); // No repeated definitions before a scan.
+                        activeInterval = Word(jpeg, position);
+                        pendingDri = true;
+                        if (expectedRestartRows == 0)
+                        {
+                            Assert.Equal(expectedInterval, activeInterval);
+                            Assert.Empty(scans);
+                        }
                         break;
                     case 0xda:
                         var selectors = new List<Selector>();
@@ -449,16 +459,31 @@ public sealed class EncoderProgressiveTests
                             Selector selector = Assert.Single(selectors);
                             Assert.Equal(0, selector.Dc);
                         }
+                        int scanInterval = expectedInterval;
+                        if (expectedRestartRows > 0)
+                        {
+                            int frameMaxH = components.Values.Max(component => component.H);
+                            int columns = selectors.Count > 1 ? Ceiling(width, 8 * frameMaxH)
+                                : Ceiling(width * components[selectors[0].Component].H, 8 * frameMaxH);
+                            scanInterval = (int)Math.Min((long)expectedRestartRows * columns, 65535);
+                        }
+                        Assert.Equal(scanInterval, activeInterval);
+                        Assert.Equal(scanInterval != previousScanInterval, pendingDri);
+                        previousScanInterval = scanInterval;
+                        pendingDri = false;
+                        scan.RestartInterval = scanInterval;
                         List<EntropySegment> segments = ReadSegments(jpeg, ref position);
                         DecodeScan(scan, segments, width, height, components, tables,
-                            blocks, acBands, progressive, expectedInterval);
+                            blocks, acBands, progressive, scanInterval);
                         scans.Add(scan);
                         continue;
                 }
                 position = end;
             }
             Assert.Equal(1, frameCount);
-            Assert.Equal(expectedInterval == 0 ? 0 : 1, driCount);
+            Assert.False(pendingDri); // Every DRI must define a following scan.
+            if (expectedRestartRows == 0)
+                Assert.Equal(expectedInterval == 0 ? 0 : 1, driCount);
             Assert.Equal(progressive ? (expectedRefinementBits + 1) * (expectedInterleaveDc ? 1 : components.Count)
                 + components.Count * acRefinementBits.Sum(bits => bits + 1) : 1, scans.Count);
             int bandCount = progressive ? acScanEnds.Count : 1;
@@ -528,7 +553,7 @@ public sealed class EncoderProgressiveTests
                 bytes.Clear();
                 if (next is >= 0xd0 and <= 0xd7)
                     continue;
-                Assert.True(next is 0xc4 or 0xda or 0xd9, $"Unexpected scan terminator 0x{next:x2}.");
+                Assert.True(next is 0xc4 or 0xda or 0xdd or 0xd9, $"Unexpected scan terminator 0x{next:x2}.");
                 position -= 2; // The outer marker reader consumes the next scan/table/EOI.
                 return segments;
             }

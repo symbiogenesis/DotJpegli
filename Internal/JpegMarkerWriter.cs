@@ -63,13 +63,13 @@ internal static class JpegMarkerWriter
             Huffman(output, dcTables[index], index);
             Huffman(output, acTables[index], 0x10 | index);
         }
+    }
 
-        if (options.RestartInterval != 0)
-        {
-            Marker(output, 0xdd);
-            Word(output, 4);
-            Word(output, options.RestartInterval);
-        }
+    public static void WriteRestartInterval(Stream output, int interval)
+    {
+        Marker(output, 0xdd);
+        Word(output, 4);
+        Word(output, interval);
     }
 
     private static void WriteMetadata(Stream output, JpegliEncoderOptions options,
