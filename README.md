@@ -619,6 +619,39 @@ perceptual-quality guarantee for linear-light JPEGs. Opt-in CICP lookup returns
 8 for the RGB profile and unspecified (2) for grayscale, both retaining default
 quantization tuning.
 
+`CreateGammaSrgbProfile(gamma)` and `CreateGammaGrayscaleProfile(gamma)` provide
+perceptual ICC v4.4 display profiles for samples already encoded with a pure
+power law. `gamma` is the **decoding exponent**, so `linear = encoded^gamma`;
+it must be finite and from 1 to 8192, inclusive. The RGB profile uses sRGB/Rec.709
+primaries with D65-to-D50 adaptation; the grayscale profile retains D65 media
+white and the D50 XYZ PCS header:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(gamma22Pixels, width, height, options: new()
+{
+    IccProfile = JpegliIccProfiles.CreateGammaSrgbProfile(2.2)
+});
+```
+
+Both factories return fresh deterministic arrays for explicit assignment. RGB
+output or corresponding YCbCr output can use the RGB profile; grayscale output
+uses the grayscale profile. Their 16-byte type-0 parametric curves decode the
+power law, with one curve shared by all RGB channels. Curve exponents are rounded
+through upstream's float and signed 15.16 fixed-point serialization. A pure gamma
+2.2 curve differs from the piecewise sRGB transfer function; use `CreateSrgbProfile()`
+for sRGB samples. Attaching either profile preserves JPEG coding and applies no
+source conversion.
+
+The factories port the pinned builder's direct `GAMMA` branch with encoding
+exponent `1 / gamma`, without snapping to named transfer functions or rounding
+that reciprocal to a decimal grid. Descriptions use upstream's six-significant-digit
+reciprocal formatting, independent of the current culture. Neither profile has a
+CICP tag, including at gamma 1 or 2.6; grayscale also omits chromatic adaptation.
+Opt-in CICP lookup returns unspecified (2) and preserves default quantization.
+Profile lengths vary with the description; gamma 2.2 produces 508-byte RGB and
+324-byte grayscale profiles. These factories describe samples with the supplied
+power law and do not validate that the source uses it.
+
 `CreateLinearDisplayP3Profile()` and `CreateLinearRec2020Profile()` provide
 536-byte perceptual ICC v4.4 RGB display profiles for **already linear-light**
 samples with P3 or Rec.2020 primaries and D65 white. Both use Bradford adaptation
@@ -1423,6 +1456,8 @@ Rec.2100 PQ and HLG RGB profiles use Rec.2020 colorants and CICP signaling,
 with upstream's default tone/gamut-mapped 9x9x9 RGB-to-Lab display transforms.
 Additional grayscale profiles provide BT.709 at D65, gamma 2.6 at DCI white,
 and untone-mapped 64-entry PQ/HLG curves at D65, without CICP signaling.
+Configurable pure-gamma profiles provide sRGB-primary RGB and D65 grayscale
+with type-0 decoding curves and no CICP tag.
 
 Pending: fractional sampling ratios,
 additional built-in profiles and arbitrary source ICC color management,
@@ -1644,6 +1679,14 @@ checks verify exact APP2 embedding, preserved coding across input precisions,
 scan modes and restarts, nonseekable streams, cancellation and explicit transfer
 hints in the absence of a CICP tag. These checks validate serialization and
 sample preservation without establishing color-managed lossy JPEG quality.
+
+Pure-gamma profile regressions compare complete profile hashes and IDs with
+independently compiled pinned C++ fixtures, including both exponent endpoints
+and fractional values. They independently parse dynamic tag offsets, aligned
+descriptions, shared type-0 curves, MD5 IDs and the absence of CICP, and compare
+decoded curve samples with the specified power law. Encoding checks verify exact
+APP2 embedding and preserved coding across input precisions, output color spaces,
+scan modes and restarts, including nonseekable streams and cancellation.
 
 Scaled XYB regressions compare complete emitted quantization tables with
 independently compiled pinned C++ scalar fixtures. Independent JPEG parsing
