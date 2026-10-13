@@ -5,6 +5,80 @@ namespace DotJpegli;
 /// <summary>Built-in output profiles for the managed encoder.</summary>
 public static class JpegliIccProfiles
 {
+    /// <summary>Creates an ICC v4 RGB display profile from the pinned builder's
+    /// built-in primaries, white point and transfer function.</summary>
+    /// <remarks>
+    /// Assign the profile to JpegliEncoderOptions.IccProfile for RGB or corresponding
+    /// YCbCr output whose samples already use the selected color encoding and full range.
+    /// Attaching it preserves samples without color conversion or limited-range expansion.
+    /// RGB colorants and the source white point are adapted to a D50 PCS.
+    /// PQ and HLG profiles with D65 white, or P3 primaries and DCI white, use the pinned
+    /// builder's forward tone/gamut transform to D50 Lab and an identity compatibility
+    /// B2A tag that is not an inverse transform. Other PQ and HLG combinations use a
+    /// 64-entry decoding curve with no tone mapping or HLG OOTF adjustment.
+    /// A CICP tag is included only for D65 white or P3 primaries with DCI white.
+    /// Selecting an intent changes the display preference, not the transform.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">A primaries, white point,
+    /// transfer function or rendering intent value is invalid.</exception>
+    public static byte[] CreateRgbProfile(IccPrimaries primaries, IccWhitePoint whitePoint,
+        IccTransferFunction transferFunction, IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) =>
+        RgbIccProfile.Create(primaries, whitePoint, transferFunction, renderingIntent);
+
+    /// <summary>Creates an ICC v4 grayscale display profile from the pinned builder's
+    /// built-in white point and transfer function.</summary>
+    /// <remarks>
+    /// Assign the profile to JpegliEncoderOptions.IccProfile for full-range grayscale
+    /// samples already using the selected transfer function. Attaching it preserves
+    /// samples without color conversion or limited-range expansion.
+    /// The profile keeps the source media white and a D50 XYZ PCS header without
+    /// chromatic-adaptation or CICP tags. PQ and HLG use a 64-entry decoding curve
+    /// with no tone mapping or HLG OOTF adjustment. Selecting an intent changes the
+    /// display preference, not the decoding curve.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">A white point, transfer function
+    /// or rendering intent value is invalid.</exception>
+    public static byte[] CreateGrayscaleProfile(IccWhitePoint whitePoint, IccTransferFunction transferFunction,
+        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) =>
+        GrayscaleIccProfile.Create(whitePoint, transferFunction, renderingIntent);
+
+    /// <summary>Creates an ICC v4 RGB display profile for power-law samples with
+    /// the pinned builder's built-in primaries and white point.</summary>
+    /// <remarks>
+    /// Gamma is the decoding exponent (linear = encoded^gamma), finite and from
+    /// 1 to 8192. The profile uses a shared type-0 parametric curve, D50-adapted
+    /// RGB colorants and source white, and no CICP tag. Assign it explicitly to
+    /// JpegliEncoderOptions.IccProfile for RGB or corresponding YCbCr output whose
+    /// full-range samples already use those primaries, white and power law.
+    /// Attaching it preserves samples without color conversion, limited-range
+    /// expansion or tone mapping. Every call returns a separate mutable array
+    /// with deterministic bytes.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">A primaries, white point or
+    /// rendering intent value is invalid, or gamma is nonfinite or outside 1..8192.</exception>
+    public static byte[] CreateGammaRgbProfile(IccPrimaries primaries, IccWhitePoint whitePoint,
+        double gamma, IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) =>
+        RgbIccProfile.CreateGamma(primaries, whitePoint, gamma, renderingIntent);
+
+    /// <summary>Creates an ICC v4 grayscale display profile for power-law samples
+    /// with the pinned builder's built-in white point.</summary>
+    /// <remarks>
+    /// Gamma is the decoding exponent (linear = encoded^gamma), finite and from
+    /// 1 to 8192. The profile uses a type-0 parametric curve and keeps the source
+    /// media white with a D50 XYZ PCS header, without chromatic-adaptation or CICP
+    /// tags. Assign it explicitly to JpegliEncoderOptions.IccProfile for full-range
+    /// grayscale output already using that white and power law. Attaching it
+    /// preserves samples without color conversion or tone mapping.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">A white point or rendering
+    /// intent value is invalid, or gamma is nonfinite or outside 1..8192.</exception>
+    public static byte[] CreateGammaGrayscaleProfile(IccWhitePoint whitePoint, double gamma,
+        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) =>
+        GrayscaleIccProfile.CreateGamma(whitePoint, gamma, renderingIntent);
+
     /// <summary>
     /// Creates Jpegli's perceptual ICC v4 RGB profile for gamma-encoded sRGB
     /// samples, with D65 white adapted to D50 XYZ. Assign it explicitly to
