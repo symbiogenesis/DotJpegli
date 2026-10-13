@@ -566,7 +566,41 @@ system: the encoder preserves samples, and the profile's colorants, curves,
 adaptation and HDR tone/gamut transforms are the same across intents. HDR
 profiles retain `A2B0` and the identity compatibility `B2A0`; reader behavior can
 vary. `CreateXybProfile()` remains perceptual-only, matching the pinned builder.
-Other white-point and transfer-function combinations remain pending.
+The generic factories below cover every combination of the pinned builder's
+named white points, primaries and transfer functions.
+
+`CreateRgbProfile(primaries, whitePoint, transferFunction, renderingIntent)`
+and `CreateGrayscaleProfile(whitePoint, transferFunction, renderingIntent)`
+select the color encoding directly. `IccPrimaries` provides `Srgb`, `DisplayP3`
+and `Rec2020`; `IccWhitePoint` provides `D65`, `EqualEnergy` (illuminant E) and
+`Dci`; `IccTransferFunction` provides `Rec709`, `Linear`, `Srgb`, `Pq`, `Dci`
+(gamma 2.6) and `Hlg`. Rendering intent defaults to perceptual:
+
+```csharp
+byte[] profile = JpegliIccProfiles.CreateRgbProfile(
+    IccPrimaries.DisplayP3, IccWhitePoint.EqualEnergy, IccTransferFunction.Linear);
+byte[] grayProfile = JpegliIccProfiles.CreateGrayscaleProfile(
+    IccWhitePoint.D65, IccTransferFunction.Dci, IccRenderingIntent.RelativeColorimetric);
+```
+
+`CreateGammaRgbProfile(primaries, whitePoint, gamma, renderingIntent)` and
+`CreateGammaGrayscaleProfile(whitePoint, gamma, renderingIntent)` cover the same
+white points with pure decoding exponents in 1..8192. Existing named factories
+retain their exact bytes. The selection describes samples already using those
+primaries, white point and transfer; attach the returned profile explicitly.
+P3 names its primaries independently of its white point. Selecting DCI white
+does not convert Display P3 samples to DCI-P3, and selecting a linear curve
+does not linearize samples.
+
+RGB profiles adapt their colorants and source white to D50. CICP signaling is
+available for D65 RGB and P3 with DCI white, following upstream. In those
+combinations PQ/HLG use the upstream 9x9x9 tone/gamut-mapped Lab transform.
+Other RGB PQ/HLG combinations use shared 64-entry decoding curves with XYZ PCS,
+without tone mapping, HLG OOTF or CICP. Grayscale retains the selected source
+media white with no adaptation or CICP; its PQ/HLG curves are also untone-mapped.
+Pure-gamma profiles always omit CICP. Custom chromaticities and arbitrary source
+ICC conversion remain pending. Profile embedding does not establish color-managed
+JPEG quality or HDR display conformance.
 
 `CreateSrgbProfile()` provides the pinned Jpegli builder's 504-byte perceptual
 ICC v4.4 display profile, with sRGB transfer curves, D65-to-D50 Bradford
@@ -1531,6 +1565,13 @@ relative colorimetric, saturation and absolute colorimetric rendering intents,
 with upstream descriptions and ICC profile identification. Existing overloads
 retain their default bytes; scaled XYB remains perceptual-only as upstream requires.
 
+Generic RGB and grayscale factories complete every combination of the pinned
+builder's three named white points (D65, equal-energy E and DCI), three RGB
+primary sets and six named transfer functions, plus pure gamma and all four
+rendering intents. PQ/HLG select the upstream Lab tone-mapping LUT only for
+CICP-representable RGB combinations; other RGB and grayscale variants use
+untone-mapped 64-entry decoding curves. Existing named factory bytes are preserved.
+
 The DCT SIMD path transforms independent columns and rows with runtime-sized
 `System.Numerics.Vector<float>` lanes, preserving the scalar evaluation order
 and fused multiply-add rounding. Hardware acceleration is selected automatically
@@ -1541,7 +1582,7 @@ coverage and parallel encoding remain pending. No speed improvement is claimed
 without CI performance measurements.
 
 Pending encoder work: fractional sampling ratios,
-other built-in profile transfer/white-point combinations and arbitrary source ICC color management,
+custom profile chromaticities and arbitrary source ICC color management,
 structured metadata editing, other metadata, SIMD in other encoder stages and parallel encoding.
 Fractional sampling ratios are also rejected by the pinned upstream encoder.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
@@ -1556,6 +1597,16 @@ MozJPEG and libjpeg-turbo in its tested conditions, rather than a universal
 "smallest JPEG encoder" ranking.
 
 ## Validation
+
+Built-in combination regressions compare all 288 named RGB/grayscale profiles
+and 48 gamma-2.2 profiles across four intents with independently compiled pinned
+C++ fixtures. Independent parsing checks media white, Bradford adaptation,
+adapted colorants, decoding curves, CICP eligibility, HDR LUT framing and ICC
+identification. They cover existing factory bytes, fresh storage, invalid
+parameters and exact APP2 embedding with unchanged coding across representative
+source precisions, scan modes and streams. These checks validate profile
+serialization and sample preservation without establishing color-managed lossy
+JPEG quality.
 
 ```text
 dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release
