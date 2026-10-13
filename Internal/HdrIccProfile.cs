@@ -7,39 +7,52 @@ namespace DotJpegli.Internal;
 
 internal static class HdrIccProfile
 {
-    // Fixed Rec.2020/D65/perceptual PQ and HLG branches with upstream's default
+    // Fixed Rec.2020/D65 PQ and HLG branches with upstream's default
     // JPEGLI_ENABLE_3D_ICC_TONEMAPPING=1, lib/cms/jpegli_cms_internal.h,
     // google/jpegli 031a0077f5799a6041004267fc12b956c1f52a20.
-    internal static byte[] Create(bool pq)
+    internal static byte[] Create(bool pq,
+        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual)
     {
-        byte[] profile = new byte[4344];
+        string intentName = RenderingIntentName(renderingIntent);
+        string description = renderingIntent == IccRenderingIntent.RelativeColorimetric
+            ? (pq ? "Rec2100PQ" : "Rec2100HLG")
+            : "RGB_D65_202_" + intentName + (pq ? "_PeQ" : "_HLG");
+        int descriptionSize = (28 + description.Length * 2 + 3) & ~3;
+        int copyrightOffset = 252 + descriptionSize;
+        int whiteOffset = copyrightOffset + 36;
+        int adaptationOffset = whiteOffset + 20;
+        int cicpOffset = adaptationOffset + 44;
+        int colorantsOffset = cicpOffset + 12;
+        int forwardOffset = colorantsOffset + 60;
+        int compatibilityOffset = forwardOffset + 3772;
+        byte[] profile = new byte[compatibilityOffset + 80];
         Span<byte> bytes = profile;
-        Header(bytes, "mntr"u8, "RGB "u8);
+        Header(bytes, "mntr"u8, "RGB "u8, renderingIntent);
         Signature(bytes, 20, "Lab "u8);
         UInt32(bytes, 128, 10);
-        Tag(bytes, 0, "desc"u8, 252, 68);
-        Tag(bytes, 1, "cprt"u8, 320, 36);
-        Tag(bytes, 2, "wtpt"u8, 356, 20);
-        Tag(bytes, 3, "chad"u8, 376, 44);
-        Tag(bytes, 4, "cicp"u8, 420, 12);
-        Tag(bytes, 5, "rXYZ"u8, 432, 20);
-        Tag(bytes, 6, "gXYZ"u8, 452, 20);
-        Tag(bytes, 7, "bXYZ"u8, 472, 20);
-        Tag(bytes, 8, "A2B0"u8, 492, 3772);
-        Tag(bytes, 9, "B2A0"u8, 4264, 80);
-        Mluc(bytes[252..320], pq ? "RGB_D65_202_Per_PeQ" : "RGB_D65_202_Per_HLG");
-        Mluc(bytes[320..356], "CC0");
-        Xyz(bytes[356..376], [0.964203f, 1f, 0.824905f]);
-        WriteChromaticAdaptation(bytes[376..420]);
-        Signature(bytes, 420, "cicp"u8);
-        bytes[428] = 9; // Rec.2020 primaries.
-        bytes[429] = pq ? (byte)16 : (byte)18;
-        bytes[431] = 1; // RGB matrix (zero), full range.
+        Tag(bytes, 0, "desc"u8, 252, (uint)descriptionSize);
+        Tag(bytes, 1, "cprt"u8, (uint)copyrightOffset, 36);
+        Tag(bytes, 2, "wtpt"u8, (uint)whiteOffset, 20);
+        Tag(bytes, 3, "chad"u8, (uint)adaptationOffset, 44);
+        Tag(bytes, 4, "cicp"u8, (uint)cicpOffset, 12);
+        Tag(bytes, 5, "rXYZ"u8, (uint)colorantsOffset, 20);
+        Tag(bytes, 6, "gXYZ"u8, (uint)(colorantsOffset + 20), 20);
+        Tag(bytes, 7, "bXYZ"u8, (uint)(colorantsOffset + 40), 20);
+        Tag(bytes, 8, "A2B0"u8, (uint)forwardOffset, 3772);
+        Tag(bytes, 9, "B2A0"u8, (uint)compatibilityOffset, 80);
+        Mluc(bytes[252..copyrightOffset], description);
+        Mluc(bytes[copyrightOffset..whiteOffset], "CC0");
+        Xyz(bytes[whiteOffset..adaptationOffset], [0.964203f, 1f, 0.824905f]);
+        WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset]);
+        Signature(bytes, cicpOffset, "cicp"u8);
+        bytes[cicpOffset + 8] = 9; // Rec.2020 primaries.
+        bytes[cicpOffset + 9] = pq ? (byte)16 : (byte)18;
+        bytes[cicpOffset + 11] = 1; // RGB matrix (zero), full range.
         ReadOnlySpan<float> colorants = RgbIccProfile.Rec2020Colorants;
         for (int channel = 0; channel < 3; channel++)
-            Xyz(bytes.Slice(432 + channel * 20, 20), colorants.Slice(channel * 3, 3));
-        WriteForwardTransform(bytes[492..4264], pq);
-        WriteCompatibilityTransform(bytes[4264..]);
+            Xyz(bytes.Slice(colorantsOffset + channel * 20, 20), colorants.Slice(channel * 3, 3));
+        WriteForwardTransform(bytes[forwardOffset..compatibilityOffset], pq);
+        WriteCompatibilityTransform(bytes[compatibilityOffset..]);
         ProfileId(bytes);
         return profile;
     }

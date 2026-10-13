@@ -280,4 +280,158 @@ public static class JpegliIccProfiles
     /// Every call returns a separate mutable array with deterministic bytes.
     /// </summary>
     public static byte[] CreateXybProfile() => XybIccProfile.Create();
+
+    /// <summary>Creates the output profile described by <see cref="CreateSrgbProfile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateSrgbProfile(IccRenderingIntent renderingIntent) =>
+        RgbIccProfile.CreateSrgb(renderingIntent: renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateGammaSrgbProfile(double)"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid. Gamma must be finite and within 1..8192.</exception>
+    public static byte[] CreateGammaSrgbProfile(double gamma, IccRenderingIntent renderingIntent) =>
+        RgbIccProfile.CreateGamma(gamma, renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateGammaDisplayP3Profile(double)"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid. Gamma must be finite and within 1..8192.</exception>
+    public static byte[] CreateGammaDisplayP3Profile(double gamma, IccRenderingIntent renderingIntent) =>
+        RgbIccProfile.CreateGammaDisplayP3(gamma, renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateGammaRec2020Profile(double)"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid. Gamma must be finite and within 1..8192.</exception>
+    public static byte[] CreateGammaRec2020Profile(double gamma, IccRenderingIntent renderingIntent) =>
+        RgbIccProfile.CreateGammaRec2020(gamma, renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateGammaGrayscaleProfile(double)"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid. Gamma must be finite and within 1..8192.</exception>
+    public static byte[] CreateGammaGrayscaleProfile(double gamma, IccRenderingIntent renderingIntent) =>
+        GrayscaleIccProfile.CreateGamma(gamma, renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateRec709Profile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateRec709Profile(IccRenderingIntent renderingIntent) =>
+        RgbIccProfile.CreateRec709(renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateRec709DisplayP3Profile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateRec709DisplayP3Profile(IccRenderingIntent renderingIntent) =>
+        RgbIccProfile.CreateRec709DisplayP3(renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateRec2020Profile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateRec2020Profile(IccRenderingIntent renderingIntent) =>
+        RgbIccProfile.CreateRec2020(renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateSrgbRec2020Profile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateSrgbRec2020Profile(IccRenderingIntent renderingIntent) =>
+        RgbIccProfile.CreateSrgbRec2020(renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateRec2100PqProfile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateRec2100PqProfile(IccRenderingIntent renderingIntent) =>
+        HdrIccProfile.Create(pq: true, renderingIntent: renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateRec2100HlgProfile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateRec2100HlgProfile(IccRenderingIntent renderingIntent) =>
+        HdrIccProfile.Create(pq: false, renderingIntent: renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateDisplayP3Profile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateDisplayP3Profile(IccRenderingIntent renderingIntent) =>
+        RgbIccProfile.CreateDisplayP3(renderingIntent: renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateDciP3Profile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateDciP3Profile(IccRenderingIntent renderingIntent) =>
+        RgbIccProfile.CreateDciP3(renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateLinearSrgbProfile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateLinearSrgbProfile(IccRenderingIntent renderingIntent) =>
+        RgbIccProfile.CreateSrgb(linear: true, renderingIntent: renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateLinearDisplayP3Profile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateLinearDisplayP3Profile(IccRenderingIntent renderingIntent) =>
+        RgbIccProfile.CreateDisplayP3(linear: true, renderingIntent: renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateLinearRec2020Profile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateLinearRec2020Profile(IccRenderingIntent renderingIntent) =>
+        RgbIccProfile.CreateLinearRec2020(renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateSrgbGrayscaleProfile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateSrgbGrayscaleProfile(IccRenderingIntent renderingIntent) =>
+        GrayscaleIccProfile.Create(GrayscaleIccProfile.TransferFunction.Srgb, renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateLinearSrgbGrayscaleProfile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateLinearSrgbGrayscaleProfile(IccRenderingIntent renderingIntent) =>
+        GrayscaleIccProfile.Create(GrayscaleIccProfile.TransferFunction.Linear, renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateRec709GrayscaleProfile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateRec709GrayscaleProfile(IccRenderingIntent renderingIntent) =>
+        GrayscaleIccProfile.Create(GrayscaleIccProfile.TransferFunction.Rec709, renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateDciGrayscaleProfile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateDciGrayscaleProfile(IccRenderingIntent renderingIntent) =>
+        GrayscaleIccProfile.Create(GrayscaleIccProfile.TransferFunction.Dci, renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateRec2100PqGrayscaleProfile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateRec2100PqGrayscaleProfile(IccRenderingIntent renderingIntent) =>
+        GrayscaleIccProfile.Create(GrayscaleIccProfile.TransferFunction.Pq, renderingIntent);
+
+    /// <summary>Creates the output profile described by <see cref="CreateRec2100HlgGrayscaleProfile()"/>
+    /// with the specified rendering intent.</summary>
+    /// <remarks>The intent is a display preference; attaching the profile preserves source samples.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The rendering intent is invalid.</exception>
+    public static byte[] CreateRec2100HlgGrayscaleProfile(IccRenderingIntent renderingIntent) =>
+        GrayscaleIccProfile.Create(GrayscaleIccProfile.TransferFunction.Hlg, renderingIntent);
 }

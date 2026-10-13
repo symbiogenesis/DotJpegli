@@ -17,9 +17,10 @@ internal static class GrayscaleIccProfile
         Hlg
     }
 
-    // Fixed D65 and DCI/perceptual grayscale branches of lib/cms/jpegli_cms_internal.h,
+    // Fixed D65 and DCI grayscale branches of lib/cms/jpegli_cms_internal.h,
     // google/jpegli 031a0077f5799a6041004267fc12b956c1f52a20.
-    internal static byte[] Create(TransferFunction transfer)
+    internal static byte[] Create(TransferFunction transfer,
+        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual)
     {
         string description = transfer switch
         {
@@ -31,17 +32,20 @@ internal static class GrayscaleIccProfile
             TransferFunction.Hlg => "Gra_D65_Per_HLG",
             _ => throw new ArgumentOutOfRangeException(nameof(transfer))
         };
-        return Create(transfer, description);
+        return Create(transfer, description, renderingIntent: renderingIntent);
     }
 
-    internal static byte[] CreateGamma(double gamma)
+    internal static byte[] CreateGamma(double gamma,
+        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual)
     {
         GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
-        return Create(TransferFunction.Linear, "Gra_D65_Per_" + curve.Description, curve.Exponent);
+        return Create(TransferFunction.Linear, "Gra_D65_Per_" + curve.Description, curve.Exponent, renderingIntent);
     }
 
-    private static byte[] Create(TransferFunction transfer, string description, float? gamma = null)
+    private static byte[] Create(TransferFunction transfer, string description, float? gamma = null,
+        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual)
     {
+        description = description.Replace("_Per_", "_" + RenderingIntentName(renderingIntent) + "_", StringComparison.Ordinal);
         bool tableCurve = transfer is TransferFunction.Pq or TransferFunction.Hlg;
         int curveSize = gamma is not null ? 16 : tableCurve ? 12 + 64 * 2 : 32;
         int descriptionSize = (28 + description.Length * 2 + 3) & ~3;
@@ -50,7 +54,7 @@ internal static class GrayscaleIccProfile
         int curveOffset = whiteOffset + 20;
         byte[] profile = new byte[curveOffset + curveSize];
         Span<byte> bytes = profile;
-        Header(bytes, "mntr"u8, "GRAY"u8);
+        Header(bytes, "mntr"u8, "GRAY"u8, renderingIntent);
         UInt32(bytes, 128, 4);
         Tag(bytes, 0, "desc"u8, 180, (uint)descriptionSize);
         Tag(bytes, 1, "cprt"u8, (uint)copyrightOffset, 36);

@@ -7,12 +7,23 @@ using System.Text;
 
 namespace DotJpegli.Internal;
 
-// Fixed perceptual ICC v4 serialization, ported from lib/cms/jpegli_cms_internal.h,
+// ICC v4 serialization, ported from lib/cms/jpegli_cms_internal.h,
 // google/jpegli 031a0077f5799a6041004267fc12b956c1f52a20.
 internal static class IccProfileWriter
 {
-    internal static void Header(Span<byte> bytes, ReadOnlySpan<byte> deviceClass, ReadOnlySpan<byte> colorSpace)
+    internal static string RenderingIntentName(IccRenderingIntent renderingIntent) => renderingIntent switch
     {
+        IccRenderingIntent.Perceptual => "Per",
+        IccRenderingIntent.RelativeColorimetric => "Rel",
+        IccRenderingIntent.Saturation => "Sat",
+        IccRenderingIntent.AbsoluteColorimetric => "Abs",
+        _ => throw new ArgumentOutOfRangeException(nameof(renderingIntent))
+    };
+
+    internal static void Header(Span<byte> bytes, ReadOnlySpan<byte> deviceClass, ReadOnlySpan<byte> colorSpace,
+        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual)
+    {
+        _ = RenderingIntentName(renderingIntent);
         UInt32(bytes, 0, (uint)bytes.Length);
         Signature(bytes, 4, "jxl "u8);
         UInt32(bytes, 8, 0x04400000);
@@ -25,6 +36,7 @@ internal static class IccProfileWriter
         UInt16(bytes, 28, 1);
         Signature(bytes, 36, "acsp"u8);
         Signature(bytes, 40, "APPL"u8);
+        UInt32(bytes, 64, (uint)renderingIntent);
         UInt32(bytes, 68, 0x0000f6d6);
         UInt32(bytes, 72, 0x00010000);
         UInt32(bytes, 76, 0x0000d32d);
@@ -33,10 +45,16 @@ internal static class IccProfileWriter
 
     internal static void ProfileId(Span<byte> bytes)
     {
-        // The factories use fresh zeroed storage with zero flags, perceptual
-        // intent and profile ID, as required when computing the ICC MD5 ID.
+        // ICC profile identification excludes flags, rendering intent and the ID.
+        uint flags = BinaryPrimitives.ReadUInt32BigEndian(bytes[44..48]);
+        uint intent = BinaryPrimitives.ReadUInt32BigEndian(bytes[64..68]);
+        bytes[44..48].Clear();
+        bytes[64..68].Clear();
+        bytes[84..100].Clear();
         Span<byte> digest = stackalloc byte[16];
         MD5.HashData(bytes, digest);
+        UInt32(bytes, 44, flags);
+        UInt32(bytes, 64, intent);
         digest.CopyTo(bytes[84..100]);
     }
 

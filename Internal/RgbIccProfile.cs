@@ -15,33 +15,34 @@ internal static class RgbIccProfile
         Dci = 17
     }
 
-    // Fixed D65 and DCI/perceptual RGB branches of lib/cms/jpegli_cms_internal.h,
+    // Fixed D65 and DCI RGB branches of lib/cms/jpegli_cms_internal.h,
     // google/jpegli 031a0077f5799a6041004267fc12b956c1f52a20.
-    internal static byte[] CreateSrgb(bool linear = false) => Create(
+    internal static byte[] CreateSrgb(bool linear = false,
+        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) => Create(
         linear ? "RGB_D65_SRG_Per_Lin" : "sRGB", 1,
-        linear ? TransferFunction.Linear : TransferFunction.Srgb, SrgbColorants);
+        linear ? TransferFunction.Linear : TransferFunction.Srgb, SrgbColorants, renderingIntent: renderingIntent);
 
-    internal static byte[] CreateRec709() => Create(
-        "RGB_D65_SRG_Per_709", 1, TransferFunction.Rec709, SrgbColorants);
+    internal static byte[] CreateRec709(IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) => Create(
+        "RGB_D65_SRG_Per_709", 1, TransferFunction.Rec709, SrgbColorants, renderingIntent: renderingIntent);
 
-    internal static byte[] CreateRec709DisplayP3() => Create(
-        "RGB_D65_DCI_Per_709", 12, TransferFunction.Rec709, DisplayP3Colorants);
+    internal static byte[] CreateRec709DisplayP3(IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) => Create(
+        "RGB_D65_DCI_Per_709", 12, TransferFunction.Rec709, DisplayP3Colorants, renderingIntent: renderingIntent);
 
-    internal static byte[] CreateGamma(double gamma) =>
-        CreateGamma(gamma, "SRG", 1, SrgbColorants);
+    internal static byte[] CreateGamma(double gamma, IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) =>
+        CreateGamma(gamma, "SRG", 1, SrgbColorants, renderingIntent);
 
-    internal static byte[] CreateGammaDisplayP3(double gamma) =>
-        CreateGamma(gamma, "DCI", 12, DisplayP3Colorants);
+    internal static byte[] CreateGammaDisplayP3(double gamma, IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) =>
+        CreateGamma(gamma, "DCI", 12, DisplayP3Colorants, renderingIntent);
 
-    internal static byte[] CreateGammaRec2020(double gamma) =>
-        CreateGamma(gamma, "202", 9, Rec2020Colorants);
+    internal static byte[] CreateGammaRec2020(double gamma, IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) =>
+        CreateGamma(gamma, "202", 9, Rec2020Colorants, renderingIntent);
 
     private static byte[] CreateGamma(double gamma, string primariesDescription, byte primaries,
-        ReadOnlySpan<float> colorants)
+        ReadOnlySpan<float> colorants, IccRenderingIntent renderingIntent)
     {
         GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
         return Create("RGB_D65_" + primariesDescription + "_Per_" + curve.Description, primaries,
-            TransferFunction.Linear, colorants, gamma: curve.Exponent);
+            TransferFunction.Linear, colorants, gamma: curve.Exponent, renderingIntent: renderingIntent);
     }
 
     private static ReadOnlySpan<float> SrgbColorants =>
@@ -53,11 +54,12 @@ internal static class RgbIccProfile
          0.385103434324f, 0.71689671278f, 0.097085095942f,
          0.143095657229f, 0.0606217607856f, 0.714202940464f];
 
-    internal static byte[] CreateDisplayP3(bool linear = false) => Create(
+    internal static byte[] CreateDisplayP3(bool linear = false,
+        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) => Create(
         // Upstream's generic description calls the P3 primaries DCI even
         // though this branch retains D65 white.
         linear ? "RGB_D65_DCI_Per_Lin" : "DisplayP3", 12,
-        linear ? TransferFunction.Linear : TransferFunction.Srgb, DisplayP3Colorants);
+        linear ? TransferFunction.Linear : TransferFunction.Srgb, DisplayP3Colorants, renderingIntent: renderingIntent);
 
     private static ReadOnlySpan<float> DisplayP3Colorants =>
         // P3 primaries: R=(0.680,0.320), G=(0.265,0.690), B=(0.150,0.060).
@@ -66,23 +68,23 @@ internal static class RgbIccProfile
          0.29196470975875854f, 0.69223642349243164f, 0.041881758719682693f,
          0.15715308487415314f, 0.066581852734088898f, 0.78437769412994385f];
 
-    internal static byte[] CreateDciP3() => Create(
+    internal static byte[] CreateDciP3(IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) => Create(
         "RGB_DCI_DCI_Per_DCI", 11, TransferFunction.Dci,
         // The same P3 primaries with DCI white xy=(0.314,0.351), adapted to D50.
         // Canonical upstream float columns before ICC s15Fixed16 serialization.
         [0.48614510893821716f, 0.22667698562145233f, -0.00080051715485751629f,
          0.32383733987808228f, 0.71032541990280151f, 0.04323844239115715f,
          0.15423749387264252f, 0.062997661530971527f, 0.7827720046043396f],
-        dciWhite: true);
+        dciWhite: true, renderingIntent: renderingIntent);
 
-    internal static byte[] CreateLinearRec2020() => Create(
-        "RGB_D65_202_Per_Lin", 9, TransferFunction.Linear, Rec2020Colorants);
+    internal static byte[] CreateLinearRec2020(IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) => Create(
+        "RGB_D65_202_Per_Lin", 9, TransferFunction.Linear, Rec2020Colorants, renderingIntent: renderingIntent);
 
-    internal static byte[] CreateRec2020() => Create(
-        "RGB_D65_202_Per_709", 9, TransferFunction.Rec709, Rec2020Colorants);
+    internal static byte[] CreateRec2020(IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) => Create(
+        "RGB_D65_202_Per_709", 9, TransferFunction.Rec709, Rec2020Colorants, renderingIntent: renderingIntent);
 
-    internal static byte[] CreateSrgbRec2020() => Create(
-        "RGB_D65_202_Per_SRG", 9, TransferFunction.Srgb, Rec2020Colorants);
+    internal static byte[] CreateSrgbRec2020(IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual) => Create(
+        "RGB_D65_202_Per_SRG", 9, TransferFunction.Srgb, Rec2020Colorants, renderingIntent: renderingIntent);
 
     internal static ReadOnlySpan<float> Rec2020Colorants =>
         // Rec.2020 (upstream PRIMARIES_2100) primaries:
@@ -93,8 +95,20 @@ internal static class RgbIccProfile
          0.12510021030902863f, 0.045628782361745834f, 0.79716199636459351f];
 
     private static byte[] Create(string description, byte primaries, TransferFunction transfer,
-        ReadOnlySpan<float> colorants, bool dciWhite = false, float? gamma = null)
+        ReadOnlySpan<float> colorants, bool dciWhite = false, float? gamma = null,
+        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual)
     {
+        string intentName = RenderingIntentName(renderingIntent);
+        if (renderingIntent != IccRenderingIntent.Perceptual)
+        {
+            description = description switch
+            {
+                "sRGB" => "RGB_D65_SRG_Per_SRG",
+                "DisplayP3" => "RGB_D65_DCI_Per_SRG",
+                _ => description
+            };
+            description = description.Replace("_Per_", "_" + intentName + "_", StringComparison.Ordinal);
+        }
         bool includeCicp = gamma is null;
         int tagCount = includeCicp ? 11 : 10;
         int descriptionOffset = 132 + tagCount * 12;
@@ -110,7 +124,7 @@ internal static class RgbIccProfile
         int curveSize = includeCicp ? 32 : 16;
         byte[] profile = new byte[curveOffset + curveSize];
         Span<byte> bytes = profile;
-        Header(bytes, "mntr"u8, "RGB "u8);
+        Header(bytes, "mntr"u8, "RGB "u8, renderingIntent);
         UInt32(bytes, 128, (uint)tagCount);
         Tag(bytes, 0, "desc"u8, (uint)descriptionOffset, (uint)descriptionSize);
         Tag(bytes, 1, "cprt"u8, (uint)copyrightOffset, 36);
