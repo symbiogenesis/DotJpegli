@@ -329,9 +329,13 @@ public sealed class EncoderProgressiveTests
         Dictionary<BlockKey, Block> Blocks, List<Scan> Scans)
     {
         public static JpegDocument Read(byte[] jpeg, bool progressive, int expectedInterval,
-            int expectedRefinementBits = 0, IReadOnlyList<int>? expectedAcScanEnds = null)
+            int expectedRefinementBits = 0, IReadOnlyList<int>? expectedAcScanEnds = null,
+            IReadOnlyList<int>? expectedAcRefinementBits = null)
         {
             IReadOnlyList<int> acScanEnds = expectedAcScanEnds ?? [63];
+            IReadOnlyList<int> acRefinementBits = expectedAcRefinementBits
+                ?? Enumerable.Repeat(expectedRefinementBits, acScanEnds.Count).ToArray();
+            Assert.Equal(acScanEnds.Count, acRefinementBits.Count);
             Assert.Equal(new byte[] { 0xff, 0xd8 }, jpeg[..2]);
             int position = 2, width = 0, height = 0, frameCount = 0, driCount = 0;
             var components = new Dictionary<int, Component>();
@@ -339,6 +343,7 @@ public sealed class EncoderProgressiveTests
             var tables = new Dictionary<int, Dictionary<int, int>>();
             var blocks = new Dictionary<BlockKey, Block>();
             var scans = new List<Scan>();
+            List<(int[] Components, int First, int Last, int High, int Low)>? expectedScans = null;
             var acBands = new HashSet<(BlockKey Key, int First, int Last, int Low)>();
             while (true)
             {
@@ -419,16 +424,17 @@ public sealed class EncoderProgressiveTests
                         int high = approximation >> 4, low = approximation & 15;
                         Assert.Equal(end, position);
                         var scan = new Scan(selectors, first, last, high, low, end);
-                        int scansPerCycle = 1 + components.Count * acScanEnds.Count;
-                        int cycle = progressive ? scans.Count / scansPerCycle : 0;
-                        int scanInCycle = progressive ? scans.Count % scansPerCycle : 0;
-                        Assert.Equal(cycle == 0 ? 0 : expectedRefinementBits - cycle + 1, high);
-                        Assert.Equal(progressive ? expectedRefinementBits - cycle : 0, low);
-                        if (scanInCycle == 0)
+                        expectedScans ??= ExpectedScans(progressive, components.Keys.ToArray(),
+                            expectedRefinementBits, acScanEnds, acRefinementBits);
+                        Assert.InRange(scans.Count, 0, expectedScans.Count - 1);
+                        var expectedScan = expectedScans[scans.Count];
+                        Assert.Equal(expectedScan.Components, selectors.Select(selector => selector.Component));
+                        Assert.Equal(expectedScan.First, first);
+                        Assert.Equal(expectedScan.Last, last);
+                        Assert.Equal(expectedScan.High, high);
+                        Assert.Equal(expectedScan.Low, low);
+                        if (first == 0)
                         {
-                            Assert.Equal(components.Keys, selectors.Select(selector => selector.Component));
-                            Assert.Equal(0, first);
-                            Assert.Equal(progressive ? 0 : 63, last);
                             if (progressive)
                             {
                                 Assert.All(selectors, selector => Assert.Equal(0x10, selector.Ac));
@@ -439,10 +445,6 @@ public sealed class EncoderProgressiveTests
                         else
                         {
                             Selector selector = Assert.Single(selectors);
-                            int band = (scanInCycle - 1) / components.Count;
-                            Assert.Equal(components.Keys.ElementAt((scanInCycle - 1) % components.Count), selector.Component);
-                            Assert.Equal(band == 0 ? 1 : acScanEnds[band - 1] + 1, first);
-                            Assert.Equal(acScanEnds[band], last);
                             Assert.Equal(0, selector.Dc);
                         }
                         List<EntropySegment> segments = ReadSegments(jpeg, ref position);
@@ -455,13 +457,14 @@ public sealed class EncoderProgressiveTests
             }
             Assert.Equal(1, frameCount);
             Assert.Equal(expectedInterval == 0 ? 0 : 1, driCount);
-            Assert.Equal(progressive ? (1 + components.Count * acScanEnds.Count) * (expectedRefinementBits + 1) : 1, scans.Count);
+            Assert.Equal(progressive ? expectedRefinementBits + 1
+                + components.Count * acRefinementBits.Sum(bits => bits + 1) : 1, scans.Count);
             int bandCount = progressive ? acScanEnds.Count : 1;
-            int cycles = progressive ? expectedRefinementBits + 1 : 1;
-            Assert.Equal(blocks.Count(pair => !pair.Value.IsDummy) * bandCount * cycles, acBands.Count);
+            Assert.Equal(blocks.Count(pair => !pair.Value.IsDummy)
+                * (progressive ? acRefinementBits.Sum(bits => bits + 1) : 1), acBands.Count);
             foreach (BlockKey key in blocks.Where(pair => !pair.Value.IsDummy).Select(pair => pair.Key))
                 for (int band = 0; band < bandCount; band++)
-                    for (int low = 0; low < cycles; low++)
+                    for (int low = 0; low <= (progressive ? acRefinementBits[band] : 0); low++)
                         Assert.Contains((key, band == 0 ? 1 : acScanEnds[band - 1] + 1,
                             progressive ? acScanEnds[band] : 63, low), acBands);
             Assert.Equal(components.Values.Select(component => component.Quantizer).Distinct().Count(), quantizers.Count);
@@ -470,6 +473,31 @@ public sealed class EncoderProgressiveTests
             int maxV = components.Values.Max(component => component.V);
             int mcuCount = Ceiling(width, 8 * maxH) * Ceiling(height, 8 * maxV);
             return new(width, height, mcuCount, components, quantizers, blocks, scans);
+        }
+
+        private static List<(int[] Components, int First, int Last, int High, int Low)> ExpectedScans(
+            bool progressive, int[] components, int dcBits, IReadOnlyList<int> ends, IReadOnlyList<int> acBits)
+        {
+            var result = new List<(int[] Components, int First, int Last, int High, int Low)>();
+            if (!progressive)
+            {
+                result.Add((components, 0, 63, 0, 0));
+                return result;
+            }
+            result.Add((components, 0, 0, 0, dcBits));
+            for (int band = 0; band < ends.Count; band++)
+                foreach (int component in components)
+                    result.Add(([component], band == 0 ? 1 : ends[band - 1] + 1, ends[band], 0, acBits[band]));
+            for (int low = Math.Max(dcBits, acBits.Max()) - 1; low >= 0; low--)
+            {
+                if (dcBits > low)
+                    result.Add((components, 0, 0, low + 1, low));
+                for (int band = 0; band < ends.Count; band++)
+                    if (acBits[band] > low)
+                        foreach (int component in components)
+                            result.Add(([component], band == 0 ? 1 : ends[band - 1] + 1, ends[band], low + 1, low));
+            }
+            return result;
         }
 
         private static List<EntropySegment> ReadSegments(byte[] jpeg, ref int position)
