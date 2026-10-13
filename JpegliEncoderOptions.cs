@@ -189,6 +189,8 @@ public sealed record JpegliEncoderOptions
     /// assignment to RGB or YCbCr output with an sRGB interpretation, not grayscale.
     /// JpegliIccProfiles.CreateSrgbGrayscaleProfile provides the corresponding
     /// built-in profile for grayscale output with the sRGB transfer function.
+    /// CreateDisplayP3Profile describes already Display P3 samples for RGB or
+    /// YCbCr output; assigning it does not convert sRGB samples to Display P3.
     /// CreateLinearSrgbProfile and CreateLinearSrgbGrayscaleProfile describe
     /// already linear-light RGB and grayscale samples respectively; assigning
     /// them does not linearize the input.
