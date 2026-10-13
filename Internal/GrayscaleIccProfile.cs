@@ -17,7 +17,7 @@ internal static class GrayscaleIccProfile
         Hlg
     }
 
-    // Fixed D65/perceptual grayscale branches of lib/cms/jpegli_cms_internal.h,
+    // Fixed D65 and DCI/perceptual grayscale branches of lib/cms/jpegli_cms_internal.h,
     // google/jpegli 031a0077f5799a6041004267fc12b956c1f52a20.
     internal static byte[] Create(TransferFunction transfer)
     {

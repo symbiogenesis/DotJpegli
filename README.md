@@ -730,6 +730,40 @@ The JPEG remains lossy eight-bit output; embedding an ICC profile does not
 establish HDR display or Rec.2100 conformance. These RGB profiles are unsuitable
 for grayscale, scaled XYB, or samples using other primaries or transfers.
 
+Four additional factories provide profiles for **already encoded grayscale**
+samples, using the pinned builder's grayscale branches:
+
+| Factory | Media white | Decoding curve | Bytes |
+| --- | --- | --- | --- |
+| `CreateRec709GrayscaleProfile()` | D65 | BT.709 parametric curve | 328 |
+| `CreateDciGrayscaleProfile()` | DCI, xy `(0.314, 0.351)` | Gamma 2.6 | 328 |
+| `CreateRec2100PqGrayscaleProfile()` | D65 | 64-entry PQ table, normalized to 10,000 nits | 436 |
+| `CreateRec2100HlgGrayscaleProfile()` | D65 | 64-entry HLG table | 436 |
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(pqGraySamples, width, height,
+    PixelComponentLayout.Gray, options: new()
+    {
+        IccProfile = JpegliIccProfiles.CreateRec2100PqGrayscaleProfile(),
+        CicpTransferFunction = 16
+    });
+```
+
+Each call returns fresh deterministic bytes for explicit attachment to grayscale
+output. Supply full-range samples using the profile's transfer function and white
+point. The profiles retain upstream's source media-white tag and D50 XYZ PCS
+header, with no chromatic-adaptation or CICP tag. Opt-in CICP lookup therefore
+returns unspecified (2); set `CicpTransferFunction` explicitly, as above, to request
+existing PQ/HLG quantization tuning. Attaching the profile alone preserves JPEG
+coding and applies no sample conversion or limited-range expansion.
+
+The grayscale PQ/HLG profiles contain transfer tables without tone mapping or
+HLG OOTF adjustment. Compatible readers interpolate between the 64 entries;
+these grayscale curves differ from the RGB profiles' tone/gamut-mapped Lab LUTs.
+DCI grayscale has no RGB primaries and does not describe cinema XYZ. Output
+remains lossy eight-bit JPEG; these factories do not establish HDR display,
+Rec.2100 or digital-cinema conformance.
+
 Set `IptcData` to raw IPTC-IIM bytes to embed them unchanged in one Photoshop
 APP13 marker. Supply only the IIM datasets, without Photoshop or JPEG framing.
 Empty (the default) writes no IPTC. The encoder adds `Photoshop 3.0\0` and one
@@ -1039,6 +1073,8 @@ The DCI-P3 RGB profile uses DCI-to-D50 adaptation, gamma 2.6 decoding curves
 and CICP primaries/transfer codes 11/17.
 Rec.2100 PQ and HLG RGB profiles use Rec.2020 colorants and CICP signaling,
 with upstream's default tone/gamut-mapped 9x9x9 RGB-to-Lab display transforms.
+Additional grayscale profiles provide BT.709 at D65, gamma 2.6 at DCI white,
+and untone-mapped 64-entry PQ/HLG curves at D65, without CICP signaling.
 
 Pending: fractional sampling ratios,
 additional built-in profiles and arbitrary source ICC color management,
@@ -1192,6 +1228,15 @@ embedding and unchanged coding across input precisions, RGB/YCbCr output, scan
 modes, refinement, restarts and nonseekable streams. These checks validate
 serialization and sample preservation without establishing a color-managed
 lossy JPEG quality comparison.
+
+Additional grayscale regressions compare all four complete profiles with
+independently compiled pinned C++ fixtures and verify their MD5 IDs, fresh
+storage, aligned tags and source media white. Independent BT.709/DCI formulas
+and PQ/HLG transfer-table oracles check decoding and interpolation. Encoding
+checks verify exact APP2 embedding, preserved coding across input precisions,
+scan modes and restarts, nonseekable streams, cancellation and explicit transfer
+hints in the absence of a CICP tag. These checks validate serialization and
+sample preservation without establishing color-managed lossy JPEG quality.
 
 Scaled XYB regressions compare complete emitted quantization tables with
 independently compiled pinned C++ scalar fixtures. Independent JPEG parsing
