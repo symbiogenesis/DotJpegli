@@ -144,6 +144,8 @@ public static class JpegliEncoder
             : options.SamplingFactors ?? (xyb ? new JpegSamplingFactors(new(2, 2), new(2, 2), new(1, 1))
                 : JpegSamplingFactors.FromSubsampling(rgb ? ChromaSubsampling.None : options.Subsampling));
         options = options.ResolveProgressiveLevel(sampling);
+        bool interleaveInitialScan = grayscale || (options.Progressive
+            ? options.ProgressiveInterleaveDc : options.SequentialInterleaveComponents);
         int mcuWidth = 8 * sampling.MaxHorizontal;
         int interleavedRestartInterval = options.ResolveRestartInterval((width + mcuWidth - 1) / mcuWidth);
         var componentRestartIntervals = new int[componentCount];
@@ -228,7 +230,7 @@ public static class JpegliEncoder
                 dcFrequencies[index] = new long[256];
                 acFrequencies[index] = new long[256];
             }
-            if (!options.Progressive || options.ProgressiveInterleaveDc || grayscale)
+            if (interleaveInitialScan)
                 ProcessBlocks(pixels, width, height, stride, sampling,
                     tables, distance, options.SmoothingFactor, interleavedRestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
                     null, dcFrequencies, acFrequencies, cancellationToken, dcOnly: options.Progressive,
@@ -237,9 +239,9 @@ public static class JpegliEncoder
                 for (int component = 0; component < componentCount; component++)
                     ProcessComponentBlocks(pixels, width, height, stride, sampling,
                         tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
-                        component, acTables, null, null, cancellationToken, aggregateEobRuns: false,
-                        successiveLow: options.ProgressiveRefinementBits, dcOnly: true,
-                        dcTables: dcTables, dcFrequencies: dcFrequencies);
+                        component, acTables, null, acFrequencies, cancellationToken, aggregateEobRuns: false,
+                        successiveLow: options.ProgressiveRefinementBits, dcOnly: options.Progressive,
+                        dcTables: dcTables, dcFrequencies: dcFrequencies, sequential: !options.Progressive);
             if (options.Progressive)
             {
                 for (int band = 0; band < acScanEnds.Length; band++)
@@ -291,7 +293,7 @@ public static class JpegliEncoder
             JpegMarkerWriter.WriteRestartInterval(output, interval);
             lastRestartInterval = interval;
         }
-        if (!options.Progressive || options.ProgressiveInterleaveDc || grayscale)
+        if (interleaveInitialScan)
         {
             WriteRestartInterval(interleavedRestartInterval);
             JpegMarkerWriter.WriteScanHeader(output, componentCount, options.Progressive,
@@ -307,12 +309,13 @@ public static class JpegliEncoder
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 WriteRestartInterval(componentRestartIntervals[component]);
-                JpegMarkerWriter.WriteScanHeader(output, componentCount, true,
-                    successiveLow: options.ProgressiveRefinementBits, rgb: rgb, dcComponent: component);
+                JpegMarkerWriter.WriteScanHeader(output, componentCount, options.Progressive,
+                    successiveLow: options.ProgressiveRefinementBits, rgb: rgb, singleComponent: component);
                 ProcessComponentBlocks(pixels, width, height, stride, sampling,
                     tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
                     component, acTables, bits, null, cancellationToken, aggregateEobRuns: false,
-                    successiveLow: options.ProgressiveRefinementBits, dcOnly: true, dcTables: dcTables);
+                    successiveLow: options.ProgressiveRefinementBits, dcOnly: options.Progressive,
+                    dcTables: dcTables, sequential: !options.Progressive);
                 bits.Flush();
             }
         if (options.Progressive)
@@ -357,7 +360,7 @@ public static class JpegliEncoder
                             cancellationToken.ThrowIfCancellationRequested();
                             WriteRestartInterval(componentRestartIntervals[component]);
                             JpegMarkerWriter.WriteScanHeader(output, componentCount, true,
-                                successiveHigh: low + 1, successiveLow: low, rgb: rgb, dcComponent: component);
+                                successiveHigh: low + 1, successiveLow: low, rgb: rgb, singleComponent: component);
                             ProcessComponentBlocks(pixels, width, height, stride, sampling,
                                 tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
                                 component, acTables, bits, null, cancellationToken, aggregateEobRuns: false,
@@ -502,7 +505,7 @@ public static class JpegliEncoder
         int component, HuffmanTable[] acTables, BitWriter? writer, long[][]? acFrequencies,
         CancellationToken cancellationToken, bool aggregateEobRuns, int successiveLow = 0, bool refine = false,
         int spectralStart = 1, int spectralEnd = 63, bool dcOnly = false,
-        HuffmanTable[]? dcTables = null, long[][]? dcFrequencies = null)
+        HuffmanTable[]? dcTables = null, long[][]? dcFrequencies = null, bool sequential = false)
     {
         // A noninterleaved scan visits only real component blocks in raster order.
         // In particular, 4:2:0 luma must finish one block row before the next,
@@ -524,7 +527,7 @@ public static class JpegliEncoder
 
         void FlushEobRun()
         {
-            if (dcOnly)
+            if (dcOnly || sequential)
                 return;
             if (refine)
             {
@@ -575,7 +578,16 @@ public static class JpegliEncoder
                     adaptiveStrength: strength,
                     adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
                     rgb: pixels.IsRgb);
-                if (dcOnly)
+                if (sequential)
+                {
+                    if (writer is null)
+                        EntropyEncoder.AccumulateFrequencies(quantized, ref previousScanDc,
+                            dcFrequencies![tableIndex], acFrequencies![tableIndex]);
+                    else
+                        EntropyEncoder.WriteBlock(writer, quantized, ref previousScanDc,
+                            dcTables![tableIndex], acTables[tableIndex]);
+                }
+                else if (dcOnly)
                 {
                     if (refine)
                         ProgressiveEntropyEncoder.WriteDcRefinement(writer!, quantized, successiveLow);

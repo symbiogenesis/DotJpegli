@@ -876,7 +876,7 @@ values override that fixed interval, which must still be valid; negative row
 counts are rejected. The effective interval is the scan's MCU columns multiplied
 by `RestartRows`, capped at 65,535 with overflow-safe arithmetic. Rows refer to
 the current scan rather than source pixel rows: interleaved scans use frame MCUs,
-while single-component DC and AC scans use the component's real block columns
+while single-component sequential, DC and AC scans use the component's real block columns
 and rows. For a 33-pixel-wide 4:2:0 image with `RestartRows = 1`, interleaved DC
 restarts every three MCUs, luma AC every five blocks, and chroma AC every three
 blocks. Separate luma DC scans also use five blocks per row. DRI markers update
@@ -884,6 +884,36 @@ the interval only when it changes, and RST numbering starts at RST0 in each scan
 Intervals that reach the cap can cease to align with complete rows. The option
 applies to all output color spaces, sampling factors, input precisions and scan
 scripts, retaining final coefficients, decoded samples and stream behavior.
+
+Set `SequentialInterleaveComponents = false` to write one complete baseline
+sequential scan for each output component, in frame order:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    SequentialInterleaveComponents = false,
+    RestartRows = 1
+});
+```
+
+This selects a custom sequential scan script supported by the pinned upstream's
+[`ValidateScanScript`](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/encode.cc).
+Each scan sends DC and all AC coefficients at full precision, visits real
+component blocks in raster order, and omits wholly padded MCU blocks. Each block
+counts as one MCU for restarts; row-based intervals use that component's real
+block columns. DC predictors reset at each scan and restart; RST numbering starts
+at RST0 in each scan and advances modulo eight.
+The output retains its baseline SOF0 frame and quantization tables, final
+coefficients and decoded samples. Color encoding needs additional passes but
+retains bounded working storage. JPEG reader support can vary.
+
+The default `true` preserves existing interleaved JPEG bytes. Grayscale bytes
+are unchanged with either value. False requires sequential output and rejects
+`Progressive = true` before output, except when `ProgressiveLevel = 0` selects
+sequential encoding. Positive progression levels are also rejected. Sampling,
+source precision, smoothing, adaptive quantization, custom quantization tables,
+metadata and stream behavior retain their usual contracts. This does not expose
+arbitrary scan scripts or promise upstream byte, size or speed parity.
 
 Set `Progressive = true` to write a progressive JPEG: an initial DC scan provides
 a coarse preview, followed by one full-precision AC scan per component. This
@@ -1044,7 +1074,7 @@ token limit and flushing a run before another block would exceed that limit.
 Buffered correction bits follow the run symbol and its length bits in block order.
 DC refinement uses raw bits.
 
-In progressive AC scans and separate component DC scans, a single component
+In separate sequential scans, progressive AC scans and separate component DC scans, a single component
 block counts as one MCU, so `RestartInterval` can produce more markers than in
 an interleaved DC scan. Restart counting
 and the RST0..RST7 sequence begin again in each scan.
@@ -1218,7 +1248,8 @@ generated, reconciled with an explicit hint, or applied to the samples.
 
 ## Port status
 
-Implemented: baseline sequential and optional spectral-selection and successive-approximation progressive
+Implemented: baseline sequential with interleaved or separate component scans,
+and optional spectral-selection and successive-approximation progressive
 JPEG; grayscale/YCbCr JFIF and explicit RGB output; RGB, grayscale and direct
 interleaved full-range YCbCr input with explicit output color-space selection; 4:4:4,
 4:2:2, 4:2:0, 4:4:0, 4:1:1 and 4:1:0, plus 3x1, 3x2, 1x4, 2x4, 1x3 and 2x3 chroma
@@ -1311,6 +1342,14 @@ GitHub Actions workflow, on Windows and Linux; benchmarks also belong on CI and
 none are included yet. Do not batch local selections to approximate a full suite.
 Tests use xUnit and a separate StbImageSharp decoder; these packages are test-only
 and are not part of the encoder or its package dependency graph.
+
+Separate-sequential regressions independently parse frame/scan descriptors,
+Huffman symbols and coefficients, checking real-block raster traversal, predictor
+resets, entropy padding, changing DRI intervals and RST cycling. They compare
+final coefficients and decoded pixels with interleaved output across sampling
+schemes, output color spaces, source precisions, custom tables and Huffman modes,
+and cover default/grayscale byte compatibility, metadata, stream behavior,
+cancellation and validation before output.
 
 Custom-quantization regressions independently parse DQT zigzag values and frame
 selectors, compare constant-block DC and complete cosine-DCT coefficients, and

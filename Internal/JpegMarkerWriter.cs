@@ -174,10 +174,11 @@ internal static class JpegMarkerWriter
 
     public static void WriteScanHeader(Stream output, int componentCount, bool progressive,
         int acComponent = -1, int successiveHigh = 0, int successiveLow = 0, bool rgb = false,
-        int spectralStart = 1, int spectralEnd = 63, int dcComponent = -1)
+        int spectralStart = 1, int spectralEnd = 63, int singleComponent = -1)
     {
-        // Progressive DC may be interleaved; AC scans must select one component.
-        int selectedComponent = acComponent >= 0 ? acComponent : dcComponent;
+        // Sequential scans may select one component. Progressive DC may be
+        // interleaved; progressive AC scans must select one component.
+        int selectedComponent = acComponent >= 0 ? acComponent : singleComponent;
         int scanComponents = selectedComponent < 0 ? componentCount : 1;
         Marker(output, 0xda);
         Word(output, 6 + scanComponents * 2);

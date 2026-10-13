@@ -282,6 +282,19 @@ public sealed record JpegliEncoderOptions
     public bool Progressive { get; init; }
 
     /// <summary>
+    /// Interleave all components in the baseline sequential scan. True (the default)
+    /// preserves existing bytes. False writes one complete DC/AC scan per component,
+    /// in frame component order, visiting only real blocks in raster order.
+    /// Each block is one MCU for restart counting; RestartRows uses the selected
+    /// component's real block columns. Grayscale output is unchanged.
+    /// Requires sequential output: Progressive must be false unless ProgressiveLevel
+    /// is zero. Positive ProgressiveLevel presets cannot be combined with false.
+    /// Final coefficients are unchanged; color output requires more encoding passes.
+    /// No full-image coefficient buffer is allocated. Reader support can vary.
+    /// </summary>
+    public bool SequentialInterleaveComponents { get; init; } = true;
+
+    /// <summary>
     /// Optional pinned Jpegli scan preset, overriding Progressive. Null (the default)
     /// preserves the existing scan settings. Zero selects baseline; one sends DC
     /// at full precision and all AC coefficients with one refinement bit; two or
@@ -357,7 +370,8 @@ public sealed record JpegliEncoderOptions
     /// otherwise eight times the horizontal and vertical chroma sample area dimensions,
     /// including partial edge units. For example, 4:2:0 uses 16x16 and 4:1:0 uses 32x16.
     /// Custom factors use eight times the largest horizontal and vertical component factors.
-    /// In progressive AC scans and noninterleaved DC scans, each component block is one MCU. The interval
+    /// In separate sequential scans, progressive AC scans and noninterleaved DC scans,
+    /// each component block is one MCU. The interval
     /// and restart marker sequence start afresh in every scan.
     /// Positive RestartRows overrides this interval; this value must still be valid.
     /// </summary>
@@ -368,8 +382,8 @@ public sealed record JpegliEncoderOptions
     /// RestartInterval and preserves existing bytes. Positive values override
     /// RestartInterval, which must still be valid. Negative values are rejected.
     /// Each scan's interval is its MCU columns times this value, capped at 65535.
-    /// Interleaved scans use the frame MCU width; single-component progressive
-    /// scans use that component's real block columns. Rows are scan rows, rather
+    /// Interleaved scans use the frame MCU width; single-component scans use
+    /// that component's real block columns. Rows are scan rows, rather
     /// than source pixel rows, so their height depends on sampling and scan type.
     /// DRI markers update the interval when it changes between scans, and the
     /// restart marker sequence starts afresh in every scan. Very large values
@@ -472,6 +486,10 @@ public sealed record JpegliEncoderOptions
 
     internal void Validate()
     {
+        bool progressiveOutput = ProgressiveLevel is int requestedLevel ? requestedLevel > 0 : Progressive;
+        if (!SequentialInterleaveComponents && progressiveOutput)
+            throw new ArgumentException("Separate sequential component scans require sequential encoding.",
+                nameof(SequentialInterleaveComponents));
         if (ProgressiveLevel is int level)
         {
             if (level < 0)
