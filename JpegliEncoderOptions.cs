@@ -265,6 +265,8 @@ public sealed record JpegliEncoderOptions
     /// Number of coefficient bits delivered in successive refinement scans, from 0 to 10.
     /// Zero (the default) uses full-precision initial scans. A positive value requires
     /// Progressive and adds that many rounds of DC and component AC refinement scans.
+    /// ProgressiveAcRefinementBits can override the depth of each AC band without
+    /// changing this setting's DC depth.
     /// Final coefficients are unchanged; more rounds require more encoding passes.
     /// </summary>
     public int ProgressiveRefinementBits { get; init; }
@@ -275,14 +277,31 @@ public sealed record JpegliEncoderOptions
     /// Requires Progressive; ends must be strictly increasing from 1 to 63,
     /// with the final end equal to 63. Null uses one AC scan per component,
     /// preserving existing bytes. Each band is sent for every component before
-    /// the next band; all bands use ProgressiveRefinementBits and recur in each
-    /// refinement round. Restart counting and EOB runs start afresh per scan.
+    /// the next band. Bands use ProgressiveRefinementBits unless overridden by
+    /// ProgressiveAcRefinementBits. Restart counting and EOB runs start afresh per scan.
     /// The list is copied and validated before output; do not modify it while
     /// encoding starts. Additional bands require additional encoding passes.
-    /// This does not reproduce upstream's default scan script, which defers
-    /// different numbers of bits in different bands.
     /// </summary>
     public IReadOnlyList<int>? ProgressiveAcScanEnds { get; init; }
+
+    /// <summary>
+    /// Optional number of deferred bits, from 0 to 10, for each progressive AC band.
+    /// Requires Progressive and exactly one value per ProgressiveAcScanEnds entry,
+    /// or one value when the ends are null. Null (the default) uses
+    /// ProgressiveRefinementBits for every band and preserves existing bytes.
+    /// This overrides AC depths only; ProgressiveRefinementBits still sets the DC depth.
+    /// Initial scans send DC, then each band for every component. Refinement rounds
+    /// descend from the largest depth toward zero, sending DC then each band only
+    /// when that coefficient range has a bit left to deliver. Each scan resets
+    /// restart counting and EOB runs. Final coefficients are unchanged.
+    /// For ends [2, 63], depths [0, 2] and DC depth zero, the spectral ranges and
+    /// bit schedule match upstream's level 2; color DC remains interleaved even
+    /// when maximum sampling factors exceed one, unlike upstream.
+    /// This does not promise encoder-byte parity.
+    /// The list is copied and validated before output; do not modify it while
+    /// encoding starts. Larger depths require additional encoding passes.
+    /// </summary>
+    public IReadOnlyList<int>? ProgressiveAcRefinementBits { get; init; }
 
     /// <summary>
     /// Number of minimum coded units (MCUs) between restart markers, from 0 to 65535.
@@ -319,6 +338,28 @@ public sealed record JpegliEncoderOptions
         }
         if (previous != 63)
             throw new ArgumentException("The final AC scan end must be 63.", nameof(ProgressiveAcScanEnds));
+        return snapshot;
+    }
+
+    internal int[] PrepareProgressiveAcRefinementBits(int bandCount)
+    {
+        var snapshot = new int[bandCount];
+        if (ProgressiveAcRefinementBits is not { } depths)
+        {
+            Array.Fill(snapshot, ProgressiveRefinementBits);
+            return snapshot;
+        }
+        if (!Progressive)
+            throw new ArgumentException("AC refinement depths require progressive encoding.", nameof(ProgressiveAcRefinementBits));
+        if (depths.Count != bandCount)
+            throw new ArgumentException("AC refinement depths must contain one value per AC scan band.", nameof(ProgressiveAcRefinementBits));
+        for (int index = 0; index < bandCount; index++)
+        {
+            int depth = depths[index];
+            if (depth is < 0 or > 10)
+                throw new ArgumentOutOfRangeException(nameof(ProgressiveAcRefinementBits), "AC refinement depths must be between 0 and 10.");
+            snapshot[index] = depth;
+        }
         return snapshot;
     }
 

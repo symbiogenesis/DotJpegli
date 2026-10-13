@@ -892,14 +892,46 @@ bytes. A non-null list requires `Progressive = true`. The encoder copies and
 validates the list before writing output; do not modify it while encoding starts.
 
 Each round sends DC first, then every component in the first band, then every
-component in each subsequent band. All bands defer the same number of bits from
-`ProgressiveRefinementBits` and use the same bands in each refinement round.
+component in each subsequent band. By default all bands defer the same number of
+bits from `ProgressiveRefinementBits` and recur in each refinement round.
 With `B` bands, `C` components and `N` refinement bits, the JPEG contains
 `(1 + B * C) * (N + 1)` scans. Coefficients, quantization and the final decoded
 pixels are preserved. More bands require more image passes and marker overhead;
-they do not guarantee smaller files or faster decoding. The pinned upstream
-default also splits positions 1..2 and 3..63, but gives the two bands different
-refinement schedules. This API keeps a uniform schedule across all bands.
+they do not guarantee smaller files or faster decoding.
+
+Set `ProgressiveAcRefinementBits` to defer a different number of bits in each band:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    Progressive = true,
+    ProgressiveAcScanEnds = [2, 63],
+    ProgressiveAcRefinementBits = [0, 2]
+});
+```
+
+This sends DC and positions 1..2 at full precision, followed by positions 3..63
+with two bits deferred and then two refinement rounds of only that higher band.
+The spectral ranges and bit schedule match the pinned upstream's level 2.
+DotJpegli still interleaves color DC in subsampled MCUs, while upstream sends
+separate component DC scans when its maximum sampling factors exceed one.
+This setting therefore does not establish native scan-script or JPEG byte parity.
+
+The new list requires `Progressive = true`, exactly one value per resolved AC
+band, and values in 0..10. When `ProgressiveAcScanEnds` is null there is one
+band, so a supplied depth list must have one value. Null depths use
+`ProgressiveRefinementBits` for all bands and preserve existing bytes.
+The scalar setting always controls DC; the list overrides only AC.
+Both lists are copied and validated before output, with the same source-lifetime
+requirements as other progressive settings.
+
+All initial scans are sent first. Refinement rounds descend from the largest
+DC or AC depth minus one to zero; each round sends DC if it has a bit left,
+then each unfinished band for every component. Completed ranges are skipped.
+With DC depth `D` and band depths `A[b]`, the scan count is
+`D + 1 + C * sum(A[b] + 1)`. Every coefficient still reaches full precision,
+including when AC depth exceeds DC depth or all AC bands finish before DC.
+Restart counting and EOB runs reset per scan, and storage remains bounded.
 
 With `OptimizeHuffmanTables = true` (the default), progressive initial and refinement
 AC scans combine consecutive block endings into end-of-block (EOB) runs,
@@ -1061,7 +1093,7 @@ byte stuffing and marker output; optional MCU restart intervals with DRI and
 cycling RST markers, including predictor resets during Huffman optimization;
 progressive initial and refinement EOB-run aggregation with optimized Huffman tables;
 optional DC and AC refinement scans with bounded correction-bit storage;
-configurable complete AC spectral bands with uniform refinement across bands.
+configurable complete AC spectral bands with optional separate refinement depths.
 Raw Exif TIFF embedding, standard and extended UTF-8 XMP packets in APP1,
 opt-in automatic partitioning of oversized XMP with selected standard properties, raw ICC profiles
 with APP2 chunking, raw IPTC-IIM in Photoshop APP13, UTF-8 COM comments, and
@@ -1141,6 +1173,13 @@ coefficients with baseline encoding. Decoder checks verify final pixels where
 the independent decoder supports the output mode. Focused cases also cover
 single-position bands, typed and padded input, default-byte compatibility,
 nonseekable streams, cancellation and invalid partitions before output.
+
+Per-band refinement regressions check mixed AC depths independently of DC depth,
+including upstream's level-2 spectral/bit descriptors and the maximum ten-bit
+depth. Independent scan parsing checks range coverage, refinement order, EOB
+runs, correction bits, restart boundaries and padding, then compares complete
+coefficients and decoded pixels with baseline output. They also cover typed
+inputs, default-byte compatibility, list snapshots and validation before output.
 
 Numerical development probes checked the DCT against an independent cosine
 definition. Compiled C++ reference probes matched 120 color and grayscale quantization tables

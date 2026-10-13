@@ -109,6 +109,8 @@ public static class JpegliEncoder
         options ??= new JpegliEncoderOptions();
         options.Validate();
         int[] acScanEnds = options.PrepareProgressiveAcScanEnds();
+        int[] acRefinementBits = options.PrepareProgressiveAcRefinementBits(acScanEnds.Length);
+        int maxRefinementBits = Math.Max(options.ProgressiveRefinementBits, acRefinementBits.Max());
         pixels = pixels.WithColorSpace(options.ColorSpace);
         if (pixels.IsXyb && options.IccProfile.IsEmpty)
             throw new ArgumentException("Scaled XYB encoding requires an ICC profile describing the stored channels.",
@@ -221,18 +223,22 @@ public static class JpegliEncoder
                         ProcessAcBlocks(pixels, width, height, stride, sampling,
                             tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
                             component, acTables, null, acFrequencies, cancellationToken, aggregateEobRuns: true,
-                            successiveLow: options.ProgressiveRefinementBits,
+                            successiveLow: acRefinementBits[band],
                             spectralStart: band == 0 ? 1 : acScanEnds[band - 1] + 1, spectralEnd: acScanEnds[band]);
                 // DC refinement emits raw bits, so only AC refinement contributes
                 // additional symbols to the shared optimized Huffman tables.
-                for (int low = options.ProgressiveRefinementBits - 1; low >= 0; low--)
+                for (int low = maxRefinementBits - 1; low >= 0; low--)
                     for (int band = 0; band < acScanEnds.Length; band++)
+                    {
+                        if (acRefinementBits[band] <= low)
+                            continue;
                         for (int component = 0; component < componentCount; component++)
                             ProcessAcBlocks(pixels, width, height, stride, sampling,
                                 tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
                                 component, acTables, null, acFrequencies, cancellationToken,
                                 aggregateEobRuns: true, successiveLow: low, refine: true,
                                 spectralStart: band == 0 ? 1 : acScanEnds[band - 1] + 1, spectralEnd: acScanEnds[band]);
+                    }
             }
             for (int index = 0; index < dcTables.Length; index++)
             {
@@ -269,28 +275,33 @@ public static class JpegliEncoder
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     JpegMarkerWriter.WriteScanHeader(output, componentCount, true, component,
-                        successiveLow: options.ProgressiveRefinementBits, rgb: rgb,
+                        successiveLow: acRefinementBits[band], rgb: rgb,
                         spectralStart: spectralStart, spectralEnd: acScanEnds[band]);
                     ProcessAcBlocks(pixels, width, height, stride, sampling,
                         tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers,
                         component, acTables, bits, null, cancellationToken,
                         aggregateEobRuns: options.OptimizeHuffmanTables,
-                        successiveLow: options.ProgressiveRefinementBits,
+                        successiveLow: acRefinementBits[band],
                         spectralStart: spectralStart, spectralEnd: acScanEnds[band]);
                     bits.Flush();
                 }
             }
-            for (int low = options.ProgressiveRefinementBits - 1; low >= 0; low--)
+            for (int low = maxRefinementBits - 1; low >= 0; low--)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                JpegMarkerWriter.WriteScanHeader(output, componentCount, true,
-                    successiveHigh: low + 1, successiveLow: low, rgb: rgb);
-                ProcessBlocks(pixels, width, height, stride, sampling,
-                    tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
-                    bits, null, null, cancellationToken, dcOnly: true, successiveLow: low, refine: true);
-                bits.Flush();
+                if (options.ProgressiveRefinementBits > low)
+                {
+                    JpegMarkerWriter.WriteScanHeader(output, componentCount, true,
+                        successiveHigh: low + 1, successiveLow: low, rgb: rgb);
+                    ProcessBlocks(pixels, width, height, stride, sampling,
+                        tables, distance, options.SmoothingFactor, options.RestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
+                        bits, null, null, cancellationToken, dcOnly: true, successiveLow: low, refine: true);
+                    bits.Flush();
+                }
                 for (int band = 0; band < acScanEnds.Length; band++)
                 {
+                    if (acRefinementBits[band] <= low)
+                        continue;
                     int spectralStart = band == 0 ? 1 : acScanEnds[band - 1] + 1;
                     for (int component = 0; component < componentCount; component++)
                     {
