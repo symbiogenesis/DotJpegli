@@ -1,6 +1,6 @@
 # Upstream source and notices
 
-DotJpegli adapts selected routines and data directly from Google's Jpegli source,
+DotJpegli adapts selected encoder routines and supporting data directly from Google's Jpegli source,
 distributed under BSD-3-Clause:
 
 - Repository: https://github.com/google/jpegli

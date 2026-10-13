@@ -1,9 +1,15 @@
 # DotJpegli
 
 A fully managed C# JPEG encoder targeting .NET 10. This is an experimental incremental
-port of [Google Jpegli](https://github.com/google/jpegli), with unsafe compilation
+port of the encoder in [Google Jpegli](https://github.com/google/jpegli), with unsafe compilation
 disabled and no native binaries, P/Invoke, pointer code, `Unsafe` APIs, or runtime
 NuGet dependencies.
+
+DotJpegli's scope is **encoder only**. Implementing or porting a JPEG decoder is
+outside the project's scope and is not planned. Generated JPEGs are intended for
+existing JPEG decoders; compatibility requirements for optional output modes are
+documented below. Port completion is judged on encoder functionality, output
+compatibility, quality/compression validation, and performance.
 
 The source is pinned to
 [`031a0077f5799a6041004267fc12b956c1f52a20`](https://github.com/google/jpegli/tree/031a0077f5799a6041004267fc12b956c1f52a20),
@@ -1418,7 +1424,10 @@ bytes, or the primaries, matrix and range fields. Unreadable lookup data remains
 embedded unchanged. No other profile tags are interpreted, and no profile is
 generated, reconciled with an explicit hint, or applied to the samples.
 
-## Port status
+## Encoder port status
+
+This status covers the encoder only. Decoder implementation is outside the
+project's scope and does not count as unfinished port work.
 
 Implemented: baseline or extended sequential with interleaved or separate component scans,
 and optional spectral-selection and successive-approximation progressive
@@ -1496,10 +1505,9 @@ Configurable pure-gamma profiles provide sRGB/Rec.709, Display P3 and Rec.2020
 RGB primaries with D65-to-D50 adaptation, plus D65 grayscale, with type-0
 decoding curves and no CICP tag.
 
-Pending: fractional sampling ratios,
+Pending encoder work: fractional sampling ratios,
 other built-in profile transfer/white-point/intent combinations and arbitrary source ICC color management,
-structured metadata editing, other metadata, SIMD/parallel paths,
-and decoder functionality.
+structured metadata editing, other metadata, and SIMD/parallel paths.
 Fractional sampling ratios are also rejected by the pinned upstream encoder.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
 one eighth of those units. This scaling adaptation is accounted for during
@@ -1524,6 +1532,7 @@ GitHub Actions workflow, on Windows and Linux; benchmarks also belong on CI and
 none are included yet. Do not batch local selections to approximate a full suite.
 Tests use xUnit and a separate StbImageSharp decoder; these packages are test-only
 and are not part of the encoder or its package dependency graph.
+The external decoder validates encoder output and is not a port target.
 
 Custom-script regressions independently parse explicit scan descriptors and
 per-coefficient progression, reconstruct final real coefficients and check
