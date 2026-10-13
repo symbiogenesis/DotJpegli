@@ -334,7 +334,7 @@ public sealed class EncoderProgressiveTests
         public static JpegDocument Read(byte[] jpeg, bool progressive, int expectedInterval,
             int expectedRefinementBits = 0, IReadOnlyList<int>? expectedAcScanEnds = null,
             IReadOnlyList<int>? expectedAcRefinementBits = null, bool expectedInterleaveDc = true,
-            int expectedRestartRows = 0)
+            int expectedRestartRows = 0, IReadOnlyList<JpegScan>? expectedScanScript = null)
         {
             IReadOnlyList<int> acScanEnds = expectedAcScanEnds ?? [63];
             IReadOnlyList<int> acRefinementBits = expectedAcRefinementBits
@@ -351,6 +351,7 @@ public sealed class EncoderProgressiveTests
             var scans = new List<Scan>();
             List<(int[] Components, int First, int Last, int High, int Low)>? expectedScans = null;
             var acBands = new HashSet<(BlockKey Key, int First, int Last, int Low)>();
+            var coefficientBits = new Dictionary<int, int[]>();
             while (true)
             {
                 Assert.Equal(0xff, jpeg[position++]);
@@ -379,6 +380,7 @@ public sealed class EncoderProgressiveTests
                         {
                             int component = jpeg[position++], factors = jpeg[position++];
                             components.Add(component, new(factors >> 4, factors & 15, jpeg[position++]));
+                            coefficientBits.Add(component, Enumerable.Repeat(-1, 64).ToArray());
                         }
                         Assert.Equal(end, position);
                         break;
@@ -436,8 +438,13 @@ public sealed class EncoderProgressiveTests
                         int high = approximation >> 4, low = approximation & 15;
                         Assert.Equal(end, position);
                         var scan = new Scan(selectors, first, last, high, low, end);
-                        expectedScans ??= ExpectedScans(progressive, components.Keys.ToArray(),
-                            expectedRefinementBits, acScanEnds, acRefinementBits, expectedInterleaveDc);
+                        expectedScans ??= expectedScanScript is null
+                            ? ExpectedScans(progressive, components.Keys.ToArray(),
+                                expectedRefinementBits, acScanEnds, acRefinementBits, expectedInterleaveDc)
+                            : expectedScanScript.Select(descriptor => (
+                                descriptor.Components.Select(index => components.Keys.ElementAt(index)).ToArray(),
+                                descriptor.SpectralStart, descriptor.SpectralEnd,
+                                descriptor.SuccessiveHigh, descriptor.SuccessiveLow)).ToList();
                         Assert.InRange(scans.Count, 0, expectedScans.Count - 1);
                         var expectedScan = expectedScans[scans.Count];
                         Assert.Equal(expectedScan.Components, selectors.Select(selector => selector.Component));
@@ -445,6 +452,23 @@ public sealed class EncoderProgressiveTests
                         Assert.Equal(expectedScan.Last, last);
                         Assert.Equal(expectedScan.High, high);
                         Assert.Equal(expectedScan.Low, low);
+                        foreach (Selector selector in selectors)
+                        {
+                            int[] bits = coefficientBits[selector.Component];
+                            if (first > 0)
+                                Assert.NotEqual(-1, bits[0]); // DC precedes AC for this component.
+                            for (int coefficient = first; coefficient <= last; coefficient++)
+                            {
+                                if (high == 0)
+                                    Assert.Equal(-1, bits[coefficient]);
+                                else
+                                {
+                                    Assert.Equal(high, bits[coefficient]);
+                                    Assert.Equal(high - 1, low);
+                                }
+                                bits[coefficient] = low;
+                            }
+                        }
                         if (first == 0)
                         {
                             if (progressive)
@@ -484,16 +508,22 @@ public sealed class EncoderProgressiveTests
             Assert.False(pendingDri); // Every DRI must define a following scan.
             if (expectedRestartRows == 0)
                 Assert.Equal(expectedInterval == 0 ? 0 : 1, driCount);
-            Assert.Equal(progressive ? (expectedRefinementBits + 1) * (expectedInterleaveDc ? 1 : components.Count)
-                + components.Count * acRefinementBits.Sum(bits => bits + 1) : 1, scans.Count);
-            int bandCount = progressive ? acScanEnds.Count : 1;
-            Assert.Equal(blocks.Count(pair => !pair.Value.IsDummy)
-                * (progressive ? acRefinementBits.Sum(bits => bits + 1) : 1), acBands.Count);
-            foreach (BlockKey key in blocks.Where(pair => !pair.Value.IsDummy).Select(pair => pair.Key))
-                for (int band = 0; band < bandCount; band++)
-                    for (int low = 0; low <= (progressive ? acRefinementBits[band] : 0); low++)
-                        Assert.Contains((key, band == 0 ? 1 : acScanEnds[band - 1] + 1,
-                            progressive ? acScanEnds[band] : 63, low), acBands);
+            Assert.All(coefficientBits.Values, bits => Assert.All(bits, bit => Assert.Equal(0, bit)));
+            if (expectedScanScript is not null)
+                Assert.Equal(expectedScanScript.Count, scans.Count);
+            else
+            {
+                Assert.Equal(progressive ? (expectedRefinementBits + 1) * (expectedInterleaveDc ? 1 : components.Count)
+                    + components.Count * acRefinementBits.Sum(bits => bits + 1) : 1, scans.Count);
+                int bandCount = progressive ? acScanEnds.Count : 1;
+                Assert.Equal(blocks.Count(pair => !pair.Value.IsDummy)
+                    * (progressive ? acRefinementBits.Sum(bits => bits + 1) : 1), acBands.Count);
+                foreach (BlockKey key in blocks.Where(pair => !pair.Value.IsDummy).Select(pair => pair.Key))
+                    for (int band = 0; band < bandCount; band++)
+                        for (int low = 0; low <= (progressive ? acRefinementBits[band] : 0); low++)
+                            Assert.Contains((key, band == 0 ? 1 : acScanEnds[band - 1] + 1,
+                                progressive ? acScanEnds[band] : 63, low), acBands);
+            }
             Assert.Equal(components.Values.Select(component => component.Quantizer).Distinct().Count(), quantizers.Count);
             Assert.All(components.Values, component => Assert.True(quantizers.ContainsKey(component.Quantizer)));
             int maxH = components.Values.Max(component => component.H);
@@ -616,9 +646,17 @@ public sealed class EncoderProgressiveTests
                                 }
                                 else if (dcScan)
                                 {
+                                    if (!blocks.TryGetValue(key, out Block? block))
+                                    {
+                                        // Regrouping separate initial DC scans into an interleaved
+                                        // refinement may visit padded blocks for the first time.
+                                        Assert.True(dummy, "A real block must have an initial DC scan.");
+                                        block = new(true, 0, new int[64]);
+                                        blocks.Add(key, block);
+                                    }
                                     // DC approximation uses two's complement: a refinement bit
                                     // moves a negative value toward zero, unlike AC magnitudes.
-                                    blocks[key].Coefficients[0] |= reader.UnsignedValue(1) << scan.Low;
+                                    block.Coefficients[0] |= reader.UnsignedValue(1) << scan.Low;
                                 }
                                 if (!dcScan || !progressive)
                                 {
