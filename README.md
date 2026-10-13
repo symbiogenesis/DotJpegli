@@ -617,6 +617,32 @@ perceptual-quality guarantee for linear-light JPEGs. Opt-in CICP lookup returns
 8 for the RGB profile and unspecified (2) for grayscale, both retaining default
 quantization tuning.
 
+`CreateLinearDisplayP3Profile()` and `CreateLinearRec2020Profile()` provide
+536-byte perceptual ICC v4.4 RGB display profiles for **already linear-light**
+samples with P3 or Rec.2020 primaries and D65 white. Both use Bradford adaptation
+to D50, adapted RGB colorants and shared identity transfer curves. Their CICP
+tags are `[12, 8, 0, 1]` and `[9, 8, 0, 1]`, respectively. Opt-in CICP lookup
+returns 8 and retains default quantization tuning. For example:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(linearRec2020Samples, width, height,
+    PixelComponentLayout.Rgb, options: new()
+    {
+        ColorSpace = JpegColorSpace.Rgb,
+        IccProfile = JpegliIccProfiles.CreateLinearRec2020Profile()
+    });
+```
+
+Each factory returns a fresh deterministic array for explicit attachment to
+RGB output or YCbCr output whose RGB interpretation uses the corresponding
+linear primaries. Supply normalized float samples or integers scaled to their
+full range. Attaching a profile preserves JPEG coding and does not convert
+primaries, linearize samples or apply tone mapping. These profiles do not
+describe gamma-encoded Display P3, PQ, HLG, grayscale or scaled XYB samples.
+The linear P3 description retains upstream's `RGB_D65_DCI_Per_Lin` spelling;
+its white point remains D65. Existing sRGB-to-XYB conversion still requires
+gamma-encoded sRGB input and the scaled XYB profile.
+
 Set `IptcData` to raw IPTC-IIM bytes to embed them unchanged in one Photoshop
 APP13 marker. Supply only the IIM datasets, without Photoshop or JPEG framing.
 Empty (the default) writes no IPTC. The encoder adds `Photoshop 3.0\0` and one
@@ -918,6 +944,8 @@ Linear-light variants provide identity transfer curves for RGB with sRGB
 primaries and D65 grayscale, using the same explicit output-profile assignment.
 An RGB Display P3 profile provides P3 colorants with the sRGB transfer curve,
 D65-to-D50 adaptation and CICP signaling for explicit output-profile assignment.
+Linear Display P3 and Rec.2020 RGB variants use the corresponding primaries,
+D65-to-D50 adaptation, identity transfer curves and linear CICP signaling.
 
 Pending: fractional sampling ratios,
 additional built-in profiles and arbitrary source ICC color management,
@@ -1045,6 +1073,15 @@ verify exact APP2 embedding and unchanged coding data across source precisions,
 RGB/YCbCr output, progressive refinement, restarts and nonseekable streams.
 These checks validate profile serialization and sample preservation without
 establishing a color-managed lossy JPEG quality comparison.
+
+Linear P3 and Rec.2020 profile regressions compare complete bytes with
+independently compiled pinned C++ fixtures, verify ICC MD5 IDs and fresh storage,
+and parse aligned tags, identity curves, colorants, adaptation and CICP fields.
+Independent primary and Bradford matrix oracles check linear samples against
+D50 XYZ. Encoding checks verify exact APP2 embedding and unchanged coding across
+input precisions, RGB/YCbCr output, scan modes and CICP lookup settings. These
+checks validate serialization and sample preservation without establishing a
+color-managed lossy JPEG quality comparison.
 
 Scaled XYB regressions compare complete emitted quantization tables with
 independently compiled pinned C++ scalar fixtures. Independent JPEG parsing

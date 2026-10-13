@@ -19,12 +19,23 @@ internal static class RgbIccProfile
          0.385103434324f, 0.71689671278f, 0.097085095942f,
          0.143095657229f, 0.0606217607856f, 0.714202940464f]);
 
-    internal static byte[] CreateDisplayP3() => Create("DisplayP3", 12, false,
+    internal static byte[] CreateDisplayP3(bool linear = false) => Create(
+        // Upstream's generic description calls the P3 primaries DCI even
+        // though this branch retains D65 white and a linear transfer curve.
+        linear ? "RGB_D65_DCI_Per_Lin" : "DisplayP3", 12, linear,
         // P3 primaries: R=(0.680,0.320), G=(0.265,0.690), B=(0.150,0.060).
         // Canonical upstream float results before ICC s15Fixed16 serialization.
         [0.51510214805603027f, 0.2411818653345108f, -0.0010494081070646644f,
          0.29196470975875854f, 0.69223642349243164f, 0.041881758719682693f,
          0.15715308487415314f, 0.066581852734088898f, 0.78437769412994385f]);
+
+    internal static byte[] CreateLinearRec2020() => Create("RGB_D65_202_Per_Lin", 9, true,
+        // Rec.2020 (upstream PRIMARIES_2100) primaries:
+        // R=(0.708,0.292), G=(0.170,0.797), B=(0.131,0.046).
+        // Canonical upstream float results before ICC s15Fixed16 serialization.
+        [0.67345893383026123f, 0.27903327345848083f, -0.0019313860684633255f,
+         0.16566081345081329f, 0.67533797025680542f, 0.029979368671774864f,
+         0.12510021030902863f, 0.045628782361745834f, 0.79716199636459351f]);
 
     private static byte[] Create(string description, byte primaries, bool linear,
         ReadOnlySpan<float> colorants)

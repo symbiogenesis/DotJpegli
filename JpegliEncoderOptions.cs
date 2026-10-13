@@ -194,6 +194,9 @@ public sealed record JpegliEncoderOptions
     /// CreateLinearSrgbProfile and CreateLinearSrgbGrayscaleProfile describe
     /// already linear-light RGB and grayscale samples respectively; assigning
     /// them does not linearize the input.
+    /// CreateLinearDisplayP3Profile and CreateLinearRec2020Profile describe
+    /// already linear-light RGB samples with the corresponding primaries;
+    /// assigning them does not convert the source color space or tone-map it.
     /// XYB output requires a nonempty profile describing Jpegli's scaled XYB channels, rather than an
     /// ordinary RGB profile. JpegliIccProfiles.CreateXybProfile provides a matching
     /// built-in profile; it must be assigned explicitly. The encoder does not validate

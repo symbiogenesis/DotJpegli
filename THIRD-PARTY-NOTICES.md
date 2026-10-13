@@ -17,7 +17,7 @@ distributed under BSD-3-Clause:
 | `Internal/PixelSource.cs` | `lib/jpegli/input.cc`: scalar 16-bit and float input scaling; `color_transform.cc`: direct YCbCr input with no color transform |
 | `Internal/IccProfile.cs` | `lib/extras/enc/jpegli.cc`: `FindCICPTag` and raw-profile CICP transfer-function lookup |
 | `Internal/XybIccProfile.cs` | `lib/cms/jpegli_cms_internal.h`, `lib/cms/opsin_params.h`: fixed perceptual scaled XYB ICC header, tags, CLUT, cubic curves, D50 matrix and profile ID; the generated profile's upstream copyright tag is `CC0` |
-| `Internal/RgbIccProfile.cs` | `lib/cms/jpegli_cms_internal.h`, `lib/cms/color_encoding_cms.h`: fixed D65/perceptual RGB profiles with sRGB or P3 primaries, shared sRGB or identity parametric transfer curves, adapted colorants and CICP fields; the generated profiles' upstream copyright tag is `CC0` |
+| `Internal/RgbIccProfile.cs` | `lib/cms/jpegli_cms_internal.h`, `lib/cms/color_encoding_cms.h`: fixed D65/perceptual RGB profiles with sRGB, P3 or Rec.2020 primaries, shared sRGB or identity parametric transfer curves, adapted colorants and CICP fields; the generated profiles' upstream copyright tag is `CC0` |
 | `Internal/SrgbGrayscaleIccProfile.cs` | `lib/cms/jpegli_cms_internal.h`: fixed D65/perceptual grayscale profiles with sRGB or identity parametric transfer curves, D65 media white and no chromatic-adaptation or CICP tag; the generated profiles' upstream copyright tag is `CC0` |
 | `Internal/IccProfileWriter.cs` | `lib/cms/jpegli_cms_internal.h`: shared fixed perceptual ICC header, Bradford adaptation, tag serialization and profile ID |
 | `Internal/Downsampling.cs` | `lib/jpegli/downsample.cc`, `encode.cc`: scalar 2x1, 2x2, 1x2 and 4x1 box filters, input smoothing and edge padding |

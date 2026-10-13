@@ -37,6 +37,29 @@ public static class JpegliIccProfiles
     public static byte[] CreateLinearSrgbProfile() => RgbIccProfile.CreateSrgb(linear: true);
 
     /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 RGB display profile for linear-light
+    /// samples with Display P3 primaries and D65 white adapted to D50 XYZ.
+    /// Assign it explicitly to JpegliEncoderOptions.IccProfile for RGB or YCbCr
+    /// output whose RGB interpretation is linear Display P3. Samples must
+    /// already use those primaries and a linear transfer function; attaching
+    /// this profile does not convert or linearize source samples.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateLinearDisplayP3Profile() => RgbIccProfile.CreateDisplayP3(linear: true);
+
+    /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 RGB display profile for linear-light
+    /// samples with Rec.2020 primaries and D65 white adapted to D50 XYZ.
+    /// Assign it explicitly to JpegliEncoderOptions.IccProfile for RGB or YCbCr
+    /// output whose RGB interpretation is linear Rec.2020. Samples must
+    /// already use those primaries and a linear transfer function; attaching
+    /// this profile does not convert, linearize or tone-map source samples.
+    /// It is not a PQ or HLG profile.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateLinearRec2020Profile() => RgbIccProfile.CreateLinearRec2020();
+
+    /// <summary>
     /// Creates Jpegli's perceptual ICC v4 grayscale display profile for
     /// gamma-encoded samples with the sRGB transfer function and D65 media white.
     /// Assign it explicitly to JpegliEncoderOptions.IccProfile for grayscale
