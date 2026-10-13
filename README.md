@@ -619,12 +619,13 @@ perceptual-quality guarantee for linear-light JPEGs. Opt-in CICP lookup returns
 8 for the RGB profile and unspecified (2) for grayscale, both retaining default
 quantization tuning.
 
-`CreateGammaSrgbProfile(gamma)` and `CreateGammaGrayscaleProfile(gamma)` provide
+`CreateGammaSrgbProfile(gamma)`, `CreateGammaDisplayP3Profile(gamma)`,
+`CreateGammaRec2020Profile(gamma)` and `CreateGammaGrayscaleProfile(gamma)` provide
 perceptual ICC v4.4 display profiles for samples already encoded with a pure
 power law. `gamma` is the **decoding exponent**, so `linear = encoded^gamma`;
-it must be finite and from 1 to 8192, inclusive. The RGB profile uses sRGB/Rec.709
-primaries with D65-to-D50 adaptation; the grayscale profile retains D65 media
-white and the D50 XYZ PCS header:
+it must be finite and from 1 to 8192, inclusive. The RGB profiles use sRGB/Rec.709,
+Display P3 or Rec.2020 primaries with D65-to-D50 adaptation; the grayscale
+profile retains D65 media white and the D50 XYZ PCS header:
 
 ```csharp
 byte[] jpeg = JpegliEncoder.Encode(gamma22Pixels, width, height, options: new()
@@ -633,19 +634,23 @@ byte[] jpeg = JpegliEncoder.Encode(gamma22Pixels, width, height, options: new()
 });
 ```
 
-Both factories return fresh deterministic arrays for explicit assignment. RGB
-output or corresponding YCbCr output can use the RGB profile; grayscale output
-uses the grayscale profile. Their 16-byte type-0 parametric curves decode the
+All four factories return fresh deterministic arrays for explicit assignment. RGB
+output or corresponding YCbCr output can use the matching RGB profile;
+grayscale output uses the grayscale profile. Their 16-byte type-0 parametric curves decode the
 power law, with one curve shared by all RGB channels. Curve exponents are rounded
 through upstream's float and signed 15.16 fixed-point serialization. A pure gamma
 2.2 curve differs from the piecewise sRGB transfer function; use `CreateSrgbProfile()`
-for sRGB samples. Attaching either profile preserves JPEG coding and applies no
-source conversion.
+for sRGB samples. Attaching a profile preserves JPEG coding and applies no
+source conversion. The wide-gamut factories describe samples already using the
+selected primaries and power law; they do not convert sRGB to P3 or Rec.2020.
+For ordinary Display P3's piecewise sRGB transfer function, use
+`CreateDisplayP3Profile()`; for BT.709-transfer Rec.2020, use `CreateRec2020Profile()`.
+The pure-gamma Rec.2020 profile does not describe PQ or HLG samples.
 
 The factories port the pinned builder's direct `GAMMA` branch with encoding
 exponent `1 / gamma`, without snapping to named transfer functions or rounding
 that reciprocal to a decimal grid. Descriptions use upstream's six-significant-digit
-reciprocal formatting, independent of the current culture. Neither profile has a
+reciprocal formatting, independent of the current culture. All four omit the
 CICP tag, including at gamma 1 or 2.6; grayscale also omits chromatic adaptation.
 Opt-in CICP lookup returns unspecified (2) and preserves default quantization.
 Profile lengths vary with the description; gamma 2.2 produces 508-byte RGB and
@@ -1456,11 +1461,12 @@ Rec.2100 PQ and HLG RGB profiles use Rec.2020 colorants and CICP signaling,
 with upstream's default tone/gamut-mapped 9x9x9 RGB-to-Lab display transforms.
 Additional grayscale profiles provide BT.709 at D65, gamma 2.6 at DCI white,
 and untone-mapped 64-entry PQ/HLG curves at D65, without CICP signaling.
-Configurable pure-gamma profiles provide sRGB-primary RGB and D65 grayscale
-with type-0 decoding curves and no CICP tag.
+Configurable pure-gamma profiles provide sRGB/Rec.709, Display P3 and Rec.2020
+RGB primaries with D65-to-D50 adaptation, plus D65 grayscale, with type-0
+decoding curves and no CICP tag.
 
 Pending: fractional sampling ratios,
-additional built-in profiles and arbitrary source ICC color management,
+remaining built-in profile combinations and arbitrary source ICC color management,
 structured metadata editing, other metadata, SIMD/parallel paths,
 and decoder functionality.
 Fractional sampling ratios are also rejected by the pinned upstream encoder.
@@ -1687,6 +1693,15 @@ descriptions, shared type-0 curves, MD5 IDs and the absence of CICP, and compare
 decoded curve samples with the specified power law. Encoding checks verify exact
 APP2 embedding and preserved coding across input precisions, output color spaces,
 scan modes and restarts, including nonseekable streams and cancellation.
+
+Wide-gamut pure-gamma regressions compare complete P3 and Rec.2020 profiles
+with independently compiled pinned C++ fixtures, including the exponent endpoints.
+Independent parsing checks aligned tags, shared type-0 curves, MD5 IDs and the
+absence of CICP; primary and Bradford matrix oracles check the adapted colorants
+and power-law decoding. Encoding checks verify exact APP2 embedding and unchanged
+coding across source precisions, RGB/YCbCr output, progressive refinement and
+nonseekable streams. These checks validate serialization and sample preservation
+without establishing a color-managed lossy JPEG quality comparison.
 
 Scaled XYB regressions compare complete emitted quantization tables with
 independently compiled pinned C++ scalar fixtures. Independent JPEG parsing

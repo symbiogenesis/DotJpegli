@@ -30,6 +30,36 @@ public static class JpegliIccProfiles
     public static byte[] CreateGammaSrgbProfile(double gamma) => RgbIccProfile.CreateGamma(gamma);
 
     /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 RGB display profile for full-range
+    /// power-law samples with Display P3 primaries and D65 white adapted to D50.
+    /// Gamma is the decoding exponent (linear = encoded^gamma), finite and from
+    /// 1 to 8192. A shared type-0 parametric curve describes the power law;
+    /// this profile has no CICP tag. Assign it explicitly to
+    /// JpegliEncoderOptions.IccProfile for RGB or corresponding YCbCr output
+    /// already using those primaries and that power law. Attaching it preserves
+    /// samples without color conversion. For ordinary Display P3 samples with
+    /// the piecewise sRGB transfer function, use CreateDisplayP3Profile instead.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">Gamma is nonfinite or outside 1..8192.</exception>
+    public static byte[] CreateGammaDisplayP3Profile(double gamma) => RgbIccProfile.CreateGammaDisplayP3(gamma);
+
+    /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 RGB display profile for full-range
+    /// power-law samples with Rec.2020 primaries and D65 white adapted to D50.
+    /// Gamma is the decoding exponent (linear = encoded^gamma), finite and from
+    /// 1 to 8192. A shared type-0 parametric curve describes the power law;
+    /// this profile has no CICP tag. Assign it explicitly to
+    /// JpegliEncoderOptions.IccProfile for RGB or corresponding YCbCr output
+    /// already using those primaries and that power law. Attaching it preserves
+    /// samples without color conversion, limited-range expansion or tone mapping.
+    /// This profile does not describe BT.709-transfer, PQ or HLG samples.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">Gamma is nonfinite or outside 1..8192.</exception>
+    public static byte[] CreateGammaRec2020Profile(double gamma) => RgbIccProfile.CreateGammaRec2020(gamma);
+
+    /// <summary>
     /// Creates Jpegli's perceptual ICC v4 grayscale display profile for full-range
     /// power-law samples with D65 media white and a D50 XYZ PCS header. Gamma is
     /// the decoding exponent (linear = encoded^gamma), finite and from 1 to 8192.

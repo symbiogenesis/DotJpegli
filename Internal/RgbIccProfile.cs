@@ -24,11 +24,21 @@ internal static class RgbIccProfile
     internal static byte[] CreateRec709() => Create(
         "RGB_D65_SRG_Per_709", 1, TransferFunction.Rec709, SrgbColorants);
 
-    internal static byte[] CreateGamma(double gamma)
+    internal static byte[] CreateGamma(double gamma) =>
+        CreateGamma(gamma, "SRG", 1, SrgbColorants);
+
+    internal static byte[] CreateGammaDisplayP3(double gamma) =>
+        CreateGamma(gamma, "DCI", 12, DisplayP3Colorants);
+
+    internal static byte[] CreateGammaRec2020(double gamma) =>
+        CreateGamma(gamma, "202", 9, Rec2020Colorants);
+
+    private static byte[] CreateGamma(double gamma, string primariesDescription, byte primaries,
+        ReadOnlySpan<float> colorants)
     {
         GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
-        return Create("RGB_D65_SRG_Per_" + curve.Description, 1,
-            TransferFunction.Linear, SrgbColorants, gamma: curve.Exponent);
+        return Create("RGB_D65_" + primariesDescription + "_Per_" + curve.Description, primaries,
+            TransferFunction.Linear, colorants, gamma: curve.Exponent);
     }
 
     private static ReadOnlySpan<float> SrgbColorants =>
@@ -42,14 +52,16 @@ internal static class RgbIccProfile
 
     internal static byte[] CreateDisplayP3(bool linear = false) => Create(
         // Upstream's generic description calls the P3 primaries DCI even
-        // though this branch retains D65 white and a linear transfer curve.
+        // though this branch retains D65 white.
         linear ? "RGB_D65_DCI_Per_Lin" : "DisplayP3", 12,
-        linear ? TransferFunction.Linear : TransferFunction.Srgb,
+        linear ? TransferFunction.Linear : TransferFunction.Srgb, DisplayP3Colorants);
+
+    private static ReadOnlySpan<float> DisplayP3Colorants =>
         // P3 primaries: R=(0.680,0.320), G=(0.265,0.690), B=(0.150,0.060).
         // Canonical upstream float results before ICC s15Fixed16 serialization.
         [0.51510214805603027f, 0.2411818653345108f, -0.0010494081070646644f,
          0.29196470975875854f, 0.69223642349243164f, 0.041881758719682693f,
-         0.15715308487415314f, 0.066581852734088898f, 0.78437769412994385f]);
+         0.15715308487415314f, 0.066581852734088898f, 0.78437769412994385f];
 
     internal static byte[] CreateDciP3() => Create(
         "RGB_DCI_DCI_Per_DCI", 11, TransferFunction.Dci,
