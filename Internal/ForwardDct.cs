@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in LICENSE.jpegli or at https://developers.google.com/open-source/licenses/bsd.
 
+using System.Numerics;
+
 namespace DotJpegli.Internal;
 
-/// <summary>Managed scalar implementation of Google's recursive JPEGli DCT.</summary>
+/// <summary>Managed scalar and SIMD implementations of Google's recursive JPEGli DCT.</summary>
 internal static class ForwardDct
 {
     // Directly derived from google/jpegli lib/jpegli/dct-inl.h:
@@ -29,6 +31,36 @@ internal static class ForwardDct
     /// </summary>
     internal static void Transform(ReadOnlySpan<float> samples, Span<float> coefficients)
     {
+        ValidateBuffers(samples, coefficients);
+        if (Vector.IsHardwareAccelerated && CanUseVector)
+            TransformVectorCore(samples, coefficients);
+        else
+            TransformScalarCore(samples, coefficients);
+    }
+
+    // Explicit implementations also allow bitwise regression checks against
+    // the scalar port, independently of the runtime's hardware dispatch.
+    internal static void TransformScalar(ReadOnlySpan<float> samples, Span<float> coefficients)
+    {
+        ValidateBuffers(samples, coefficients);
+        TransformScalarCore(samples, coefficients);
+    }
+
+    internal static void TransformVector(ReadOnlySpan<float> samples, Span<float> coefficients)
+    {
+        ValidateBuffers(samples, coefficients);
+        if (CanUseVector)
+            TransformVectorCore(samples, coefficients);
+        else
+            TransformScalarCore(samples, coefficients);
+    }
+
+    // A future runtime may use vectors wider than one eight-sample row.
+    // Keep that case on the scalar path rather than reading outside a block.
+    private static bool CanUseVector => Vector<float>.Count <= 8 && 8 % Vector<float>.Count == 0;
+
+    private static void ValidateBuffers(ReadOnlySpan<float> samples, Span<float> coefficients)
+    {
         if (samples.Length != 64)
         {
             throw new ArgumentException("An 8 by 8 block requires exactly 64 samples.", nameof(samples));
@@ -38,7 +70,10 @@ internal static class ForwardDct
         {
             throw new ArgumentException("The coefficient buffer requires at least 64 values.", nameof(coefficients));
         }
+    }
 
+    private static void TransformScalarCore(ReadOnlySpan<float> samples, Span<float> coefficients)
+    {
         Span<float> intermediate = stackalloc float[64];
         Span<float> lane = stackalloc float[8];
 
@@ -68,6 +103,80 @@ internal static class ForwardDct
             Span<float> row = intermediate.Slice(v * 8, 8);
             TransformRecursive(row);
             row.CopyTo(coefficients.Slice(v * 8, 8));
+        }
+    }
+
+    private static void TransformVectorCore(ReadOnlySpan<float> samples, Span<float> coefficients)
+    {
+        Span<float> intermediate = stackalloc float[64];
+        Span<Vector<float>> lanes = stackalloc Vector<float>[8];
+        int width = Vector<float>.Count;
+        var scale = new Vector<float>(0.125f);
+
+        // Each vector holds independent columns. Transpose the first pass
+        // into intermediate so the second pass can load independent rows.
+        // Consume all source samples before writing any coefficients to
+        // retain the scalar path's support for overlapping spans.
+        for (int x = 0; x < 8; x += width)
+        {
+            for (int y = 0; y < 8; y++)
+                lanes[y] = new Vector<float>(samples.Slice(y * 8 + x, width));
+            TransformRecursiveVector(lanes);
+            for (int v = 0; v < 8; v++)
+            {
+                Vector<float> scaled = lanes[v] * scale;
+                for (int lane = 0; lane < width; lane++)
+                    intermediate[(x + lane) * 8 + v] = scaled[lane];
+            }
+        }
+
+        for (int v = 0; v < 8; v += width)
+        {
+            for (int x = 0; x < 8; x++)
+                lanes[x] = new Vector<float>(intermediate.Slice(x * 8 + v, width));
+            TransformRecursiveVector(lanes);
+            for (int u = 0; u < 8; u++)
+                for (int lane = 0; lane < width; lane++)
+                    coefficients[(v + lane) * 8 + u] = lanes[u][lane];
+        }
+    }
+
+    private static void TransformRecursiveVector(Span<Vector<float>> values)
+    {
+        int size = values.Length;
+        if (size == 2)
+        {
+            Vector<float> first = values[0];
+            Vector<float> second = values[1];
+            values[0] = first + second;
+            values[1] = first - second;
+            return;
+        }
+
+        int half = size / 2;
+        Span<Vector<float>> temporary = stackalloc Vector<float>[8];
+        Span<Vector<float>> even = temporary[..half];
+        Span<Vector<float>> odd = temporary.Slice(half, half);
+        for (int i = 0; i < half; i++)
+            even[i] = values[i] + values[size - 1 - i];
+        TransformRecursiveVector(even);
+        for (int i = 0; i < half; i++)
+            odd[i] = values[i] - values[size - 1 - i];
+
+        ReadOnlySpan<float> multipliers = size == 4 ? Wc4 : Wc8;
+        for (int i = 0; i < half; i++)
+            odd[i] *= new Vector<float>(multipliers[i]);
+        TransformRecursiveVector(odd);
+
+        // Use single-round FMA just as the scalar port does. An estimated
+        // multiply-add could change quantized coefficients near boundaries.
+        odd[0] = Vector.FusedMultiplyAdd(odd[0], new Vector<float>(Sqrt2), odd[1]);
+        for (int i = 1; i + 1 < half; i++)
+            odd[i] += odd[i + 1];
+        for (int i = 0; i < half; i++)
+        {
+            values[2 * i] = even[i];
+            values[2 * i + 1] = odd[i];
         }
     }
 

@@ -22,3 +22,7 @@ jobs:
       - run: dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release
       - name: Full test suite (CI only)
         run: dotnet run --project tests/DotJpegli.Tests -c Release --no-build
+      - name: Scalar DCT fallback and software vector parity
+        env:
+          DOTNET_EnableHWIntrinsic: '0'
+        run: dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.NumericalTests -class DotJpegli.Tests.EncoderSmokeTests
