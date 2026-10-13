@@ -138,6 +138,7 @@ public static class JpegliEncoder
         bool rgb = pixels.IsRgb;
         bool xyb = pixels.IsXyb;
         int componentCount = grayscale ? 1 : 3;
+        ushort[][]? customTables = options.PrepareQuantizationTables(componentCount);
         JpegSamplingFactors sampling = grayscale
             ? JpegSamplingFactors.FromSubsampling(ChromaSubsampling.None)
             : options.SamplingFactors ?? (xyb ? new JpegSamplingFactors(new(2, 2), new(2, 2), new(1, 1))
@@ -160,9 +161,16 @@ public static class JpegliEncoder
         int quantizationSampling = !rgb && sampling.Is420 ? 2 : 1;
         float distance = options.Distance ?? QualityToDistance(options.Quality);
         var tables = new ushort[componentCount][];
+        var quantizationSelectors = new int[componentCount];
         for (int component = 0; component < componentCount; component++)
         {
-            if (xyb)
+            int selector = customTables is not null ? Math.Min(component, customTables.Length - 1)
+                : xyb ? component : rgb ? 0
+                : options.UseStandardQuantizationTables && component > 0 ? 1 : component;
+            quantizationSelectors[component] = selector;
+            if (customTables is not null)
+                tables[component] = customTables[selector];
+            else if (xyb)
                 tables[component] = XybQuantization.CreateTableForDistance(distance, component);
             else if (rgb)
                 tables[component] = component == 0 ? Quantization.CreateStandardTableForDistance(distance, 0) : tables[0];
@@ -182,8 +190,7 @@ public static class JpegliEncoder
         var adaptive = useAdaptiveQuantization ? new AdaptiveQuantization(width, height, sampling.MaxVertical) : null;
         float[][]? adaptiveMultipliers = useAdaptiveQuantization
             ? Quantization.CreateAdaptiveZeroBiasMultipliers(tables, quantizationSampling, quantizationSampling, grayscale,
-                sharedChromaTable: options.UseStandardQuantizationTables,
-                cicpTransferFunction: transferFunction, rgb: rgb) : null;
+                cicpTransferFunction: transferFunction, rgb: rgb, quantizationSelectors: quantizationSelectors) : null;
 
         var dcTables = new HuffmanTable[grayscale || rgb ? 1 : 2];
         var acTables = new HuffmanTable[dcTables.Length];
@@ -273,8 +280,8 @@ public static class JpegliEncoder
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        JpegMarkerWriter.WriteHeaders(output, width, height, sampling, tables, dcTables, acTables,
-            options, extendedXmp, cancellationToken, rgb: rgb, xyb: xyb);
+        JpegMarkerWriter.WriteHeaders(output, width, height, sampling, tables, quantizationSelectors, dcTables, acTables,
+            options, extendedXmp, cancellationToken, rgb: rgb);
         var bits = new BitWriter(output);
         int lastRestartInterval = 0;
         void WriteRestartInterval(int interval)

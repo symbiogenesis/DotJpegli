@@ -257,7 +257,7 @@ reordered and alpha is ignored. Grayscale input replicates its value across
 all three components. Direct YCbCr-to-RGB conversion is unsupported and is
 rejected before output. All three source precisions retain their existing scaling.
 
-RGB JPEGs use `R/G/B` frame and scan identifiers, one shared Annex K luma
+RGB JPEGs use `R/G/B` frame and scan identifiers, by default one shared Annex K luma
 quantization table, and one shared pair of Huffman tables, following upstream's
 non-XYB RGB path. Quality and distance use the standard-table linear scale;
 `UseStandardQuantizationTables` and CICP transfer-function hints have no effect
@@ -360,12 +360,13 @@ not an inverse transform; this profile is intended for displaying XYB output
 and must not be used to convert RGB input to XYB. Profiles remain explicitly
 assigned through `IccProfile`; the encoder does not attach one automatically.
 
-XYB JPEGs use `R/G/B` component identifiers, shared Huffman table 0, and three
-separate perceptual quantization tables with selectors 0/1/2. The matrices and
+XYB JPEGs use `R/G/B` component identifiers, shared Huffman table 0, and by default
+three separate perceptual quantization tables with selectors 0/1/2. The matrices and
 nonlinear distance scaling come from the pinned upstream XYB mode.
 `UseStandardQuantizationTables` and transfer-function hints do not change
 XYB quantization. Quality and explicit distance retain their usual precedence
-and tables remain clamped to 1..255.
+and tables remain clamped to 1..255. `QuantizationTables` can override these
+generated tables with final baseline values.
 
 Default factors are X=2x2, Y=2x2, B-minus-Y=1x1: a 16x16 MCU with nine blocks,
 retaining full-resolution X/Y and averaging B-minus-Y over 2x2 pixels. The
@@ -1095,7 +1096,7 @@ The standard matrices use the pinned upstream's piecewise linear-quality scale
 from that distance, with rounding and clamping to 1..255. Both chroma components
 share table 1; grayscale uses only the luma matrix in table 0. Sampling factors
 still select the output resolution, but standard tables have no 4:2:0 compensation.
-RGB output always uses the shared luma matrix in table 0, independently of this option.
+Automatic RGB tables use the shared luma matrix in table 0, independently of this option.
 The managed encoder clamps before converting to integers, including immediately
 below distance 25 where upstream's scale can overflow its integer conversion.
 Those cases retain legal saturated tables; they do not establish native parity.
@@ -1108,6 +1109,46 @@ it does not promise libjpeg byte parity, equivalent quality, size or speed.
 In particular, fractional scaling can differ from libjpeg's integer quality scale.
 The scaling and shared-table rules are ported from
 [the pinned upstream quantizer](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/quant.cc).
+
+### Custom quantization tables
+
+Set `QuantizationTables` to supply final baseline quantizers in natural row-major
+8x8 frequency order. Each table must contain exactly 64 `ushort` values in 1..255;
+the first value controls DC. The encoder writes them in JPEG zigzag order:
+
+```csharp
+ushort[] table = Enumerable.Repeat((ushort)16, 64).ToArray();
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    QuantizationTables = [table.AsMemory()],
+    AdaptiveQuantization = false
+});
+```
+
+Grayscale output requires one table. Color output accepts one shared table
+(selectors 0/0/0), two tables with the second shared by components 1 and 2
+(0/1/1), or three separate tables (0/1/2). Component order follows the output:
+Y/Cb/Cr, R/G/B, or scaled X/Y/B-minus-Y. Equal-valued tables retain separate
+selectors when supplied separately. Null, the default, preserves automatic tables
+and existing bytes. Empty lists and values outside the baseline range are rejected
+with an `ArgumentException` for `QuantizationTables` before output.
+
+Supplied values are used unchanged. They override table construction from
+`Quality`, `Distance` and `UseStandardQuantizationTables`, including automatic
+sampling and transfer-function scaling. Those options remain validated.
+Adaptive quantization still applies unless disabled; YCbCr adaptive thresholds
+use the actual table selectors and CICP transfer hint, while grayscale/RGB/XYB
+retain their uniform adaptive multipliers. Thus a transfer hint can affect
+YCbCr coefficients with adaptive quantization enabled without changing the tables.
+
+The list and all table data are copied before writing output. Do not mutate them
+while encoding starts; the encoder leaves caller storage unchanged. The same
+tables serve coefficient preflight, Huffman optimization, baseline and progressive
+scans, restarts, all input precisions and custom sampling. XYB still requires its
+output ICC profile. Custom tables do not enable 16-bit DQT values or lossless JPEG.
+This final-value API corresponds to baseline table installation with scale 100 in
+[the pinned upstream encoder](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/encode.cc);
+DotJpegli rejects invalid quantizers instead of scaling or clamping them.
 
 ### Transfer-function quantization tuning
 
@@ -1205,6 +1246,8 @@ Direct perceptual-distance control and a public quality-to-distance mapping
 are available, retaining baseline quantization tables and existing quality bytes.
 Optional conventional Annex K quantization matrices use upstream distance scaling,
 with one luma table and a shared chroma table, retaining Jpegli adaptive quantization.
+Caller-supplied baseline quantization tables support shared or separate output
+component selectors, with strict validation and snapshots before output.
 Optional CICP transfer-function hints provide upstream PQ/HLG perceptual table
 scaling and adaptive threshold inference without changing or signaling the input color space.
 Opt-in lookup obtains those hints from attached ICC profiles using upstream's
@@ -1268,6 +1311,13 @@ GitHub Actions workflow, on Windows and Linux; benchmarks also belong on CI and
 none are included yet. Do not batch local selections to approximate a full suite.
 Tests use xUnit and a separate StbImageSharp decoder; these packages are test-only
 and are not part of the encoder or its package dependency graph.
+
+Custom-quantization regressions independently parse DQT zigzag values and frame
+selectors, compare constant-block DC and complete cosine-DCT coefficients, and
+check table-sharing effects on adaptive thresholds. They cover default-table byte
+compatibility, coefficient and decoded-pixel parity across source precisions and
+scan/Huffman/restart modes, custom sampling, validation before output, floating-point
+coefficient preflight, and mutation of caller tables after the first stream write.
 
 Progression-level regressions independently parse the emitted scan descriptors,
 coefficients and restart boundaries, compare final coefficients and decoded pixels

@@ -251,7 +251,7 @@ internal static class Quantization
     /// <summary>Creates upstream per-frequency adaptive zero-bias multipliers.</summary>
     internal static float[][] CreateAdaptiveZeroBiasMultipliers(ushort[][] tables,
         int horizontalSampling, int verticalSampling, bool grayscale, bool sharedChromaTable = false,
-        int cicpTransferFunction = 2, bool rgb = false)
+        int cicpTransferFunction = 2, bool rgb = false, ReadOnlySpan<int> quantizationSelectors = default)
     {
         ArgumentNullException.ThrowIfNull(tables);
         ValidateSampling(horizontalSampling, verticalSampling);
@@ -259,7 +259,8 @@ internal static class Quantization
             throw new ArgumentException("Supply one grayscale table or three color component tables.", nameof(tables));
 
         // InitQuantizer only performs table-derived distance inference for YCbCr.
-        float distance = rgb ? 1f : QuantValuesToDistance(tables, sharedChromaTable, cicpTransferFunction);
+        float distance = rgb ? 1f : QuantValuesToDistance(tables, sharedChromaTable, cicpTransferFunction,
+            quantizationSelectors);
         float lowQualityMix = Math.Clamp((distance - 1f) / 2f, 0f, 1f);
         float highQualityMix = 1f - lowQualityMix;
         float[][] multipliers = new float[tables.Length][];
@@ -291,17 +292,27 @@ internal static class Quantization
     /// QuantValsToDistance uses the YCbCr base matrices and transfer-function global
     /// scale, without the 4:2:0 compensation, including for
     /// tables emitted with 4:2:0 rescaling or standard matrices. Shared chroma
-    /// selectors use the perceptual Cb base for both components, following upstream's
-    /// quant_tbl_no indexing; their zero-bias multipliers remain component-specific.
+    /// selectors use the base matrix indexed by each component's table selector,
+    /// following upstream's quant_tbl_no indexing; their zero-bias multipliers
+    /// remain component-specific. Without explicit selectors, sharedChromaTable
+    /// selects the perceptual Cb base for both chroma components.
     /// It reconstructs an interval from
     /// rounded values, leaving saturated 1 and 255 endpoints unbounded.
     /// </remarks>
     internal static float QuantValuesToDistance(ushort[][] tables, bool sharedChromaTable = false,
-        int cicpTransferFunction = 2)
+        int cicpTransferFunction = 2, ReadOnlySpan<int> quantizationSelectors = default)
     {
         ArgumentNullException.ThrowIfNull(tables);
         if (tables.Length is not (1 or 3))
             throw new ArgumentException("Supply one grayscale table or three YCbCr tables.", nameof(tables));
+        if (!quantizationSelectors.IsEmpty)
+        {
+            if (quantizationSelectors.Length != tables.Length)
+                throw new ArgumentException("Supply one quantization selector per component.", nameof(quantizationSelectors));
+            foreach (int selector in quantizationSelectors)
+                if (selector is < 0 or > 2)
+                    throw new ArgumentOutOfRangeException(nameof(quantizationSelectors));
+        }
         float globalScale = TransferFunctionGlobalScale(cicpTransferFunction);
         const float distanceLimit = 10000f;
         float distanceMin = 0f;
@@ -316,7 +327,9 @@ internal static class Quantization
                 int quant = table[frequency];
                 if (quant is < 1 or > 255)
                     throw new ArgumentException("Baseline quantization values must be between 1 and 255.", nameof(tables));
-                int tableIndex = sharedChromaTable && component > 0 ? 1 : component;
+                int tableIndex = quantizationSelectors.IsEmpty
+                    ? sharedChromaTable && component > 0 ? 1 : component
+                    : quantizationSelectors[component];
                 float inverseQuant = 1f / BaseMatrices[tableIndex * BlockSize + frequency] / globalScale;
                 float min = quant > 1 ? ScaleToDistance((quant - 0.5f) * inverseQuant, frequency) : 0f;
                 float max = quant < 255 ? ScaleToDistance((quant + 0.5f) * inverseQuant, frequency) : distanceLimit;

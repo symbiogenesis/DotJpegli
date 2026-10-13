@@ -13,7 +13,7 @@ public sealed record JpegliEncoderOptions
     /// Grayscale converts RGB to luminance or uses Y from direct YCbCr input.
     /// YCbCr adds neutral chroma to grayscale input. Rgb keeps RGB components or
     /// replicates grayscale; direct YCbCr-to-RGB conversion is not supported.
-    /// RGB output uses R/G/B component identifiers, omits JFIF, and uses a shared
+    /// RGB output uses R/G/B component identifiers, omits JFIF, and defaults to a shared
     /// Annex K luma quantization table regardless of UseStandardQuantizationTables
     /// and transfer-function hints. It defaults to full resolution, ignoring the
     /// Subsampling preset; custom SamplingFactors map Luma/Cb/Cr to R/G/B.
@@ -24,7 +24,7 @@ public sealed record JpegliEncoderOptions
     /// the source is assumed to be sRGB and no source ICC transform is applied.
     /// JpegliIccProfiles.CreateXybProfile provides the built-in output profile.
     /// Direct YCbCr-to-XYB and XYB-to-other conversions are unsupported.
-    /// It uses RGB identifiers with three perceptual XYB tables and defaults to
+    /// It uses RGB identifiers and defaults to three perceptual XYB tables with
     /// X/Y factors 2x2 and B-minus-Y factors 1x1. Its adaptive analysis uses Y.
     /// RGB/XYB JPEG reader support varies. This does not apply an ICC transform.
     /// </summary>
@@ -41,14 +41,16 @@ public sealed record JpegliEncoderOptions
     /// clamped to baseline JPEG's 1..255 range, so extreme distances can produce
     /// the same tables. This is a quantization setting, not a measured or guaranteed
     /// perceptual error; even very small distances remain lossy.
+    /// QuantizationTables takes precedence over generated tables when supplied.
     /// </summary>
     public float? Distance { get; init; }
 
     /// <summary>
     /// Use the conventional JPEG Annex K luma and shared chroma quantization matrices.
     /// False (the default) uses Jpegli's perceptual matrices for grayscale and YCbCr.
-    /// RGB output always uses one shared Annex K luma matrix; XYB always uses its three
-    /// perceptual matrices. Quality still maps to Jpegli
+    /// Automatic RGB tables use one shared Annex K luma matrix; automatic XYB tables
+    /// use its three perceptual matrices. QuantizationTables overrides all generated
+    /// matrices. Quality still maps to Jpegli
     /// distance, and an explicit Distance still overrides it; the standard matrices use
     /// the pinned upstream's linear scaling from that distance without 4:2:0 compensation.
     /// Values are clamped to baseline JPEG's 1..255 range before integer conversion,
@@ -60,13 +62,31 @@ public sealed record JpegliEncoderOptions
     public bool UseStandardQuantizationTables { get; init; }
 
     /// <summary>
+    /// Optional final baseline quantization tables, each with exactly 64 values
+    /// from 1 to 255 in natural row-major frequency order (not JPEG zigzag order).
+    /// Null preserves the automatically generated tables. Grayscale output requires
+    /// one table; color output accepts one shared table, two tables with the second
+    /// shared by components 1 and 2, or three separate component tables. Components
+    /// are Y/Cb/Cr, R/G/B or scaled X/Y/B-minus-Y for the selected output color space.
+    /// Values are used unchanged, overriding Quality, Distance and
+    /// UseStandardQuantizationTables for table construction, including sampling and
+    /// transfer-function rescaling. Those options must still be valid. Adaptive
+    /// quantization remains enabled by default and can discard small coefficients;
+    /// its YCbCr thresholds are inferred from these tables and the transfer hint.
+    /// The list and each table are copied and validated before output. Do not modify
+    /// them while encoding starts. The encoder never changes the supplied storage.
+    /// </summary>
+    public IReadOnlyList<ReadOnlyMemory<ushort>>? QuantizationTables { get; init; }
+
+    /// <summary>
     /// CICP transfer-function code describing the supplied samples, from 0 to 255.
     /// The default, 2 (unspecified), preserves existing output. Codes 16 (PQ) and
     /// 18 (HLG) tune Jpegli's perceptual quantization and adaptive coefficient
     /// thresholds; other codes retain the default tuning. Standard quantization
     /// matrices ignore this hint when constructing tables, but adaptive thresholds
-    /// still use it for YCbCr. RGB and XYB output ignore the hint. This does not transform
-    /// samples, tone-map, validate a registered code, or embed color metadata.
+    /// still use it for YCbCr. RGB and XYB output ignore the hint. Caller-supplied
+    /// QuantizationTables are used unchanged. This does not transform samples,
+    /// tone-map, validate a registered code, or embed color metadata.
     /// Supply any required ICC profile separately.
     /// With InferCicpTransferFunctionFromIccProfile enabled, code 2 permits lookup
     /// from that profile; every other code overrides it.
@@ -362,6 +382,30 @@ public sealed record JpegliEncoderOptions
 
     internal int ResolveRestartInterval(int mcusPerRow) => RestartRows == 0
         ? RestartInterval : (int)Math.Min((long)RestartRows * mcusPerRow, 65535);
+
+    internal ushort[][]? PrepareQuantizationTables(int componentCount)
+    {
+        if (QuantizationTables is not { } tables)
+            return null;
+        int count = tables.Count;
+        if (count is < 1 or > 3 || (componentCount == 1 && count != 1))
+            throw new ArgumentException("Supply one quantization table for grayscale, or one to three for color output.",
+                nameof(QuantizationTables));
+        var snapshot = new ushort[count][];
+        for (int index = 0; index < count; index++)
+        {
+            ReadOnlyMemory<ushort> table = tables[index];
+            if (table.Length != 64)
+                throw new ArgumentException("Each quantization table must contain exactly 64 values in natural frequency order.",
+                    nameof(QuantizationTables));
+            snapshot[index] = table.ToArray();
+            foreach (ushort value in snapshot[index])
+                if (value is < 1 or > 255)
+                    throw new ArgumentException("Baseline quantization values must be between 1 and 255.",
+                        nameof(QuantizationTables));
+        }
+        return snapshot;
+    }
 
     internal JpegliEncoderOptions ResolveProgressiveLevel(JpegSamplingFactors sampling)
     {
