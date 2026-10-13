@@ -50,6 +50,17 @@ public static class JpegliIccProfiles
     public static byte[] CreateDisplayP3Profile() => RgbIccProfile.CreateDisplayP3();
 
     /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 RGB display profile for DCI-P3
+    /// samples, with P3 primaries, DCI white adapted to D50 XYZ and a gamma
+    /// 2.6 decoding curve. Assign it explicitly to JpegliEncoderOptions.IccProfile
+    /// for RGB or YCbCr output whose RGB interpretation is DCI-P3. Samples
+    /// must already use that color space; attaching this profile does not
+    /// convert source samples. It does not describe Display P3 or cinema XYZ.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateDciP3Profile() => RgbIccProfile.CreateDciP3();
+
+    /// <summary>
     /// Creates Jpegli's perceptual ICC v4 RGB profile for linear-light samples
     /// with sRGB primaries and D65 white adapted to D50 XYZ. Assign it explicitly
     /// to JpegliEncoderOptions.IccProfile for RGB or YCbCr output whose RGB

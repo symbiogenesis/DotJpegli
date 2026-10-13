@@ -11,10 +11,11 @@ internal static class RgbIccProfile
     {
         Rec709 = 1,
         Linear = 8,
-        Srgb = 13
+        Srgb = 13,
+        Dci = 17
     }
 
-    // Fixed D65/perceptual RGB branches of lib/cms/jpegli_cms_internal.h,
+    // Fixed D65 and DCI/perceptual RGB branches of lib/cms/jpegli_cms_internal.h,
     // google/jpegli 031a0077f5799a6041004267fc12b956c1f52a20.
     internal static byte[] CreateSrgb(bool linear = false) => Create(
         linear ? "RGB_D65_SRG_Per_Lin" : "sRGB", 1,
@@ -43,6 +44,15 @@ internal static class RgbIccProfile
          0.29196470975875854f, 0.69223642349243164f, 0.041881758719682693f,
          0.15715308487415314f, 0.066581852734088898f, 0.78437769412994385f]);
 
+    internal static byte[] CreateDciP3() => Create(
+        "RGB_DCI_DCI_Per_DCI", 11, TransferFunction.Dci,
+        // The same P3 primaries with DCI white xy=(0.314,0.351), adapted to D50.
+        // Canonical upstream float columns before ICC s15Fixed16 serialization.
+        [0.48614510893821716f, 0.22667698562145233f, -0.00080051715485751629f,
+         0.32383733987808228f, 0.71032541990280151f, 0.04323844239115715f,
+         0.15423749387264252f, 0.062997661530971527f, 0.7827720046043396f],
+        dciWhite: true);
+
     internal static byte[] CreateLinearRec2020() => Create(
         "RGB_D65_202_Per_Lin", 9, TransferFunction.Linear, Rec2020Colorants);
 
@@ -58,7 +68,7 @@ internal static class RgbIccProfile
          0.12510021030902863f, 0.045628782361745834f, 0.79716199636459351f];
 
     private static byte[] Create(string description, byte primaries, TransferFunction transfer,
-        ReadOnlySpan<float> colorants)
+        ReadOnlySpan<float> colorants, bool dciWhite = false)
     {
         int descriptionSize = (28 + description.Length * 2 + 3) & ~3;
         int copyrightOffset = 264 + descriptionSize;
@@ -88,7 +98,10 @@ internal static class RgbIccProfile
         Mluc(bytes[264..copyrightOffset], description);
         Mluc(bytes[copyrightOffset..whiteOffset], "CC0");
         Xyz(bytes[whiteOffset..adaptationOffset], [0.964203f, 1f, 0.824905f]);
-        WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset]);
+        if (dciWhite)
+            WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset], 0.314f, 0.351f);
+        else
+            WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset]);
         Signature(bytes, cicpOffset, "cicp"u8);
         bytes[cicpOffset + 8] = primaries;
         bytes[cicpOffset + 9] = (byte)transfer;
@@ -100,6 +113,7 @@ internal static class RgbIccProfile
         ReadOnlySpan<float> parameters = transfer switch
         {
             TransferFunction.Linear => [1f, 1f, 0f, 1f, 0f],
+            TransferFunction.Dci => [2.6f, 1f, 0f, 1f, 0f],
             TransferFunction.Rec709 => [(float)(1.0 / 0.45), (float)(1.0 / 1.099),
                 (float)(0.099 / 1.099), (float)(1.0 / 4.5), 0.081f],
             TransferFunction.Srgb => [2.4f, (float)(1.0 / 1.055), (float)(0.055 / 1.055),

@@ -40,7 +40,8 @@ internal static class IccProfileWriter
         digest.CopyTo(bytes[84..100]);
     }
 
-    internal static void WriteChromaticAdaptation(Span<byte> tag)
+    internal static void WriteChromaticAdaptation(Span<byte> tag,
+        float whitePointX = 0.3127f, float whitePointY = 0.3290f)
     {
         Signature(tag, 0, "sf32"u8);
         // AdaptToXYZD50 uses float matrices and double intermediate dot products.
@@ -48,7 +49,8 @@ internal static class IccProfileWriter
             -0.7502f, 1.7135f, 0.0367f, 0.0389f, -0.0685f, 1.0296f];
         ReadOnlySpan<float> inverse = [0.9869929f, -0.1470543f, 0.1599627f,
             0.4323053f, 0.5183603f, 0.0492912f, -0.0085287f, 0.0400428f, 0.9684867f];
-        ReadOnlySpan<float> white = [0.3127f / 0.3290f, 1f, (1f - 0.3127f - 0.3290f) / 0.3290f];
+        ReadOnlySpan<float> white = [whitePointX / whitePointY, 1f,
+            (1f - whitePointX - whitePointY) / whitePointY];
         ReadOnlySpan<float> d50 = [0.96422f, 1f, 0.82521f];
         Span<float> adapted = stackalloc float[9];
         for (int row = 0; row < 3; row++)

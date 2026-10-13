@@ -669,6 +669,29 @@ Attaching these profiles leaves JPEG coding unchanged and does not convert
 primaries, decode the source transfer function or apply tone mapping. Use the
 existing profiles for sRGB, linear-light, grayscale or scaled XYB output.
 
+`CreateDciP3Profile()` provides the pinned builder's perceptual ICC v4.4 RGB
+display profile for samples already encoded as **DCI-P3**. It uses P3 primaries,
+DCI white at xy `(0.314, 0.351)`, Bradford adaptation to D50 and shared gamma
+2.6 decoding curves. Its CICP tag is `[11, 17, 0, 1]`. For example:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(dciP3Samples, width, height,
+    PixelComponentLayout.Rgb, options: new()
+    {
+        ColorSpace = JpegColorSpace.Rgb,
+        IccProfile = JpegliIccProfiles.CreateDciP3Profile()
+    });
+```
+
+The factory returns a fresh deterministic array for explicit attachment to RGB
+output or YCbCr output with that RGB interpretation. Supply full-range DCI-P3
+samples. Attaching it preserves JPEG coding and does not convert primaries,
+white point or transfer function. Display P3 uses D65 white and the sRGB transfer
+function; use `CreateDisplayP3Profile()` for those samples. This RGB profile does
+not describe cinema XYZ, grayscale or scaled XYB data. Opt-in CICP lookup returns
+17 and retains default quantization tuning. The JPEG remains lossy eight-bit
+output and does not provide digital-cinema packaging or conformance.
+
 Set `IptcData` to raw IPTC-IIM bytes to embed them unchanged in one Photoshop
 APP13 marker. Supply only the IIM datasets, without Photoshop or JPEG framing.
 Empty (the default) writes no IPTC. The encoder adds `Photoshop 3.0\0` and one
@@ -974,6 +997,8 @@ Linear Display P3 and Rec.2020 RGB variants use the corresponding primaries,
 D65-to-D50 adaptation, identity transfer curves and linear CICP signaling.
 Rec.709 and Rec.2020 RGB profiles use the pinned BT.709 parametric transfer
 curve, D65-to-D50 adaptation and CICP transfer code 1.
+The DCI-P3 RGB profile uses DCI-to-D50 adaptation, gamma 2.6 decoding curves
+and CICP primaries/transfer codes 11/17.
 
 Pending: fractional sampling ratios,
 additional built-in profiles and arbitrary source ICC color management,
@@ -1118,6 +1143,15 @@ primary/Bradford matrix oracles check parsed profiles, including the original
 and fixed-point-rounded transfer knee. Encoding checks verify exact APP2
 embedding and unchanged coding across input precisions, RGB/YCbCr output,
 progressive refinement, restarts and CICP lookup settings.
+
+DCI-P3 profile regressions compare complete bytes with an independently compiled
+pinned C++ fixture and verify the ICC MD5 ID, fresh storage, aligned tags, shared
+gamma 2.6 curves and CICP fields. Independent primary and Bradford matrix oracles
+check colorants and DCI-to-D50 adaptation. Encoding checks verify exact APP2
+embedding and unchanged coding across input precisions, RGB/YCbCr output, scan
+modes, refinement, restarts and nonseekable streams. These checks validate
+serialization and sample preservation without establishing a color-managed
+lossy JPEG quality comparison.
 
 Scaled XYB regressions compare complete emitted quantization tables with
 independently compiled pinned C++ scalar fixtures. Independent JPEG parsing
