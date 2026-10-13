@@ -270,6 +270,21 @@ public sealed record JpegliEncoderOptions
     public int ProgressiveRefinementBits { get; init; }
 
     /// <summary>
+    /// Optional inclusive ends of progressive AC scans in JPEG zigzag order.
+    /// For example, [2, 63] sends positions 1..2 before positions 3..63.
+    /// Requires Progressive; ends must be strictly increasing from 1 to 63,
+    /// with the final end equal to 63. Null uses one AC scan per component,
+    /// preserving existing bytes. Each band is sent for every component before
+    /// the next band; all bands use ProgressiveRefinementBits and recur in each
+    /// refinement round. Restart counting and EOB runs start afresh per scan.
+    /// The list is copied and validated before output; do not modify it while
+    /// encoding starts. Additional bands require additional encoding passes.
+    /// This does not reproduce upstream's default scan script, which defers
+    /// different numbers of bits in different bands.
+    /// </summary>
+    public IReadOnlyList<int>? ProgressiveAcScanEnds { get; init; }
+
+    /// <summary>
     /// Number of minimum coded units (MCUs) between restart markers, from 0 to 65535.
     /// Zero disables restart markers. An MCU is 8x8 pixels for grayscale or 4:4:4,
     /// otherwise eight times the horizontal and vertical chroma sample area dimensions,
@@ -282,6 +297,30 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>Maximum accepted pixel count. Override deliberately for larger images.</summary>
     public long MaxPixels { get; init; } = 100_000_000;
+
+    internal int[] PrepareProgressiveAcScanEnds()
+    {
+        if (ProgressiveAcScanEnds is not { } ends)
+            return [63];
+        if (!Progressive)
+            throw new ArgumentException("AC scan bands require progressive encoding.", nameof(ProgressiveAcScanEnds));
+        int count = ends.Count;
+        if (count is < 1 or > 63)
+            throw new ArgumentException("AC scan ends must contain between 1 and 63 positions.", nameof(ProgressiveAcScanEnds));
+        var snapshot = new int[count];
+        int previous = 0;
+        for (int index = 0; index < count; index++)
+        {
+            int end = ends[index];
+            if (end <= previous || end > 63)
+                throw new ArgumentException("AC scan ends must be strictly increasing positions from 1 to 63.", nameof(ProgressiveAcScanEnds));
+            snapshot[index] = end;
+            previous = end;
+        }
+        if (previous != 63)
+            throw new ArgumentException("The final AC scan end must be 63.", nameof(ProgressiveAcScanEnds));
+        return snapshot;
+    }
 
     internal void Validate()
     {

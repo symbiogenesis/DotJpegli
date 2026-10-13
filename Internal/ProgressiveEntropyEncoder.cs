@@ -66,11 +66,13 @@ internal static class ProgressiveEntropyEncoder
         BitWriter writer,
         ReadOnlySpan<short> naturalCoefficients,
         HuffmanTable ac,
-        int successiveLow = 0)
+        int successiveLow = 0,
+        int spectralStart = 1,
+        int spectralEnd = 63)
     {
         // The standard AC tables only define the one-block EOB symbol.
         int pendingEobRun = 0;
-        WriteAc(writer, naturalCoefficients, ac, ref pendingEobRun, successiveLow);
+        WriteAc(writer, naturalCoefficients, ac, ref pendingEobRun, successiveLow, spectralStart, spectralEnd);
         FlushAc(writer, ac, ref pendingEobRun);
     }
 
@@ -79,11 +81,14 @@ internal static class ProgressiveEntropyEncoder
         ReadOnlySpan<short> naturalCoefficients,
         HuffmanTable ac,
         ref int pendingEobRun,
-        int successiveLow = 0)
+        int successiveLow = 0,
+        int spectralStart = 1,
+        int spectralEnd = 63)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(ac);
         ValidateSuccessiveLow(successiveLow, refinement: false);
+        ValidateSpectralRange(spectralStart, spectralEnd);
         ValidateAc(naturalCoefficients);
         ValidateEobRun(pendingEobRun);
         if (pendingEobRun == MaximumEobRun)
@@ -93,7 +98,7 @@ internal static class ProgressiveEntropyEncoder
 
         int run = 0;
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
-        for (int position = 1; position < 64; position++)
+        for (int position = spectralStart; position <= spectralEnd; position++)
         {
             int value = ShiftAc(naturalCoefficients[order[position]], successiveLow);
             if (value == 0)
@@ -132,10 +137,12 @@ internal static class ProgressiveEntropyEncoder
     public static void AccumulateAcFrequencies(
         ReadOnlySpan<short> naturalCoefficients,
         long[] ac,
-        int successiveLow = 0)
+        int successiveLow = 0,
+        int spectralStart = 1,
+        int spectralEnd = 63)
     {
         int pendingEobRun = 0;
-        AccumulateAcFrequencies(naturalCoefficients, ac, ref pendingEobRun, successiveLow);
+        AccumulateAcFrequencies(naturalCoefficients, ac, ref pendingEobRun, successiveLow, spectralStart, spectralEnd);
         FlushAcFrequencies(ac, ref pendingEobRun);
     }
 
@@ -143,10 +150,13 @@ internal static class ProgressiveEntropyEncoder
         ReadOnlySpan<short> naturalCoefficients,
         long[] ac,
         ref int pendingEobRun,
-        int successiveLow = 0)
+        int successiveLow = 0,
+        int spectralStart = 1,
+        int spectralEnd = 63)
     {
         ValidateFrequencies(ac);
         ValidateSuccessiveLow(successiveLow, refinement: false);
+        ValidateSpectralRange(spectralStart, spectralEnd);
         ValidateAc(naturalCoefficients);
         ValidateEobRun(pendingEobRun);
         if (pendingEobRun == MaximumEobRun)
@@ -156,7 +166,7 @@ internal static class ProgressiveEntropyEncoder
 
         int run = 0;
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
-        for (int position = 1; position < 64; position++)
+        for (int position = spectralStart; position <= spectralEnd; position++)
         {
             int value = ShiftAc(naturalCoefficients[order[position]], successiveLow);
             if (value == 0)
@@ -194,11 +204,13 @@ internal static class ProgressiveEntropyEncoder
         BitWriter writer,
         ReadOnlySpan<short> naturalCoefficients,
         HuffmanTable ac,
-        int successiveLow)
+        int successiveLow,
+        int spectralStart = 1,
+        int spectralEnd = 63)
     {
         // Standard tables only define the one-block EOB symbol.
         var state = new ProgressiveAcRefinementState();
-        WriteAcRefinement(writer, naturalCoefficients, ac, state, successiveLow);
+        WriteAcRefinement(writer, naturalCoefficients, ac, state, successiveLow, spectralStart, spectralEnd);
         FlushAcRefinement(writer, ac, state);
     }
 
@@ -207,23 +219,28 @@ internal static class ProgressiveEntropyEncoder
         ReadOnlySpan<short> naturalCoefficients,
         HuffmanTable ac,
         ProgressiveAcRefinementState state,
-        int successiveLow)
+        int successiveLow,
+        int spectralStart = 1,
+        int spectralEnd = 63)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(ac);
         ArgumentNullException.ThrowIfNull(state);
         ValidateSuccessiveLow(successiveLow, refinement: true);
+        ValidateSpectralRange(spectralStart, spectralEnd);
         ValidateAc(naturalCoefficients);
-        ProcessAcRefinement(naturalCoefficients, state, successiveLow, writer, ac, null);
+        ProcessAcRefinement(naturalCoefficients, state, successiveLow, spectralStart, spectralEnd, writer, ac, null);
     }
 
     public static void AccumulateAcRefinementFrequencies(
         ReadOnlySpan<short> naturalCoefficients,
         long[] ac,
-        int successiveLow)
+        int successiveLow,
+        int spectralStart = 1,
+        int spectralEnd = 63)
     {
         var state = new ProgressiveAcRefinementState();
-        AccumulateAcRefinementFrequencies(naturalCoefficients, ac, state, successiveLow);
+        AccumulateAcRefinementFrequencies(naturalCoefficients, ac, state, successiveLow, spectralStart, spectralEnd);
         FlushAcRefinementFrequencies(ac, state);
     }
 
@@ -231,13 +248,16 @@ internal static class ProgressiveEntropyEncoder
         ReadOnlySpan<short> naturalCoefficients,
         long[] ac,
         ProgressiveAcRefinementState state,
-        int successiveLow)
+        int successiveLow,
+        int spectralStart = 1,
+        int spectralEnd = 63)
     {
         ValidateFrequencies(ac);
         ArgumentNullException.ThrowIfNull(state);
         ValidateSuccessiveLow(successiveLow, refinement: true);
+        ValidateSpectralRange(spectralStart, spectralEnd);
         ValidateAc(naturalCoefficients);
-        ProcessAcRefinement(naturalCoefficients, state, successiveLow, null, null, ac);
+        ProcessAcRefinement(naturalCoefficients, state, successiveLow, spectralStart, spectralEnd, null, null, ac);
     }
 
     // Keep frequency decisions and emitted tokens on the same traversal, since
@@ -246,14 +266,16 @@ internal static class ProgressiveEntropyEncoder
         ReadOnlySpan<short> naturalCoefficients,
         ProgressiveAcRefinementState state,
         int successiveLow,
+        int spectralStart,
+        int spectralEnd,
         BitWriter? writer,
         HuffmanTable? ac,
         long[]? frequencies)
     {
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
-        int lastNew = 0;
+        int lastNew = spectralStart - 1;
         int oldCount = 0;
-        for (int position = 1; position < 64; position++)
+        for (int position = spectralStart; position <= spectralEnd; position++)
         {
             int magnitude = Math.Abs((int)naturalCoefficients[order[position]]) >> successiveLow;
             if (magnitude == 1)
@@ -269,7 +291,7 @@ internal static class ProgressiveEntropyEncoder
         // A new coefficient terminates any preceding EOB run. A block without
         // new coefficients contributes all its old-coefficient correction bits,
         // and the run must split before that block if they would exceed capacity.
-        if (lastNew != 0 || state.CorrectionBitCount + oldCount > ProgressiveAcRefinementState.MaximumCorrectionBits)
+        if (lastNew >= spectralStart || state.CorrectionBitCount + oldCount > ProgressiveAcRefinementState.MaximumCorrectionBits)
         {
             FlushAcRefinementCore(state, writer, ac, frequencies);
         }
@@ -278,7 +300,7 @@ internal static class ProgressiveEntropyEncoder
         Span<byte> corrections = stackalloc byte[63];
         int correctionCount = 0;
         int run = 0;
-        for (int position = 1; position < 64; position++)
+        for (int position = spectralStart; position <= spectralEnd; position++)
         {
             int value = naturalCoefficients[order[position]];
             int magnitude = Math.Abs(value) >> successiveLow;
@@ -314,7 +336,7 @@ internal static class ProgressiveEntropyEncoder
             }
         }
 
-        if (lastNew < 63)
+        if (lastNew < spectralEnd)
         {
             state.AppendBlock(corrections[..correctionCount]);
             if (state.PendingEobRun == MaximumEobRun)
@@ -447,6 +469,14 @@ internal static class ProgressiveEntropyEncoder
         {
             throw new ArgumentException("A frequency table must have 256 entries.", nameof(frequencies));
         }
+    }
+
+    private static void ValidateSpectralRange(int spectralStart, int spectralEnd)
+    {
+        if (spectralStart is < 1 or > 63)
+            throw new ArgumentOutOfRangeException(nameof(spectralStart), "An AC scan must start at a zigzag position from 1 to 63.");
+        if (spectralEnd < spectralStart || spectralEnd > 63)
+            throw new ArgumentOutOfRangeException(nameof(spectralEnd), "An AC scan must end at or after its start, at most at position 63.");
     }
 
     private static void ValidateLength(ReadOnlySpan<short> coefficients)

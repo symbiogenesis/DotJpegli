@@ -873,6 +873,34 @@ The default, zero, keeps the original full-precision initial scans. More refinem
 rounds require more encoding passes and CPU time. This scan script does not reproduce
 upstream Jpegli's default script or promise smaller files.
 
+Set `ProgressiveAcScanEnds` to send AC coefficients in several spectral bands:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    Progressive = true,
+    ProgressiveAcScanEnds = [2, 63],
+    ProgressiveRefinementBits = 2
+});
+```
+
+The inclusive end positions use JPEG zigzag order. This example sends positions
+1..2 for each component before positions 3..63. Ends must be strictly increasing
+in 1..63, and the final end must be 63, so every AC coefficient is delivered.
+An empty list is invalid; null, the default, uses `[63]` and retains existing JPEG
+bytes. A non-null list requires `Progressive = true`. The encoder copies and
+validates the list before writing output; do not modify it while encoding starts.
+
+Each round sends DC first, then every component in the first band, then every
+component in each subsequent band. All bands defer the same number of bits from
+`ProgressiveRefinementBits` and use the same bands in each refinement round.
+With `B` bands, `C` components and `N` refinement bits, the JPEG contains
+`(1 + B * C) * (N + 1)` scans. Coefficients, quantization and the final decoded
+pixels are preserved. More bands require more image passes and marker overhead;
+they do not guarantee smaller files or faster decoding. The pinned upstream
+default also splits positions 1..2 and 3..63, but gives the two bands different
+refinement schedules. This API keeps a uniform schedule across all bands.
+
 With `OptimizeHuffmanTables = true` (the default), progressive initial and refinement
 AC scans combine consecutive block endings into end-of-block (EOB) runs,
 up to 32,767 blocks per run. Initial scans finish runs before nonzero AC
@@ -1032,7 +1060,8 @@ optimized length-limited canonical Huffman coding;
 byte stuffing and marker output; optional MCU restart intervals with DRI and
 cycling RST markers, including predictor resets during Huffman optimization;
 progressive initial and refinement EOB-run aggregation with optimized Huffman tables;
-optional DC and AC refinement scans with bounded correction-bit storage.
+optional DC and AC refinement scans with bounded correction-bit storage;
+configurable complete AC spectral bands with uniform refinement across bands.
 Raw Exif TIFF embedding, standard and extended UTF-8 XMP packets in APP1,
 opt-in automatic partitioning of oversized XMP with selected standard properties, raw ICC profiles
 with APP2 chunking, raw IPTC-IIM in Photoshop APP13, UTF-8 COM comments, and
@@ -1104,6 +1133,14 @@ GitHub Actions workflow, on Windows and Linux; benchmarks also belong on CI and
 none are included yet. Do not batch local selections to approximate a full suite.
 Tests use xUnit and a separate StbImageSharp decoder; these packages are test-only
 and are not part of the encoder or its package dependency graph.
+
+Spectral-band regressions independently parse each scan's spectral range and
+initial/refinement entropy, verify complete per-block coefficient coverage,
+EOB runs, correction bits, restart cycling and scan padding, and compare final
+coefficients with baseline encoding. Decoder checks verify final pixels where
+the independent decoder supports the output mode. Focused cases also cover
+single-position bands, typed and padded input, default-byte compatibility,
+nonseekable streams, cancellation and invalid partitions before output.
 
 Numerical development probes checked the DCT against an independent cosine
 definition. Compiled C++ reference probes matched 120 color and grayscale quantization tables
