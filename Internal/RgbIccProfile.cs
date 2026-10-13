@@ -5,13 +5,30 @@ using static DotJpegli.Internal.IccProfileWriter;
 
 namespace DotJpegli.Internal;
 
-internal static class SrgbIccProfile
+internal static class RgbIccProfile
 {
-    // Fixed D65/sRGB-primaries/perceptual branches of lib/cms/jpegli_cms_internal.h,
+    // Fixed D65/perceptual RGB branches of lib/cms/jpegli_cms_internal.h,
     // google/jpegli 031a0077f5799a6041004267fc12b956c1f52a20.
-    internal static byte[] Create(bool linear = false)
+    internal static byte[] CreateSrgb(bool linear = false) => Create(
+        linear ? "RGB_D65_SRG_Per_Lin" : "sRGB", 1, linear,
+        // Precomputed columns of upstream's PrimariesToXYZD50 with its fixed
+        // sRGB primaries from color_encoding_cms.h: R=(0.639998686,0.330010138),
+        // G=(0.300003784,0.600003357), B=(0.150002046,0.059997204).
+        // These are the float results before ICC s15Fixed16 serialization.
+        [0.43602091074f, 0.222481667995f, 0.0139219872653f,
+         0.385103434324f, 0.71689671278f, 0.097085095942f,
+         0.143095657229f, 0.0606217607856f, 0.714202940464f]);
+
+    internal static byte[] CreateDisplayP3() => Create("DisplayP3", 12, false,
+        // P3 primaries: R=(0.680,0.320), G=(0.265,0.690), B=(0.150,0.060).
+        // Canonical upstream float results before ICC s15Fixed16 serialization.
+        [0.51510214805603027f, 0.2411818653345108f, -0.0010494081070646644f,
+         0.29196470975875854f, 0.69223642349243164f, 0.041881758719682693f,
+         0.15715308487415314f, 0.066581852734088898f, 0.78437769412994385f]);
+
+    private static byte[] Create(string description, byte primaries, bool linear,
+        ReadOnlySpan<float> colorants)
     {
-        string description = linear ? "RGB_D65_SRG_Per_Lin" : "sRGB";
         int descriptionSize = (28 + description.Length * 2 + 3) & ~3;
         int copyrightOffset = 264 + descriptionSize;
         int whiteOffset = copyrightOffset + 36;
@@ -42,17 +59,13 @@ internal static class SrgbIccProfile
         Xyz(bytes[whiteOffset..adaptationOffset], [0.964203f, 1f, 0.824905f]);
         WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset]);
         Signature(bytes, cicpOffset, "cicp"u8);
-        bytes[cicpOffset + 8] = 1;  // BT.709/sRGB primaries.
+        bytes[cicpOffset + 8] = primaries;
         bytes[cicpOffset + 9] = linear ? (byte)8 : (byte)13;
         bytes[cicpOffset + 11] = 1; // RGB matrix (zero), full range.
 
-        // Precomputed columns of upstream's PrimariesToXYZD50 with its fixed
-        // sRGB primaries from color_encoding_cms.h: R=(0.639998686,0.330010138),
-        // G=(0.300003784,0.600003357), B=(0.150002046,0.059997204).
-        // These are the float results before ICC s15Fixed16 serialization.
-        Xyz(bytes[redOffset..greenOffset], [0.43602091074f, 0.222481667995f, 0.0139219872653f]);
-        Xyz(bytes[greenOffset..blueOffset], [0.385103434324f, 0.71689671278f, 0.097085095942f]);
-        Xyz(bytes[blueOffset..curveOffset], [0.143095657229f, 0.0606217607856f, 0.714202940464f]);
+        Xyz(bytes[redOffset..greenOffset], colorants[..3]);
+        Xyz(bytes[greenOffset..blueOffset], colorants[3..6]);
+        Xyz(bytes[blueOffset..curveOffset], colorants[6..9]);
         Curve(bytes[curveOffset..], linear
             ? [1f, 1f, 0f, 1f, 0f]
             : [2.4f, (float)(1.0 / 1.055), (float)(0.055 / 1.055),

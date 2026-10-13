@@ -13,7 +13,18 @@ public static class JpegliIccProfiles
     /// a grayscale or scaled XYB profile.
     /// Every call returns a separate mutable array with deterministic bytes.
     /// </summary>
-    public static byte[] CreateSrgbProfile() => SrgbIccProfile.Create();
+    public static byte[] CreateSrgbProfile() => RgbIccProfile.CreateSrgb();
+
+    /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 RGB display profile for Display P3
+    /// samples, with P3 primaries, the sRGB transfer function and D65 white
+    /// adapted to D50 XYZ. Assign it explicitly to JpegliEncoderOptions.IccProfile
+    /// for RGB or YCbCr output whose RGB interpretation is Display P3. Samples
+    /// must already use Display P3; attaching the profile does not convert source
+    /// samples. It is not a grayscale or scaled XYB profile.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateDisplayP3Profile() => RgbIccProfile.CreateDisplayP3();
 
     /// <summary>
     /// Creates Jpegli's perceptual ICC v4 RGB profile for linear-light samples
@@ -23,7 +34,7 @@ public static class JpegliIccProfiles
     /// function; attaching this profile does not linearize gamma-encoded input.
     /// Every call returns a separate mutable array with deterministic bytes.
     /// </summary>
-    public static byte[] CreateLinearSrgbProfile() => SrgbIccProfile.Create(linear: true);
+    public static byte[] CreateLinearSrgbProfile() => RgbIccProfile.CreateSrgb(linear: true);
 
     /// <summary>
     /// Creates Jpegli's perceptual ICC v4 grayscale display profile for

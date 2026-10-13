@@ -532,6 +532,7 @@ XYB output requires a nonempty matching scaled XYB profile. The profile
 is opaque unless the opt-in CICP lookup described below is enabled. Supply a
 profile describing the output's RGB, grayscale or scaled XYB interpretation.
 Use `JpegliIccProfiles.CreateSrgbProfile()` for a built-in RGB sRGB profile,
+`JpegliIccProfiles.CreateDisplayP3Profile()` for RGB Display P3,
 `JpegliIccProfiles.CreateSrgbGrayscaleProfile()` for grayscale with the sRGB
 transfer function, or `JpegliIccProfiles.CreateXybProfile()` for scaled XYB. These factories return a
 fresh mutable array with deterministic bytes and require explicit assignment to
@@ -548,6 +549,29 @@ therefore retains the default non-HDR quantization tuning. Use this RGB profile
 for RGB output or YCbCr output whose RGB interpretation is gamma-encoded sRGB.
 It is unsuitable for grayscale, scaled XYB or samples in another RGB space.
 Attaching it does not convert samples or validate their color space.
+
+`CreateDisplayP3Profile()` provides the pinned builder's 516-byte perceptual
+ICC v4.4 RGB display profile for **already Display P3** samples. It uses P3
+primaries, the sRGB transfer function, D65-to-D50 Bradford adaptation and
+RGB-to-D50-XYZ colorants. Its `cicp` tag contains `[12, 13, 0, 1]`, identifying
+P3 primaries with D65 white, the sRGB transfer function, an RGB matrix and full
+range. Opt-in CICP lookup retains the default non-HDR quantization tuning:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(displayP3Pixels, width, height, options: new()
+{
+    ColorSpace = JpegColorSpace.Rgb,
+    IccProfile = JpegliIccProfiles.CreateDisplayP3Profile()
+});
+```
+
+The factory returns fresh deterministic storage and requires explicit assignment.
+Use it for RGB output or YCbCr output whose RGB interpretation is Display P3.
+Attaching it preserves JPEG coding and does not convert sRGB samples to Display P3
+or apply gamut mapping. It is unsuitable for grayscale, scaled XYB, linear-light
+P3 or DCI-P3 samples. Explicit sRGB-to-XYB conversion continues to require sRGB
+input and the scaled XYB output profile. The encoder does not validate that
+attached profiles match source or output color spaces.
 
 `CreateSrgbGrayscaleProfile()` provides the pinned builder's 328-byte perceptual
 ICC v4.4 grayscale display profile. Its `kTRC` tag describes the sRGB decoding
@@ -892,6 +916,8 @@ It also provides a fixed D65 grayscale profile with the sRGB transfer curve for
 explicit attachment to grayscale output.
 Linear-light variants provide identity transfer curves for RGB with sRGB
 primaries and D65 grayscale, using the same explicit output-profile assignment.
+An RGB Display P3 profile provides P3 colorants with the sRGB transfer curve,
+D65-to-D50 adaptation and CICP signaling for explicit output-profile assignment.
 
 Pending: fractional sampling ratios,
 additional built-in profiles and arbitrary source ICC color management,
@@ -1008,6 +1034,16 @@ fields. Independent curve and matrix evaluation checks linear samples against
 D50 XYZ values. Encoding checks verify exact APP2 embedding and unchanged coding
 data with representative precisions, scan modes and CICP lookup settings. These
 checks validate profile serialization and sample preservation, without
+establishing a color-managed lossy JPEG quality comparison.
+
+Display P3 profile regressions compare complete bytes with an independently
+compiled pinned C++ fixture, verify the ICC MD5 ID and fresh storage, and parse
+aligned tags, shared sRGB curves, P3 colorants, Bradford adaptation and CICP
+fields. An independent double-precision P3-to-D50-XYZ oracle checks the parsed
+matrix and curves across a color cube and transfer boundaries. Encoding checks
+verify exact APP2 embedding and unchanged coding data across source precisions,
+RGB/YCbCr output, progressive refinement, restarts and nonseekable streams.
+These checks validate profile serialization and sample preservation without
 establishing a color-managed lossy JPEG quality comparison.
 
 Scaled XYB regressions compare complete emitted quantization tables with
