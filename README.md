@@ -1457,7 +1457,8 @@ interleaved full-range YCbCr input with explicit output color-space selection; 4
 4:2:2, 4:2:0, 4:4:0, 4:1:1 and 4:1:0, plus 3x1, 3x2, 1x4, 2x4, 1x3 and 2x3 chroma
 sample areas, using upstream scalar box sampling with edge replication and empty
 dummy-block coding that preserves DC predictors at MCU edges; optional upstream
-3x3 input smoothing before sampling; recursive scalar DCT; Jpegli
+3x3 input smoothing before sampling; recursive DCT with automatic managed SIMD
+and a scalar fallback; Jpegli
 quality-to-distance and perceptual Y/Cb/Cr quantization tables; scalar adaptive
 quantization with local differences, fuzzy erosion, masking, high-frequency and
 gamma modulation, quality dampening and frequency-specific coefficient thresholds;
@@ -1530,9 +1531,18 @@ relative colorimetric, saturation and absolute colorimetric rendering intents,
 with upstream descriptions and ICC profile identification. Existing overloads
 retain their default bytes; scaled XYB remains perceptual-only as upstream requires.
 
+The DCT SIMD path transforms independent columns and rows with runtime-sized
+`System.Numerics.Vector<float>` lanes, preserving the scalar evaluation order
+and fused multiply-add rounding. Hardware acceleration is selected automatically
+when the vector width divides an eight-sample row; otherwise the scalar path
+is used. Both paths retain bounded stack storage, overlapping-span support and
+standard JPEG coefficient units. This completes the DCT SIMD path; broader SIMD
+coverage and parallel encoding remain pending. No speed improvement is claimed
+without CI performance measurements.
+
 Pending encoder work: fractional sampling ratios,
 other built-in profile transfer/white-point combinations and arbitrary source ICC color management,
-structured metadata editing, other metadata, and SIMD/parallel paths.
+structured metadata editing, other metadata, SIMD in other encoder stages and parallel encoding.
 Fractional sampling ratios are also rejected by the pinned upstream encoder.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
 one eighth of those units. This scaling adaptation is accounted for during
@@ -1627,6 +1637,14 @@ They compare coefficients with baseline output across odd edges, custom sampling
 mixed refinement depths and Huffman settings, with decoder checks for supported
 color modes. They also cover typed input, grayscale and default compatibility,
 nonseekable streams, cancellation and validation before output.
+
+SIMD DCT regressions compare exact coefficient bits with the scalar implementation
+for fractional/random blocks, all impulse positions, constants, checkerboards,
+signed zero, subnormal and large finite samples. An independent cosine definition
+checks coefficient units and frequency order. Both paths are checked for overlapping
+spans, untouched output tails and validation before writes. CI also runs the
+focused DCT checks with hardware intrinsics disabled to exercise the scalar fallback
+and software vector operations.
 
 Numerical development probes checked the DCT against an independent cosine
 definition. Compiled C++ reference probes matched 120 color and grayscale quantization tables
