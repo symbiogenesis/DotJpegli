@@ -16,6 +16,29 @@ public static class JpegliIccProfiles
     public static byte[] CreateSrgbProfile() => RgbIccProfile.CreateSrgb();
 
     /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 RGB display profile for samples with
+    /// Rec.709 primaries, the BT.709 transfer function and D65 white adapted
+    /// to D50 XYZ. Assign it explicitly to JpegliEncoderOptions.IccProfile for
+    /// RGB or YCbCr output whose RGB interpretation is Rec.709. Samples must
+    /// already use those primaries and transfer function; attaching this
+    /// profile does not convert source samples or expand limited-range video.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateRec709Profile() => RgbIccProfile.CreateRec709();
+
+    /// <summary>
+    /// Creates Jpegli's perceptual ICC v4 RGB display profile for samples with
+    /// Rec.2020 primaries, the pinned builder's BT.709 transfer function and
+    /// D65 white adapted to D50 XYZ. Its CICP transfer code is 1. Assign it
+    /// explicitly to JpegliEncoderOptions.IccProfile for RGB or YCbCr output
+    /// with that RGB interpretation. Samples must already use those primaries
+    /// and transfer function; attaching this profile does not convert source
+    /// samples, expand limited-range video or apply tone mapping.
+    /// Every call returns a separate mutable array with deterministic bytes.
+    /// </summary>
+    public static byte[] CreateRec2020Profile() => RgbIccProfile.CreateRec2020();
+
+    /// <summary>
     /// Creates Jpegli's perceptual ICC v4 RGB display profile for Display P3
     /// samples, with P3 primaries, the sRGB transfer function and D65 white
     /// adapted to D50 XYZ. Assign it explicitly to JpegliEncoderOptions.IccProfile
