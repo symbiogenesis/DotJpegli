@@ -38,7 +38,7 @@ internal static class XybQuantization
         55.6682891846f, 40.8614425659f, 30.1260128021f, 33.8056335449f, 43.6857032776f, 48.7867660522f, 55.3498458862f, 63.6065597534f,
     ];
 
-    internal static ushort[] CreateTableForDistance(float distance, int component)
+    internal static ushort[] CreateTableForDistance(float distance, int component, bool forceBaseline = true)
     {
         if (!float.IsFinite(distance) || distance <= 0f)
             throw new ArgumentOutOfRangeException(nameof(distance), "Distance must be finite and greater than zero.");
@@ -52,7 +52,7 @@ internal static class XybQuantization
             // XYB bypasses standard matrices, CICP tuning and YCbCr 4:2:0 compensation.
             float scale = GlobalScale * Quantization.DistanceToScale(distance, frequency);
             float quant = MathF.Round(scale * matrix[frequency], MidpointRounding.AwayFromZero);
-            table[frequency] = (ushort)Math.Clamp(quant, 1f, 255f);
+            table[frequency] = (ushort)Math.Clamp(quant, 1f, forceBaseline ? 255f : 32767f);
         }
         return table;
     }

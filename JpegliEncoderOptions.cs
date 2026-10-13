@@ -38,7 +38,7 @@ public sealed record JpegliEncoderOptions
     /// Must be finite and greater than zero; lower values request finer quantization.
     /// Null (the default) maps Quality through JpegliEncoder.QualityToDistance.
     /// Quality must remain valid even when overridden. Quantization tables stay
-    /// clamped to baseline JPEG's 1..255 range, so extreme distances can produce
+    /// clamped to 1..255 with ForceBaseline, or 1..32767 without it, so extreme distances can produce
     /// the same tables. This is a quantization setting, not a measured or guaranteed
     /// perceptual error; even very small distances remain lossy.
     /// QuantizationTables takes precedence over generated tables when supplied.
@@ -53,7 +53,7 @@ public sealed record JpegliEncoderOptions
     /// matrices. Quality still maps to Jpegli
     /// distance, and an explicit Distance still overrides it; the standard matrices use
     /// the pinned upstream's linear scaling from that distance without 4:2:0 compensation.
-    /// Values are clamped to baseline JPEG's 1..255 range before integer conversion,
+    /// Values are clamped to the ForceBaseline range before integer conversion,
     /// including near distance 25 where upstream's conversion can overflow.
     /// Adaptive quantization and
     /// Jpegli's coefficient thresholds remain available; this is not libjpeg byte parity
@@ -62,8 +62,22 @@ public sealed record JpegliEncoderOptions
     public bool UseStandardQuantizationTables { get; init; }
 
     /// <summary>
-    /// Optional final baseline quantization tables, each with exactly 64 values
-    /// from 1 to 255 in natural row-major frequency order (not JPEG zigzag order).
+    /// Limit generated and caller-supplied quantizers to baseline JPEG's 1..255 range.
+    /// True (the default) preserves existing bytes. False permits values from 1 to
+    /// 32767, following Jpegli's nonbaseline mode. Each table containing a value above
+    /// 255 uses 16-bit DQT entries; sequential output then uses extended sequential
+    /// SOF1 instead of baseline SOF0. Progressive output retains SOF2. Tables whose
+    /// values all fit in eight bits still use eight-bit DQT entries and allow SOF0.
+    /// Adaptive YCbCr thresholds infer distance using the selected saturation limit.
+    /// Output sample precision remains eight bits; this does not enable lossless or
+    /// 12-bit JPEG. Reader support for extended sequential JPEG varies.
+    /// </summary>
+    public bool ForceBaseline { get; init; } = true;
+
+    /// <summary>
+    /// Optional final quantization tables, each with exactly 64 values from 1 to
+    /// 255 (or 32767 with ForceBaseline false) in natural row-major frequency order
+    /// (not JPEG zigzag order).
     /// Null preserves the automatically generated tables. Grayscale output requires
     /// one table; color output accepts one shared table, two tables with the second
     /// shared by components 1 and 2, or three separate component tables. Components
@@ -435,9 +449,10 @@ public sealed record JpegliEncoderOptions
                 throw new ArgumentException("Each quantization table must contain exactly 64 values in natural frequency order.",
                     nameof(QuantizationTables));
             snapshot[index] = table.ToArray();
+            int maximum = ForceBaseline ? 255 : 32767;
             foreach (ushort value in snapshot[index])
-                if (value is < 1 or > 255)
-                    throw new ArgumentException("Baseline quantization values must be between 1 and 255.",
+                if (value < 1 || value > maximum)
+                    throw new ArgumentException($"Quantization values must be between 1 and {maximum}.",
                         nameof(QuantizationTables));
         }
         return snapshot;

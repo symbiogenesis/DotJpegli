@@ -334,7 +334,8 @@ public sealed class EncoderProgressiveTests
         public static JpegDocument Read(byte[] jpeg, bool progressive, int expectedInterval,
             int expectedRefinementBits = 0, IReadOnlyList<int>? expectedAcScanEnds = null,
             IReadOnlyList<int>? expectedAcRefinementBits = null, bool expectedInterleaveDc = true,
-            int expectedRestartRows = 0, IReadOnlyList<JpegScan>? expectedScanScript = null)
+            int expectedRestartRows = 0, IReadOnlyList<JpegScan>? expectedScanScript = null,
+            bool extendedQuantization = false)
         {
             IReadOnlyList<int> acScanEnds = expectedAcScanEnds ?? [63];
             IReadOnlyList<int> acRefinementBits = expectedAcRefinementBits
@@ -367,8 +368,12 @@ public sealed class EncoderProgressiveTests
                 switch (marker)
                 {
                     case 0xc0:
+                    case 0xc1:
                     case 0xc2:
-                        Assert.Equal(progressive ? 0xc2 : 0xc0, marker);
+                        Assert.Equal(progressive ? 0xc2
+                            : quantizers.Values.Any(table => table.Length == 128) ? 0xc1 : 0xc0, marker);
+                        if (marker == 0xc1)
+                            Assert.True(extendedQuantization);
                         frameCount++;
                         Assert.Equal(8, jpeg[position++]);
                         height = Word(jpeg, position);
@@ -388,9 +393,11 @@ public sealed class EncoderProgressiveTests
                         while (position < end)
                         {
                             int selector = jpeg[position++];
-                            Assert.Equal(0, selector >> 4);
-                            quantizers.Add(selector & 15, jpeg[position..(position + 64)]);
-                            position += 64;
+                            int precision = selector >> 4;
+                            Assert.InRange(precision, 0, extendedQuantization ? 1 : 0);
+                            int tableLength = 64 * (precision + 1);
+                            quantizers.Add(selector & 15, jpeg[position..(position + tableLength)]);
+                            position += tableLength;
                         }
                         Assert.Equal(end, position);
                         break;

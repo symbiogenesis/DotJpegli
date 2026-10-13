@@ -179,15 +179,18 @@ public static class JpegliEncoder
             if (customTables is not null)
                 tables[component] = customTables[selector];
             else if (xyb)
-                tables[component] = XybQuantization.CreateTableForDistance(distance, component);
+                tables[component] = XybQuantization.CreateTableForDistance(distance, component, options.ForceBaseline);
             else if (rgb)
-                tables[component] = component == 0 ? Quantization.CreateStandardTableForDistance(distance, 0) : tables[0];
+                tables[component] = component == 0
+                    ? Quantization.CreateStandardTableForDistance(distance, 0, options.ForceBaseline) : tables[0];
             else if (options.UseStandardQuantizationTables)
-                tables[component] = component == 2 ? tables[1] : Quantization.CreateStandardTableForDistance(distance, component);
+                tables[component] = component == 2 ? tables[1]
+                    : Quantization.CreateStandardTableForDistance(distance, component, options.ForceBaseline);
             else
-                tables[component] = grayscale ? Quantization.CreateGrayscaleTableForDistance(distance, transferFunction)
+                tables[component] = grayscale
+                    ? Quantization.CreateGrayscaleTableForDistance(distance, transferFunction, options.ForceBaseline)
                     : Quantization.CreateTableForDistance(distance, component, quantizationSampling, quantizationSampling,
-                        transferFunction);
+                        transferFunction, options.ForceBaseline);
         }
 
         // ProcessCompressionParams uses Y for grayscale/YCbCr and green for RGB.
@@ -198,7 +201,8 @@ public static class JpegliEncoder
         var adaptive = useAdaptiveQuantization ? new AdaptiveQuantization(width, height, sampling.MaxVertical) : null;
         float[][]? adaptiveMultipliers = useAdaptiveQuantization
             ? Quantization.CreateAdaptiveZeroBiasMultipliers(tables, quantizationSampling, quantizationSampling, grayscale,
-                cicpTransferFunction: transferFunction, rgb: rgb, quantizationSelectors: quantizationSelectors) : null;
+                cicpTransferFunction: transferFunction, rgb: rgb, quantizationSelectors: quantizationSelectors,
+                forceBaseline: options.ForceBaseline) : null;
 
         var dcTables = new HuffmanTable[grayscale || rgb ? 1 : 2];
         var acTables = new HuffmanTable[dcTables.Length];

@@ -37,16 +37,31 @@ internal static class JpegMarkerWriter
         // Prepared selectors are canonical: 0/0/0, 0/1/1 or 0/1/2 for color.
         // Their first tableCount component entries hold the distinct tables.
         int tableCount = quantizationSelectors[^1] + 1;
+        Span<bool> wideTables = stackalloc bool[tableCount];
+        wideTables.Clear();
+        int quantizationLength = 2;
+        bool baseline = true;
+        for (int table = 0; table < tableCount; table++)
+        {
+            foreach (ushort value in quantization[table])
+                if (value > 255)
+                    wideTables[table] = true;
+            quantizationLength += wideTables[table] ? 129 : 65;
+            baseline &= !wideTables[table];
+        }
         Marker(output, 0xdb);
-        Word(output, 2 + tableCount * 65);
+        Word(output, quantizationLength);
         for (int component = 0; component < tableCount; component++)
         {
-            output.WriteByte((byte)component);
+            output.WriteByte((byte)((wideTables[component] ? 0x10 : 0) | component));
             foreach (int naturalIndex in JpegConstants.ZigZag)
-                output.WriteByte(checked((byte)quantization[component][naturalIndex]));
+                if (wideTables[component])
+                    Word(output, quantization[component][naturalIndex]);
+                else
+                    output.WriteByte(checked((byte)quantization[component][naturalIndex]));
         }
 
-        Marker(output, options.Progressive ? (byte)0xc2 : (byte)0xc0);
+        Marker(output, options.Progressive ? (byte)0xc2 : baseline ? (byte)0xc0 : (byte)0xc1);
         Word(output, 8 + quantization.Length * 3);
         output.WriteByte(8);
         Word(output, height);

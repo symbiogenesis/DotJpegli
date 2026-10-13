@@ -179,7 +179,8 @@ internal static class Quantization
 
     /// <summary>Creates an upstream perceptual table directly from a positive finite distance.</summary>
     internal static ushort[] CreateTableForDistance(float distance, int component,
-        int horizontalSampling = 1, int verticalSampling = 1, int cicpTransferFunction = 2)
+        int horizontalSampling = 1, int verticalSampling = 1, int cicpTransferFunction = 2,
+        bool forceBaseline = true)
     {
         ValidateComponent(component);
         ValidateSampling(horizontalSampling, verticalSampling);
@@ -198,9 +199,9 @@ internal static class Quantization
             if (is420 && component > 0)
                 scale *= ChromaRescale420[i];
             // SetQuantMatrices uses std::round (ties away from zero), then
-            // clamps the result to 1..255 when force_baseline is enabled.
+            // clamps to 255 with force_baseline, or 32767 without it.
             float quant = MathF.Round(scale * matrix[i], MidpointRounding.AwayFromZero);
-            table[i] = (ushort)Math.Clamp(quant, 1f, 255f);
+            table[i] = (ushort)Math.Clamp(quant, 1f, forceBaseline ? 255f : 32767f);
         }
         return table;
     }
@@ -214,11 +215,12 @@ internal static class Quantization
     /// </remarks>
     internal static ushort[] CreateGrayscaleTable(float quality) => CreateTable(quality, 0);
 
-    internal static ushort[] CreateGrayscaleTableForDistance(float distance, int cicpTransferFunction = 2)
-        => CreateTableForDistance(distance, 0, cicpTransferFunction: cicpTransferFunction);
+    internal static ushort[] CreateGrayscaleTableForDistance(float distance, int cicpTransferFunction = 2,
+        bool forceBaseline = true)
+        => CreateTableForDistance(distance, 0, cicpTransferFunction: cicpTransferFunction, forceBaseline: forceBaseline);
 
-    /// <summary>Creates the pinned upstream's optional baseline Annex K table.</summary>
-    internal static ushort[] CreateStandardTableForDistance(float distance, int component)
+    /// <summary>Creates the pinned upstream's optional Annex K table.</summary>
+    internal static ushort[] CreateStandardTableForDistance(float distance, int component, bool forceBaseline = true)
     {
         ValidateComponent(component);
         if (!float.IsFinite(distance) || distance <= 0f)
@@ -230,7 +232,8 @@ internal static class Quantization
         // Clamp before the integer conversion, including immediately below 25
         // where DistanceToLinearQuality can exceed upstream's int32 range.
         for (int i = 0; i < table.Length; i++)
-            table[i] = (ushort)Math.Clamp(MathF.Round(scale * matrix[i], MidpointRounding.AwayFromZero), 1f, 255f);
+            table[i] = (ushort)Math.Clamp(MathF.Round(scale * matrix[i], MidpointRounding.AwayFromZero),
+                1f, forceBaseline ? 255f : 32767f);
         return table;
     }
 
@@ -251,7 +254,8 @@ internal static class Quantization
     /// <summary>Creates upstream per-frequency adaptive zero-bias multipliers.</summary>
     internal static float[][] CreateAdaptiveZeroBiasMultipliers(ushort[][] tables,
         int horizontalSampling, int verticalSampling, bool grayscale, bool sharedChromaTable = false,
-        int cicpTransferFunction = 2, bool rgb = false, ReadOnlySpan<int> quantizationSelectors = default)
+        int cicpTransferFunction = 2, bool rgb = false, ReadOnlySpan<int> quantizationSelectors = default,
+        bool forceBaseline = true)
     {
         ArgumentNullException.ThrowIfNull(tables);
         ValidateSampling(horizontalSampling, verticalSampling);
@@ -260,7 +264,7 @@ internal static class Quantization
 
         // InitQuantizer only performs table-derived distance inference for YCbCr.
         float distance = rgb ? 1f : QuantValuesToDistance(tables, sharedChromaTable, cicpTransferFunction,
-            quantizationSelectors);
+            quantizationSelectors, forceBaseline);
         float lowQualityMix = Math.Clamp((distance - 1f) / 2f, 0f, 1f);
         float highQualityMix = 1f - lowQualityMix;
         float[][] multipliers = new float[tables.Length][];
@@ -287,7 +291,7 @@ internal static class Quantization
                 "Sampling must use 1..4 horizontal and vertical samples, and at most 10 blocks per color MCU.");
     }
 
-    /// <summary>Infers upstream quantizer distance from the emitted baseline tables.</summary>
+    /// <summary>Infers upstream quantizer distance from the emitted tables.</summary>
     /// <remarks>
     /// QuantValsToDistance uses the YCbCr base matrices and transfer-function global
     /// scale, without the 4:2:0 compensation, including for
@@ -297,10 +301,10 @@ internal static class Quantization
     /// remain component-specific. Without explicit selectors, sharedChromaTable
     /// selects the perceptual Cb base for both chroma components.
     /// It reconstructs an interval from
-    /// rounded values, leaving saturated 1 and 255 endpoints unbounded.
+    /// rounded values, leaving saturated 1 and the selected maximum endpoints unbounded.
     /// </remarks>
     internal static float QuantValuesToDistance(ushort[][] tables, bool sharedChromaTable = false,
-        int cicpTransferFunction = 2, ReadOnlySpan<int> quantizationSelectors = default)
+        int cicpTransferFunction = 2, ReadOnlySpan<int> quantizationSelectors = default, bool forceBaseline = true)
     {
         ArgumentNullException.ThrowIfNull(tables);
         if (tables.Length is not (1 or 3))
@@ -317,6 +321,7 @@ internal static class Quantization
         const float distanceLimit = 10000f;
         float distanceMin = 0f;
         float distanceMax = distanceLimit;
+        int quantMaximum = forceBaseline ? 255 : 32767;
         for (int component = 0; component < tables.Length; component++)
         {
             ushort[] table = tables[component];
@@ -325,14 +330,14 @@ internal static class Quantization
             for (int frequency = 0; frequency < BlockSize; frequency++)
             {
                 int quant = table[frequency];
-                if (quant is < 1 or > 255)
-                    throw new ArgumentException("Baseline quantization values must be between 1 and 255.", nameof(tables));
+                if (quant < 1 || quant > quantMaximum)
+                    throw new ArgumentException($"Quantization values must be between 1 and {quantMaximum}.", nameof(tables));
                 int tableIndex = quantizationSelectors.IsEmpty
                     ? sharedChromaTable && component > 0 ? 1 : component
                     : quantizationSelectors[component];
                 float inverseQuant = 1f / BaseMatrices[tableIndex * BlockSize + frequency] / globalScale;
                 float min = quant > 1 ? ScaleToDistance((quant - 0.5f) * inverseQuant, frequency) : 0f;
-                float max = quant < 255 ? ScaleToDistance((quant + 0.5f) * inverseQuant, frequency) : distanceLimit;
+                float max = quant < quantMaximum ? ScaleToDistance((quant + 0.5f) * inverseQuant, frequency) : distanceLimit;
                 if (min <= distanceMax)
                     distanceMin = MathF.Max(min, distanceMin);
                 if (max >= distanceMin)
@@ -385,8 +390,8 @@ internal static class Quantization
         };
         for (int i = 0; i < BlockSize; i++)
         {
-            if (table[i] is < 1 or > 255)
-                throw new ArgumentException("Baseline quantization values must be between 1 and 255.", nameof(table));
+            if (table[i] is < 1 or > 32767)
+                throw new ArgumentException("Quantization values must be between 1 and 32767.", nameof(table));
             if (!float.IsFinite(coefficients[i]))
                 throw new ArgumentException("DCT coefficients must be finite.", nameof(coefficients));
             if (adaptiveQuantization && (!float.IsFinite(adaptiveMultipliers[i]) || adaptiveMultipliers[i] < 0))
