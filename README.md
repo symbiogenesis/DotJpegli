@@ -1601,7 +1601,7 @@ MozJPEG and libjpeg-turbo in its tested conditions, rather than a universal
 Built-in combination regressions compare all 288 named RGB/grayscale profiles
 and 48 gamma-2.2 profiles across four intents with independently compiled pinned
 C++ fixtures. Independent parsing checks media white, Bradford adaptation,
-adapted colorants, decoding curves, CICP eligibility, HDR LUT framing and ICC
+adapted colorants, decoding curves, CICP eligibility, HDR transform selection and ICC
 identification. They cover existing factory bytes, fresh storage, invalid
 parameters and exact APP2 embedding with unchanged coding across representative
 source precisions, scan modes and streams. These checks validate profile
