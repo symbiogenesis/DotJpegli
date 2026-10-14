@@ -156,8 +156,8 @@ By default, consumed float color or grayscale samples must be finite and between
 invalid values are rejected before output is written. Ignored alpha and padding
 need not satisfy that range. This is narrower than upstream Jpegli's float input,
 which also permits out-of-gamut values. XYB output linearizes sRGB before its
-opsin transform; other output modes retain gamma-encoded samples. No HDR tone
-mapping or source ICC transform is applied. For conversion to XYB supply sRGB input and
+opsin transform; other output modes retain gamma-encoded samples unless
+[source ICC conversion](#source-icc-color-management) is enabled. For conversion to XYB supply sRGB input and
 a scaled XYB output profile; other modes use the color space described by the
 attached profile. Typed spans contain native numeric
 values; deserialize byte-oriented source data with its correct endianness first.
@@ -203,9 +203,68 @@ slightly negative grayscale image may fit after coarse quantization yet exceed
 the DC limit at quality 100. Unencodable input throws an `ArgumentException`
 with `ParamName` equal to `pixels` before any output, with the same acceptance
 across baseline/progressive and Huffman settings. This option adds no tone
-mapping, HDR JPEG output or source ICC color management. Explicit XYB output
+mapping or HDR JPEG output. Source ICC conversion is enabled separately and
+requires normalized input. Explicit XYB output
 applies its sRGB linearization and opsin transform as described below. Decoders
 can clamp reconstructed samples to their output range.
+
+## Source ICC color management
+
+Set `SourceIccProfile` to the profile describing the input samples and
+`IccProfile` to the destination profile. Conversion runs before smoothing,
+sampling, adaptive analysis and quantization, preserving fractional precision:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(displayP3Pixels, width, height, options: new()
+{
+    SourceIccProfile = JpegliIccProfiles.CreateDisplayP3Profile(),
+    IccProfile = JpegliIccProfiles.CreateSrgbProfile(),
+    ColorRenderingIntent = IccRenderingIntent.RelativeColorimetric,
+    Quality = 90
+});
+```
+
+An empty destination selects and embeds RGB sRGB for RGB/YCbCr output, grayscale
+sRGB for grayscale output, or the built-in scaled XYB profile for XYB output.
+`Automatic` still selects the JPEG output space from the input layout. Supply
+an RGB destination for RGB/YCbCr output and a grayscale destination for grayscale
+output. Source profile channels must match the RGB/BGR or grayscale input layout;
+alpha and padding remain ignored. Direct YCbCr and already scaled XYB input
+cannot use source ICC conversion. For XYB output the source is converted to
+sRGB first, then passed through the existing opsin transform; only the built-in
+scaled XYB destination profile is accepted in this mode.
+
+The managed engine supports ICC v2/v4 RGB and grayscale matrix/TRC profiles,
+identity, gamma and sampled `curv` curves, `para` functions 0–4, and
+`mft1`, `mft2`, `mAB` and `mBA` LUT pipelines with XYZ or Lab PCS. Eight-bit
+`mft1` with XYZ PCS is rejected because its encoding is implementation-specific.
+LUT interpolation is linear for one input channel and trilinear for RGB.
+Device-link, abstract, named-color, CMYK/multichannel, iccMAX and unsupported
+transform types are rejected explicitly. The built-in HDR and XYB profiles'
+compatibility `B2A0` tags are not inverse transforms and cannot serve as ordinary
+destinations. Their forward transforms can describe RGB-layout source data.
+See [ICC.1:2022](https://www.color.org/specification/ICC.1-2022-05.pdf) for the
+profile and PCS encodings.
+
+`ColorRenderingIntent` defaults to relative colorimetric. Perceptual and
+saturation select their corresponding LUTs; missing intent tables fall back to
+the perceptual table or matrix/TRC transform. Absolute colorimetric uses the
+relative transform with source/destination media-white scaling. Matrix/TRC
+profiles otherwise share their transform across intents. No black-point
+compensation or additional gamut mapping is applied; destination samples are
+clipped to 0..1. A source LUT can itself contain a tone/gamut transform.
+
+Consumed float samples must be finite and in 0..1, even with
+`AllowOutOfRangeFloatSamples` enabled. Malformed, mismatched and unsupported
+profiles and nonfinite conversion results fail before output. Profiles are
+parsed into immutable owned transforms and the destination bytes are copied
+before stream writes; do not mutate profile memory while encoding starts.
+The source profile is not embedded. Conversion uses bounded per-pixel storage
+without a full-image converted buffer and is shared safely by parallel workers.
+Cancellation is checked during profile preparation and between image rows.
+Leaving `SourceIccProfile` empty preserves the existing JPEG coding and opaque
+profile-attachment behavior. This capability does not establish quality,
+compression or performance parity with upstream.
 
 ## Direct YCbCr input
 
@@ -288,7 +347,7 @@ RGB output omits JFIF APP0 and Adobe APP14; the RGB component identifiers signal
 the color space. JFIF density options therefore have no effect. Optional metadata
 begins immediately after SOI in its usual order. Some JPEG readers have limited
 support for RGB or subsampled RGB JPEGs. This option does not perform color
-management or generate an ICC profile; any attached profile
+management by itself; use `SourceIccProfile` for conversion. Any attached profile
 must describe the chosen output interpretation.
 
 ## sRGB-to-XYB output
@@ -316,8 +375,9 @@ conversion is performed on demand without a full-image conversion buffer.
 A nonempty matching **scaled XYB output** ICC profile is required. Use
 `JpegliIccProfiles.CreateXybProfile()` for the built-in Jpegli profile at the
 default intensity target of 255, or supply a matching external profile. It is
-embedded unchanged; it describes the stored channels. Arbitrary source ICC
-conversion and tone mapping are not provided. Direct YCbCr input
+embedded unchanged; it describes the stored channels. `SourceIccProfile` can
+convert another RGB or grayscale source into sRGB before the XYB transform;
+that path requires the built-in XYB output profile. Direct YCbCr input
 cannot be converted to XYB. `Automatic` continues to select YCbCr for RGB input
 and grayscale for grayscale input.
 

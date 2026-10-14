@@ -7,6 +7,7 @@ namespace DotJpegli;
 /// to eight-bit baseline or progressive grayscale, YCbCr or RGB JPEG.
 /// Converts sRGB/grayscale to scaled XYB or accepts already scaled XYB input,
 /// with a matching caller-supplied output ICC profile. Includes spatial adaptive quantization.
+/// SourceIccProfile optionally converts RGB/grayscale source samples into the output profile.
 /// </summary>
 public static class JpegliEncoder
 {
@@ -43,8 +44,8 @@ public static class JpegliEncoder
     /// <summary>
     /// Encodes RGB/grayscale, full-range JPEG YCbCr or already scaled XYB 16-bit samples.
     /// Values 0..65535 map to JPEG sample units 0..255; neutral YCbCr chroma is 32896.
-    /// Non-XYB output retains the source transfer function; use a matching output ICC profile.
-    /// Explicit XYB conversion requires gamma-encoded sRGB input.
+    /// Without SourceIccProfile, non-XYB output retains the source transfer function;
+    /// use a matching output ICC profile. Explicit XYB conversion then requires gamma-encoded sRGB input.
     /// Fractional precision is retained until quantization; output JPEG sample precision is eight bits.
     /// </summary>
     /// <param name="stride">Source elements between rows, or zero for tightly packed rows.</param>
@@ -73,8 +74,8 @@ public static class JpegliEncoder
     /// Consumed samples must be finite and in 0..1 by default; neutral YCbCr chroma is 128f / 255f.
     /// AllowOutOfRangeFloatSamples permits out-of-range values that fit eight-bit JPEG coefficients.
     /// Alpha, row padding and trailing elements are ignored. Explicit XYB output linearizes sRGB
-    /// before its opsin transform. No HDR transform or source ICC transform is applied.
-    /// Non-XYB output retains the source transfer function; use a matching output ICC profile.
+    /// before its opsin transform. SourceIccProfile enables source-to-destination ICC conversion.
+    /// Otherwise non-XYB output retains the source transfer function; use a matching output ICC profile.
     /// Fractional precision is retained until quantization; output JPEG sample precision is eight bits.
     /// </summary>
     /// <param name="stride">Source elements between rows, or zero for tightly packed rows.</param>
@@ -109,7 +110,7 @@ public static class JpegliEncoder
         options ??= new JpegliEncoderOptions();
         options.Validate();
         pixels = pixels.WithColorSpace(options.ColorSpace);
-        if (pixels.IsXyb && options.IccProfile.IsEmpty)
+        if (pixels.IsXyb && options.IccProfile.IsEmpty && options.SourceIccProfile.IsEmpty)
             throw new ArgumentException("Scaled XYB encoding requires an ICC profile describing the stored channels.",
                 nameof(JpegliEncoderOptions.IccProfile));
         if (width is < 1 or > 65535)
@@ -129,7 +130,37 @@ public static class JpegliEncoder
         if (options.MetadataMarkers is not null)
             options = options with { MetadataMarkers = options.PrepareMetadataMarkers(cancellationToken) };
         bool hasOutOfRangeFloatSamples = pixels.ValidateSamples(width, height, stride, cancellationToken,
-            options.AllowOutOfRangeFloatSamples);
+            options.AllowOutOfRangeFloatSamples && options.SourceIccProfile.IsEmpty);
+        if (!options.SourceIccProfile.IsEmpty)
+        {
+            if (!pixels.CanManageSourceColor)
+                throw new ArgumentException("Source ICC conversion requires RGB/BGR or grayscale input, not direct YCbCr or scaled XYB.",
+                    nameof(JpegliEncoderOptions.SourceIccProfile));
+            byte[] destination = options.IccProfile.IsEmpty
+                ? pixels.ColorSpace switch
+                {
+                    JpegColorSpace.Xyb => JpegliIccProfiles.CreateXybProfile(),
+                    JpegColorSpace.Grayscale => JpegliIccProfiles.CreateSrgbGrayscaleProfile(),
+                    _ => JpegliIccProfiles.CreateSrgbProfile()
+                }
+                : options.IccProfile.ToArray();
+            if (pixels.IsXyb && !destination.AsSpan().SequenceEqual(JpegliIccProfiles.CreateXybProfile()))
+                throw new ArgumentException("Source ICC conversion to XYB requires the built-in scaled XYB output profile.",
+                    nameof(JpegliEncoderOptions.IccProfile));
+            byte[] transformDestination = pixels.IsXyb ? JpegliIccProfiles.CreateSrgbProfile() : destination;
+            var transform = IccColorTransform.Create(options.SourceIccProfile.Span, transformDestination,
+                pixels.IsGrayscaleInput, pixels.IsGrayscale, options.ColorRenderingIntent, cancellationToken);
+            pixels = pixels.WithColorTransform(transform);
+            options = options with { IccProfile = destination };
+            // Evaluate source-dependent nonlinear arithmetic before any output. The
+            // conversion remains on demand and uses no image-sized converted buffer.
+            for (int row = 0; row < height; row++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                for (int column = 0; column < width; column++)
+                    pixels.ReadSample(row * stride + column * pixels.ComponentsPerPixel, 0);
+            }
+        }
         ExtendedXmpMetadata? extendedXmp = ExtendedXmpMetadata.Prepare(options, cancellationToken);
 
         int transferFunction = options.CicpTransferFunction;

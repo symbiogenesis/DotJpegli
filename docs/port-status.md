@@ -4,10 +4,10 @@
 
 ## Progress summary
 
-**26 of 27 tracked capability areas implemented (96.3%).**
-**1 capability area pending.**
+**27 of 27 tracked capability areas implemented (100.0%).**
+**No capability areas pending.**
 
-Each row in the implemented and pending tables counts once, with equal weight.
+Each tracked capability row counts once, with equal weight.
 Progress is calculated as `implemented / total × 100`, rounded to one decimal
 place. These counts cover the documented encoder implementation roadmap;
 quality, compression and performance validation are tracked separately below.
@@ -62,6 +62,7 @@ for source attribution.
 | XYB encoding and profile | Implemented | Already scaled XYB input and sRGB/grayscale conversion, upstream XYB quantizers/sampling/Y-based analysis, and a managed scaled XYB output profile. |
 | Named and generic ICC profiles | Implemented | RGB/grayscale sRGB, linear, P3, Rec.709/2020, DCI, PQ/HLG and pure-gamma profiles; every named combination of three whites, three RGB primary sets and six transfers, plus gamma. |
 | Custom ICC chromaticities and intents | Implemented | Caller-supplied CIE xy primaries/whites, primary-matrix and Bradford adaptation, storage validation and upstream descriptions; four selectable RGB/grayscale rendering intents. |
+| Source ICC color management | Implemented | Managed source-to-destination ICC v2/v4 RGB/grayscale matrix/TRC and LUT conversion, XYZ/Lab PCS, rendering intents, default output profiles and sRGB-to-XYB integration before sampling/quantization. Unsupported profile models and transform types fail explicitly; see the encoding guide for format and gamut restrictions. |
 
 See [encoding](encoding.md), [compression](compression.md),
 [quantization](quantization.md) and [profiles and metadata](metadata.md) for API
@@ -70,9 +71,8 @@ describes the regression coverage behind these implementation statuses.
 
 ## Pending capabilities
 
-| Capability area | Status | Remaining work |
-| --- | --- | --- |
-| Source ICC color management | Pending | Convert arbitrary source profiles into the chosen output color space. Current profile attachment describes output samples. |
+None in the tracked encoder capability roadmap. The independent validation
+work below remains outstanding.
 
 ## Validation and compatibility
 
@@ -110,7 +110,11 @@ buffer. All workers finish before encoding returns. Adaptive analysis,
 quantization and stream writes remain ordered. This execution option extends
 the managed port and does not establish a measured speed improvement.
 
-ICC profiles require explicit assignment and describe the stored samples.
+Without `SourceIccProfile`, ICC profiles require explicit assignment and describe
+the stored samples. Source ICC conversion interprets supported RGB/grayscale
+profiles and converts into the chosen destination before sampling and
+quantization, automatically assigning a matching default destination if omitted.
+This extends the managed port and does not establish upstream color-management parity.
 XYB display requires a matching profile and a reader that applies it; XYB profiles
 remain perceptual-only. Generic PQ/HLG profiles use Lab tone-mapping LUTs only
 for CICP-representable RGB combinations; other RGB and grayscale variants use

@@ -16,6 +16,7 @@ internal readonly ref struct PixelSource
     private readonly bool ycbcr;
     private readonly bool xyb;
     private readonly JpegColorSpace colorSpace;
+    private readonly IccColorTransform? colorTransform;
 
     internal PixelSource(ReadOnlySpan<byte> pixels, PixelLayout layout)
     {
@@ -55,7 +56,8 @@ internal readonly ref struct PixelSource
 
     internal int ComponentsPerPixel { get; }
     internal ParallelDctRows? ParallelRows { get; }
-    private bool IsGrayscaleInput => ComponentsPerPixel == 1;
+    internal bool IsGrayscaleInput => ComponentsPerPixel == 1;
+    internal bool CanManageSourceColor => !ycbcr && !xyb;
     internal JpegColorSpace ColorSpace => colorSpace == JpegColorSpace.Automatic
         ? (xyb ? JpegColorSpace.Xyb : IsGrayscaleInput ? JpegColorSpace.Grayscale : JpegColorSpace.YCbCr) : colorSpace;
     internal bool IsGrayscale => ColorSpace == JpegColorSpace.Grayscale;
@@ -65,7 +67,8 @@ internal readonly ref struct PixelSource
     internal bool IsXyb => ColorSpace == JpegColorSpace.Xyb;
     internal int AnalysisComponent => IsRgb ? 1 : 0;
 
-    private PixelSource(PixelSource source, JpegColorSpace colorSpace, ParallelDctRows? parallelRows = null)
+    private PixelSource(PixelSource source, JpegColorSpace colorSpace, ParallelDctRows? parallelRows = null,
+        IccColorTransform? colorTransform = null)
     {
         bytes = source.bytes;
         words = source.words;
@@ -77,9 +80,13 @@ internal readonly ref struct PixelSource
         ComponentsPerPixel = source.ComponentsPerPixel;
         this.colorSpace = colorSpace;
         ParallelRows = parallelRows;
+        this.colorTransform = colorTransform ?? source.colorTransform;
     }
 
     internal PixelSource WithParallelRows(ParallelDctRows rows) => new(this, colorSpace, rows);
+
+    internal PixelSource WithColorTransform(IccColorTransform transform) => new(this, colorSpace,
+        colorTransform: transform);
 
     /// <summary>Owned managed storage allows workers to recreate this span-based reader safely.</summary>
     internal sealed class Snapshot
@@ -93,6 +100,7 @@ internal readonly ref struct PixelSource
         private readonly bool xyb;
         private readonly JpegColorSpace colorSpace;
         private readonly int componentsPerPixel;
+        private readonly IccColorTransform? colorTransform;
 
         internal Snapshot(PixelSource source, int length, CancellationToken cancellationToken)
         {
@@ -105,6 +113,7 @@ internal readonly ref struct PixelSource
             xyb = source.xyb;
             colorSpace = source.colorSpace;
             componentsPerPixel = source.ComponentsPerPixel;
+            colorTransform = source.colorTransform;
         }
 
         internal PixelSource GetPixels()
@@ -120,7 +129,8 @@ internal readonly ref struct PixelSource
                 SourceType.UInt16 => new PixelSource(words, GetLayout()),
                 _ => new PixelSource(floats, GetLayout())
             };
-            return pixels.WithColorSpace(colorSpace);
+            pixels = pixels.WithColorSpace(colorSpace);
+            return colorTransform is null ? pixels : pixels.WithColorTransform(colorTransform);
         }
 
         private PixelComponentLayout GetLayout() => xyb ? PixelComponentLayout.Xyb
@@ -187,7 +197,7 @@ internal readonly ref struct PixelSource
                     if (value is < 0f or > 1f)
                     {
                         if (!allowOutOfRangeFloatSamples)
-                            throw new ArgumentException("Floating-point color and grayscale samples must be between 0 and 1 unless AllowOutOfRangeFloatSamples is enabled.", "pixels");
+                            throw new ArgumentException("Floating-point color and grayscale samples must be between 0 and 1. AllowOutOfRangeFloatSamples permits wider values only without SourceIccProfile conversion.", "pixels");
                         hasOutOfRangeSamples = true;
                     }
                 }
@@ -202,6 +212,25 @@ internal readonly ref struct PixelSource
 
     internal float ReadSample(int offset, int component)
     {
+        if (colorTransform is not null)
+        {
+            float red = ReadNormalizedComponent(offset + (IsGrayscaleInput ? 0 : bgr ? 2 : 0));
+            float green = IsGrayscaleInput ? red : ReadNormalizedComponent(offset + 1);
+            float blue = IsGrayscaleInput ? red : ReadNormalizedComponent(offset + (bgr ? 0 : 2));
+            colorTransform.Convert(red, green, blue, out red, out green, out blue);
+            if (IsXyb)
+            {
+                XybColorConversion.SrgbToScaledXyb(red, green, blue, out float scaledX, out float scaledY, out float scaledB);
+                return component switch { 0 => scaledX, 1 => scaledY, _ => scaledB };
+            }
+            if (IsGrayscale)
+                return red * 255f;
+            if (IsRgb)
+                return (component switch { 0 => red, 1 => green, _ => blue }) * 255f;
+            ColorConversion.RgbToYCbCr(red * 255f, green * 255f, blue * 255f,
+                out float luma, out float managedCb, out float managedCr);
+            return component switch { 0 => luma, 1 => managedCb, _ => managedCr };
+        }
         if (IsXyb && !xyb)
         {
             float red = ReadNormalizedComponent(offset + (IsGrayscaleInput ? 0 : bgr ? 2 : 0));
@@ -249,7 +278,7 @@ internal readonly ref struct PixelSource
         int lanes = Vector<float>.Count;
         // Nonlinear XYB and null transforms retain their existing scalar
         // semantics. Bound scratch space even if a future runtime has wider vectors.
-        if (IsXyb || IsGrayscaleInput || ycbcr || IsRgb || lanes > 8 || samples.Length < lanes)
+        if (colorTransform is not null || IsXyb || IsGrayscaleInput || ycbcr || IsRgb || lanes > 8 || samples.Length < lanes)
         {
             ReadRowScalar(width, height, stride, component, x, y, samples);
             return;

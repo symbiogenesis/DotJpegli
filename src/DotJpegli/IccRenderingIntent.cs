@@ -1,9 +1,10 @@
 namespace DotJpegli;
 
-/// <summary>The preferred rendering intent stored in a built-in ICC output profile.</summary>
+/// <summary>An ICC profile's preferred display intent or the intent for source color conversion.</summary>
 /// <remarks>
 /// A color-management system interprets this preference when displaying the JPEG.
-/// Selecting an intent does not convert or alter samples during encoding.
+/// Profile factory overloads store the preference without converting samples.
+/// JpegliEncoderOptions.ColorRenderingIntent selects the SourceIccProfile conversion intent.
 /// </remarks>
 public enum IccRenderingIntent
 {

@@ -29,6 +29,15 @@ See the [GitHub Actions workflow](../.github/workflows/ci.yml) for the hosted ch
 
 ## Regression coverage
 
+Source-ICC regressions compare transformed samples with independent transfer,
+matrix and PCS oracles and synthetic LUT fixtures. Encoder checks cover source
+precision, RGB/BGR/alpha/padding, grayscale and XYB destinations, metadata,
+serial/parallel coding, stream behavior and profile snapshots. Malformed bounds,
+unsupported profiles, channel mismatches, normalized-input requirements and
+cancellation are checked before output. These tests validate supported color
+conversion formats without establishing corpus quality, compression or
+performance parity.
+
 Structured-metadata regressions independently inspect TIFF directories and values,
 XMP XML/RDF properties and IIM dataset bytes. They cover typed and generic edits,
 unknown-value preservation, byte orders, thumbnail offsets, language alternatives,

@@ -20,13 +20,14 @@ public sealed record JpegliEncoderOptions
     /// Adaptive RGB quantization analyzes green and disables itself if green is
     /// subsampled. Xyb converts sRGB or grayscale input using sRGB linearization,
     /// the opsin transform and Jpegli scaling, or accepts already scaled XYB input.
-    /// It requires a nonempty IccProfile describing the scaled output channels;
-    /// the source is assumed to be sRGB and no source ICC transform is applied.
+    /// Without SourceIccProfile it requires a nonempty IccProfile describing the
+    /// scaled output channels;
+    /// the source is assumed to be sRGB unless SourceIccProfile supplies a transform.
     /// JpegliIccProfiles.CreateXybProfile provides the built-in output profile.
     /// Direct YCbCr-to-XYB and XYB-to-other conversions are unsupported.
     /// It uses RGB identifiers and defaults to three perceptual XYB tables with
     /// X/Y factors 2x2 and B-minus-Y factors 1x1. Its adaptive analysis uses Y.
-    /// RGB/XYB JPEG reader support varies. This does not apply an ICC transform.
+    /// RGB/XYB JPEG reader support varies.
     /// </summary>
     public JpegColorSpace ColorSpace { get; init; }
 
@@ -146,7 +147,7 @@ public sealed record JpegliEncoderOptions
     /// RGB-to-XYB output extends the sRGB transfer with the source sign, clamps biased
     /// opsin absorbance to zero, and requires finite nonlinear computations before output.
     /// Acceptance depends on quality, smoothing and sampling; this does not enable HDR output,
-    /// tone mapping or source ICC color management.
+    /// tone mapping. SourceIccProfile requires normalized input even with this option enabled.
     /// </summary>
     public bool AllowOutOfRangeFloatSamples { get; init; }
 
@@ -216,8 +217,9 @@ public sealed record JpegliEncoderOptions
     public string? ExtendedXmpPacket { get; init; }
 
     /// <summary>
-    /// Raw ICC profile bytes to embed in APP2 markers. Empty (the default) omits the profile.
-    /// At most 16,707,345 bytes are supported. The profile is not applied to the pixels;
+    /// Raw ICC profile bytes to embed in APP2 markers. Empty omits the profile unless
+    /// SourceIccProfile automatically selects a destination.
+    /// At most 16,707,345 bytes are supported. Without SourceIccProfile it is not applied to the pixels;
     /// supply a profile describing the output's RGB or grayscale interpretation.
     /// JpegliIccProfiles.CreateSrgbProfile provides an RGB sRGB profile for explicit
     /// assignment to RGB or YCbCr output with an sRGB interpretation, not grayscale.
@@ -233,12 +235,42 @@ public sealed record JpegliEncoderOptions
     /// assigning them does not convert the source color space or tone-map it.
     /// XYB output requires a nonempty profile describing Jpegli's scaled XYB channels, rather than an
     /// ordinary RGB profile. JpegliIccProfiles.CreateXybProfile provides a matching
-    /// built-in profile; it must be assigned explicitly. The encoder does not validate
-    /// an external profile's transform. It remains opaque
+    /// built-in profile; it must be assigned explicitly unless SourceIccProfile selects it
+    /// automatically. Without source conversion the encoder does not validate an external
+    /// profile's transform. It remains opaque
     /// unless InferCicpTransferFunctionFromIccProfile enables the narrow CICP lookup.
-    /// Do not change the underlying memory or dispose its owner until encoding returns.
+    /// With SourceIccProfile, this is the destination transform and its bytes are copied before output.
+    /// Without source conversion, do not change the underlying memory or dispose its
+    /// owner until encoding returns. With source conversion, keep it stable while encoding starts.
     /// </summary>
     public ReadOnlyMemory<byte> IccProfile { get; init; }
+
+    /// <summary>
+    /// Optional ICC v2/v4 profile describing RGB/BGR or grayscale source samples.
+    /// Empty preserves existing sample conversion and opaque output-profile attachment.
+    /// When supplied, converts normalized samples into IccProfile before smoothing,
+    /// sampling and quantization. An empty destination selects and embeds sRGB (RGB/YCbCr),
+    /// sRGB grayscale, or the built-in scaled XYB profile for the chosen output space.
+    /// RGB and grayscale matrix/TRC profiles and supported A2B/B2A LUT profiles are accepted;
+    /// unsupported transforms, profile classes and channel models fail before output.
+    /// Direct YCbCr and already scaled XYB source layouts are unsupported.
+    /// XYB conversion uses sRGB as an intermediate and requires the built-in XYB output profile.
+    /// Out-of-gamut destination samples are clipped to 0..1; no black-point compensation is applied.
+    /// Consumed float samples must be finite and normalized, including when
+    /// AllowOutOfRangeFloatSamples is enabled. Alpha and padding remain ignored.
+    /// Profiles are parsed into owned immutable transforms before output; do not mutate
+    /// profile storage while encoding starts. At most 16,707,345 source bytes are accepted.
+    /// </summary>
+    public ReadOnlyMemory<byte> SourceIccProfile { get; init; }
+
+    /// <summary>
+    /// Rendering intent for SourceIccProfile conversion, defaulting to relative colorimetric.
+    /// Selects the corresponding A2B/B2A tables, falling back to the perceptual table or
+    /// matrix/TRC transform when unavailable. Absolute colorimetric adjusts media whites.
+    /// Matrix/TRC profiles otherwise share their transform across intents.
+    /// Independent of the output profile header's preferred display intent.
+    /// </summary>
+    public IccRenderingIntent ColorRenderingIntent { get; init; } = IccRenderingIntent.RelativeColorimetric;
 
     /// <summary>
     /// Raw IPTC-IIM bytes to embed unchanged in one Photoshop APP13 marker, as image resource 0x0404.
@@ -568,6 +600,10 @@ public sealed record JpegliEncoderOptions
 
     internal void Validate()
     {
+        if (!Enum.IsDefined(ColorRenderingIntent))
+            throw new ArgumentOutOfRangeException(nameof(ColorRenderingIntent));
+        if (SourceIccProfile.Length > JpegMarkerWriter.MaxIccProfileBytes)
+            throw new ArgumentOutOfRangeException(nameof(SourceIccProfile), "The source ICC profile must not exceed 16,707,345 bytes.");
         if (ScanScript is not null && (ProgressiveLevel is not null
             || ProgressiveAcScanEnds is not null || ProgressiveAcRefinementBits is not null
             || ProgressiveRefinementBits != 0 || !ProgressiveInterleaveDc || !SequentialInterleaveComponents))

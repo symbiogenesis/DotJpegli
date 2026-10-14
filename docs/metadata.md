@@ -262,7 +262,10 @@ Use `JpegliIccProfiles.CreateSrgbProfile()` for a built-in RGB sRGB profile,
 `JpegliIccProfiles.CreateSrgbGrayscaleProfile()` for grayscale with the sRGB
 transfer function, or `JpegliIccProfiles.CreateXybProfile()` for scaled XYB. These factories return a
 fresh mutable array with deterministic bytes and require explicit assignment to
-`IccProfile`. The encoder does not apply an attached profile's color transform.
+`IccProfile`. With `SourceIccProfile` empty, the encoder preserves the existing
+attachment behavior. Supplying a source profile enables
+[source ICC color conversion](encoding.md#source-icc-color-management) into the
+destination profile, or an automatically attached sRGB/grayscale/XYB destination.
 Do not change its backing memory or dispose its owner until encoding returns.
 Profiles can contain at most 16,707,345 bytes (255 chunks of up to 65,519 bytes), following
 [ICC.1 Annex B.5](https://www.color.org/ICC1V42old.pdf).
@@ -282,7 +285,7 @@ Existing overloads retain their perceptual intent and exact bytes. The new
 overloads use upstream's intent-dependent descriptions, header intent and ICC
 MD5 identification. Invalid enum values throw `ArgumentOutOfRangeException`
 for `renderingIntent`. Intent is a preference for the reader's color-management
-system: the encoder preserves samples, and the profile's colorants, curves,
+system when attaching profiles without source conversion. The profile's colorants, curves,
 adaptation and HDR tone/gamut transforms are the same across intents. HDR
 profiles retain `A2B0` and the identity compatibility `B2A0`; reader behavior can
 vary. `CreateXybProfile()` remains perceptual-only, matching the pinned builder.
@@ -320,8 +323,9 @@ combinations PQ/HLG use the upstream 9x9x9 tone/gamut-mapped Lab transform.
 Other RGB PQ/HLG combinations use shared 64-entry decoding curves with XYZ PCS,
 without tone mapping, HLG OOTF or CICP. Grayscale retains the selected source
 media white with no adaptation or CICP; its PQ/HLG curves are also untone-mapped.
-Pure-gamma profiles always omit CICP. Arbitrary source ICC conversion remains
-pending. Profile embedding does not establish color-managed
+Pure-gamma profiles always omit CICP. Source ICC conversion is available through
+`SourceIccProfile`, subject to the supported transform formats in the encoding
+guide. Profile embedding does not establish color-managed
 JPEG quality or HDR display conformance.
 
 ### Custom chromaticities
