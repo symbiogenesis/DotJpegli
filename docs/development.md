@@ -25,6 +25,14 @@ Tests use xUnit and a separate StbImageSharp decoder; these packages are test-on
 and are not part of the encoder or its package dependency graph.
 The external decoder validates encoder output and is not a port target.
 
+`xunit.runner.json` enables parallel execution of individual tests and discovered
+theory rows, using the conservative scheduler with one worker per logical CPU.
+The corpus matrix exposes each dimension, quality, sampling and option combination
+as a separate theory row so it can use those workers. Inputs and random seeds
+remain local to each test; shared oracle data is read-only. Keep new tests free of
+shared mutable state, or explicitly disable parallel execution for tests that need it.
+For a serial diagnostic run, add `-parallelMode none` to a focused command.
+
 See the [GitHub Actions workflow](../.github/workflows/ci.yml) for the hosted checks.
 
 ## Regression coverage

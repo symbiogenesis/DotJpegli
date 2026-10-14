@@ -10,4 +10,7 @@
     <!-- Independent decoder used only in tests; the encoder has no package dependencies. -->
     <PackageReference Include="StbImageSharp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
