@@ -617,8 +617,25 @@ internal sealed class IccColorTransform
             double d = values[4], e = function == 4 ? values[5] : 0, f = function == 4 ? values[6] : 0;
             if (d > 1)
                 return Clamp((y - f) / values[3]);
-            if (d > 0 && y < Apply(d))
-                return values[3] > 0 ? Clamp(Math.Min(d, (y - f) / values[3])) : Clamp(d);
+            if (d > 0)
+            {
+                double lowerJoin = Clamp(values[3] * d + f), upperJoin = Apply(d);
+                // A clipped terminal plateau may start in the linear segment and
+                // continue through the join. Annex F chooses its first x.
+                if (y == 1 && lowerJoin == 1)
+                    return Clamp((y - f) / values[3]);
+                if (y < upperJoin)
+                {
+                    // Fixed-point curve coefficients can produce a discontinuous
+                    // join. In its gap choose the nearest attainable curve value.
+                    // Preserve a lower-side choice through the float output API:
+                    // the preceding double would round back to the upper branch.
+                    double preceding = MathF.BitDecrement((float)d);
+                    if (y >= lowerJoin)
+                        return y - lowerJoin <= upperJoin - y ? preceding : d;
+                    return values[3] > 0 ? Clamp(Math.Min(preceding, (y - f) / values[3])) : preceding;
+                }
+            }
             return Clamp(Math.Max(d, (Math.Pow(Math.Max(0, y - e), 1 / values[0]) - values[2]) / values[1]));
         }
     }
