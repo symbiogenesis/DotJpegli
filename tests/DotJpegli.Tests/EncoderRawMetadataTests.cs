@@ -68,6 +68,20 @@ public sealed class EncoderRawMetadataTests
         Assert.Equal(Encode(new()), RemoveRange(jpeg, actual.Start, actual.End));
     }
 
+    [Fact]
+    public void RawRgbMarkersStartImmediatelyAfterSoiWithoutAutomaticJfif()
+    {
+        JpegMetadataMarker[] markers = [new(0xe3, OpaqueBytes(17)), new(0xfe, default)];
+        var options = new JpegliEncoderOptions { ColorSpace = JpegColorSpace.Rgb, MetadataMarkers = markers };
+        byte[] jpeg = Encode(options);
+        List<Segment> headers = ReadHeaders(jpeg);
+        Assert.Equal(new[] { 0xe3, 0xfe, 0xdb }, headers.Take(3).Select(segment => segment.Code));
+        Assert.Equal(2, headers[0].Start);
+        for (int index = 0; index < markers.Length; index++)
+            AssertRawSegment(headers[index], markers[index]);
+        Assert.Equal(Encode(options with { MetadataMarkers = null }), RemoveRange(jpeg, headers[0].Start, headers[1].End));
+    }
+
     [Theory]
     [InlineData("byte", false)]
     [InlineData("byte", true)]
