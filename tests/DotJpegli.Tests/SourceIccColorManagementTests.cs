@@ -591,6 +591,62 @@ public sealed class SourceIccColorManagementTests
     }
 
     [Theory]
+    [InlineData(false, 1)]
+    [InlineData(false, 2)]
+    [InlineData(true, 1)]
+    [InlineData(true, 2)]
+    public void SourceClutPreservesLegacyInterpolationBits(bool grayscale, int precision)
+    {
+        int[] dimensions = grayscale ? [5] : [2, 3, 4];
+        byte[] profile = InterpolationLutProfile(false, grayscale, dimensions, precision, out double[] values);
+        var transform = Transform(profile, JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(),
+            sourceGray: grayscale, destinationGray: true);
+        foreach ((float r, float g, float b) in InterpolationSamples())
+        {
+            double[] expected = LegacyClut(dimensions, 3, values, [r, g, b]);
+            int expectedBits = BitConverter.SingleToInt32Bits((float)Math.Clamp(expected[1] * (65535d / 32768), 0, 1));
+            transform.Convert(r, g, b, out float actualR, out float actualG, out float actualB);
+            Assert.Equal(expectedBits, BitConverter.SingleToInt32Bits(actualR));
+            Assert.Equal(expectedBits, BitConverter.SingleToInt32Bits(actualG));
+            Assert.Equal(expectedBits, BitConverter.SingleToInt32Bits(actualB));
+        }
+    }
+
+    [Theory]
+    [InlineData(false, 1)]
+    [InlineData(false, 2)]
+    [InlineData(true, 1)]
+    [InlineData(true, 2)]
+    public void DestinationClutPreservesLegacyInterpolationBits(bool grayscale, int precision)
+    {
+        int[] dimensions = [2, 3, 4];
+        int outputs = grayscale ? 1 : 3;
+        byte[] profile = InterpolationLutProfile(true, grayscale, dimensions, precision, out double[] values);
+        // A diagonal XYZ matrix maps independent RGB samples to normalized PCS
+        // coordinates, so every axis of the destination CLUT is exercised.
+        byte[] xyz = new byte[20];
+        "XYZ "u8.CopyTo(xyz);
+        byte[][] colorants = [xyz.ToArray(), xyz.ToArray(), xyz.ToArray()];
+        for (int channel = 0; channel < 3; channel++)
+            Write32(colorants[channel], 8 + channel * 4, 131070);
+        byte[] curve = new byte[12];
+        "curv"u8.CopyTo(curve);
+        byte[] source = MakeProfile(4, [("rTRC", curve), ("gTRC", curve), ("bTRC", curve),
+            ("rXYZ", colorants[0]), ("gXYZ", colorants[1]), ("bXYZ", colorants[2])]);
+        "XYZ "u8.CopyTo(source.AsSpan(20));
+        var transform = Transform(source, profile, destinationGray: grayscale);
+        foreach ((float r, float g, float b) in InterpolationSamples())
+        {
+            double[] expected = LegacyClut(dimensions, outputs, values,
+                [Math.Clamp(r, 0, 1), Math.Clamp(g, 0, 1), Math.Clamp(b, 0, 1)]);
+            transform.Convert(r, g, b, out float actualR, out float actualG, out float actualB);
+            Assert.Equal(BitConverter.SingleToInt32Bits((float)expected[0]), BitConverter.SingleToInt32Bits(actualR));
+            Assert.Equal(BitConverter.SingleToInt32Bits((float)expected[grayscale ? 0 : 1]), BitConverter.SingleToInt32Bits(actualG));
+            Assert.Equal(BitConverter.SingleToInt32Bits((float)expected[grayscale ? 0 : 2]), BitConverter.SingleToInt32Bits(actualB));
+        }
+    }
+
+    [Theory]
     [InlineData(IccRenderingIntent.Perceptual, 25)]
     [InlineData(IccRenderingIntent.RelativeColorimetric, 50)]
     [InlineData(IccRenderingIntent.Saturation, 75)]
@@ -689,6 +745,81 @@ public sealed class SourceIccColorManagementTests
 
     private static byte[] LutProfile(string kind, bool reverse, int version) =>
         MakeProfile(version, new[] { (reverse ? "B2A0" : "A2B0", Lut(kind, reverse, 50)) });
+
+    private static IEnumerable<(float R, float G, float B)> InterpolationSamples()
+    {
+        float[] boundaries = [-0.25f, 0, 1f / 3, 0.5f, 2f / 3, MathF.BitDecrement(1), 1, 1.25f];
+        foreach (float r in boundaries)
+            foreach (float g in boundaries)
+                foreach (float b in boundaries)
+                    yield return (r, g, b);
+        Random random = new(781);
+        for (int index = 0; index < 128; index++)
+            yield return (random.NextSingle(), random.NextSingle(), random.NextSingle());
+    }
+
+    private static byte[] InterpolationLutProfile(bool reverse, bool grayscale, int[] dimensions,
+        int precision, out double[] values)
+    {
+        int inputs = dimensions.Length, outputs = reverse && grayscale ? 1 : 3;
+        int bCount = reverse ? inputs : outputs, aCount = reverse ? outputs : inputs;
+        int aOffset = 32 + bCount * 12, clutOffset = aOffset + aCount * 12;
+        int entries = dimensions.Aggregate(outputs, (count, dimension) => count * dimension);
+        byte[] data = new byte[clutOffset + 20 + entries * precision];
+        (reverse ? "mBA "u8 : "mAB "u8).CopyTo(data);
+        data[8] = (byte)inputs;
+        data[9] = (byte)outputs;
+        Write32(data, 12, 32);
+        Write32(data, 24, (uint)clutOffset);
+        Write32(data, 28, (uint)aOffset);
+        for (int offset = 32; offset < clutOffset; offset += 12)
+            "curv"u8.CopyTo(data.AsSpan(offset));
+        for (int dimension = 0; dimension < dimensions.Length; dimension++)
+            data[clutOffset + dimension] = (byte)dimensions[dimension];
+        data[clutOffset + 16] = (byte)precision;
+        values = new double[entries];
+        for (int index = 0; index < entries; index++)
+        {
+            // Distinct channel and cell values expose incorrect flattening even
+            // when dimensions have different strides.
+            int value = (index * 7919 + 193) % (precision == 1 ? 256 : 65536);
+            int word = precision == 1 ? value * 257 : value;
+            WriteLutValue(data, clutOffset + 20 + index * precision, word, precision);
+            values[index] = precision == 1 ? value / 255d : value / 65535d;
+        }
+        byte[] profile = MakeProfile(4, [(reverse ? "B2A0" : "A2B0", data)]);
+        "XYZ "u8.CopyTo(profile.AsSpan(20));
+        if (grayscale)
+            "GRAY"u8.CopyTo(profile.AsSpan(16));
+        return profile;
+    }
+
+    private static double[] LegacyClut(int[] dimensions, int outputs, double[] values, double[] input)
+    {
+        int[] lower = new int[dimensions.Length];
+        double[] fraction = new double[dimensions.Length];
+        for (int dimension = 0; dimension < dimensions.Length; dimension++)
+        {
+            double position = Math.Clamp(input[dimension], 0, 1) * (dimensions[dimension] - 1);
+            lower[dimension] = Math.Min((int)position, dimensions[dimension] - 2);
+            fraction[dimension] = position - lower[dimension];
+        }
+        double[] result = new double[outputs];
+        for (int corner = 0; corner < 1 << dimensions.Length; corner++)
+        {
+            int index = 0;
+            double weight = 1;
+            for (int dimension = 0; dimension < dimensions.Length; dimension++)
+            {
+                int high = (corner >> dimension) & 1;
+                index = index * dimensions[dimension] + lower[dimension] + high;
+                weight *= high == 0 ? 1 - fraction[dimension] : fraction[dimension];
+            }
+            for (int channel = 0; channel < outputs; channel++)
+                result[channel] += weight * values[index * outputs + channel];
+        }
+        return result;
+    }
 
     private static byte[] MakeProfile(int version, (string Signature, byte[] Data)[] tags)
     {

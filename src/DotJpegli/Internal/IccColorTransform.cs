@@ -700,33 +700,56 @@ internal sealed class IccColorTransform
             : new(curves[0].Apply(value.X), curves[1].Apply(value.Y), curves[2].Apply(value.Z));
     }
 
-    private sealed class Clut(int[] dimensions, int outputs, double[] values)
+    private sealed class Clut
     {
+        private readonly int[] dimensions;
+        private readonly int outputs;
+        private readonly double[] values;
+        private readonly int[] cornerOffsets;
+
+        internal Clut(int[] dimensions, int outputs, double[] values)
+        {
+            this.dimensions = dimensions;
+            this.outputs = outputs;
+            this.values = values;
+            // Corner offsets depend only on the CLUT layout. Add them to the
+            // lower cell's index instead of flattening every corner per pixel.
+            cornerOffsets = new int[1 << dimensions.Length];
+            for (int corner = 0; corner < cornerOffsets.Length; corner++)
+            {
+                int index = 0;
+                for (int dimension = 0; dimension < dimensions.Length; dimension++)
+                    index = index * dimensions[dimension] + ((corner >> dimension) & 1);
+                cornerOffsets[corner] = index * outputs;
+            }
+        }
+
         internal Triple Apply(Triple input)
         {
-            Span<int> lower = stackalloc int[3];
             Span<double> fraction = stackalloc double[3];
             Span<double> components = stackalloc double[3] { input.X, input.Y, input.Z };
+            int baseIndex = 0;
             for (int dimension = 0; dimension < dimensions.Length; dimension++)
             {
                 double position = Clamp(components[dimension]) * (dimensions[dimension] - 1);
-                lower[dimension] = Math.Min((int)position, dimensions[dimension] - 2);
-                fraction[dimension] = position - lower[dimension];
+                int lower = Math.Min((int)position, dimensions[dimension] - 2);
+                fraction[dimension] = position - lower;
+                baseIndex = baseIndex * dimensions[dimension] + lower;
             }
+            baseIndex *= outputs;
             Span<double> result = stackalloc double[3];
             result.Clear();
-            for (int corner = 0; corner < 1 << dimensions.Length; corner++)
+            for (int corner = 0; corner < cornerOffsets.Length; corner++)
             {
-                int index = 0;
+                int index = baseIndex + cornerOffsets[corner];
                 double weight = 1;
                 for (int dimension = 0; dimension < dimensions.Length; dimension++)
                 {
                     int high = (corner >> dimension) & 1;
-                    index = index * dimensions[dimension] + lower[dimension] + high;
                     weight *= high == 0 ? 1 - fraction[dimension] : fraction[dimension];
                 }
                 for (int channel = 0; channel < outputs; channel++)
-                    result[channel] += weight * values[index * outputs + channel];
+                    result[channel] += weight * values[index + channel];
             }
             return new(result[0], result[1], result[2]);
         }
