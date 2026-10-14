@@ -133,9 +133,35 @@ internal static class RgbIccProfile
             whitePoint, curve.Exponent, renderingIntent);
     }
 
+    internal static byte[] Create(IccRgbPrimaries primaries, IccChromaticity whitePoint,
+        IccTransferFunction transferFunction, IccRenderingIntent renderingIntent)
+    {
+        float[] colorants = CustomIccColorEncoding.Colorants(primaries, whitePoint, out float[] adaptation);
+        string transferName = BuiltInIccColorEncoding.TransferFunctionName(transferFunction);
+        string description = "RGB_" + CustomIccColorEncoding.WhitePointName(whitePoint) + "_" +
+            CustomIccColorEncoding.PrimariesName(primaries) + "_Per_" + transferName;
+        // Explicit custom coordinates remain custom even when they numerically
+        // match a named encoding. Without CICP, HDR uses the unambiguous XYZ
+        // matrix/table-curve branch rather than the tone-mapped Lab branch.
+        return Create(description, 0, (TransferFunction)transferFunction, colorants,
+            renderingIntent: renderingIntent, chromaticAdaptation: adaptation);
+    }
+
+    internal static byte[] CreateGamma(IccRgbPrimaries primaries, IccChromaticity whitePoint,
+        double gamma, IccRenderingIntent renderingIntent)
+    {
+        float[] colorants = CustomIccColorEncoding.Colorants(primaries, whitePoint, out float[] adaptation);
+        GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
+        string description = "RGB_" + CustomIccColorEncoding.WhitePointName(whitePoint) + "_" +
+            CustomIccColorEncoding.PrimariesName(primaries) + "_Per_" + curve.Description;
+        return Create(description, 0, TransferFunction.Linear, colorants, gamma: curve.Exponent,
+            renderingIntent: renderingIntent, chromaticAdaptation: adaptation);
+    }
+
     private static byte[] Create(string description, byte primaries, TransferFunction transfer,
         ReadOnlySpan<float> colorants, IccWhitePoint whitePoint = IccWhitePoint.D65, float? gamma = null,
-        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual)
+        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual,
+        ReadOnlySpan<float> chromaticAdaptation = default)
     {
         string intentName = RenderingIntentName(renderingIntent);
         if (renderingIntent != IccRenderingIntent.Perceptual)
@@ -183,8 +209,13 @@ internal static class RgbIccProfile
         Mluc(bytes[descriptionOffset..copyrightOffset], description);
         Mluc(bytes[copyrightOffset..whiteOffset], "CC0");
         Xyz(bytes[whiteOffset..adaptationOffset], [0.964203f, 1f, 0.824905f]);
-        (double whiteX, double whiteY) = BuiltInIccColorEncoding.WhitePoint(whitePoint);
-        WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset], (float)whiteX, (float)whiteY);
+        if (chromaticAdaptation.IsEmpty)
+        {
+            (double whiteX, double whiteY) = BuiltInIccColorEncoding.WhitePoint(whitePoint);
+            WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset], (float)whiteX, (float)whiteY);
+        }
+        else
+            WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset], chromaticAdaptation);
         if (includeCicp)
         {
             Signature(bytes, cicpOffset, "cicp"u8);

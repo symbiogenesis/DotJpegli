@@ -50,7 +50,10 @@ internal static class GrayscaleIccProfile
     {
         string description = "Gra_" + BuiltInIccColorEncoding.WhitePointName(whitePoint) + "_Per_" +
             BuiltInIccColorEncoding.TransferFunctionName(transferFunction);
-        TransferFunction transfer = transferFunction switch
+        return Create(MapTransferFunction(transferFunction), description, whitePoint, renderingIntent: renderingIntent);
+    }
+
+    private static TransferFunction MapTransferFunction(IccTransferFunction transferFunction) => transferFunction switch
         {
             IccTransferFunction.Srgb => TransferFunction.Srgb,
             IccTransferFunction.Linear => TransferFunction.Linear,
@@ -60,8 +63,6 @@ internal static class GrayscaleIccProfile
             IccTransferFunction.Hlg => TransferFunction.Hlg,
             _ => throw new ArgumentOutOfRangeException(nameof(transferFunction))
         };
-        return Create(transfer, description, whitePoint, renderingIntent: renderingIntent);
-    }
 
     internal static byte[] CreateGamma(IccWhitePoint whitePoint, double gamma, IccRenderingIntent renderingIntent)
     {
@@ -72,9 +73,29 @@ internal static class GrayscaleIccProfile
             whitePoint, curve.Exponent, renderingIntent);
     }
 
+    internal static byte[] Create(IccChromaticity whitePoint, IccTransferFunction transferFunction,
+        IccRenderingIntent renderingIntent)
+    {
+        float[] whiteXyz = CustomIccColorEncoding.WhiteXyz(whitePoint);
+        string description = "Gra_" + CustomIccColorEncoding.WhitePointName(whitePoint) + "_Per_" +
+            BuiltInIccColorEncoding.TransferFunctionName(transferFunction);
+        return Create(MapTransferFunction(transferFunction), description, IccWhitePoint.D65,
+            renderingIntent: renderingIntent, customWhiteXyz: whiteXyz);
+    }
+
+    internal static byte[] CreateGamma(IccChromaticity whitePoint, double gamma, IccRenderingIntent renderingIntent)
+    {
+        float[] whiteXyz = CustomIccColorEncoding.WhiteXyz(whitePoint);
+        GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
+        return Create(TransferFunction.Linear,
+            "Gra_" + CustomIccColorEncoding.WhitePointName(whitePoint) + "_Per_" + curve.Description,
+            IccWhitePoint.D65, curve.Exponent, renderingIntent, whiteXyz);
+    }
+
     private static byte[] Create(TransferFunction transfer, string description, IccWhitePoint whitePoint,
         float? gamma = null,
-        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual)
+        IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual,
+        ReadOnlySpan<float> customWhiteXyz = default)
     {
         description = description.Replace("_Per_", "_" + RenderingIntentName(renderingIntent) + "_", StringComparison.Ordinal);
         bool tableCurve = transfer is TransferFunction.Pq or TransferFunction.Hlg;
@@ -97,12 +118,18 @@ internal static class GrayscaleIccProfile
         // Upstream's grayscale branch keeps the source media white, omits
         // chad/CICP, and uses a D50 PCS illuminant in the common ICC header.
         // CIEXYZFromWhiteCIExy rounds the reciprocal to float before multiplying.
-        (double whiteX, double whiteY) = BuiltInIccColorEncoding.WhitePoint(whitePoint);
-        float factor = (float)(1.0 / whiteY);
         Signature(bytes, whiteOffset, "XYZ "u8);
-        Fixed(bytes, whiteOffset + 8, (float)(whiteX * factor));
-        Fixed(bytes, whiteOffset + 12, 1f);
-        Fixed(bytes, whiteOffset + 16, (float)((1.0 - whiteX - whiteY) * factor));
+        if (customWhiteXyz.IsEmpty)
+        {
+            (double whiteX, double whiteY) = BuiltInIccColorEncoding.WhitePoint(whitePoint);
+            float factor = (float)(1.0 / whiteY);
+            Fixed(bytes, whiteOffset + 8, (float)(whiteX * factor));
+            Fixed(bytes, whiteOffset + 12, 1f);
+            Fixed(bytes, whiteOffset + 16, (float)((1.0 - whiteX - whiteY) * factor));
+        }
+        else
+            for (int index = 0; index < 3; index++)
+                Fixed(bytes, whiteOffset + 8 + index * 4, customWhiteXyz[index]);
         if (gamma is float exponent)
             Curve(bytes[curveOffset..], [exponent], 0);
         else if (tableCurve)

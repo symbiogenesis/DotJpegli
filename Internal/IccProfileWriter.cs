@@ -93,6 +93,13 @@ internal static class IccProfileWriter
             }
     }
 
+    internal static void WriteChromaticAdaptation(Span<byte> tag, ReadOnlySpan<float> matrix)
+    {
+        Signature(tag, 0, "sf32"u8);
+        for (int index = 0; index < 9; index++)
+            Fixed(tag, 8 + index * 4, matrix[index]);
+    }
+
     internal static void Mluc(Span<byte> tag, string text)
     {
         Signature(tag, 0, "mluc"u8);
