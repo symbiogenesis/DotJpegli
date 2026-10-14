@@ -29,6 +29,16 @@ See the [GitHub Actions workflow](../.github/workflows/ci.yml) for the hosted ch
 
 ## Regression coverage
 
+Parallel-encoding regressions compare complete JPEG bytes with serial execution
+across source precisions, padded layouts, color spaces, odd edges, custom and
+fractional sampling, smoothing, adaptive quantization, Huffman modes, sequential
+and progressive scan scripts, refinement and restarts. They cover worker-limit
+validation, ignored alpha/padding, out-of-range float preflight, concurrent
+independent encodes, nonseekable streams, calling-thread writes, cancellation
+and I/O failures. CI also exercises parallel parity with hardware intrinsics
+disabled. These checks validate deterministic execution, without establishing
+a measured speed improvement or upstream performance parity.
+
 Raw-metadata regressions independently parse every supported APP/COM code,
 network-byte-order lengths, zero and maximum payloads, sliced storage and
 marker-looking payload bytes. They check duplicate and combined metadata order,

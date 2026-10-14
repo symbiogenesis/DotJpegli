@@ -25,4 +25,4 @@ jobs:
       - name: Managed SIMD fallback and software vector parity
         env:
           DOTNET_EnableHWIntrinsic: '0'
-        run: dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.SimdColorConversionTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.SimdQuantizationTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.NumericalTests -class DotJpegli.Tests.EncoderSmokeTests
+        run: dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.SimdColorConversionTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.SimdQuantizationTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.EncoderParallelTests -class DotJpegli.Tests.NumericalTests -class DotJpegli.Tests.EncoderSmokeTests

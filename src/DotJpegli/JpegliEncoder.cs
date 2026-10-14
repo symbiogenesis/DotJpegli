@@ -627,7 +627,7 @@ public static class JpegliEncoder
         for (int blockY = 0; blockY < blocksHigh; blockY++)
         {
             int analysisTop = blockY / factor.Vertical * (8 * vertical);
-            pixels.ParallelRows?.PrepareRow(analysisTop, cancellationToken);
+            pixels.ParallelRows?.PrepareRow(analysisTop, cancellationToken, component);
             if (adaptive is not null && analysisTop != lastAnalysisTop)
             {
                 adaptive.ComputeRow(pixels, stride, analysisTop,

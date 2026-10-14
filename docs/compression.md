@@ -370,6 +370,37 @@ filtering, including partially filled blocks. Adaptive quantization analyzes
 the original, unsmoothed luma, matching upstream. Both baseline and progressive
 encoding recompute filtered samples on demand with fixed block storage.
 
+## Parallel execution
+
+Set `MaxDegreeOfParallelism` to a positive worker limit, or `-1` to use the
+runtime's processor count:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    MaxDegreeOfParallelism = 4
+});
+```
+
+The default, `1`, keeps serial execution and its existing memory use. Zero and
+values below `-1` are rejected before output. When the effective limit exceeds
+one, workers convert source samples, smooth/downsample components and compute
+the DCT independently across each MCU row. Adaptive analysis, quantization,
+Huffman frequency collection and entropy output remain ordered, producing the
+same JPEG bytes as serial execution with the same settings. The option applies
+to every source precision, output color space, sampling scheme and scan script.
+
+Parallel execution takes one managed copy of the consumed source storage,
+including row padding and ignored alpha but excluding trailing storage, and
+buffers one MCU row of DCT coefficients. Its additional memory is proportional
+to the input storage plus image width, rather than a full image of coefficients.
+Keep the supplied pixels unchanged until encoding returns; adaptive analysis
+and float preflight still read them. All workers finish synchronously before
+encoding returns or throws. The destination stream is written only by the
+calling thread. Cancellation and I/O failures retain the usual partial-output
+contract. Thread scheduling and the extra copy can outweigh parallel work,
+especially for small images; speed claims require CI performance measurements.
+
 ## Memory and source lifetime
 
 Baseline Huffman optimization makes two passes over the supplied pixels, keeping only
@@ -381,3 +412,5 @@ Progressive encoding recomputes blocks in each scan's traversal order, using
 additional passes and CPU time to retain bounded working memory. Optimized
 progressive output collects frequencies from the initial DC and all AC scans before
 writing them. Neither mode retains an image-sized coefficient buffer.
+Opt-in parallel execution additionally keeps the source copy and row of DCT
+coefficients described above.

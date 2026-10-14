@@ -18,6 +18,7 @@ internal sealed class ParallelDctRows
     private readonly float[] coefficients;
     private readonly ExceptionDispatchInfo?[] errors;
     private int preparedTop = -1;
+    private int preparedComponents;
 
     internal ParallelDctRows(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, int smoothingFactor, int maxDegreeOfParallelism,
@@ -48,19 +49,26 @@ internal sealed class ParallelDctRows
         source = new PixelSource.Snapshot(pixels, length, cancellationToken);
     }
 
-    internal void PrepareRow(int top, CancellationToken cancellationToken)
+    internal void PrepareRow(int top, CancellationToken cancellationToken, int singleComponent = -1)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (preparedTop == top)
+        int componentMask = singleComponent < 0 ? (1 << blocksWide.Length) - 1 : 1 << singleComponent;
+        if (preparedTop == top && (preparedComponents & componentMask) == componentMask)
             return;
-        Array.Clear(errors);
+        if (preparedTop != top)
+            preparedComponents = 0;
+        // Separate-component scans only need that component's row. Computing
+        // the other components would multiply progressive/refinement DCT work.
+        int firstBlock = singleComponent < 0 ? 0 : blockOffsets[singleComponent];
+        int endBlock = singleComponent < 0 ? blockOffsets[^1] : blockOffsets[singleComponent + 1];
+        Array.Clear(errors, firstBlock, endBlock - firstBlock);
         int mcuRow = top / (8 * sampling.MaxVertical);
         // Each invocation joins all workers before exposing the row to the
         // ordered consumer. No workers survive cancellation or an output error.
-        Parallel.For(0, blockOffsets[^1], new ParallelOptions
+        Parallel.For(firstBlock, endBlock, new ParallelOptions
         {
             CancellationToken = cancellationToken,
-            MaxDegreeOfParallelism = Math.Min(maxDegreeOfParallelism, blockOffsets[^1])
+            MaxDegreeOfParallelism = Math.Min(maxDegreeOfParallelism, endBlock - firstBlock)
         }, block =>
         {
             try
@@ -88,9 +96,10 @@ internal sealed class ParallelDctRows
             }
         });
         cancellationToken.ThrowIfCancellationRequested();
-        foreach (ExceptionDispatchInfo? error in errors)
-            error?.Throw();
+        for (int block = firstBlock; block < endBlock; block++)
+            errors[block]?.Throw();
         preparedTop = top;
+        preparedComponents |= componentMask;
     }
 
     internal void CopyBlock(int component, int blockX, int blockY, Span<float> destination)

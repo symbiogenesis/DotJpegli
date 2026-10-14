@@ -121,6 +121,10 @@ The stream overload takes a writable stream as its first argument. It leaves
 the stream open and does not seek. Cancellation and I/O failures may leave a
 partial JPEG. Pass a `CancellationToken` for cancellation between MCUs. Dimensions
 must be 1..65535 and fit `MaxPixels` (100 million by default).
+Use `MaxDegreeOfParallelism` to opt into
+[parallel execution](compression.md#parallel-execution), with identical JPEG
+bytes and additional source-copy/row-buffer memory. The stream remains on the
+calling thread and all workers finish before encoding returns.
 
 ## Higher-precision input
 
