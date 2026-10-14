@@ -37,6 +37,12 @@ Independent cosine-DCT oracles cache their invariant cosine basis while retainin
 the direct double-precision sum and existing tolerances. The numerical and SIMD
 DCT tests also retain the literal cosine definition as a separate reference.
 
+Exact coefficient comparisons and typed source-buffer comparisons use xUnit's
+optimized array equality, avoiding one scalar assertion or boxed object per value.
+Comparisons with numerical tolerances retain their per-coefficient checks.
+Sampling regressions decode each baseline once and reuse those independent pixels
+across scan variants within the same test.
+
 CI actions are pinned to full commit hashes with release-version comments.
 Dependabot checks those pins weekly; review the referenced releases when updating
 them. Both hosted operating systems run even if the other lane fails.

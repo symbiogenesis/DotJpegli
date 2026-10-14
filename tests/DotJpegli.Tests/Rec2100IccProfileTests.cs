@@ -258,7 +258,7 @@ public sealed class Rec2100IccProfileTests
         Assert.Equal(actual, destination.ToArray());
         Assert.False(output.Closed);
         Assert.Equal(originalBacking, backing);
-        Assert.Equal(originalPixels.Cast<object>(), pixels.Cast<object>());
+        PixelAssert.Equal(originalPixels, pixels);
     }
 
     [Theory]

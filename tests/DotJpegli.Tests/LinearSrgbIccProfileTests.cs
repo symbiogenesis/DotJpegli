@@ -221,7 +221,7 @@ public sealed class LinearSrgbIccProfileTests
         Assert.Equal(actual, destination.ToArray());
         Assert.False(output.Closed);
         Assert.Equal(originalBacking, backing);
-        Assert.Equal(original.Cast<object>(), pixels.Cast<object>());
+        PixelAssert.Equal(original, pixels);
     }
 
     [Fact]

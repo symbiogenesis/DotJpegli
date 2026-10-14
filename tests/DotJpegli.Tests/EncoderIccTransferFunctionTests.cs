@@ -219,7 +219,7 @@ public sealed class EncoderIccTransferFunctionTests
                 ? ColorComponents.Grey : ColorComponents.RedGreenBlue);
             Assert.Equal((width, height), (decoded.Width, decoded.Height));
         }
-        Assert.Equal(before, pixels);
+        PixelAssert.Equal(before, pixels);
     }
 
     [Theory]

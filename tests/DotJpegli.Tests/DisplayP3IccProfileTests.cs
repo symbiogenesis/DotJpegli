@@ -208,7 +208,7 @@ public sealed class DisplayP3IccProfileTests
         Assert.Equal(actual, destination.ToArray());
         Assert.False(output.Closed);
         Assert.Equal(originalBacking, backing);
-        Assert.Equal(originalPixels.Cast<object>(), pixels.Cast<object>());
+        PixelAssert.Equal(originalPixels, pixels);
     }
 
     [Fact]

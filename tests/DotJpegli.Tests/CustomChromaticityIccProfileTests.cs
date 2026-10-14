@@ -699,7 +699,7 @@ public sealed class CustomChromaticityIccProfileTests
         Assert.Equal(actual, destination.ToArray());
         Assert.False(output.Closed);
         Assert.Equal(originalBacking, backing);
-        Assert.Equal(original.Cast<object>(), source.Cast<object>());
+        PixelAssert.Equal(original, source);
     }
 
     private static byte[] Create(bool grayscale, bool gamma,

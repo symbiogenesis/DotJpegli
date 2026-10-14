@@ -340,7 +340,7 @@ public sealed class SourceIccColorManagementTests
         Assert.False(actual.SequenceEqual(Encode(pixels, width, height, layout,
             options with { SourceIccProfile = default, IccProfile = expectedOptions.IccProfile }, stride)));
         Assert.Equal(expectedOptions.IccProfile.ToArray(), ReassembleIcc(actual));
-        Assert.Equal(before, pixels);
+        PixelAssert.Equal(before, pixels);
         ImageResult decoded = ImageResult.FromMemory(actual, gray ? ColorComponents.Grey : ColorComponents.RedGreenBlue);
         Assert.Equal((width, height), (decoded.Width, decoded.Height));
         Assert.Equal(actual, Encode(pixels, width, height, layout, options with { MaxDegreeOfParallelism = 3 }, stride));

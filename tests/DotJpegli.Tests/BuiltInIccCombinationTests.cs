@@ -201,7 +201,7 @@ public sealed class BuiltInIccCombinationTests
                 Assert.Equal(originalBacking, backing);
             }
         }
-        Assert.Equal(original.Cast<object>(), source.Cast<object>());
+        PixelAssert.Equal(original, source);
     }
 
     private static void ValidateStructure(byte[] profile, Case item)

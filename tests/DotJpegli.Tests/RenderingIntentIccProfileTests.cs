@@ -198,7 +198,7 @@ public sealed class RenderingIntentIccProfileTests
             Assert.False(output.Closed);
             Assert.Equal(originalBacking, backing);
         }
-        Assert.Equal(originalPixels.Cast<object>(), pixels.Cast<object>());
+        PixelAssert.Equal(originalPixels, pixels);
     }
 
     // Independent complete-profile fixtures from unchanged google/jpegli

@@ -65,7 +65,7 @@ public sealed class EncoderParallelTests
                 Array original = (Array)padded.Clone();
                 Assert.Equal(expected, Encode(padded, width, height, layout,
                     options with { MaxDegreeOfParallelism = 3 }, stride));
-                Assert.Equal(original.Cast<object>(), padded.Cast<object>());
+                PixelAssert.Equal(original, padded);
             }
         }
     }
