@@ -641,11 +641,14 @@ internal sealed class IccColorTransform
             double a = values[0], b = values[1], c = values[2], d = values[3], e = values[4], f = values[5],
                 g = values[6], h = values[7], i = values[8];
             double determinant = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
-            if (Math.Abs(determinant) < 1e-12)
+            if (determinant == 0 || !double.IsFinite(determinant))
                 throw new ArgumentException("The destination ICC matrix is singular.", parameter);
-            return new([(e * i - f * h) / determinant, (c * h - b * i) / determinant, (b * f - c * e) / determinant,
+            double[] inverse = [(e * i - f * h) / determinant, (c * h - b * i) / determinant, (b * f - c * e) / determinant,
                 (f * g - d * i) / determinant, (a * i - c * g) / determinant, (c * d - a * f) / determinant,
-                (d * h - e * g) / determinant, (b * g - a * h) / determinant, (a * e - b * d) / determinant, 0, 0, 0]);
+                (d * h - e * g) / determinant, (b * g - a * h) / determinant, (a * e - b * d) / determinant, 0, 0, 0];
+            if (inverse.Any(value => !double.IsFinite(value)))
+                throw new ArgumentException("The destination ICC matrix inverse is non-finite.", parameter);
+            return new(inverse);
         }
     }
 
