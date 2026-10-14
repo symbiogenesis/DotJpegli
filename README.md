@@ -8,6 +8,8 @@ quality, sampling and metadata.
 
 **Experimental:** This is an encoder-only port. Output is lossy eight-bit JPEG;
 full Jpegli output, compression and performance parity has not been established.
+Quality/compression parity has been measured within a
+[documented RGB8 YCbCr scope](docs/quality-compression-parity.md).
 
 ## Getting started
 

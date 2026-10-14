@@ -1,4 +1,18 @@
 {
+  "qualityCompressionParityEvidence": {
+    "establishedWithinDocumentedScope": true,
+    "testedRevision": "b30697e833865d1e90af406d6206921e4884c624",
+    "run": "https://github.com/symbiogenesis/DotJpegli/actions/runs/38517910693",
+    "cases": 1280,
+    "matchedRateAnchors": 640,
+    "matchedQualityAnchors": 1280,
+    "excludedComparisons": 0,
+    "worstMatchedQualitySizeOverheadPercent": 0.08705105946347214,
+    "worstMatchedRatePsnrLossDb": 0.013824606951523322,
+    "worstMatchedRateSsimLoss": 0.00013633779760857667,
+    "evidence": "parity-evidence/2026-10-14-b30697e/summary.json",
+    "scope": "All24 Kodak RGB8 photographs plus8 controls; YCbCr444/420, baseline0/progressive2, AQ and optimized Huffman, force_baseline, direct distances0.25..8, no smoothing/restarts/ICC. Fixed size/PSNR/local-luma-SSIM noninferiority bounds. Full encoder, subjective visual, byteidentity and performance parity remain unclaimed."
+  },
   "huffmanClusteringNotes": "Grayscale/YCbCr optimized output ports HistogramCost, ClusterJpegHistograms and OptimizeHuffmanCodes from pinned lib/jpegli/entropy_coding.cc. Component DC and per-scan/component AC histograms use greedy entropy plus 17-byte-header/symbol table cost, baseline two-slot limits and progressive four-slot cyclic AC replacement. DHT definitions are grouped and scans select active tables; unused progressive selectors remain zero. Source traversal remains two-pass without image-sized coefficient storage. ForceBaseline=false sequential output uses SOF1 when any selector exceeds1 even with eight-bit quantizers. Nonoptimized and explicit RGB/XYB output retain their previous tables and bytes. Complete-JPEG fixtures were intentionally recaptured after entropy changes; independent coefficient and decoder regressions retain image-content checks.",
   "qualityCompressionValidation": "The CI-only matched-corpus gate documented in quality-compression-parity.md compares all24 hash-pinned Kodak RGB8 photographs plus8 deterministic controls against unchanged pinned encoder/decoder source. Baseline/progressive2, 444/420 and ten direct distances use fixed size, RGB PSNR and local luma SSIM noninferiority tolerances with per-case and separate category aggregate gates. Reports record tested revision, hashes, raw cases and matched-rate/quality interpolation; only a passing hosted verdict establishes the stated finite-corpus scope. Universal byte, perceptual and performance parity remain unclaimed.",
   "sourceIccColorManagementNotes": "Managed extension: SourceIccProfile interprets supported ICC v2/v4 RGB and grayscale input profiles and converts through D50 XYZ into IccProfile before smoothing, sampling, adaptive analysis and quantization. Supports matrix/TRC, curv and para functions 0-4, mft1 Lab, mft2 and mAB/mBA XYZ/Lab pipelines with linear/trilinear CLUT interpolation, intent-tag selection and absolute media-white scaling. Missing destination attaches sRGB RGB, grayscale sRGB or built-in XYB; XYB uses intermediate sRGB plus existing opsin transform. Strict profile/channel/bounds validation, immutable transform storage, owned destination metadata, normalized float inputs and preflight before writes; output samples clip to 0..1, without black-point compensation. Unsupported profile classes/models/transform types, ambiguous mft1 XYZ and noninverse built-in compatibility destination tags fail explicitly. This is not a port of a native CMM and adds no runtime dependencies, unsafe code or upstream quality/compression/performance claim.",

@@ -79,12 +79,13 @@ work below remains outstanding.
 | Validation area | Current status |
 | --- | --- |
 | Encoder functionality and output compatibility | Focused regressions check coefficients, marker framing, independent decoding, stream behavior and validation. Optional modes retain the reader requirements in the API guides. |
-| Quality and compression parity | A [matched-corpus CI gate](quality-compression-parity.md) compares the pinned upstream encoder with fixed per-case and aggregate size/quality bounds. Establishment requires a passing hosted result for the tested scope; measured evidence is recorded in that guide. |
+| Quality and compression parity | Established within the [documented RGB8 YCbCr scope and fixed tolerances](quality-compression-parity.md): 1,280 matched pairs passed on the pinned upstream corpus comparison, with complete matched-rate/quality coverage. Worst size overhead was 0.087051%; worst matched-size losses were 0.013825 dB PSNR and 0.000136338 SSIM. [Hosted proof](https://github.com/symbiogenesis/DotJpegli/actions/runs/38517910693), tested revision `b30697e`. |
 | Performance parity | Not established. Parallel execution is available; speed claims require CI performance measurements. |
 
 Output remains **lossy eight-bit JPEG**, including at quality 100. Jpegli's quality
-scale is not interchangeable with libjpeg's. Byte-identical upstream output,
-compression parity and speed parity are not claimed. Google's
+scale is not interchangeable with libjpeg's. Quality/compression parity is
+limited to the measured corpus, settings, metrics and bounds above.
+Byte-identical upstream output and speed parity are not claimed. Google's
 [comparison study](https://arxiv.org/abs/2403.18589) describes results in its tested
 conditions and does not establish a universal smallest-encoder ranking.
 

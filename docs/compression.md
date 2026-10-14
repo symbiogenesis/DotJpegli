@@ -420,6 +420,7 @@ holds the encoded JPEG in memory; use the stream overload for larger outputs.
 Progressive encoding recomputes blocks in each scan's traversal order, using
 additional passes and CPU time to retain bounded working memory. Optimized
 progressive output collects frequencies from the initial DC and all AC scans before
-writing them. Neither mode retains an image-sized coefficient buffer.
+writing them. Histogram storage grows with the bounded scan-context count,
+independently of image area. Neither mode retains an image-sized coefficient buffer.
 Opt-in parallel execution additionally keeps the source copy and row of DCT
 coefficients described above.

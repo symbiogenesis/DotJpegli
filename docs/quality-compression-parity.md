@@ -9,6 +9,47 @@ quality/compression parity within the tolerances and scope below. It does not
 prove equality on every possible image, byte-identical JPEGs, subjective visual
 equivalence, performance parity or parity for untested options.
 
+## Established result
+
+[Hosted run 38517910693](https://github.com/symbiogenesis/DotJpegli/actions/runs/38517910693)
+passed on October 14, 2026, testing revision
+`b30697e833865d1e90af406d6206921e4884c624`. Both Windows and Ubuntu full-suite,
+SIMD fallback and reproducible-build lanes also passed.
+
+All **1,280 encoding pairs** passed: 24 photographs plus eight controls,
+two sampling modes, two scan modes and ten distances. Coverage was complete,
+with 640 matched-rate anchors and 1,280 matched-quality anchors. Endpoint/knot
+checks expanded these to 2,057 matched-rate and 4,396 matched-quality targets;
+no image or comparison was excluded.
+
+| Measured bound | Worst observed | Declared limit |
+| --- | ---: | ---: |
+| File-size overhead at the same distance | 0.087051% | 5% |
+| File-size overhead at matched PSNR or SSIM | 0.087051% | 5% |
+| PSNR loss at matched file size | 0.013825 dB | 0.25 dB |
+| SSIM loss at matched file size | 0.000136338 | 0.003 |
+| Group geometric-mean overhead at the same distance | 0.001296% | 2% |
+| Group geometric-mean overhead at matched quality | 0.001783% | 2% |
+
+Decoded RGB bytes were identical in 872 of 1,280 pairs; complete JPEG bytes
+were identical in 496. Remaining cases met every measured quality and size
+bound. The encoder now ports upstream cost-based Huffman histogram clustering;
+this intentionally changes optimized grayscale/YCbCr entropy bytes while
+preserving quantized image content relative to the previous managed encoder.
+
+The [full result table](parity-evidence/2026-10-14-b30697e/report.md),
+[summary](parity-evidence/2026-10-14-b30697e/summary.json),
+[raw cases](parity-evidence/2026-10-14-b30697e/cases.json),
+[matched-rate points](parity-evidence/2026-10-14-b30697e/matched-rates.json),
+[matched-quality points](parity-evidence/2026-10-14-b30697e/matched-quality.json),
+[source hashes](parity-evidence/2026-10-14-b30697e/sources.json) and
+[native provenance](parity-evidence/2026-10-14-b30697e/provenance.json)
+are committed for durable review. JPEGs and exact RGB inputs remain in the
+hosted artifact and the retained session evidence; their JSON paths refer to
+that artifact layout. [File hashes](parity-evidence/2026-10-14-b30697e/hashes.json)
+identify the saved evidence. The original `summary.json` SHA-256 is
+`96daff390bcbfdd7e630203b07539c302f13cbbebfaacc89231ef5a180584869`.
+
 ## Corpus and matched settings
 
 All 24 photographs in the [Kodak Lossless True Color Image Suite](https://r0k.us/graphics/kodak/)
