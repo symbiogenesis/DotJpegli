@@ -136,6 +136,16 @@ spans, untouched output tails and validation before writes. CI also runs the
 focused DCT checks with hardware intrinsics disabled to exercise the scalar fallback
 and software vector operations.
 
+SIMD color-conversion, downsampling and quantization regressions compare managed vector and
+automatic dispatch results with the scalar implementations, including fractional
+source normalization, chroma FMA rounding, adaptive threshold and coefficient
+rounding boundaries, padded edges and scalar fallbacks. Complete JPEG SHA-256
+fixtures captured before these paths were introduced check unchanged encoding
+across byte, 16-bit and float input, color spaces, sampling, smoothing, custom
+extended tables, scan modes, refinement and restarts. CI repeats focused SIMD
+and encoder fixture checks with hardware intrinsics disabled. Performance
+measurements remain CI-only and speed parity is not established.
+
 Numerical development probes checked the DCT against an independent cosine
 definition. Compiled C++ reference probes matched 120 color and grayscale quantization tables
 (7,680 entries); selected native-reference tables are retained as regression

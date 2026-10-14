@@ -4,8 +4,8 @@
 
 ## Progress summary
 
-**22 of 27 tracked capability areas implemented (81.5%).**
-**5 capability areas pending.**
+**23 of 27 tracked capability areas implemented (85.2%).**
+**4 capability areas pending.**
 
 Each row in the implemented and pending tables counts once, with equal weight.
 Progress is calculated as `implemented / total × 100`, rounded to one decimal
@@ -48,6 +48,7 @@ for source attribution.
 | Integer component sampling | Implemented | Twelve chroma presets, custom asymmetric factors and subsampled luma, with at most ten blocks per MCU, replicated edges and dummy blocks preserving DC predictors. |
 | Input smoothing | Implemented | Upstream 3×3 filter before sampling, with adaptive analysis of unsmoothed samples. |
 | DCT and managed SIMD | Implemented | Recursive scalar DCT, automatic managed vector acceleration and scalar fallback, retaining bounded stack storage and overlapping-span support. |
+| SIMD beyond the DCT | Implemented | Managed vector RGB-to-YCbCr conversion, unsmoothed integer-ratio downsampling and AC quantization, with automatic hardware dispatch, bounded storage and scalar fallbacks. |
 | Quality and distance control | Implemented | Public quality-to-distance mapping and direct perceptual-distance control. |
 | Perceptual and adaptive quantization | Implemented | Jpegli Y/Cb/Cr tables; local differences, fuzzy erosion, masking, high-frequency/gamma modulation, quality dampening and frequency-specific thresholds. |
 | Standard quantization tables | Implemented | Conventional Annex K luma/shared-chroma matrices with upstream distance scaling and retained adaptive quantization. |
@@ -71,7 +72,6 @@ describes the regression coverage behind these implementation statuses.
 | Fractional sampling ratios | Pending | Extend sampling beyond integer component ratios. The pinned upstream also rejects fractional ratios; this is an extension in the existing roadmap. |
 | Source ICC color management | Pending | Convert arbitrary source profiles into the chosen output color space. Current profile attachment describes output samples. |
 | Structured metadata editing | Pending | Interpret, edit and reconcile metadata structures; current APIs embed supplied payloads. |
-| SIMD beyond the DCT | Pending | Vectorize other encoder stages. The DCT SIMD path is already implemented. |
 | Parallel encoding | Pending | Add parallel encoder execution. |
 
 ## Validation and compatibility
@@ -80,7 +80,7 @@ describes the regression coverage behind these implementation statuses.
 | --- | --- |
 | Encoder functionality and output compatibility | Focused regressions check coefficients, marker framing, independent decoding, stream behavior and validation. Optional modes retain the reader requirements in the API guides. |
 | Quality and compression parity | Not established. A matched-corpus comparison with the pinned upstream encoder remains necessary. |
-| Performance parity | Not established. Broader SIMD and parallel encoding remain pending; speed claims require CI performance measurements. |
+| Performance parity | Not established. Parallel encoding remains pending; speed claims require CI performance measurements. |
 
 Output remains **lossy eight-bit JPEG**, including at quality 100. Jpegli's quality
 scale is not interchangeable with libjpeg's. Byte-identical upstream output,
@@ -93,6 +93,14 @@ eighth of those units, with the adaptation accounted for during quantization.
 Its `System.Numerics.Vector<float>` path preserves scalar evaluation order and
 fused multiply-add rounding. Hardware acceleration requires runtime support and
 a vector width that divides an eight-sample row; other cases use the scalar fallback.
+
+Managed vectors also accelerate RGB-to-YCbCr conversion, unsmoothed integer-ratio
+downsampling and AC quantization. Conversion preserves source normalization,
+scalar evaluation order and chroma FMA rounding; downsampling preserves pairwise
+and composed averaging; quantization preserves coefficient division, adaptive
+thresholds and rounding rules. Smoothing and nonlinear RGB-to-XYB block conversion
+retain scalar paths. These changes
+do not establish a measured speed improvement or upstream performance parity.
 
 ICC profiles require explicit assignment and describe the stored samples.
 XYB display requires a matching profile and a reader that applies it; XYB profiles
