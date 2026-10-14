@@ -958,9 +958,10 @@ public sealed class SourceIccColorManagementTests
             Assert.Equal(quantizer, actual.Quantizers[selector]);
         foreach ((BlockKey key, Block block) in expected.Blocks)
         {
-            Assert.Equal(block.IsDummy, actual.Blocks[key].IsDummy);
+            Block actualBlock = actual.Blocks[key];
+            Assert.Equal(block.IsDummy, actualBlock.IsDummy);
             for (int index = 0; index < 64; index++)
-                Assert.InRange(actual.Blocks[key].Coefficients[index], block.Coefficients[index] - tolerance, block.Coefficients[index] + tolerance);
+                Assert.InRange(actualBlock.Coefficients[index], block.Coefficients[index] - tolerance, block.Coefficients[index] + tolerance);
         }
     }
 
