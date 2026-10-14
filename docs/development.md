@@ -48,8 +48,9 @@ Dependabot checks those pins weekly; review the referenced releases when updatin
 them. Both hosted operating systems run even if the other lane fails.
 CI prints the twenty slowest full-suite test cases from xUnit's XML timing report
 to make future test overhead visible without running the suite locally.
-Manual dispatch can also compare collection parallelism on the same runner after
-the normal suite, avoiding comparisons between different hosted machines.
+Publishing `main` starts validation automatically; reuse that run instead of
+dispatching a duplicate for the same revision. See [agent instructions](../AGENTS.md).
+Workflow concurrency allows one active run per branch and cancels superseded runs.
 
 The independent JPEG reader extracts entropy prefixes and magnitudes in byte
 groups. Canonical Huffman decoding, segment bounds, restart markers and padding
