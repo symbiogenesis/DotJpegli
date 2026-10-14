@@ -1672,6 +1672,13 @@ MozJPEG and libjpeg-turbo in its tested conditions, rather than a universal
 
 ## Validation
 
+The library project and its source are in `src/DotJpegli/`; tests are in
+`tests/DotJpegli.Tests/`. Build the library from the repository root with:
+
+```text
+dotnet build src/DotJpegli/DotJpegli.csproj -c Release
+```
+
 Raw-metadata regressions independently parse every supported APP/COM code,
 network-byte-order lengths, zero and maximum payloads, sliced storage and
 marker-looking payload bytes. They check duplicate and combined metadata order,

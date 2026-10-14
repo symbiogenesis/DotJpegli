@@ -15,9 +15,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="tests/**/*.cs" />
     <InternalsVisibleTo Include="DotJpegli.Tests" />
-    <None Update="README.md;LICENSE;LICENSE.jpegli;THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="" />
+    <None Include="../../README.md;../../LICENSE;../../LICENSE.jpegli;../../THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" Pack="true" PackagePath="" />
   </ItemGroup>
 
 </Project>
