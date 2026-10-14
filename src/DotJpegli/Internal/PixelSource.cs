@@ -54,6 +54,7 @@ internal readonly ref struct PixelSource
     }
 
     internal int ComponentsPerPixel { get; }
+    internal ParallelDctRows? ParallelRows { get; }
     private bool IsGrayscaleInput => ComponentsPerPixel == 1;
     internal JpegColorSpace ColorSpace => colorSpace == JpegColorSpace.Automatic
         ? (xyb ? JpegColorSpace.Xyb : IsGrayscaleInput ? JpegColorSpace.Grayscale : JpegColorSpace.YCbCr) : colorSpace;
@@ -64,7 +65,7 @@ internal readonly ref struct PixelSource
     internal bool IsXyb => ColorSpace == JpegColorSpace.Xyb;
     internal int AnalysisComponent => IsRgb ? 1 : 0;
 
-    private PixelSource(PixelSource source, JpegColorSpace colorSpace)
+    private PixelSource(PixelSource source, JpegColorSpace colorSpace, ParallelDctRows? parallelRows = null)
     {
         bytes = source.bytes;
         words = source.words;
@@ -75,6 +76,70 @@ internal readonly ref struct PixelSource
         xyb = source.xyb;
         ComponentsPerPixel = source.ComponentsPerPixel;
         this.colorSpace = colorSpace;
+        ParallelRows = parallelRows;
+    }
+
+    internal PixelSource WithParallelRows(ParallelDctRows rows) => new(this, colorSpace, rows);
+
+    /// <summary>Owned managed storage allows workers to recreate this span-based reader safely.</summary>
+    internal sealed class Snapshot
+    {
+        private readonly byte[] bytes;
+        private readonly ushort[] words;
+        private readonly float[] floats;
+        private readonly SourceType sourceType;
+        private readonly bool bgr;
+        private readonly bool ycbcr;
+        private readonly bool xyb;
+        private readonly JpegColorSpace colorSpace;
+        private readonly int componentsPerPixel;
+
+        internal Snapshot(PixelSource source, int length, CancellationToken cancellationToken)
+        {
+            bytes = source.sourceType == SourceType.Byte ? Copy(source.bytes, length, cancellationToken) : [];
+            words = source.sourceType == SourceType.UInt16 ? Copy(source.words, length, cancellationToken) : [];
+            floats = source.sourceType == SourceType.Float ? Copy(source.floats, length, cancellationToken) : [];
+            sourceType = source.sourceType;
+            bgr = source.bgr;
+            ycbcr = source.ycbcr;
+            xyb = source.xyb;
+            colorSpace = source.colorSpace;
+            componentsPerPixel = source.ComponentsPerPixel;
+        }
+
+        internal PixelSource GetPixels()
+        {
+            // Reconstruct with the original precision and layout. In particular,
+            // normalizing ushort input into floats would change rounding and XYB.
+            PixelSource pixels = sourceType switch
+            {
+                SourceType.Byte => new PixelSource(bytes, xyb ? PixelLayout.Xyb24
+                    : ycbcr ? PixelLayout.YCbCr24 : componentsPerPixel == 1 ? PixelLayout.Gray8
+                    : componentsPerPixel == 4 ? (bgr ? PixelLayout.Bgra32 : PixelLayout.Rgba32)
+                    : bgr ? PixelLayout.Bgr24 : PixelLayout.Rgb24),
+                SourceType.UInt16 => new PixelSource(words, GetLayout()),
+                _ => new PixelSource(floats, GetLayout())
+            };
+            return pixels.WithColorSpace(colorSpace);
+        }
+
+        private PixelComponentLayout GetLayout() => xyb ? PixelComponentLayout.Xyb
+            : ycbcr ? PixelComponentLayout.YCbCr : componentsPerPixel == 1 ? PixelComponentLayout.Gray
+            : componentsPerPixel == 4 ? (bgr ? PixelComponentLayout.Bgra : PixelComponentLayout.Rgba)
+            : bgr ? PixelComponentLayout.Bgr : PixelComponentLayout.Rgb;
+
+        private static T[] Copy<T>(ReadOnlySpan<T> source, int length, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var copy = new T[length];
+            for (int offset = 0; offset < length; offset += Math.Min(65536, length - offset))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                int count = Math.Min(65536, length - offset);
+                source.Slice(offset, count).CopyTo(copy.AsSpan(offset, count));
+            }
+            return copy;
+        }
     }
 
     internal PixelSource WithColorSpace(JpegColorSpace outputColorSpace)

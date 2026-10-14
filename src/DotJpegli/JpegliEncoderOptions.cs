@@ -302,6 +302,17 @@ public sealed record JpegliEncoderOptions
     public bool OptimizeHuffmanTables { get; init; } = true;
 
     /// <summary>
+    /// Maximum concurrent workers for pixel conversion, downsampling and the DCT.
+    /// One (the default) keeps serial execution and existing memory use; -1 uses
+    /// the processor count, and positive values set a worker limit. Zero and values
+    /// below -1 are invalid. Parallel execution copies the consumed source storage
+    /// once and buffers one MCU row of DCT coefficients. Adaptive analysis,
+    /// quantization and entropy output remain ordered, preserving serial JPEG bytes.
+    /// Encoding is synchronous and all workers finish before it returns.
+    /// </summary>
+    public int MaxDegreeOfParallelism { get; init; } = 1;
+
+    /// <summary>
     /// Write a progressive JPEG with a DC preview followed by an AC scan
     /// per component and optional refinement scans. False (the default) writes sequential JPEG,
     /// using SOF0 or SOF1 according to the emitted quantizers.
@@ -620,6 +631,8 @@ public sealed record JpegliEncoderOptions
             throw new ArgumentOutOfRangeException(nameof(VerticalDensity), "Vertical density must be between 1 and 65535.");
         if (SmoothingFactor is < 0 or > 100)
             throw new ArgumentOutOfRangeException(nameof(SmoothingFactor), "Smoothing factor must be between 0 and 100.");
+        if (MaxDegreeOfParallelism is 0 or < -1)
+            throw new ArgumentOutOfRangeException(nameof(MaxDegreeOfParallelism), "The worker limit must be positive or -1 for automatic selection.");
         if (ProgressiveRefinementBits is < 0 or > 10)
             throw new ArgumentOutOfRangeException(nameof(ProgressiveRefinementBits), "Progressive refinement bits must be between 0 and 10.");
         if (ProgressiveRefinementBits != 0 && !Progressive)

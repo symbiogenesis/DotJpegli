@@ -233,6 +233,11 @@ public static class JpegliEncoder
                     nameof(pixels), error);
             }
         }
+        int workerLimit = options.MaxDegreeOfParallelism == -1
+            ? Environment.ProcessorCount : options.MaxDegreeOfParallelism;
+        if (workerLimit > 1)
+            pixels = pixels.WithParallelRows(new ParallelDctRows(pixels, width, height, stride,
+                sampling, options.SmoothingFactor, workerLimit, cancellationToken));
         if (options.OptimizeHuffmanTables)
         {
             var dcFrequencies = new long[dcTables.Length][];
@@ -483,6 +488,7 @@ public static class JpegliEncoder
         float[]? strengths = adaptive is null ? null : new float[adaptive.BlocksWide * vertical];
         for (int top = 0; top < height; top += mcuHeight)
         {
+            pixels.ParallelRows?.PrepareRow(top, cancellationToken);
             if (adaptive is not null)
                 adaptive.ComputeRow(pixels, stride, top, tables[pixels.AnalysisComponent][1], strengths!, cancellationToken);
             for (int left = 0; left < width; left += mcuWidth)
@@ -523,10 +529,15 @@ public static class JpegliEncoder
                             }
                             else
                             {
-                                Downsampling.FillBlock(pixels, width, height, stride, component,
-                                    componentX, componentY, horizontal, vertical, blocksWide, blocksHigh,
-                                    samples, smoothingFactor);
-                                ForwardDct.Transform(samples, coefficients);
+                                if (pixels.ParallelRows is { } parallelRows)
+                                    parallelRows.CopyBlock(component, componentX, componentY, coefficients);
+                                else
+                                {
+                                    Downsampling.FillBlock(pixels, width, height, stride, component,
+                                        componentX, componentY, horizontal, vertical, blocksWide, blocksHigh,
+                                        samples, smoothingFactor);
+                                    ForwardDct.Transform(samples, coefficients);
+                                }
                                 // The pinned streaming path indexes the adaptive field by
                                 // component-local block row and full-resolution column.
                                 float strength = adaptive is null ? 0f : strengths![
@@ -616,6 +627,7 @@ public static class JpegliEncoder
         for (int blockY = 0; blockY < blocksHigh; blockY++)
         {
             int analysisTop = blockY / factor.Vertical * (8 * vertical);
+            pixels.ParallelRows?.PrepareRow(analysisTop, cancellationToken);
             if (adaptive is not null && analysisTop != lastAnalysisTop)
             {
                 adaptive.ComputeRow(pixels, stride, analysisTop,
@@ -635,10 +647,15 @@ public static class JpegliEncoder
                     restartIndex = (restartIndex + 1) & 7;
                     mcusRemaining = restartInterval;
                 }
-                Downsampling.FillBlock(pixels, width, height, stride, component,
-                    blockX, blockY, horizontal, vertical, factor.Horizontal, factor.Vertical,
-                    samples, smoothingFactor);
-                ForwardDct.Transform(samples, coefficients);
+                if (pixels.ParallelRows is { } parallelRows)
+                    parallelRows.CopyBlock(component, blockX, blockY, coefficients);
+                else
+                {
+                    Downsampling.FillBlock(pixels, width, height, stride, component,
+                        blockX, blockY, horizontal, vertical, factor.Horizontal, factor.Vertical,
+                        samples, smoothingFactor);
+                    ForwardDct.Transform(samples, coefficients);
+                }
                 // Reproduce the interleaved pass's component-local row index,
                 // including chroma components with multiple blocks per MCU.
                 int strengthRow = blockY % factor.Vertical;
