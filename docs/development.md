@@ -37,6 +37,10 @@ Independent cosine-DCT oracles cache their invariant cosine basis while retainin
 the direct double-precision sum and existing tolerances. The numerical and SIMD
 DCT tests also retain the literal cosine definition as a separate reference.
 
+The independent JPEG reader extracts entropy prefixes and magnitudes in byte
+groups. Canonical Huffman decoding, segment bounds, restart markers and padding
+checks remain part of the oracle.
+
 See the [GitHub Actions workflow](../.github/workflows/ci.yml) for the hosted checks.
 
 ## Regression coverage

@@ -804,13 +804,22 @@ public sealed class EncoderProgressiveTests
 
         public int Symbol(Dictionary<int, int> table)
         {
+            // Read the available prefix once instead of checking the entropy
+            // boundary for every bit of every canonical Huffman candidate.
+            int available = Math.Min(16, bytes.Length * 8 - position);
+            Assert.True(available > 0, "Unexpected end of entropy data.");
+            int prefix = Peek(available);
             int code = 0;
-            for (int length = 1; length <= 16; length++)
+            for (int length = 1; length <= available; length++)
             {
-                code = (code << 1) | Bit();
+                code = (code << 1) | ((prefix >> (available - length)) & 1);
                 if (table.TryGetValue((length << 16) | code, out int symbol))
+                {
+                    position += length;
                     return symbol;
+                }
             }
+            Assert.Equal(16, available); // A truncated code must not consume padding from another segment.
             throw new InvalidDataException("Invalid Huffman code in encoder output.");
         }
 
@@ -824,10 +833,25 @@ public sealed class EncoderProgressiveTests
         public int UnsignedValue(int count)
         {
             Assert.InRange(count, 0, 14);
-            int value = 0;
-            for (int i = 0; i < count; i++)
-                value = (value << 1) | Bit();
+            if (count == 0)
+                return 0;
+            Assert.True(position <= bytes.Length * 8 - count, "Unexpected end of entropy data.");
+            int value = Peek(count);
+            position += count;
             return value;
+        }
+
+        // A symbol prefix or magnitude spans at most three bytes. Retain the
+        // reader's independent canonical-code decoder and segment validation.
+        private int Peek(int count)
+        {
+            int first = position / 8, offset = position % 8;
+            int word = bytes[first] << 16;
+            if (offset + count > 8)
+                word |= bytes[first + 1] << 8;
+            if (offset + count > 16)
+                word |= bytes[first + 2];
+            return (word >> (24 - offset - count)) & ((1 << count) - 1);
         }
 
         public void AssertOnlyPaddingRemains()
