@@ -5,9 +5,9 @@
 ## Build
 
 The projects target .NET 10 and use its default C# 14 language version.
-`global.json` selects the newest installed stable .NET 10 SDK feature band and
-patch, starting at 10.0.100. CI installs the newest available `10.0.x` SDK.
-Keep the SDK current to receive compiler, runtime and analyzer improvements.
+`global.json` pins .NET SDK 10.0.402 with roll-forward disabled. Install that exact
+SDK; CI reads the same file. Update the pin deliberately to receive compiler,
+runtime and analyzer improvements, then validate the new build outputs.
 
 Prefer framework span APIs for buffer searches, validation and counting, and
 span splitting when substrings do not need to be retained. Use collection
@@ -21,6 +21,44 @@ The library project and its source are in `src/DotJpegli/`; tests are in
 ```text
 dotnet build src/DotJpegli/DotJpegli.csproj -c Release
 ```
+
+## Reproducible builds
+
+All projects use [DotNet.ReproducibleBuilds](https://github.com/dotnet/reproducible-builds)
+and its Isolated SDK, pinned to 2.0.5. The build package embeds debugging symbols,
+publishes repository metadata and enables source-path normalization on CI.
+The Isolated SDK limits machine-specific assembly lookup and implicit package
+fallbacks. These are build-time tools; the encoder package has no runtime NuGet
+dependencies. Source Link support comes from the .NET SDK.
+
+`NuGet.Config` selects nuget.org, committed `packages.lock.json` files fix the
+resolved package graph, and `.gitattributes` keeps text checkouts in LF format.
+Restore the recorded graph before building:
+
+```text
+dotnet restore DotJpegli.slnx --locked-mode
+dotnet build DotJpegli.slnx -c Release --no-restore
+```
+
+When updating a package intentionally, update `Directory.Packages.props`, run
+`dotnet restore DotJpegli.slnx --force-evaluate`, and commit the lock-file changes.
+The Isolated SDK version is declared separately in `Directory.Build.props`.
+
+With Git and PowerShell 7 installed, verify the Release library and unsigned
+NuGet package from a committed revision:
+
+```powershell
+./tools/verify-reproducibility.ps1
+```
+
+The script builds the same commit in two fresh Git worktrees at different absolute
+paths, using the pinned SDK, locked restore, `ContinuousIntegrationBuild=true` and
+`RepositoryBranch=refs/heads/main`. It compares complete DLL and `.nupkg` SHA-256
+hashes, removes its worktrees and retains artifacts and `hashes.json` in a unique
+temporary directory. It checks committed `HEAD`, so commit changes before running
+it. CI runs this comparison independently on Windows and Linux in the existing
+validation workflow; it does not compare the two operating systems' outputs.
+This is a build check and does not run tests or benchmarks.
 
 ## Focused tests and CI
 
