@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in LICENSE.jpegli or at https://developers.google.com/open-source/licenses/bsd.
 
+using System.Numerics;
+
 namespace DotJpegli.Internal;
 
 internal static class ColorConversion
@@ -36,5 +38,20 @@ internal static class ColorConversion
         y = redBase + (greenBase + blueBase);
         cb = MathF.FusedMultiplyAdd(blueDifference - y, BlueNormalization, 128f);
         cr = MathF.FusedMultiplyAdd(redDifference - y, RedNormalization, 128f);
+    }
+
+    // Lanes are independent pixels. Preserve the scalar multiplication,
+    // addition and single-round FMA operations exactly.
+    internal static void RgbToYCbCr(Vector<float> r, Vector<float> g, Vector<float> b,
+        out Vector<float> y, out Vector<float> cb, out Vector<float> cr)
+    {
+        Vector<float> redBase = r * new Vector<float>(RedWeight);
+        Vector<float> redDifference = r * new Vector<float>(RedDifference);
+        Vector<float> greenBase = g * new Vector<float>(GreenWeight);
+        Vector<float> blueBase = b * new Vector<float>(BlueWeight);
+        Vector<float> blueDifference = b * new Vector<float>(BlueDifference);
+        y = redBase + (greenBase + blueBase);
+        cb = Vector.FusedMultiplyAdd(blueDifference - y, new Vector<float>(BlueNormalization), new Vector<float>(128f));
+        cr = Vector.FusedMultiplyAdd(redDifference - y, new Vector<float>(RedNormalization), new Vector<float>(128f));
     }
 }
