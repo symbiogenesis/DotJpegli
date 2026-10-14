@@ -33,6 +33,10 @@ dependencies. Source Link support comes from the .NET SDK.
 
 `NuGet.Config` selects nuget.org, committed `packages.lock.json` files fix the
 resolved package graph, and `.gitattributes` keeps text checkouts in LF format.
+`DeterministicTimestamp` defaults to the ZIP epoch (1980-01-01 UTC), so package
+entry timestamps do not depend on checkout or build times. The pinned SDK's
+NuGet pack task supports this setting. An explicit override is allowed, but it
+must match between builds when comparing package bytes.
 Restore the recorded graph before building:
 
 ```text

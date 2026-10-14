@@ -8,6 +8,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest</AnalysisLevel>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- Keep NuGet ZIP timestamps independent of checkout and build times. -->
+    <DeterministicTimestamp Condition="'$(DeterministicTimestamp)' == ''">1980-01-01T00:00:00Z</DeterministicTimestamp>
   </PropertyGroup>
 
   <ItemGroup>
