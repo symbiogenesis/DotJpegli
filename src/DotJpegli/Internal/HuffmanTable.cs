@@ -166,6 +166,22 @@ internal sealed class HuffmanTable
         writer.WriteBits(codes[symbol], lengths[symbol]);
     }
 
+    // HistogramCost in upstream includes the selector, 16 length counts and
+    // one byte per symbol, excluding the surrounding DHT marker and length.
+    internal float EstimateCost(ReadOnlySpan<long> frequencies)
+    {
+        if (frequencies.Length != 256)
+            throw new ArgumentException("A frequency table must have 256 entries.", nameof(frequencies));
+        UInt128 bits = (UInt128)((17 + Symbols.Length) * 8);
+        for (int symbol = 0; symbol < frequencies.Length; symbol++)
+        {
+            if (frequencies[symbol] < 0 || (frequencies[symbol] != 0 && lengths[symbol] == 0))
+                throw new ArgumentException("The histogram must use the table's symbols.", nameof(frequencies));
+            bits += (UInt128)frequencies[symbol] * lengths[symbol];
+        }
+        return (float)bits;
+    }
+
     private static int[] BuildCodeLengths(UInt128[] frequencies)
     {
         int[] depth = new int[frequencies.Length];

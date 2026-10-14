@@ -269,6 +269,15 @@ public static class JpegliEncoder
         if (workerLimit > 1)
             pixels = pixels.WithParallelRows(new ParallelDctRows(pixels, width, height, stride,
                 sampling, options.SmoothingFactor, workerLimit, cancellationToken));
+        if (options.OptimizeHuffmanTables && !rgb)
+        {
+            JpegScan[] scans = scanScript ?? CreateDefaultScanScript(options, componentCount,
+                interleaveInitialScan, acScanEnds, acRefinementBits, maxRefinementBits);
+            EncodeOptimizedScans(pixels, width, height, stride, sampling, tables, quantizationSelectors,
+                distance, options, extendedXmp, adaptive, adaptiveMultipliers, scans,
+                interleavedRestartInterval, componentRestartIntervals, output, cancellationToken);
+            return;
+        }
         if (options.OptimizeHuffmanTables)
         {
             var dcFrequencies = new long[dcTables.Length][];
@@ -473,12 +482,109 @@ public static class JpegliEncoder
         output.WriteByte(0xd9);
     }
 
+    private static JpegScan[] CreateDefaultScanScript(JpegliEncoderOptions options, int componentCount,
+        bool interleaveInitialScan, int[] acScanEnds, int[] acRefinementBits, int maxRefinementBits)
+    {
+        var scans = new List<JpegScan>();
+        int[] components = Enumerable.Range(0, componentCount).ToArray();
+        void AddDc(int high, int low)
+        {
+            if (interleaveInitialScan)
+                scans.Add(new(components, 0, options.Progressive ? 0 : 63, high, low));
+            else
+                foreach (int component in components)
+                    scans.Add(new(new[] { component }, 0, options.Progressive ? 0 : 63, high, low));
+        }
+        AddDc(0, options.ProgressiveRefinementBits);
+        if (!options.Progressive)
+            return scans.ToArray();
+        for (int band = 0; band < acScanEnds.Length; band++)
+            foreach (int component in components)
+                scans.Add(new(new[] { component }, band == 0 ? 1 : acScanEnds[band - 1] + 1,
+                    acScanEnds[band], 0, acRefinementBits[band]));
+        for (int low = maxRefinementBits - 1; low >= 0; low--)
+        {
+            if (options.ProgressiveRefinementBits > low)
+                AddDc(low + 1, low);
+            for (int band = 0; band < acScanEnds.Length; band++)
+                if (acRefinementBits[band] > low)
+                    foreach (int component in components)
+                        scans.Add(new(new[] { component }, band == 0 ? 1 : acScanEnds[band - 1] + 1,
+                            acScanEnds[band], low + 1, low));
+        }
+        return scans.ToArray();
+    }
+
+    private static void EncodeOptimizedScans(PixelSource pixels, int width, int height, int stride,
+        JpegSamplingFactors sampling, ushort[][] tables, int[] quantizationSelectors, float distance,
+        JpegliEncoderOptions options, ExtendedXmpMetadata? extendedXmp,
+        AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, JpegScan[] scans,
+        int interleavedRestartInterval, int[] componentRestartIntervals, Stream output,
+        CancellationToken cancellationToken)
+    {
+        int componentCount = tables.Length;
+        var dcFrequencies = new long[componentCount][];
+        for (int component = 0; component < componentCount; component++)
+            dcFrequencies[component] = new long[256];
+        var acFrequencies = new long[scans.Length][][];
+        // These placeholder arrays are not read during frequency collection.
+        var emptyTables = new HuffmanTable[componentCount];
+        for (int scanIndex = 0; scanIndex < scans.Length; scanIndex++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            acFrequencies[scanIndex] = new long[componentCount][];
+            for (int component = 0; component < componentCount; component++)
+                acFrequencies[scanIndex][component] = new long[256];
+            JpegScan scan = scans[scanIndex];
+            // DC refinement emits raw bits and has no Huffman histogram.
+            if (scan.SpectralEnd == 0 && scan.SuccessiveHigh != 0)
+                continue;
+            int interval = scan.Components.Count == 1
+                ? componentRestartIntervals[scan.Components[0]] : interleavedRestartInterval;
+            ProcessScan(pixels, width, height, stride, sampling, tables, distance,
+                options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
+                emptyTables, emptyTables, null, dcFrequencies, acFrequencies[scanIndex], cancellationToken,
+                scan, options.Progressive, aggregateEobRuns: true, contextByComponent: true);
+        }
+        HuffmanCodingPlan plan = HuffmanCodingPlan.Create(scans, dcFrequencies, acFrequencies,
+            options.Progressive, options.ForceBaseline);
+        cancellationToken.ThrowIfCancellationRequested();
+        JpegMarkerWriter.WriteHeaders(output, width, height, sampling, tables, quantizationSelectors,
+            emptyTables, emptyTables, options, extendedXmp, cancellationToken, rgb: pixels.IsRgb,
+            writeHuffmanTables: false, extendedHuffman: plan.RequiresExtendedSequential);
+        var bits = new BitWriter(output);
+        int lastRestartInterval = 0;
+        for (int scanIndex = 0; scanIndex < scans.Length; scanIndex++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            JpegScan scan = scans[scanIndex];
+            HuffmanCodingPlan.ScanCoding coding = plan.Scans[scanIndex];
+            JpegMarkerWriter.WriteHuffmanTables(output, coding.Definitions);
+            int interval = scan.Components.Count == 1
+                ? componentRestartIntervals[scan.Components[0]] : interleavedRestartInterval;
+            if (interval != lastRestartInterval)
+            {
+                JpegMarkerWriter.WriteRestartInterval(output, interval);
+                lastRestartInterval = interval;
+            }
+            JpegMarkerWriter.WriteScanHeader(output, scan, options.Progressive, pixels.IsRgb, coding.Selectors);
+            ProcessScan(pixels, width, height, stride, sampling, tables, distance,
+                options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
+                coding.DcTables, coding.AcTables, bits, null, null, cancellationToken,
+                scan, options.Progressive, aggregateEobRuns: true, contextByComponent: true);
+            bits.Flush();
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        output.WriteByte(0xff);
+        output.WriteByte(0xd9);
+    }
+
     private static void ProcessScan(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor,
         int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
-        JpegScan scan, bool progressive, bool aggregateEobRuns)
+        JpegScan scan, bool progressive, bool aggregateEobRuns, bool contextByComponent = false)
     {
         bool dcOnly = progressive && scan.SpectralStart == 0;
         bool refine = scan.SuccessiveHigh != 0;
@@ -487,12 +593,13 @@ public static class JpegliEncoder
                 smoothingFactor, restartInterval, adaptive, adaptiveMultipliers,
                 scan.Components[0], acTables, writer, acFrequencies, cancellationToken,
                 aggregateEobRuns, scan.SuccessiveLow, refine, scan.SpectralStart, scan.SpectralEnd,
-                dcOnly, dcTables, dcFrequencies, sequential: !progressive);
+                dcOnly, dcTables, dcFrequencies, sequential: !progressive, contextByComponent: contextByComponent);
         else
             ProcessBlocks(pixels, width, height, stride, sampling, tables, distance,
                 smoothingFactor, restartInterval, adaptive, adaptiveMultipliers,
                 dcTables, acTables, writer, dcFrequencies, acFrequencies, cancellationToken,
-                dcOnly, scan.SuccessiveLow, refine, scanComponents: (int[])scan.Components);
+                dcOnly, scan.SuccessiveLow, refine, scanComponents: (int[])scan.Components,
+                contextByComponent: contextByComponent);
     }
 
     private static void ProcessBlocks(PixelSource pixels, int width, int height, int stride,
@@ -501,7 +608,7 @@ public static class JpegliEncoder
         HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
         bool dcOnly = false, int successiveLow = 0, bool refine = false, bool requireEightBitCoefficients = false,
-        ReadOnlySpan<int> scanComponents = default)
+        ReadOnlySpan<int> scanComponents = default, bool contextByComponent = false)
     {
         Span<float> samples = stackalloc float[64];
         Span<float> coefficients = stackalloc float[64];
@@ -580,7 +687,7 @@ public static class JpegliEncoder
                                     previousDc: previousDc[component], requireEightBitCoefficients: requireEightBitCoefficients,
                                     rgb: pixels.IsRgb);
                             }
-                            int tableIndex = pixels.IsRgb || component == 0 ? 0 : 1;
+                            int tableIndex = contextByComponent ? component : pixels.IsRgb || component == 0 ? 0 : 1;
                             if (dcOnly)
                             {
                                 if (refine)
@@ -616,7 +723,8 @@ public static class JpegliEncoder
         int component, HuffmanTable[] acTables, BitWriter? writer, long[][]? acFrequencies,
         CancellationToken cancellationToken, bool aggregateEobRuns, int successiveLow = 0, bool refine = false,
         int spectralStart = 1, int spectralEnd = 63, bool dcOnly = false,
-        HuffmanTable[]? dcTables = null, long[][]? dcFrequencies = null, bool sequential = false)
+        HuffmanTable[]? dcTables = null, long[][]? dcFrequencies = null, bool sequential = false,
+        bool contextByComponent = false)
     {
         // A noninterleaved scan visits only real component blocks in raster order.
         // In particular, 4:2:0 luma must finish one block row before the next,
@@ -629,7 +737,7 @@ public static class JpegliEncoder
         JpegComponentSampling factor = sampling[component];
         int blocksWide = (width * factor.Horizontal + 8 * horizontal - 1) / (8 * horizontal);
         int blocksHigh = (height * factor.Vertical + 8 * vertical - 1) / (8 * vertical);
-        int tableIndex = pixels.IsRgb || component == 0 ? 0 : 1;
+        int tableIndex = contextByComponent ? component : pixels.IsRgb || component == 0 ? 0 : 1;
         float[]? strengths = adaptive is null ? null : new float[adaptive.BlocksWide * vertical];
         int lastAnalysisTop = -1;
         int mcusRemaining = restartInterval;

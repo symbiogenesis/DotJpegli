@@ -17,7 +17,7 @@ internal static class JpegMarkerWriter
     public static void WriteHeaders(Stream output, int width, int height, JpegSamplingFactors sampling,
         ushort[][] quantization, ReadOnlySpan<int> quantizationSelectors, HuffmanTable[] dcTables, HuffmanTable[] acTables,
         JpegliEncoderOptions options, ExtendedXmpMetadata? extendedXmp, CancellationToken cancellationToken,
-        bool rgb = false)
+        bool rgb = false, bool writeHuffmanTables = true, bool extendedHuffman = false)
     {
         Marker(output, 0xd8);
         if (!rgb)
@@ -40,7 +40,7 @@ internal static class JpegMarkerWriter
         Span<bool> wideTables = stackalloc bool[tableCount];
         wideTables.Clear();
         int quantizationLength = 2;
-        bool baseline = true;
+        bool baseline = !extendedHuffman;
         for (int table = 0; table < tableCount; table++)
         {
             foreach (ushort value in quantization[table])
@@ -75,7 +75,7 @@ internal static class JpegMarkerWriter
             output.WriteByte((byte)quantizationSelectors[component]);
         }
 
-        for (int index = 0; index < dcTables.Length; index++)
+        for (int index = 0; writeHuffmanTables && index < dcTables.Length; index++)
         {
             Huffman(output, dcTables[index], index);
             Huffman(output, acTables[index], 0x10 | index);
@@ -228,7 +228,8 @@ internal static class JpegMarkerWriter
         output.WriteByte((byte)((successiveHigh << 4) | successiveLow));
     }
 
-    public static void WriteScanHeader(Stream output, JpegScan scan, bool progressive, bool rgb)
+    public static void WriteScanHeader(Stream output, JpegScan scan, bool progressive, bool rgb,
+        ReadOnlySpan<byte> huffmanSelectors = default)
     {
         Marker(output, 0xda);
         Word(output, 6 + scan.Components.Count * 2);
@@ -241,6 +242,8 @@ internal static class JpegMarkerWriter
             if (progressive)
                 selector = scan.SpectralStart != 0 ? tableIndex
                     : scan.SuccessiveHigh == 0 ? tableIndex << 4 : 0;
+            if (!huffmanSelectors.IsEmpty)
+                selector = huffmanSelectors[component];
             output.WriteByte((byte)selector);
         }
         output.WriteByte((byte)scan.SpectralStart);
@@ -250,6 +253,24 @@ internal static class JpegMarkerWriter
 
     private static byte ComponentId(int component, bool rgb)
         => rgb ? "RGB"u8[component] : (byte)(component + 1);
+
+    internal static void WriteHuffmanTables(Stream output,
+        ReadOnlySpan<HuffmanCodingPlan.Definition> definitions)
+    {
+        if (definitions.IsEmpty)
+            return;
+        int length = 2;
+        foreach (HuffmanCodingPlan.Definition definition in definitions)
+            length += 17 + definition.Table.Symbols.Length;
+        Marker(output, 0xc4);
+        Word(output, length);
+        foreach (HuffmanCodingPlan.Definition definition in definitions)
+        {
+            output.WriteByte((byte)definition.Selector);
+            output.Write(definition.Table.Counts);
+            output.Write(definition.Table.Symbols);
+        }
+    }
 
     private static void Huffman(Stream output, HuffmanTable table, int selector)
     {
