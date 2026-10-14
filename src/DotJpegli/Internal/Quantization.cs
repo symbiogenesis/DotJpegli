@@ -9,6 +9,9 @@
 // lib/jpegli/dct-inl.h (QuantizeBlock and ComputeCoefficientBlock).
 // https://github.com/google/jpegli/tree/031a0077f5799a6041004267fc12b956c1f52a20
 
+using System.Numerics;
+using System.Runtime.InteropServices;
+
 namespace DotJpegli.Internal;
 
 internal static class Quantization
@@ -362,6 +365,35 @@ internal static class Quantization
         bool grayscale = false, bool adaptiveQuantization = false,
         float adaptiveStrength = 0f, ReadOnlySpan<float> adaptiveMultipliers = default,
         int previousDc = 0, bool requireEightBitCoefficients = false, bool rgb = false)
+        => QuantizeCore(coefficients, table, output, component, distance, grayscale,
+            adaptiveQuantization, adaptiveStrength, adaptiveMultipliers, previousDc,
+            requireEightBitCoefficients, rgb, Vector.IsHardwareAccelerated);
+
+    // Explicit paths keep coefficient regressions independent of automatic
+    // dispatch, including runtimes where hardware intrinsics are disabled.
+    internal static void QuantizeScalar(ReadOnlySpan<float> coefficients,
+        ReadOnlySpan<ushort> table, Span<short> output, int component, float distance,
+        bool grayscale = false, bool adaptiveQuantization = false,
+        float adaptiveStrength = 0f, ReadOnlySpan<float> adaptiveMultipliers = default,
+        int previousDc = 0, bool requireEightBitCoefficients = false, bool rgb = false)
+        => QuantizeCore(coefficients, table, output, component, distance, grayscale,
+            adaptiveQuantization, adaptiveStrength, adaptiveMultipliers, previousDc,
+            requireEightBitCoefficients, rgb, useVector: false);
+
+    internal static void QuantizeVector(ReadOnlySpan<float> coefficients,
+        ReadOnlySpan<ushort> table, Span<short> output, int component, float distance,
+        bool grayscale = false, bool adaptiveQuantization = false,
+        float adaptiveStrength = 0f, ReadOnlySpan<float> adaptiveMultipliers = default,
+        int previousDc = 0, bool requireEightBitCoefficients = false, bool rgb = false)
+        => QuantizeCore(coefficients, table, output, component, distance, grayscale,
+            adaptiveQuantization, adaptiveStrength, adaptiveMultipliers, previousDc,
+            requireEightBitCoefficients, rgb, useVector: true);
+
+    private static void QuantizeCore(ReadOnlySpan<float> coefficients,
+        ReadOnlySpan<ushort> table, Span<short> output, int component, float distance,
+        bool grayscale, bool adaptiveQuantization, float adaptiveStrength,
+        ReadOnlySpan<float> adaptiveMultipliers, int previousDc,
+        bool requireEightBitCoefficients, bool rgb, bool useVector)
     {
         ValidateComponent(component);
         if (grayscale && component != 0)
@@ -388,7 +420,27 @@ internal static class Quantization
             1 => 0.58146f,
             _ => 0.57988f,
         };
-        for (int i = 0; i < BlockSize; i++)
+        // AC begins after the scalar DC lane. A wider future Vector must not
+        // load outside the remaining 63 coefficients. Scalar tails handle
+        // widths that do not divide that length.
+        if (useVector && Vector<float>.Count < BlockSize &&
+            !MemoryMarshal.AsBytes(coefficients).Overlaps(MemoryMarshal.AsBytes(output)) &&
+            !MemoryMarshal.AsBytes(table).Overlaps(MemoryMarshal.AsBytes(output)) &&
+            (!adaptiveQuantization ||
+                !MemoryMarshal.AsBytes(adaptiveMultipliers).Overlaps(MemoryMarshal.AsBytes(output))))
+            QuantizeVectorCore(coefficients, table, output, acOffset, adaptiveQuantization,
+                adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients);
+        else
+            QuantizeScalarCore(coefficients, table, output, acOffset, adaptiveQuantization,
+                adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients);
+    }
+
+    private static void QuantizeScalarCore(ReadOnlySpan<float> coefficients,
+        ReadOnlySpan<ushort> table, Span<short> output, float acOffset,
+        bool adaptiveQuantization, float adaptiveStrength, ReadOnlySpan<float> adaptiveMultipliers,
+        int previousDc, bool requireEightBitCoefficients, int start = 0, int end = BlockSize)
+    {
+        for (int i = start; i < end; i++)
         {
             if (table[i] is < 1 or > 32767)
                 throw new ArgumentException("Quantization values must be between 1 and 32767.", nameof(table));
@@ -414,17 +466,75 @@ internal static class Quantization
             else
                 // Highway Round in QuantizeBlock uses ties-to-even for AC.
                 value = MathF.Round(quantized, MidpointRounding.ToEven);
-            // T.81 F.1.1.4 requires signed 11-bit quantized coefficients for
-            // eight-bit input. AC entropy categories further exclude -1024.
-            // Out-of-range float preflight checks before the upstream int16
-            // demotion can hide an unrepresentable value through saturation.
-            if (requireEightBitCoefficients &&
-                (value < (i == 0 ? -1024f : -1023f) || value > 1023f))
-                throw new ArgumentOutOfRangeException(nameof(coefficients),
-                    "A quantized coefficient exceeds eight-bit JPEG's supported range.");
-            // Saturating int16 demotion matches StoreQuantizedValue's DemoteTo.
-            output[i] = (short)Math.Clamp(value, short.MinValue, short.MaxValue);
+            StoreQuantizedValue(value, i, output, requireEightBitCoefficients);
         }
+    }
+
+    private static void QuantizeVectorCore(ReadOnlySpan<float> coefficients,
+        ReadOnlySpan<ushort> table, Span<short> output, float acOffset,
+        bool adaptiveQuantization, float adaptiveStrength, ReadOnlySpan<float> adaptiveMultipliers,
+        int previousDc, bool requireEightBitCoefficients)
+    {
+        // DC thresholds compare with the previous block, and round ties away
+        // from zero. Keep this single coefficient on the original scalar path.
+        QuantizeScalarCore(coefficients, table, output, acOffset, adaptiveQuantization,
+            adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients, end: 1);
+
+        int width = Vector<float>.Count;
+        Span<float> divisors = stackalloc float[width];
+        var offset = new Vector<float>(acOffset);
+        var strength = new Vector<float>(adaptiveStrength);
+        int i = 1;
+        for (; i <= BlockSize - width; i += width)
+        {
+            for (int lane = 0; lane < width; lane++)
+            {
+                int index = i + lane;
+                if (table[index] is < 1 or > 32767 || !float.IsFinite(coefficients[index]) ||
+                    (adaptiveQuantization && (!float.IsFinite(adaptiveMultipliers[index]) ||
+                        adaptiveMultipliers[index] < 0)))
+                {
+                    // Re-run this batch and the remainder in scalar order.
+                    // This preserves the first exception and all preceding
+                    // output writes, including coefficient range failures.
+                    QuantizeScalarCore(coefficients, table, output, acOffset, adaptiveQuantization,
+                        adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients, start: i);
+                    return;
+                }
+                divisors[lane] = table[index];
+            }
+
+            // Division must match the scalar port exactly; multiplying by
+            // precomputed reciprocals can change a half-integer boundary.
+            Vector<float> quantized = new Vector<float>(coefficients.Slice(i, width))
+                / new Vector<float>(divisors);
+            // Preserve the separately rounded multiply and add; FMA would
+            // move some strict zero-bias comparisons across their boundary.
+            Vector<float> threshold = adaptiveQuantization
+                ? offset + strength * new Vector<float>(adaptiveMultipliers.Slice(i, width))
+                : offset;
+            Vector<float> values = Vector.ConditionalSelect(
+                Vector.LessThan(Vector.Abs(quantized), threshold), Vector<float>.Zero,
+                Vector.Round(quantized, MidpointRounding.ToEven));
+            for (int lane = 0; lane < width; lane++)
+                StoreQuantizedValue(values[lane], i + lane, output, requireEightBitCoefficients);
+        }
+        QuantizeScalarCore(coefficients, table, output, acOffset, adaptiveQuantization,
+            adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients, start: i);
+    }
+
+    private static void StoreQuantizedValue(float value, int index, Span<short> output,
+        bool requireEightBitCoefficients)
+    {
+        // T.81 F.1.1.4 requires signed 11-bit quantized coefficients for
+        // eight-bit input. AC entropy categories further exclude -1024.
+        // Check before int16 demotion can hide a value through saturation.
+        if (requireEightBitCoefficients &&
+            (value < (index == 0 ? -1024f : -1023f) || value > 1023f))
+            throw new ArgumentOutOfRangeException("coefficients",
+                "A quantized coefficient exceeds eight-bit JPEG's supported range.");
+        // Saturating int16 demotion matches StoreQuantizedValue's DemoteTo.
+        output[index] = (short)Math.Clamp(value, short.MinValue, short.MaxValue);
     }
 
     internal static float DistanceToScale(float distance, int frequency)
