@@ -22,7 +22,19 @@ jobs:
           dotnet-version: '10.0.x'
       - run: dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release
       - name: Full test suite (CI only)
-        run: dotnet run --project tests/DotJpegli.Tests -c Release --no-build
+        run: dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -result-xml "${{ runner.temp }}/dotjpegli-full-tests.xml"
+      - name: Slowest test cases
+        if: always()
+        shell: pwsh
+        run: |
+          $reportPath = Join-Path $env:RUNNER_TEMP 'dotjpegli-full-tests.xml'
+          if (Test-Path -LiteralPath $reportPath) {
+            [xml]$report = Get-Content -LiteralPath $reportPath -Raw
+            $report.SelectNodes('//test') |
+              Sort-Object { [double]$_.time } -Descending |
+              Select-Object -First 20 |
+              ForEach-Object { '{0}s {1}' -f $_.time, $_.name }
+          }
       - name: Managed SIMD fallback and software vector parity
         env:
           DOTNET_EnableHWIntrinsic: '0'

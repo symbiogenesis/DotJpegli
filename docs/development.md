@@ -40,6 +40,8 @@ DCT tests also retain the literal cosine definition as a separate reference.
 CI actions are pinned to full commit hashes with release-version comments.
 Dependabot checks those pins weekly; review the referenced releases when updating
 them. Both hosted operating systems run even if the other lane fails.
+CI prints the twenty slowest full-suite test cases from xUnit's XML timing report
+to make future test overhead visible without running the suite locally.
 
 The independent JPEG reader extracts entropy prefixes and magnitudes in byte
 groups. Canonical Huffman decoding, segment bounds, restart markers and padding
