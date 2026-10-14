@@ -136,8 +136,8 @@ spans, untouched output tails and validation before writes. CI also runs the
 focused DCT checks with hardware intrinsics disabled to exercise the scalar fallback
 and software vector operations.
 
-SIMD color-conversion, downsampling and quantization regressions compare managed vector and
-automatic dispatch results with the scalar implementations, including fractional
+SIMD color-conversion, downsampling and quantization regressions compare managed
+vector and automatic dispatch results with the scalar implementations, including fractional
 source normalization, chroma FMA rounding, adaptive threshold and coefficient
 rounding boundaries, padded edges and scalar fallbacks. Complete JPEG SHA-256
 fixtures captured before these paths were introduced check unchanged encoding

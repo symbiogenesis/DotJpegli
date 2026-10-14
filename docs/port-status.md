@@ -98,9 +98,9 @@ Managed vectors also accelerate RGB-to-YCbCr conversion, unsmoothed integer-rati
 downsampling and AC quantization. Conversion preserves source normalization,
 scalar evaluation order and chroma FMA rounding; downsampling preserves pairwise
 and composed averaging; quantization preserves coefficient division, adaptive
-thresholds and rounding rules. Smoothing and nonlinear RGB-to-XYB block conversion
-retain scalar paths. These changes
-do not establish a measured speed improvement or upstream performance parity.
+thresholds and rounding rules. Smoothing and nonlinear RGB-to-XYB conversion
+retain scalar paths. These changes do not establish a measured speed improvement
+or upstream performance parity.
 
 ICC profiles require explicit assignment and describe the stored samples.
 XYB display requires a matching profile and a reader that applies it; XYB profiles

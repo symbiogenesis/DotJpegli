@@ -10,8 +10,8 @@ namespace DotJpegli.Internal;
 // google/jpegli lib/jpegli/downsample.cc, and PadInputBuffer in encode.cc,
 // revision 031a0077f5799a6041004267fc12b956c1f52a20.
 // Reading and converting edge pixels on demand is equivalent to padding the
-// upstream planar input, and keeps temporary storage bounded to one block.
-// Custom sample areas compose the horizontal and vertical scalar averages.
+// upstream planar input, and keeps temporary storage bounded to fixed row/block scratch.
+// Custom sample areas compose the horizontal and vertical ordered averages.
 // Three-row sampling follows Downsample1x3/Downsample2x3's summation order;
 // the pinned upstream selector instead routes vertical factor 3 to two-row kernels.
 internal static class Downsampling
