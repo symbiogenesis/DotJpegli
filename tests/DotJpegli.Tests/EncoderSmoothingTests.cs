@@ -116,7 +116,7 @@ public sealed class EncoderSmoothingTests
                     for (int zigzag = 0; zigzag < 64; zigzag++)
                     {
                         int natural = Zigzag[zigzag];
-                        double value = OracleDct(samples, natural % 8, natural / 8) / quantizer[zigzag];
+                        double value = IndependentDct.Coefficient(samples, natural % 8, natural / 8) / quantizer[zigzag];
                         // Float DCT arithmetic can straddle an exact rounding tie;
                         // every coefficient must still be the closest integer.
                         Assert.InRange(Math.Abs(block.Coefficients[zigzag] - value), 0, 0.501);
@@ -249,16 +249,6 @@ public sealed class EncoderSmoothingTests
                 samples[y * 8 + x] = center * (1 - 8 * weight) + neighbors * weight - 128;
             }
         return samples;
-    }
-
-    private static double OracleDct(double[] samples, int u, int v)
-    {
-        double sum = 0;
-        for (int y = 0; y < 8; y++)
-            for (int x = 0; x < 8; x++)
-                sum += samples[y * 8 + x] * Math.Cos((2 * x + 1) * u * Math.PI / 16)
-                    * Math.Cos((2 * y + 1) * v * Math.PI / 16);
-        return sum * 0.25 * (u == 0 ? 1 / Math.Sqrt(2) : 1) * (v == 0 ? 1 / Math.Sqrt(2) : 1);
     }
 
     private static double NeighborVariation(byte[] pixels, int width, int height)

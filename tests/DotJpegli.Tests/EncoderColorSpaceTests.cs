@@ -607,15 +607,8 @@ public sealed class EncoderColorSpaceTests
         }
     }
 
-    private static double OracleDct(double[] samples, int u, int v)
-    {
-        double sum = 0;
-        for (int y = 0; y < 8; y++)
-            for (int x = 0; x < 8; x++)
-                sum += samples[y * 8 + x] * Math.Cos((2 * x + 1) * u * Math.PI / 16)
-                    * Math.Cos((2 * y + 1) * v * Math.PI / 16);
-        return sum / 4 * (u == 0 ? 1 / Math.Sqrt(2) : 1) * (v == 0 ? 1 / Math.Sqrt(2) : 1);
-    }
+    private static double OracleDct(double[] samples, int u, int v) =>
+        IndependentDct.Coefficient(samples, u, v);
 
     private static byte[] ExpectedRgbTable(float distance)
     {

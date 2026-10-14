@@ -102,7 +102,7 @@ public sealed class EncoderYCbCrTests
             for (int index = 0; index < 64; index++)
             {
                 int natural = Zigzag[index];
-                double coefficient = OracleDct(samples, natural % 8, natural / 8) / quantizer[index];
+                double coefficient = IndependentDct.Coefficient(samples, natural % 8, natural / 8) / quantizer[index];
                 // The color quantizer suppresses small AC values within its
                 // component dead zones (all below 0.591); the remaining values
                 // must round to the nearest integer, allowing float half ties.
@@ -431,16 +431,6 @@ public sealed class EncoderYCbCrTests
 
         double Raw(int column, int row) => Sample(pixels,
             (Math.Clamp(row, 0, height - 1) * width + Math.Clamp(column, 0, width - 1)) * 3 + key.Component - 1);
-    }
-
-    private static double OracleDct(double[] samples, int u, int v)
-    {
-        double sum = 0;
-        for (int y = 0; y < 8; y++)
-            for (int x = 0; x < 8; x++)
-                sum += samples[y * 8 + x] * Math.Cos((2 * x + 1) * u * Math.PI / 16)
-                    * Math.Cos((2 * y + 1) * v * Math.PI / 16);
-        return sum / 4 * (u == 0 ? 1 / Math.Sqrt(2) : 1) * (v == 0 ? 1 / Math.Sqrt(2) : 1);
     }
 
     private static byte[] Encode(Array pixels, int width, int height, JpegliEncoderOptions options, int stride = 0) =>

@@ -97,14 +97,8 @@ public sealed class SubsampledLumaTests
                 for (int zigzag = 1; zigzag < 64; zigzag++)
                 {
                     int natural = Zigzag[zigzag];
-                    int u = natural % 8, v = natural / 8;
-                    double sum = 0;
-                    for (int y = 0; y < 8; y++)
-                        for (int x = 0; x < 8; x++)
-                            sum += samples[y * 8 + x] * Math.Cos((2 * x + 1) * u * Math.PI / 16)
-                                * Math.Cos((2 * y + 1) * v * Math.PI / 16);
-                    double expected = sum * 0.25 * (u == 0 ? 1 / Math.Sqrt(2) : 1)
-                        * (v == 0 ? 1 / Math.Sqrt(2) : 1) / quantizer[zigzag];
+                    double expected = IndependentDct.Coefficient(samples, natural % 8, natural / 8)
+                        / quantizer[zigzag];
                     // Nonadaptive color AC may zero values below its 0.59082
                     // dead zone; other values round to the nearest integer.
                     Assert.InRange(Math.Abs(block.Coefficients[zigzag] - expected), 0, 0.601);

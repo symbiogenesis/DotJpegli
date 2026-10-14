@@ -33,6 +33,10 @@ remain local to each test; shared oracle data is read-only. Keep new tests free 
 shared mutable state, or explicitly disable parallel execution for tests that need it.
 For a serial diagnostic run, add `-parallelMode none` to a focused command.
 
+Independent cosine-DCT oracles cache their invariant cosine basis while retaining
+the direct double-precision sum and existing tolerances. The numerical and SIMD
+DCT tests also retain the literal cosine definition as a separate reference.
+
 See the [GitHub Actions workflow](../.github/workflows/ci.yml) for the hosted checks.
 
 ## Regression coverage

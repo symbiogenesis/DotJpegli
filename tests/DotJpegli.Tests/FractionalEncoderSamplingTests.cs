@@ -102,13 +102,7 @@ public sealed class FractionalEncoderSamplingTests
                 for (int index = 0; index < 64; index++)
                 {
                     int u = zigzag[index] % 8, v = zigzag[index] / 8;
-                    double sum = 0;
-                    for (int y = 0; y < 8; y++)
-                        for (int x = 0; x < 8; x++)
-                            sum += samples[y * 8 + x] * Math.Cos((2 * x + 1) * u * Math.PI / 16)
-                                * Math.Cos((2 * y + 1) * v * Math.PI / 16);
-                    double coefficient = 0.25 * sum * (u == 0 ? 1 / Math.Sqrt(2) : 1)
-                        * (v == 0 ? 1 / Math.Sqrt(2) : 1);
+                    double coefficient = IndependentDct.Coefficient(samples, u, v);
                     double quantized = coefficient / document.Quantizers[component.Quantizer][index];
                     if (index != 0 && Math.Abs(quantized) < zeroBias[key.Component - 1] - 0.001)
                         Assert.Equal(0, block.Coefficients[index]);

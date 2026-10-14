@@ -89,7 +89,7 @@ public sealed class EncoderOutOfRangeFloatTests
             for (int index = 0; index < 64; index++)
             {
                 int natural = Zigzag[index];
-                double expected = OracleDct(samples, natural % 8, natural / 8) / quantizer[index];
+                double expected = IndependentDct.Coefficient(samples, natural % 8, natural / 8) / quantizer[index];
                 double tolerance = index != 0 && block.Coefficients[index] == 0 ? 0.591 : 0.501;
                 Assert.True(Math.Abs(block.Coefficients[index] - expected) <= tolerance,
                     $"Component {key.Component}, block ({key.X},{key.Y}), coefficient {index}: " +
@@ -494,16 +494,6 @@ public sealed class EncoderOutOfRangeFloatTests
 
         double Raw(int x, int y) => Converted(pixels,
             (Math.Clamp(y, 0, height - 1) * width + Math.Clamp(x, 0, width - 1)) * Components(layout), layout, key.Component - 1);
-    }
-
-    private static double OracleDct(double[] samples, int u, int v)
-    {
-        double sum = 0;
-        for (int y = 0; y < 8; y++)
-            for (int x = 0; x < 8; x++)
-                sum += samples[y * 8 + x] * Math.Cos((2 * x + 1) * u * Math.PI / 16)
-                    * Math.Cos((2 * y + 1) * v * Math.PI / 16);
-        return sum / 4 * (u == 0 ? 1 / Math.Sqrt(2) : 1) * (v == 0 ? 1 / Math.Sqrt(2) : 1);
     }
 
     private static byte[] Encode(float[] pixels, int width, int height, PixelComponentLayout layout,
