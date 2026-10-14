@@ -1634,6 +1634,18 @@ MozJPEG and libjpeg-turbo in its tested conditions, rather than a universal
 
 ## Validation
 
+Custom-chromaticity validation compares 252 complete RGB/grayscale profiles
+with independently compiled unchanged pinned C++ fixtures across six named
+transfers, gamma 2.2 and all four intents. Cases include Adobe RGB, ACES AP0
+imaginary primaries, custom D50/D60/D65 whites, named-valued custom coordinates
+and scientific-notation descriptions. Independent primary-matrix and Bradford
+oracles check adapted colorants; parsing checks tag alignment, shared curves,
+source media white, omitted CICP/HDR LUTs and ICC identification. Encoding
+checks verify exact APP2 embedding and unchanged coding across representative
+source precisions, output color spaces, scan modes and nonseekable streams.
+These checks validate profiles and sample preservation without establishing
+a color-managed lossy JPEG quality comparison.
+
 Built-in combination regressions compare all 288 named RGB/grayscale profiles
 and 48 gamma-2.2 profiles across four intents with independently compiled pinned
 C++ fixtures. Independent parsing checks media white, Bradford adaptation,

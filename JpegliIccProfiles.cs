@@ -9,6 +9,8 @@ public static class JpegliIccProfiles
     /// primaries and a source white point.</summary>
     /// <remarks>
     /// RGB colorants are adapted to D50 with the pinned builder's Bradford transform.
+    /// Coordinates must be finite. White point X must be within 0..1 and Y within
+    /// (0,1]; finite imaginary primaries are supported when the matrix is representable.
     /// Assign the returned profile explicitly to JpegliEncoderOptions.IccProfile for
     /// RGB or corresponding YCbCr output already using these chromaticities and
     /// the selected transfer function. Attaching it preserves the source samples.
@@ -27,6 +29,8 @@ public static class JpegliIccProfiles
     /// source white point and the selected transfer function.</summary>
     /// <remarks>
     /// The profile retains the source media white and a D50 XYZ PCS header, without
+    /// adapting samples. White point X must be within 0..1 and Y within (0,1],
+    /// with finite coordinates and representable ICC media-white values. It has no
     /// chromatic-adaptation or CICP tags. PQ and HLG use 64-entry decoding curves
     /// with no tone mapping or HLG OOTF adjustment. Assign it explicitly to
     /// JpegliEncoderOptions.IccProfile for samples already using the selected encoding.
@@ -43,7 +47,9 @@ public static class JpegliIccProfiles
     /// <remarks>
     /// Gamma is the decoding exponent (linear = encoded^gamma), finite and within
     /// 1..8192. The profile uses a shared type-0 curve, D50-adapted colorants and no
-    /// CICP tag. Assign it explicitly to JpegliEncoderOptions.IccProfile for RGB or
+    /// CICP tag. Coordinates must be finite; white X is within 0..1 and Y within
+    /// (0,1]. Finite imaginary primaries are supported when the matrix is representable.
+    /// Assign it explicitly to JpegliEncoderOptions.IccProfile for RGB or
     /// corresponding YCbCr samples already using that encoding. Attaching it preserves
     /// samples. Every call returns a separate mutable array with deterministic bytes.
     /// </remarks>
@@ -58,7 +64,9 @@ public static class JpegliIccProfiles
     /// with a custom CIE xy source white point.</summary>
     /// <remarks>
     /// Gamma is the decoding exponent (linear = encoded^gamma), finite and within
-    /// 1..8192. The profile retains the source media white and a D50 XYZ PCS header
+    /// 1..8192. White point X must be within 0..1 and Y within (0,1], with finite
+    /// coordinates and representable ICC media-white values. The profile retains
+    /// the source media white and a D50 XYZ PCS header
     /// with a type-0 curve, without chromatic-adaptation or CICP tags. Assign it
     /// explicitly to JpegliEncoderOptions.IccProfile for samples already using that
     /// encoding. Attaching it preserves samples. Every call returns a separate mutable array.
