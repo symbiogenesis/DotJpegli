@@ -1,3 +1,4 @@
+using DotJpegli.Internal;
 using Xunit;
 
 namespace DotJpegli.Tests;
@@ -185,7 +186,7 @@ public sealed class EncoderParallelTests
         const int width = 37, height = 35;
         // A failure in the final source row catches validation/preflight paths
         // that process only the first row or leak an AggregateException.
-        foreach (float invalid in new[] { float.NaN, float.PositiveInfinity, float.MaxValue })
+        foreach (float invalid in new[] { float.NaN, float.PositiveInfinity, float.MaxValue, 1000f })
         {
             float[] pixels = (float[])Pattern(2, width, height, PixelComponentLayout.Gray);
             pixels[^1] = invalid;
@@ -204,6 +205,38 @@ public sealed class EncoderParallelTests
             new() { MaxDegreeOfParallelism = 3 }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(0xff, valid[^2]);
         Assert.Equal(0xd9, valid[^1]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PermittedOutOfRangeFloatSamplesPreserveBytesAfterCoefficientPreflight(bool progressive)
+    {
+        const int width = 37, height = 35;
+        float[] pixels = Enumerable.Range(0, width * height)
+            .Select(index => index % 3 == 0 ? -0.1f : index % 3 == 1 ? 1.1f : 0.4f).ToArray();
+        var options = new JpegliEncoderOptions
+        {
+            AllowOutOfRangeFloatSamples = true, AdaptiveQuantization = false,
+            Progressive = progressive, RestartRows = 1, Quality = 30
+        };
+        byte[] expected = Encode(pixels, width, height, PixelComponentLayout.Gray, options);
+        Assert.Equal(expected, Encode(pixels, width, height, PixelComponentLayout.Gray,
+            options with { MaxDegreeOfParallelism = 3 }));
+    }
+
+    [Fact]
+    public void WorkerComputationFailuresPreserveTheOriginalExceptionType()
+    {
+        // Public float preflight rejects these samples before scheduling. Use
+        // the internal row processor to exercise its worker-error boundary.
+        const int width = 37, height = 35;
+        float[] samples = Enumerable.Repeat(float.MaxValue, width * height * 3).ToArray();
+        var pixels = new PixelSource(samples, PixelComponentLayout.Rgb).WithColorSpace(JpegColorSpace.Xyb);
+        var rows = new ParallelDctRows(pixels, width, height, width * 3,
+            new(new(2, 2), new(2, 2), new(1, 1)), 0, 3, TestContext.Current.CancellationToken);
+        var error = Assert.Throws<ArgumentException>(() => rows.PrepareRow(0, TestContext.Current.CancellationToken));
+        Assert.Equal("pixels", error.ParamName);
     }
 
     [Fact]
