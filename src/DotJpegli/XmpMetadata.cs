@@ -19,6 +19,9 @@ public sealed class XmpMetadata
     private static readonly XName ExtendedLink = XName.Get("HasExtendedXMP", "http://ns.adobe.com/xmp/note/");
     private readonly XDocument document;
     private readonly XElement rdf;
+    // The XML tree is owned, and property edits cannot introduce digest links.
+    // This remains invariant instead of requiring a whole-tree scan on each edit.
+    private readonly bool hasExtendedLink;
 
     /// <summary>Creates an empty XMP packet with one empty-subject RDF description.</summary>
     public XmpMetadata()
@@ -29,10 +32,11 @@ public sealed class XmpMetadata
             new XAttribute(XNamespace.Xmlns + "x", Meta.NamespaceName), rdf));
     }
 
-    private XmpMetadata(XDocument document, XElement rdf)
+    private XmpMetadata(XDocument document, XElement rdf, bool hasExtendedLink)
     {
         this.document = document;
         this.rdf = rdf;
+        this.hasExtendedLink = hasExtendedLink;
     }
 
     /// <summary>Parses an XMP XML envelope without resolving external entities or allowing DTDs.</summary>
@@ -66,10 +70,14 @@ public sealed class XmpMetadata
                     HasText(description))
                     throw new ArgumentException(message, nameof(packet));
             }
-            if (root!.DescendantsAndSelf().SelectMany(element => element.Nodes())
-                .OfType<XProcessingInstruction>().Any(instruction => instruction.Target == "xpacket"))
-                throw new ArgumentException("XMP packet instructions must be outside the XML root.", nameof(packet));
-            return new(parsed, parsedRdf);
+            bool hasExtendedLink = false;
+            foreach (XElement element in root!.DescendantsAndSelf())
+            {
+                hasExtendedLink |= element.Name == ExtendedLink || element.Attribute(ExtendedLink) is not null;
+                if (element.Nodes().OfType<XProcessingInstruction>().Any(instruction => instruction.Target == "xpacket"))
+                    throw new ArgumentException("XMP packet instructions must be outside the XML root.", nameof(packet));
+            }
+            return new(parsed, parsedRdf, hasExtendedLink);
         }
         catch (XmlException error)
         {
@@ -82,15 +90,20 @@ public sealed class XmpMetadata
 
     /// <summary>Gets the first property as an owned XML copy, or null if absent.</summary>
     /// <remarks>Attribute-form properties are returned as equivalent literal elements. Inherited XML context is copied.</remarks>
-    public XElement? GetProperty(XmpPropertyName name)
+    public XElement? GetProperty(XmpPropertyName name) => FindProperty(name, copy: true);
+
+    private XElement? FindProperty(XmpPropertyName name, bool copy)
     {
         XName xmlName = PropertyName(name);
         foreach (XElement description in rdf.Elements())
         {
             if (description.Attribute(xmlName) is { } attribute)
-                return CopyContext(description, new XElement(xmlName, attribute.Value));
+            {
+                var literal = new XElement(xmlName, attribute.Value);
+                return copy ? CopyContext(description, literal) : literal;
+            }
             if (description.Element(xmlName) is { } element)
-                return CopyContext(element, new XElement(element));
+                return copy ? CopyContext(element, new XElement(element)) : element;
         }
         return null;
     }
@@ -104,7 +117,7 @@ public sealed class XmpMetadata
         if (value.Name != xmlName)
             throw new ArgumentException("The XML element name must match the property name.", nameof(value));
         XElement copy = CopyContext(value, new XElement(value));
-        if (copy.DescendantsAndSelf().Any(element => element.Name == ExtendedLink || element.Attribute(ExtendedLink) is not null) ||
+        if (HasExtendedLink(copy) ||
             copy.DescendantNodes().OfType<XProcessingInstruction>().Any(instruction => instruction.Target == "xpacket"))
             throw new ArgumentException("Properties cannot introduce extended-XMP links or packet instructions.", nameof(value));
         try
@@ -126,7 +139,7 @@ public sealed class XmpMetadata
     /// <exception cref="InvalidOperationException">The property is a structured or URI value.</exception>
     public string? GetSimpleProperty(XmpPropertyName name)
     {
-        XElement? property = GetProperty(name);
+        XElement? property = FindProperty(name, copy: false);
         if (property is null)
             return null;
         return LiteralValue(property);
@@ -144,7 +157,7 @@ public sealed class XmpMetadata
     public string? GetLocalizedText(XmpPropertyName name, string language)
     {
         ValidateLanguage(language);
-        XElement? property = GetProperty(name);
+        XElement? property = FindProperty(name, copy: false);
         if (property is null)
             return null;
         XElement alternative = Alternative(property);
@@ -181,7 +194,7 @@ public sealed class XmpMetadata
     /// <exception cref="InvalidOperationException">The property is not an array of literal strings.</exception>
     public IReadOnlyList<string> GetStringArray(XmpPropertyName name)
     {
-        XElement? property = GetProperty(name);
+        XElement? property = FindProperty(name, copy: false);
         if (property is null)
             return Array.Empty<string>();
         XElement? container = property.Elements().SingleOrDefault();
@@ -234,9 +247,12 @@ public sealed class XmpMetadata
 
     private void EnsureEditable()
     {
-        if (document.Root!.DescendantsAndSelf().Any(element => element.Name == ExtendedLink || element.Attribute(ExtendedLink) is not null))
+        if (hasExtendedLink)
             throw new InvalidOperationException("Combine standard and extended XMP, remove the digest link, and repartition before editing.");
     }
+
+    private static bool HasExtendedLink(XElement root) => root.DescendantsAndSelf()
+        .Any(element => element.Name == ExtendedLink || element.Attribute(ExtendedLink) is not null);
 
     private static XName PropertyName(XmpPropertyName name)
     {
