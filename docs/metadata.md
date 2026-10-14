@@ -701,7 +701,8 @@ Payloads are not interpreted or reconciled with built-in metadata. The caller
 must ensure valid structures and consistent values. In particular, recognized
 JFIF, Adobe or ICC signatures can change a reader's interpretation of the JPEG;
 adding them does not change the encoder's color-space or sampling settings.
-Structured metadata editing remains pending.
+Use the [structured editors and reconciliation helper](#structured-editing-and-reconciliation)
+to interpret and update supported metadata before assigning the built-in fields.
 
 ## JFIF density
 
