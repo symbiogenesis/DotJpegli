@@ -66,11 +66,12 @@ public sealed class ExtendedEncoderSamplingTests
             JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
             AssertSampling(reference, width, height, horizontal, vertical);
             AssertDummyDcContinuity(reference, horizontal, vertical, interval: 0, refinementBits: 0);
+            byte[] baselinePixels = ImageResult.FromMemory(baseline, ColorComponents.RedGreenBlue).Data;
 
             byte[] alternate = Encode(pixels, width, height, PixelLayout.Rgb24,
                 options with { OptimizeHuffmanTables = !optimize });
             JpegDocument alternateDocument = JpegDocument.Read(alternate, progressive: false, expectedInterval: 0);
-            AssertParity(baseline, reference, alternate, alternateDocument);
+            AssertParity(baseline, reference, alternate, alternateDocument, baselinePixels);
             AssertDummyDcContinuity(alternateDocument, horizontal, vertical, interval: 0, refinementBits: 0);
 
             foreach ((bool progressive, int refinement, int interval) in new[]
@@ -87,7 +88,7 @@ public sealed class ExtendedEncoderSamplingTests
                 // restart count/cycle, reset predictors and entropy padding.
                 JpegDocument actual = JpegDocument.Read(jpeg, progressive, interval, refinement);
                 AssertSampling(actual, width, height, horizontal, vertical);
-                AssertParity(baseline, reference, jpeg, actual);
+                AssertParity(baseline, reference, jpeg, actual, baselinePixels);
                 AssertDummyDcContinuity(actual, horizontal, vertical, interval, refinement);
             }
         }
@@ -287,7 +288,8 @@ public sealed class ExtendedEncoderSamplingTests
         Assert.DoesNotContain(document.Blocks, pair => pair.Key.Component != 1 && pair.Value.IsDummy);
     }
 
-    private static void AssertParity(byte[] baseline, JpegDocument reference, byte[] jpeg, JpegDocument actual)
+    private static void AssertParity(byte[] baseline, JpegDocument reference, byte[] jpeg, JpegDocument actual,
+        byte[]? baselinePixels = null)
     {
         Assert.Equal(reference.Width, actual.Width);
         Assert.Equal(reference.Height, actual.Height);
@@ -304,7 +306,7 @@ public sealed class ExtendedEncoderSamplingTests
         ImageResult decoded = ImageResult.FromMemory(jpeg, ColorComponents.RedGreenBlue);
         Assert.Equal(reference.Width, decoded.Width);
         Assert.Equal(reference.Height, decoded.Height);
-        Assert.Equal(ImageResult.FromMemory(baseline, ColorComponents.RedGreenBlue).Data, decoded.Data);
+        Assert.Equal(baselinePixels ?? ImageResult.FromMemory(baseline, ColorComponents.RedGreenBlue).Data, decoded.Data);
     }
 
     private static void AssertDummyDcContinuity(JpegDocument document, int horizontal, int vertical,

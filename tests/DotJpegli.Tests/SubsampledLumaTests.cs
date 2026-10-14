@@ -1,3 +1,4 @@
+using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
 
@@ -40,6 +41,7 @@ public sealed class SubsampledLumaTests
                 byte[] baseline = Encode(pixels, width, height, PixelLayout.Rgb24, options);
                 JpegDocument reference = Read(baseline, options);
                 AssertSamplingAndDummyDc(reference, sampling, interval: 0, refinement: 0);
+                byte[] baselinePixels = ImageResult.FromMemory(baseline, ColorComponents.RedGreenBlue).Data;
                 foreach ((bool progressive, int refinement, int interval) in new[]
                 {
                     (false, 0, 2), (true, 0, 1), (true, 2, 7), (true, 10, 2)
@@ -54,7 +56,7 @@ public sealed class SubsampledLumaTests
                     JpegDocument actual = Read(jpeg, actualOptions);
                     // This reader independently checks scan unit counts, every
                     // restart marker (including RST7 wraparound), and entropy padding.
-                    AssertBaselineParity(baseline, reference, jpeg, actual, PixelLayout.Rgb24);
+                    AssertBaselineParity(baseline, reference, jpeg, actual, PixelLayout.Rgb24, baselinePixels);
                     AssertSamplingAndDummyDc(actual, sampling, interval, refinement);
                 }
             }

@@ -274,7 +274,7 @@ public sealed class EncoderProgressiveTests
             cancellationToken: TestContext.Current.CancellationToken);
 
     internal static void AssertBaselineParity(byte[] baseline, JpegDocument reference,
-        byte[] progressive, JpegDocument actual, PixelLayout layout)
+        byte[] progressive, JpegDocument actual, PixelLayout layout, byte[]? baselinePixels = null)
     {
         Assert.Equal(reference.Width, actual.Width);
         Assert.Equal(reference.Height, actual.Height);
@@ -285,7 +285,7 @@ public sealed class EncoderProgressiveTests
         foreach ((BlockKey key, Block block) in reference.Blocks.Where(pair => !pair.Value.IsDummy))
             Assert.Equal(block.Coefficients, actual.Blocks[key].Coefficients);
         ColorComponents channels = layout == PixelLayout.Gray8 ? ColorComponents.Grey : ColorComponents.RedGreenBlue;
-        Assert.Equal(ImageResult.FromMemory(baseline, channels).Data,
+        Assert.Equal(baselinePixels ?? ImageResult.FromMemory(baseline, channels).Data,
             ImageResult.FromMemory(progressive, channels).Data);
     }
 
