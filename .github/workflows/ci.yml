@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      compare-parallel-modes:
+        description: Run an additional collection-mode suite on the same runner
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -35,6 +40,9 @@ jobs:
               Select-Object -First 20 |
               ForEach-Object { '{0}s {1}' -f $_.time, $_.name }
           }
+      - name: Collection parallelism comparison (CI only)
+        if: inputs.compare-parallel-modes
+        run: dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -parallelMode collections
       - name: Managed SIMD fallback and software vector parity
         env:
           DOTNET_EnableHWIntrinsic: '0'
