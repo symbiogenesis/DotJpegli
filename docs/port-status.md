@@ -40,7 +40,7 @@ for source attribution.
 | Progressive coding | Implemented | Spectral selection and successive approximation, including DC/AC refinement with bounded correction-bit storage. |
 | Progression presets | Implemented | Upstream level-0/1/2 scan presets with sampling-based DC interleaving. |
 | Caller-supplied scan scripts | Implemented | Component subsets, spectral schedules, changing refinement bands and DC groups, with progression validation and per-scan restart geometry. |
-| Huffman coding | Implemented | Optimized, length-limited canonical tables; progressive initial/refinement EOB-run aggregation. |
+| Huffman coding | Implemented | Optimized, length-limited canonical tables; upstream cost-based histogram clustering and per-scan table redefinitions for grayscale/YCbCr; progressive initial/refinement EOB-run aggregation. |
 | Bitstream and marker output | Implemented | Bit packing, byte stuffing, entropy padding and JPEG marker framing. |
 | Restart markers | Implemented | Fixed MCU and row-based intervals, per-scan DRI updates, cycling RST markers and DC predictor resets during coding and Huffman optimization. |
 | Input and output color spaces | Implemented | RGB/BGR, alpha-bearing, grayscale and interleaved full-range YCbCr layouts; grayscale, YCbCr and explicit RGB output. |
@@ -79,7 +79,7 @@ work below remains outstanding.
 | Validation area | Current status |
 | --- | --- |
 | Encoder functionality and output compatibility | Focused regressions check coefficients, marker framing, independent decoding, stream behavior and validation. Optional modes retain the reader requirements in the API guides. |
-| Quality and compression parity | Not established. A matched-corpus comparison with the pinned upstream encoder remains necessary. |
+| Quality and compression parity | A [matched-corpus CI gate](quality-compression-parity.md) compares the pinned upstream encoder with fixed per-case and aggregate size/quality bounds. Establishment requires a passing hosted result for the tested scope; measured evidence is recorded in that guide. |
 | Performance parity | Not established. Parallel execution is available; speed claims require CI performance measurements. |
 
 Output remains **lossy eight-bit JPEG**, including at quality 100. Jpegli's quality

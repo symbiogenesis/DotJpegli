@@ -96,7 +96,7 @@ component blocks in raster order, and omits wholly padded MCU blocks. Each block
 counts as one MCU for restarts; row-based intervals use that component's real
 block columns. DC predictors reset at each scan and restart; RST numbering starts
 at RST0 in each scan and advances modulo eight.
-The output retains its sequential frame (SOF0 by default, SOF1 for wide quantizers), quantization tables, final
+The output retains its sequential frame (SOF0 by default, SOF1 for wide quantizers or extended Huffman selectors), quantization tables, final
 coefficients and decoded samples. Color encoding needs additional passes but
 retains bounded working storage. JPEG reader support can vary.
 
@@ -332,6 +332,15 @@ parity with upstream. Working storage remains bounded, and existing typed-input,
 stream, cancellation, smoothing and adaptive-quantization behavior applies.
 
 ## Huffman optimization
+
+Grayscale and YCbCr output use the pinned upstream's greedy histogram clustering:
+component DC histograms and per-scan/component AC histograms merge when combined
+entropy and table-definition cost is lower. Baseline output uses at most two
+tables of each class; progressive coding can replace four AC slots between scans.
+Definitions share DHT markers, and each scan selects its actual active tables.
+This changes optimized JPEG bytes while preserving quantized coefficients and
+decoded pixels. Explicit RGB/XYB output retains shared-table behavior; disabling
+optimization retains the standard tables.
 
 With `OptimizeHuffmanTables = true` (the default), progressive initial and refinement
 AC scans combine consecutive block endings into end-of-block (EOB) runs,

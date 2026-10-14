@@ -64,11 +64,12 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>
     /// Limit generated and caller-supplied quantizers to baseline JPEG's 1..255 range.
-    /// True (the default) preserves existing bytes. False permits values from 1 to
+    /// True (the default) also limits sequential Huffman selectors to baseline slots. False permits values from 1 to
     /// 32767, following Jpegli's nonbaseline mode. Each table containing a value above
     /// 255 uses 16-bit DQT entries; sequential output then uses extended sequential
     /// SOF1 instead of baseline SOF0. Progressive output retains SOF2. Tables whose
-    /// values all fit in eight bits still use eight-bit DQT entries and allow SOF0.
+    /// values all fit in eight bits still use eight-bit DQT entries. Sequential
+    /// optimization can also require SOF1 when Huffman selectors use slots 2 or 3.
     /// Adaptive YCbCr thresholds infer distance using the selected saturation limit.
     /// Output sample precision remains eight bits; this does not enable lossless or
     /// 12-bit JPEG. Reader support for extended sequential JPEG varies.
@@ -328,6 +329,8 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>
     /// Collect symbol frequencies before writing scans to reduce entropy-coded size.
+    /// Grayscale and YCbCr cluster component DC and per-scan AC histograms using
+    /// upstream coding/table cost, with per-scan table selectors and redefinitions.
     /// Progressive initial and refinement AC scans also aggregate end-of-block runs
     /// when enabled, using bounded correction-bit storage for refinement scans.
     /// </summary>

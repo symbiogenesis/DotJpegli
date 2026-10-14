@@ -72,8 +72,10 @@ dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -class DotJp
 ```
 
 The second command is a focused local selection. Full suites run only in the
-GitHub Actions workflow, on Windows and Linux; benchmarks also belong on CI and
-none are included yet. Do not batch local selections to approximate a full suite.
+GitHub Actions workflow, on Windows and Linux; benchmarks also belong on CI.
+The separate Ubuntu [quality/compression comparison](quality-compression-parity.md)
+measures the hash-pinned corpus against the pinned native encoder and retains
+its evidence. Do not batch local selections to approximate a full suite.
 Tests use xUnit and a separate StbImageSharp decoder; these packages are test-only
 and are not part of the encoder or its package dependency graph.
 The external decoder validates encoder output and is not a port target.
@@ -267,9 +269,10 @@ C++ scalar fixtures from the pinned source, including edge padding and saturated
 quantization tables. These sampled numerical checks do not establish full encoder
 parity. Sampling regressions retain independent scalar C++ fixtures for pairwise
 averaging and odd edge padding, and entropy parsing checks dummy-block tokens and
-DC predictor continuity. Future parity work should encode the same corpus with this pinned C++ revision and
-compare decoded quality at matched sizes. Execute performance benchmarks only
-on CI.
+DC predictor continuity. The [quality/compression gate](quality-compression-parity.md)
+encodes the same hash-pinned corpus with this pinned C++ revision and compares
+decoded quality at matched sizes and bytes at matched quality. Execute corpus
+measurements and performance benchmarks only on CI.
 
 Direct-distance regressions check the public quality mapping, precedence and
 validation before output, plus JPEG byte compatibility at equivalent quality

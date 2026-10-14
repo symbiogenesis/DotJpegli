@@ -40,7 +40,7 @@ public sealed class EncoderColorSpaceTests
             Quality = 90, Subsampling = ChromaSubsampling.Quarter,
             AdaptiveQuantization = false, OptimizeHuffmanTables = true
         }, cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal("BB2477D064A9283CC7BA94332553685F0F18D846F1B13BF80B44E3D85A17704F",
+        Assert.Equal("145458B6A9AAF6FD5EBF4A4AACF66C7EC8F9E528E2E2A8B97D733E715DE4812F",
             Convert.ToHexString(SHA256.HashData(jpeg)));
     }
 

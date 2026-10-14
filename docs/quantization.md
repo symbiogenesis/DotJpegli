@@ -93,11 +93,13 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 Each table uses eight-bit DQT entries when all its values are at most 255;
 otherwise its 64 entries are unsigned 16-bit values in network byte order.
 Tables with different precisions can share one DQT marker. Sequential output
-uses extended sequential SOF1 when any table needs 16 bits, and otherwise
-retains baseline SOF0. Progressive output always retains SOF2. Separate
+uses extended sequential SOF1 when any table needs 16 bits or optimized Huffman
+selectors use slots 2 or 3, and otherwise retains baseline SOF0. Progressive
+output always retains SOF2. Separate
 component scans and caller-supplied scan scripts follow the same frame rule.
 
-`ForceBaseline` defaults to `true` and preserves existing JPEG bytes. The opt-in
+`ForceBaseline` defaults to `true`, limiting quantizers to eight bits and
+sequential Huffman selectors to slots 0 and 1. The opt-in
 range applies to perceptual YCbCr/grayscale and XYB matrices and standard
 matrices, including RGB's shared standard luma table. Adaptive YCbCr distance
 inference treats 32767 as its saturated upper endpoint when the option is false;

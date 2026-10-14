@@ -22,7 +22,7 @@ public sealed class EncoderExtendedXmpTests
     public void DefaultAndEmptyExtensionPreserveExistingBytesAndStandardXmp()
     {
         byte[] reference = Encode(new());
-        Assert.Equal("A3C09B17325C4F1EDC2FC43141855B604E5AB4ADAD24D3B9E78AE400D3CD3A28",
+        Assert.Equal("42F2E14F627342F0603E9BA08653777959192031987F82F32BFB9664F0EC7DD6",
             Convert.ToHexString(SHA256.HashData(reference)));
         Assert.Equal(reference, Encode(new() { ExtendedXmpPacket = null }));
         Assert.Equal(reference, Encode(new() { ExtendedXmpPacket = "", XmpPacket = "" }));

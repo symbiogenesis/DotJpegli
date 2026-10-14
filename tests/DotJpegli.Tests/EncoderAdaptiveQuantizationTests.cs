@@ -34,13 +34,14 @@ public sealed class EncoderAdaptiveQuantizationTests
 
     [Theory]
     [InlineData(16, 16, false, "67E1DBDFF268E67A5F6D0655C3B909011B7FE1200D0B8B33EB2BD6107D0746C7")]
-    [InlineData(16, 16, true, "B0E45210E44251D9292308A92AB01F505A6F63EC5438206ACE4C87C2E9E8A4B6")]
+    [InlineData(16, 16, true, "2BC187175F20DF01F49200BA32515280973B796D372641749C464B050790F7F2")]
     [InlineData(19, 17, false, "202FD903163EC382260EDF412DA6A385522E7A18C84009B5ACF851FEF024B34A")]
-    [InlineData(19, 17, true, "BB2477D064A9283CC7BA94332553685F0F18D846F1B13BF80B44E3D85A17704F")]
+    [InlineData(19, 17, true, "145458B6A9AAF6FD5EBF4A4AACF66C7EC8F9E528E2E2A8B97D733E715DE4812F")]
     public void UniformQuantizationOutputRemainsStable(int width, int height, bool optimize, string expectedHash)
     {
-        // Aligned fixtures match revision d6554af. Partial MCU fixtures reflect
-        // upstream streaming dummy-block coding, checked independently in EncoderSamplingTests.
+        // Standard-table fixtures retain d6554af; optimized entropy hashes were
+        // recaptured after clustering at 28184c1. Streaming dummy-block coding
+        // is checked independently in EncoderSamplingTests.
         byte[] jpeg = JpegliEncoder.Encode(TestImages.Gradient(width, height), width, height, options: new()
         {
             Quality = 90, Subsampling = ChromaSubsampling.Quarter,
