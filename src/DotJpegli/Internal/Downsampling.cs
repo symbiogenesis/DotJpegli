@@ -1,9 +1,11 @@
 // Copyright (c) the JPEG XL Project Authors.
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
 
+using System.Numerics;
+
 namespace DotJpegli.Internal;
 
-// Scalar adaptation of the horizontal 2/3/4 and vertical 2/3/4 downsampling
+// Managed adaptation of the horizontal 2/3/4 and vertical 2/3/4 downsampling
 // methods and ApplyInputSmoothing in
 // google/jpegli lib/jpegli/downsample.cc, and PadInputBuffer in encode.cc,
 // revision 031a0077f5799a6041004267fc12b956c1f52a20.
@@ -21,6 +23,88 @@ internal static class Downsampling
             sampleWidth, sampleHeight, samples, smoothingFactor);
 
     internal static void FillBlock(PixelSource pixels, int width, int height, int stride,
+        int component, int left, int top, int sampleWidth, int sampleHeight,
+        Span<float> samples, int smoothingFactor = 0)
+    {
+        if (Vector.IsHardwareAccelerated && CanUseVector && smoothingFactor == 0)
+            FillBlockVector(pixels, width, height, stride, component, left, top, sampleWidth, sampleHeight, samples);
+        else
+            FillBlockScalar(pixels, width, height, stride, component, left, top, sampleWidth, sampleHeight, samples, smoothingFactor);
+    }
+
+    // Explicit paths make operation ordering and fallback behavior testable.
+    internal static void FillBlockVector(PixelSource pixels, int width, int height, int stride,
+        int component, int left, int top, int sampleWidth, int sampleHeight,
+        Span<float> samples, int smoothingFactor = 0)
+    {
+        if (!CanUseVector || smoothingFactor != 0 || sampleWidth is < 1 or > 4 || sampleHeight is < 1 or > 4)
+        {
+            FillBlockScalar(pixels, width, height, stride, component, left, top, sampleWidth, sampleHeight, samples, smoothingFactor);
+            return;
+        }
+
+        Span<float> rawRow = stackalloc float[32];
+        // Each consecutive eight-sample group supplies one horizontal term
+        // for all output columns. At most four terms in each of four rows.
+        Span<float> terms = stackalloc float[128];
+        int lanes = Vector<float>.Count;
+        bool quarter = sampleWidth == 2 && sampleHeight == 2;
+        var center = new Vector<float>(128f);
+        for (int row = 0; row < 8; row++)
+        {
+            for (int dy = 0; dy < sampleHeight; dy++)
+            {
+                pixels.ReadRowVector(width, height, stride, component, left, top + row * sampleHeight + dy,
+                    rawRow[..(8 * sampleWidth)]);
+                for (int dx = 0; dx < sampleWidth; dx++)
+                    for (int column = 0; column < 8; column++)
+                        terms[(dy * sampleWidth + dx) * 8 + column] = rawRow[column * sampleWidth + dx];
+            }
+
+            for (int column = 0; column < 8; column += lanes)
+            {
+                Vector<float> first = AverageRowVector(terms, 0, column, sampleWidth, quarter);
+                Vector<float> sample = first;
+                if (sampleHeight != 1)
+                {
+                    Vector<float> second = AverageRowVector(terms, 1, column, sampleWidth, quarter);
+                    if (sampleHeight == 2)
+                        sample = (first + second) * new Vector<float>(quarter ? 0.25f : 0.5f);
+                    else
+                    {
+                        Vector<float> third = AverageRowVector(terms, 2, column, sampleWidth, quarter);
+                        sample = sampleHeight == 3
+                            ? ((first + second) + third) * new Vector<float>(1f / 3f)
+                            : ((first + second) + (third + AverageRowVector(terms, 3, column, sampleWidth, quarter)))
+                                * new Vector<float>(0.25f);
+                    }
+                }
+                (sample - center).CopyTo(samples.Slice(row * 8 + column, lanes));
+            }
+        }
+    }
+
+    private static bool CanUseVector => Vector<float>.Count <= 8 && 8 % Vector<float>.Count == 0;
+
+    private static Vector<float> AverageRowVector(ReadOnlySpan<float> terms, int row, int column,
+        int sampleWidth, bool quarter)
+    {
+        int start = row * sampleWidth * 8 + column;
+        int lanes = Vector<float>.Count;
+        Vector<float> first = new(terms.Slice(start, lanes));
+        if (sampleWidth == 1)
+            return first;
+        Vector<float> second = new(terms.Slice(start + 8, lanes));
+        if (sampleWidth == 2)
+            return quarter ? first + second : (first + second) * new Vector<float>(0.5f);
+        Vector<float> third = new(terms.Slice(start + 16, lanes));
+        if (sampleWidth == 3)
+            return ((first + second) + third) * new Vector<float>(1f / 3f);
+        Vector<float> fourth = new(terms.Slice(start + 24, lanes));
+        return ((first + second) + (third + fourth)) * new Vector<float>(0.25f);
+    }
+
+    internal static void FillBlockScalar(PixelSource pixels, int width, int height, int stride,
         int component, int left, int top, int sampleWidth, int sampleHeight,
         Span<float> samples, int smoothingFactor = 0)
     {

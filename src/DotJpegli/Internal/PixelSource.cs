@@ -1,6 +1,8 @@
 // Copyright (c) the JPEG XL Project Authors.
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
 
+using System.Numerics;
+
 namespace DotJpegli.Internal;
 
 /// <summary>Reads interleaved source samples in fractional JPEG units without a converted image buffer.</summary>
@@ -160,6 +162,58 @@ internal readonly ref struct PixelSource
         float b = ReadComponent(offset + (bgr ? 0 : 2));
         ColorConversion.RgbToYCbCr(r, g, b, out float y, out float cb, out float cr);
         return component switch { 0 => y, 1 => cb, _ => cr };
+    }
+
+    // Read only a bounded source row, including replicated edge pixels.
+    // Gathering preserves ushort's double normalization, float scaling,
+    // BGR component order and the omission of alpha/padding components.
+    internal void ReadRowScalar(int width, int height, int stride, int component,
+        int x, int y, Span<float> samples)
+    {
+        int rowStart = Math.Clamp(y, 0, height - 1) * stride;
+        for (int column = 0; column < samples.Length; column++)
+        {
+            int offset = rowStart + Math.Clamp(x + column, 0, width - 1) * ComponentsPerPixel;
+            samples[column] = ReadSample(offset, component);
+        }
+    }
+
+    internal void ReadRowVector(int width, int height, int stride, int component,
+        int x, int y, Span<float> samples)
+    {
+        int lanes = Vector<float>.Count;
+        // Nonlinear XYB and null transforms retain their existing scalar
+        // semantics. Bound scratch space even if a future runtime has wider vectors.
+        if (IsXyb || IsGrayscaleInput || ycbcr || IsRgb || lanes > 8 || samples.Length < lanes)
+        {
+            ReadRowScalar(width, height, stride, component, x, y, samples);
+            return;
+        }
+
+        Span<float> gathered = stackalloc float[24];
+        Span<float> red = gathered[..lanes];
+        Span<float> green = gathered.Slice(lanes, lanes);
+        Span<float> blue = gathered.Slice(2 * lanes, lanes);
+        int rowStart = Math.Clamp(y, 0, height - 1) * stride;
+        int column = 0;
+        for (; column <= samples.Length - lanes; column += lanes)
+        {
+            for (int lane = 0; lane < lanes; lane++)
+            {
+                int offset = rowStart + Math.Clamp(x + column + lane, 0, width - 1) * ComponentsPerPixel;
+                red[lane] = ReadComponent(offset + (bgr ? 2 : 0));
+                green[lane] = ReadComponent(offset + 1);
+                blue[lane] = ReadComponent(offset + (bgr ? 0 : 2));
+            }
+            ColorConversion.RgbToYCbCr(new Vector<float>(red), new Vector<float>(green), new Vector<float>(blue),
+                out Vector<float> luma, out Vector<float> cb, out Vector<float> cr);
+            Vector<float> converted = component switch { 0 => luma, 1 => cb, _ => cr };
+            converted.CopyTo(samples.Slice(column, lanes));
+        }
+
+        // A row can end between vector boundaries, without reading source padding.
+        if (column != samples.Length)
+            ReadRowScalar(width, height, stride, component, x + column, y, samples[column..]);
     }
 
     private float ReadComponent(int offset) => sourceType switch
