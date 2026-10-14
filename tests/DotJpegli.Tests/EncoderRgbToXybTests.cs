@@ -366,6 +366,8 @@ public sealed class EncoderRgbToXybTests
             Assert.Equal(block.IsDummy, other.IsDummy);
             if (block.IsDummy)
                 Assert.All(other.Coefficients[1..], coefficient => Assert.Equal(0, coefficient));
+            else if (tolerance == 0)
+                Assert.Equal(block.Coefficients, other.Coefficients);
             else
                 for (int frequency = 0; frequency < 64; frequency++)
                     Assert.InRange(Math.Abs(block.Coefficients[frequency] - other.Coefficients[frequency]), 0, tolerance);
