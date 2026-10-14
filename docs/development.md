@@ -37,6 +37,10 @@ Independent cosine-DCT oracles cache their invariant cosine basis while retainin
 the direct double-precision sum and existing tolerances. The numerical and SIMD
 DCT tests also retain the literal cosine definition as a separate reference.
 
+CI actions are pinned to full commit hashes with release-version comments.
+Dependabot checks those pins weekly; review the referenced releases when updating
+them. Both hosted operating systems run even if the other lane fails.
+
 The independent JPEG reader extracts entropy prefixes and magnitudes in byte
 groups. Canonical Huffman decoding, segment bounds, restart markers and padding
 checks remain part of the oracle.
