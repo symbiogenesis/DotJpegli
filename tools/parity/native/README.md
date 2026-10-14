@@ -55,8 +55,8 @@ one reported sample is the sum of per-encode `steady_clock` intervals divided
 by `ITERATIONS`, rather than wall time around validation between iterations.
 
 At least five warmups and positive iteration/repeat counts are required. The
-matched performance runner calibrates each implementation's iteration count,
-then collects seven independent blocks in alternating implementation order.
+matched performance runner calibrates a common iteration count from the native
+encoder, then collects seven independent blocks in alternating encoder order.
 The command prints one JSON object with the upstream pin, settings, dimensions,
 counts, JPEG size, compiler/platform description and `samplesNsPerEncode`.
 `deterministic` is emitted only after every warmup and timed output matches.

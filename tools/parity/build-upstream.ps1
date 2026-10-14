@@ -88,6 +88,7 @@ try {
         executableSha256 = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash.ToLowerInvariant()
         encode = 'RGB uint8 -> YCbCr; force_baseline=true; explicit 444/420, distance, progressive level, optimized Huffman and AQ; no smoothing/restarts; JFIF 1.01 1x1 aspect'
         decode = 'same pinned jpegli decoder for both streams; full-size RGB uint8; JDCT_ISLOW; fancy upsampling; no ICC transform'
+        benchmark = 'same encode settings with AQ and optimized Huffman; fresh jpegli_mem_dest lifecycle through destroy; sum per-encode steady_clock intervals; process/file IO, warmups, verification and returned-buffer free excluded'
     } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $BuildDirectory 'provenance.json') -Encoding utf8
     Write-Output "Native parity reference: $executable"
 } finally {

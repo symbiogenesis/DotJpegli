@@ -11,5 +11,6 @@ Start with the [project overview](../README.md) for setup and a minimal encoding
 | [Encoder port status](port-status.md) | Scope, upstream source, implemented features, pending work and parity limitations. |
 | [Development and validation](development.md) | Local builds, focused tests, CI policy and regression coverage. |
 | [Quality and compression parity](quality-compression-parity.md) | Pinned matched-corpus comparison, metrics, acceptance bounds and hosted evidence. |
+| [Performance parity](performance-parity.md) | Matched in-memory encoding latency, fixed acceptance bounds and hosted evidence. |
 
 [upstream.json](upstream.json) records the pinned upstream revision and implementation notes.

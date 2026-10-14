@@ -75,7 +75,11 @@ The second command is a focused local selection. Full suites run only in the
 GitHub Actions workflow, on Windows and Linux; benchmarks also belong on CI.
 The separate Ubuntu [quality/compression comparison](quality-compression-parity.md)
 measures the hash-pinned corpus against the pinned native encoder and retains
-its evidence. Do not batch local selections to approximate a full suite.
+its evidence. The same job then measures [performance parity](performance-parity.md)
+on the same pinned inputs and native build. Both comparisons retain their evidence
+and enforce fixed acceptance bounds. The performance runner's local `--self-test`
+checks synthetic statistics and policy without measuring encoding time.
+Do not batch local selections to approximate a full suite.
 Tests use xUnit and a separate StbImageSharp decoder; these packages are test-only
 and are not part of the encoder or its package dependency graph.
 The external decoder validates encoder output and is not a port target.

@@ -51,7 +51,7 @@ jobs:
 
   quality-compression-parity:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -79,6 +79,30 @@ jobs:
           name: quality-compression-parity-${{ github.sha }}
           path: |
             ${{ runner.temp }}/parity-evidence/
+            ${{ runner.temp }}/parity-native/provenance.json
+            ${{ runner.temp }}/parity-corpus/corpus.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Restore and build performance comparison
+        run: |
+          dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
+          dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-restore
+      - name: Verify performance statistics and acceptance policy
+        run: dotnet run --project tools/DotJpegli.Performance -c Release --no-build -- --self-test
+      - name: Compare steady-state encoding latency (CI only)
+        env:
+          DOTJPEGLI_PERFORMANCE_REVISION: ${{ github.sha }}
+          DOTNET_TieredCompilation: '0'
+        run: |
+          cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
+          taskset -c "$cpu" dotnet run --project tools/DotJpegli.Performance -c Release --no-build -- --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/performance-evidence"
+      - name: Retain performance evidence and native build provenance
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: performance-parity-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/performance-evidence/
             ${{ runner.temp }}/parity-native/provenance.json
             ${{ runner.temp }}/parity-corpus/corpus.json
           retention-days: 30
