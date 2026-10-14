@@ -54,15 +54,15 @@ internal static class GrayscaleIccProfile
     }
 
     private static TransferFunction MapTransferFunction(IccTransferFunction transferFunction) => transferFunction switch
-        {
-            IccTransferFunction.Srgb => TransferFunction.Srgb,
-            IccTransferFunction.Linear => TransferFunction.Linear,
-            IccTransferFunction.Rec709 => TransferFunction.Rec709,
-            IccTransferFunction.Dci => TransferFunction.Dci,
-            IccTransferFunction.Pq => TransferFunction.Pq,
-            IccTransferFunction.Hlg => TransferFunction.Hlg,
-            _ => throw new ArgumentOutOfRangeException(nameof(transferFunction))
-        };
+    {
+        IccTransferFunction.Srgb => TransferFunction.Srgb,
+        IccTransferFunction.Linear => TransferFunction.Linear,
+        IccTransferFunction.Rec709 => TransferFunction.Rec709,
+        IccTransferFunction.Dci => TransferFunction.Dci,
+        IccTransferFunction.Pq => TransferFunction.Pq,
+        IccTransferFunction.Hlg => TransferFunction.Hlg,
+        _ => throw new ArgumentOutOfRangeException(nameof(transferFunction))
+    };
 
     internal static byte[] CreateGamma(IccWhitePoint whitePoint, double gamma, IccRenderingIntent renderingIntent)
     {
