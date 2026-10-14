@@ -75,6 +75,32 @@ public sealed class HuffmanCodingPlanTests
         Assert.Same(replacement.Table, plan.Scans[5].AcTables[0]);
     }
 
+    [Fact]
+    public void ExtraSequentialHuffmanSlotsRequireSof1EvenWhenEveryQuantizerFitsEightBits()
+    {
+        const int width = 256, height = 256;
+        var pixels = new byte[width * height * 3];
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+            {
+                int offset = (y * width + x) * 3;
+                pixels[offset] = 128;
+                pixels[offset + 1] = (byte)(((x / 8 + y / 8) & 1) * 255);
+                pixels[offset + 2] = (byte)(x / 8 * 4);
+            }
+        var options = new JpegliEncoderOptions
+        {
+            Subsampling = ChromaSubsampling.None, AdaptiveQuantization = false,
+            QuantizationTables = [(ReadOnlyMemory<ushort>)Enumerable.Repeat((ushort)1, 64).ToArray()]
+        };
+        byte[] baseline = Encode(pixels, width, height, PixelLayout.YCbCr24, options);
+        byte[] extended = Encode(pixels, width, height, PixelLayout.YCbCr24, options with { ForceBaseline = false });
+        AssertFrameAndSelectors(baseline, 0xc0, 1);
+        AssertFrameAndSelectors(extended, 0xc1, 2);
+        Assert.Equal(ImageResult.FromMemory(baseline, ColorComponents.RedGreenBlue).Data,
+            ImageResult.FromMemory(extended, ColorComponents.RedGreenBlue).Data);
+    }
+
     [Theory]
     [InlineData(0, ChromaSubsampling.None)]
     [InlineData(1, ChromaSubsampling.None)]
@@ -104,5 +130,38 @@ public sealed class HuffmanCodingPlanTests
         var frequencies = new long[256];
         frequencies[symbol] = count;
         return frequencies;
+    }
+
+    private static void AssertFrameAndSelectors(byte[] jpeg, int expectedFrame, int maximumSlot)
+    {
+        int position = 2, frame = 0;
+        while (position < jpeg.Length)
+        {
+            Assert.Equal(255, jpeg[position]);
+            int marker = jpeg[position + 1];
+            int length = (jpeg[position + 2] << 8) | jpeg[position + 3];
+            int start = position + 4, end = position + 2 + length;
+            if (marker is 0xc0 or 0xc1)
+                frame = marker;
+            if (marker == 0xdb)
+                Assert.Equal(0, jpeg[start] >> 4); // All-one, eight-bit table.
+            if (marker == 0xda)
+            {
+                Assert.Equal(expectedFrame, frame);
+                int components = jpeg[start];
+                for (int component = 0; component < components; component++)
+                {
+                    int selector = jpeg[start + 2 + component * 2];
+                    Assert.InRange(selector >> 4, 0, maximumSlot);
+                    Assert.InRange(selector & 15, 0, maximumSlot);
+                }
+                if (maximumSlot == 2)
+                    Assert.Contains(Enumerable.Range(0, components),
+                        component => jpeg[start + 2 + component * 2] >> 4 == 2);
+                return;
+            }
+            position = end;
+        }
+        Assert.Fail("JPEG has no sequential scan.");
     }
 }
