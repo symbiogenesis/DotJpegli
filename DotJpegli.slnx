@@ -1,0 +1,4 @@
+<Solution>
+    <Project Path="src/DotJpegli/DotJpegli.csproj" />
+    <Project Path="tests/DotJpegli.Tests/DotJpegli.Tests.csproj" />
+</Solution>
