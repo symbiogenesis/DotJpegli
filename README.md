@@ -598,9 +598,36 @@ combinations PQ/HLG use the upstream 9x9x9 tone/gamut-mapped Lab transform.
 Other RGB PQ/HLG combinations use shared 64-entry decoding curves with XYZ PCS,
 without tone mapping, HLG OOTF or CICP. Grayscale retains the selected source
 media white with no adaptation or CICP; its PQ/HLG curves are also untone-mapped.
-Pure-gamma profiles always omit CICP. Custom chromaticities and arbitrary source
-ICC conversion remain pending. Profile embedding does not establish color-managed
+Pure-gamma profiles always omit CICP. Arbitrary source ICC conversion remains
+pending. Profile embedding does not establish color-managed
 JPEG quality or HDR display conformance.
+
+The same four generic factories accept custom CIE xy coordinates through
+`IccChromaticity` and `IccRgbPrimaries`:
+
+```csharp
+var adobeRgbPrimaries = new IccRgbPrimaries(
+    new(0.640, 0.330), new(0.210, 0.710), new(0.150, 0.060));
+byte[] profile = JpegliIccProfiles.CreateGammaRgbProfile(
+    adobeRgbPrimaries, new IccChromaticity(0.3127, 0.3290), 563.0 / 256.0);
+byte[] grayProfile = JpegliIccProfiles.CreateGrayscaleProfile(
+    new IccChromaticity(0.34567, 0.35850), IccTransferFunction.Linear);
+```
+
+These overloads support all six named transfer functions, pure gamma and all
+four rendering intents. RGB profiles compute the primary matrix and Bradford
+adaptation to D50; grayscale profiles retain the custom source media white.
+Custom profiles omit CICP even if their coordinates match a named encoding.
+PQ/HLG use untone-mapped 64-entry decoding curves with XYZ PCS and no HLG OOTF.
+Select the named overloads for their existing CICP and HDR tone/gamut transforms.
+
+Coordinates must be finite. White points require `0 <= X <= 1` and
+`0 < Y <= 1`; primary coordinates may lie outside that range, including imaginary
+primaries. Singular primary matrices and computations that cannot be stored
+in ICC signed fixed-point fields are rejected by the factory. Profiles have
+deterministic coordinate-based descriptions and return fresh storage.
+Attach the profile explicitly to `IccProfile` for samples already using that
+encoding; creating or embedding it does not transform the input samples.
 
 `CreateSrgbProfile()` provides the pinned Jpegli builder's 504-byte perceptual
 ICC v4.4 display profile, with sRGB transfer curves, D65-to-D50 Bradford
@@ -1572,6 +1599,15 @@ rendering intents. PQ/HLG select the upstream Lab tone-mapping LUT only for
 CICP-representable RGB combinations; other RGB and grayscale variants use
 untone-mapped 64-entry decoding curves. Existing named factory bytes are preserved.
 
+Custom RGB primaries and source white points complete the profile chromaticity
+port. Generic RGB and grayscale factories accept caller-supplied CIE xy
+coordinates with the same named transfers, pure gamma and four intents.
+The managed path computes the pinned builder's primary matrix and Bradford
+adaptation, checks singular matrices and ICC storage limits, and retains
+upstream's custom-coordinate descriptions. Custom PQ/HLG profiles use
+untone-mapped decoding curves without CICP, including coordinates matching
+named encodings. Existing named profile bytes are preserved.
+
 The DCT SIMD path transforms independent columns and rows with runtime-sized
 `System.Numerics.Vector<float>` lanes, preserving the scalar evaluation order
 and fused multiply-add rounding. Hardware acceleration is selected automatically
@@ -1582,7 +1618,7 @@ coverage and parallel encoding remain pending. No speed improvement is claimed
 without CI performance measurements.
 
 Pending encoder work: fractional sampling ratios,
-custom profile chromaticities and arbitrary source ICC color management,
+arbitrary source ICC color management,
 structured metadata editing, other metadata, SIMD in other encoder stages and parallel encoding.
 Fractional sampling ratios are also rejected by the pinned upstream encoder.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
