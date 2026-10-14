@@ -47,18 +47,18 @@ public sealed class ExifMetadataTests
         Assert.True(metadata.Remove(ExifDirectory.Photo, 0xc001));
         Assert.False(metadata.Remove(ExifDirectory.Photo, 0xc001));
         byte[] output = metadata.ToArray();
-        Assert.Equal("II"u8.ToArray(), output[..2]);
+        Assert.Equal("MM"u8.ToArray(), output[..2]);
         Assert.Equal(42, U16(output, 2));
         int image = (int)U32(output, 4);
-        AssertEntry(ExifFieldType.UnsignedLong, 1, Convert.FromHexString("70110100"), ReadEntry(output, image, 0x0100));
-        AssertEntry(ExifFieldType.UnsignedShort, 1, Convert.FromHexString("0100"), ReadEntry(output, image, 0x0112));
+        AssertEntry(ExifFieldType.UnsignedLong, 1, Convert.FromHexString("00011170"), ReadEntry(output, image, 0x0100));
+        AssertEntry(ExifFieldType.UnsignedShort, 1, Convert.FromHexString("0001"), ReadEntry(output, image, 0x0112));
         Assert.Equal("edited camera\0"u8.ToArray(), ReadEntry(output, image, 0x010e).Value);
-        int photo = (int)BinaryPrimitives.ReadUInt32LittleEndian(ReadEntry(output, image, 0x8769).Value);
-        Assert.Equal(Convert.FromHexString("03000000C8000000"), ReadEntry(output, photo, 0x829a).Value);
+        int photo = (int)BinaryPrimitives.ReadUInt32BigEndian(ReadEntry(output, image, 0x8769).Value);
+        Assert.Equal(Convert.FromHexString("00000003000000C8"), ReadEntry(output, photo, 0x829a).Value);
         Assert.DoesNotContain((ushort)0xc001, Tags(output, photo));
-        int interoperability = (int)BinaryPrimitives.ReadUInt32LittleEndian(ReadEntry(output, photo, 0xa005).Value);
+        int interoperability = (int)BinaryPrimitives.ReadUInt32BigEndian(ReadEntry(output, photo, 0xa005).Value);
         Assert.Equal("R98\0"u8.ToArray(), ReadEntry(output, interoperability, 1).Value);
-        int gps = (int)BinaryPrimitives.ReadUInt32LittleEndian(ReadEntry(output, image, 0x8825).Value);
+        int gps = (int)BinaryPrimitives.ReadUInt32BigEndian(ReadEntry(output, image, 0x8825).Value);
         Assert.Equal("N\0"u8.ToArray(), ReadEntry(output, gps, 1).Value);
     }
 
@@ -378,6 +378,10 @@ public sealed class ExifMetadataTests
         else BinaryPrimitives.WriteUInt32BigEndian(bytes.AsSpan(offset), value);
     }
 
-    private static ushort U16(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(offset));
-    private static uint U32(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset));
+    private static ushort U16(byte[] bytes, int offset) => bytes[0] == 'I'
+        ? BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(offset))
+        : BinaryPrimitives.ReadUInt16BigEndian(bytes.AsSpan(offset));
+    private static uint U32(byte[] bytes, int offset) => bytes[0] == 'I'
+        ? BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset))
+        : BinaryPrimitives.ReadUInt32BigEndian(bytes.AsSpan(offset));
 }

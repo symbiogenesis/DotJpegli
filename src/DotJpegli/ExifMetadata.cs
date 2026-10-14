@@ -48,7 +48,8 @@ public sealed class ExifEntry
 /// <summary>Parses and edits the TIFF body supplied to <see cref="JpegliEncoderOptions.ExifData"/>.</summary>
 /// <remarks>
 /// Input excludes the JPEG <c>Exif\0\0</c> signature. Both classic TIFF byte orders are accepted;
-/// output and raw entry values use little-endian order. Unknown tags with standard TIFF field
+/// output retains the input byte order (new instances use little endian), while raw numerical
+/// entry values use little-endian order. Unknown tags with standard TIFF field
 /// types are preserved. Exif, GPS and interoperability directory links are rebuilt automatically,
 /// and a bounded JPEG thumbnail is copied with a rebased offset. BigTIFF, additional next-IFD
 /// chains, SubIFDs and nonstandard field types are unsupported. Serialization rejects MakerNote,
@@ -68,6 +69,7 @@ public sealed class ExifMetadata
     private const ushort ThumbnailLength = 0x0202;
     private readonly Dictionary<ExifDirectory, SortedDictionary<ushort, ExifEntry>> _directories = [];
     private byte[]? _jpegThumbnail;
+    private bool _littleEndian = true;
 
     /// <summary>Creates empty Exif metadata.</summary>
     public ExifMetadata()
@@ -87,7 +89,7 @@ public sealed class ExifMetadata
         if (Read16(tiff[2..], littleEndian) != 42)
             throw Invalid("Only a classic TIFF header with magic 42 is valid.");
 
-        ExifMetadata result = new();
+        ExifMetadata result = new() { _littleEndian = littleEndian };
         List<(ExifDirectory Directory, uint Offset)> pending = [(ExifDirectory.Image, Read32(tiff[4..], littleEndian))];
         HashSet<uint> visited = [];
         List<(int Start, int Length)> directoryRanges = [];
@@ -307,7 +309,7 @@ public sealed class ExifMetadata
         _directories[ExifDirectory.Thumbnail][ThumbnailLength] = LongEntry((uint)value.Length);
     }
 
-    /// <summary>Writes classic little-endian TIFF, rebuilding directory links and rebasing a JPEG thumbnail.</summary>
+    /// <summary>Writes classic TIFF in the retained byte order, rebuilding directory links and rebasing a JPEG thumbnail.</summary>
     /// <exception cref="NotSupportedException">A retained entry has known opaque or unsupported embedded offsets.</exception>
     public byte[] ToArray()
     {
@@ -359,33 +361,39 @@ public sealed class ExifMetadata
             directories[ExifDirectory.Thumbnail][ThumbnailLength] = LongEntry((uint)_jpegThumbnail.Length);
         }
         byte[] bytes = new byte[checked((int)total)];
-        bytes[0] = bytes[1] = (byte)'I';
-        BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(2), 42);
-        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(4), (uint)offsets[ExifDirectory.Image]);
+        bytes[0] = bytes[1] = _littleEndian ? (byte)'I' : (byte)'M';
+        Write16(bytes.AsSpan(2), 42);
+        Write32(bytes.AsSpan(4), (uint)offsets[ExifDirectory.Image]);
         int dataOffset = dataStart;
         foreach ((ExifDirectory directory, SortedDictionary<ushort, ExifEntry> entries) in directories.OrderBy(pair => pair.Key))
         {
             int start = offsets[directory];
-            BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(start), (ushort)entries.Count);
+            Write16(bytes.AsSpan(start), (ushort)entries.Count);
             int entryOffset = start + 2;
             foreach ((ushort tag, ExifEntry entry) in entries)
             {
                 Span<byte> destination = bytes.AsSpan(entryOffset, 12);
-                BinaryPrimitives.WriteUInt16LittleEndian(destination, tag);
-                BinaryPrimitives.WriteUInt16LittleEndian(destination[2..], (ushort)entry.FieldType);
-                BinaryPrimitives.WriteUInt32LittleEndian(destination[4..], entry.Count);
+                Write16(destination, tag);
+                Write16(destination[2..], (ushort)entry.FieldType);
+                Write32(destination[4..], entry.Count);
                 if (entry.Value.Length <= 4)
+                {
                     entry.Value.Span.CopyTo(destination[8..]);
+                    if (!_littleEndian)
+                        ReverseComponents(destination.Slice(8, entry.Value.Length), entry.FieldType);
+                }
                 else
                 {
-                    BinaryPrimitives.WriteUInt32LittleEndian(destination[8..], (uint)dataOffset);
+                    Write32(destination[8..], (uint)dataOffset);
                     entry.Value.Span.CopyTo(bytes.AsSpan(dataOffset));
+                    if (!_littleEndian)
+                        ReverseComponents(bytes.AsSpan(dataOffset, entry.Value.Length), entry.FieldType);
                     dataOffset += entry.Value.Length + (entry.Value.Length & 1);
                 }
                 entryOffset += 12;
             }
             if (directory == ExifDirectory.Image && offsets.TryGetValue(ExifDirectory.Thumbnail, out int thumbnailOffset))
-                BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(entryOffset), (uint)thumbnailOffset);
+                Write32(bytes.AsSpan(entryOffset), (uint)thumbnailOffset);
         }
         _jpegThumbnail?.CopyTo(bytes, jpegOffset);
         return bytes;
@@ -445,5 +453,19 @@ public sealed class ExifMetadata
         ? BinaryPrimitives.ReadUInt16LittleEndian(value) : BinaryPrimitives.ReadUInt16BigEndian(value);
     private static uint Read32(ReadOnlySpan<byte> value, bool littleEndian) => littleEndian
         ? BinaryPrimitives.ReadUInt32LittleEndian(value) : BinaryPrimitives.ReadUInt32BigEndian(value);
+    private void Write16(Span<byte> destination, ushort value)
+    {
+        if (_littleEndian)
+            BinaryPrimitives.WriteUInt16LittleEndian(destination, value);
+        else
+            BinaryPrimitives.WriteUInt16BigEndian(destination, value);
+    }
+    private void Write32(Span<byte> destination, uint value)
+    {
+        if (_littleEndian)
+            BinaryPrimitives.WriteUInt32LittleEndian(destination, value);
+        else
+            BinaryPrimitives.WriteUInt32BigEndian(destination, value);
+    }
     private static InvalidDataException Invalid(string message) => new(message);
 }

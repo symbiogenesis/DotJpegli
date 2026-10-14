@@ -12,10 +12,18 @@ source pixels. These managed APIs extend the encoder port.
 `ExifMetadata.Parse` reads a TIFF body in either byte order. `GetEntry`/`SetEntry`
 edit standard TIFF values, and typed methods edit unsigned integers, ASCII and
 unsigned rationals. Image, Photo, GPS, Interoperability and Thumbnail directories
-are supported. Serialization emits little-endian TIFF, retains unknown standard
-entries and rebases JPEG thumbnail offsets. Malformed directories, offsets,
-counts and cycles are rejected. MakerNotes and unsupported offset-bearing
-structures cannot safely be relocated: serialization rejects them until removed.
+are supported. Serialization retains the input byte order (new editors use
+little endian), preserving endian-dependent opaque structures such as Unicode
+UserComment. Raw primitive numerical entry values use little-endian order in the
+editor API. Serialization retains unknown standard entries and rebases JPEG
+thumbnail offsets. Malformed directories, offsets,
+counts and cycles are rejected. Classic TIFF field types 1–12 are supported;
+BigTIFF, additional next-IFD chains and nonstandard field types are unsupported.
+Parsing conservatively limits aggregate declared value bytes to the input length,
+so heavily aliased value storage may be rejected. MakerNotes and known unsupported
+offset-bearing structures cannot safely be relocated: serialization rejects them
+until removed. Private tags with embedded offsets require the caller to remove
+them when their format depends on fixed positions.
 `RemoveThumbnail` removes the complete preview directory and JPEG data.
 
 `XmpMetadata.Parse` accepts ordinary empty-subject RDF descriptions inside an
@@ -32,8 +40,10 @@ trees and remove the old link first, then let the encoder partition the result.
 `SetTextValues` edit Application Record 2 text. Text editing uses strict UTF-8
 with the `ESC % G` coded-character-set designation. Undesignated existing text
 must be ASCII, and incompatible encodings are rejected rather than relabeled.
-Known By-line, CopyrightNotice and Caption-Abstract byte limits are enforced,
-including their repeatability rules. Raw dataset editing remains available for
+Known By-line, CopyrightNotice and Caption-Abstract byte limits, repeatability and
+character restrictions are enforced. Nonempty text edits add missing RecordVersion
+2:0 as version 4, retaining existing version bytes. Removing a text dataset does
+not decode or relabel retained data. Raw dataset editing remains available for
 other values and schemas.
 
 Use `JpegliMetadata.Reconcile` to prepare a consistent set of metadata before
@@ -74,6 +84,8 @@ Null leaves a descriptive field untouched, including existing differences betwee
 formats; empty removes all representations of that field. These shared edits
 must be ASCII without NUL, to fit Exif ASCII, and meet IPTC limits (artist 32 bytes,
 copyright 128, description 2,000). Use the individual XMP/IPTC editors for Unicode.
+Artist and copyright permit graphic characters and spaces; description also
+permits CR/LF line breaks. Other control characters are rejected.
 Optional Exif color space accepts 1 (sRGB) or 65535 (uncalibrated), synchronizing
 Exif and XMP without inferring ICC transforms. Unrelated fields are retained.
 

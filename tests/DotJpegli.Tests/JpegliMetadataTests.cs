@@ -66,6 +66,7 @@ public sealed class JpegliMetadataTests
 
         var iim = ReadIim(result.IptcData.ToArray());
         Assert.Equal(new byte[] { 0x1b, 0x25, 0x47 }, Assert.Single(iim[(1, 90)]));
+        Assert.Equal(new byte[] { 0, 4 }, Assert.Single(iim[(2, 0)]));
         Assert.Equal("Ada", Encoding.UTF8.GetString(Assert.Single(iim[(2, 80)])));
         Assert.Equal("Copyright 2026", Encoding.UTF8.GetString(Assert.Single(iim[(2, 116)])));
         Assert.Equal("A portrait", Encoding.UTF8.GetString(Assert.Single(iim[(2, 120)])));

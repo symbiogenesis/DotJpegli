@@ -109,7 +109,8 @@ public sealed class IptcMetadataTests
         Assert.Equal(new[] { "Old author" }, metadata.GetTextValues(80));
         metadata.SetTextValues(80, ["Café", "日本語"]);
         Assert.Equal(Join(Field(1, 90, [0x1b, 0x25, 0x47]), Field(2, 5, "ASCII title"u8), binary,
-            Field(2, 80, Encoding.UTF8.GetBytes("Café")), Field(2, 80, Encoding.UTF8.GetBytes("日本語"))), metadata.ToArray());
+            Field(2, 80, Encoding.UTF8.GetBytes("Café")), Field(2, 80, Encoding.UTF8.GetBytes("日本語")),
+            Field(2, 0, [0, 4])), metadata.ToArray());
         Assert.Equal(new[] { "Café", "日本語" }, IptcMetadata.Parse(metadata.ToArray()).GetTextValues(80));
         Assert.Equal(new[] { "ASCII title" }, metadata.GetTextValues(5));
         Assert.Equal(new byte[] { 0xff, 0x1b, 0x0e }, Assert.Single(metadata.GetValues(2, 202)).ToArray());
@@ -122,6 +123,53 @@ public sealed class IptcMetadataTests
         metadata.SetTextValues(80, []);
         Assert.Equal(Field(2, 5, "Title"u8), metadata.ToArray());
         Assert.Empty(metadata.GetTextValues(80));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TextDeletionDoesNotDecodeOrRelabelLegacyData(bool duplicateDesignation)
+    {
+        byte[] designation = duplicateDesignation
+            ? Join(Field(1, 90, [0x1b, 0x25, 0x47]), Field(1, 90, [0x1b, 0x28, 0x42])) : [];
+        byte[] unrelated = Field(2, 5, [0xe9]);
+        IptcMetadata metadata = IptcMetadata.Parse(Join(designation, Field(2, 80, [0xff]), unrelated));
+        metadata.SetTextValues(80, []);
+        Assert.Equal(Join(designation, unrelated), metadata.ToArray());
+    }
+
+    [Fact]
+    public void ReplacingLegacyTargetChecksOnlyRetainedTextAndPreservesExistingVersion()
+    {
+        byte[] version = Field(2, 0, [0, 2]);
+        IptcMetadata metadata = IptcMetadata.Parse(Join(version, Field(2, 80, [0xe9]), Field(2, 5, "Title"u8)));
+        metadata.SetTextValues(80, ["Replacement"]);
+        Assert.Equal(new byte[] { 0, 2 }, Assert.Single(metadata.GetValues(2, 0)).ToArray());
+        Assert.Equal(new[] { "Replacement" }, metadata.GetTextValues(80));
+        Assert.Equal(new[] { "Title" }, metadata.GetTextValues(5));
+    }
+
+    [Theory]
+    [InlineData(80, "A\nB")]
+    [InlineData(116, "A\rB")]
+    [InlineData(80, "A\tB")]
+    [InlineData(120, "A\0B")]
+    [InlineData(120, "A\tB")]
+    [InlineData(116, "A\u0085B")]
+    public void CoreTextControlsFailBeforeMutation(byte dataset, string value)
+    {
+        var metadata = new IptcMetadata();
+        Assert.Throws<ArgumentException>(() => metadata.SetTextValues(dataset, [value]));
+        Assert.Empty(metadata.ToArray());
+    }
+
+    [Fact]
+    public void CaptionLineBreaksAreValidAndNewTextIncludesMandatoryRecordVersion()
+    {
+        var metadata = new IptcMetadata();
+        metadata.SetTextValues(120, ["First\r\nSecond"]);
+        Assert.Equal(new byte[] { 0, 4 }, Assert.Single(metadata.GetValues(2, 0)).ToArray());
+        Assert.Equal(new[] { "First\r\nSecond" }, metadata.GetTextValues(120));
     }
 
     [Theory]

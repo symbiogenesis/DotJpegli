@@ -9,9 +9,9 @@ namespace DotJpegli;
 /// original byte encoding. Text helpers address application record 2 and use strict UTF-8 when
 /// designated by dataset 1:90 (ESC % G), or ASCII when no designation is present. Other encodings
 /// and ambiguous undesignated non-ASCII text require explicit handling through the raw APIs.
-    /// Raw APIs leave dataset-specific size, cardinality and semantic restrictions to the caller.
-    /// Text setters enforce the byte limits and cardinality of By-line (80), Copyright Notice (116),
-    /// and Caption/Abstract (120); other text datasets retain the raw API's structural scope.
+/// Raw APIs leave dataset-specific size, cardinality and semantic restrictions to the caller.
+/// Text setters enforce the byte limits, cardinality and character restrictions of By-line (80),
+/// Copyright Notice (116), and Caption/Abstract (120); other text datasets retain the raw API's structural scope.
 /// </remarks>
 public sealed class IptcMetadata
 {
@@ -110,16 +110,22 @@ public sealed class IptcMetadata
 
     /// <summary>Replaces all text values of an application-record-2 dataset and establishes the strict UTF-8 designation ESC % G.</summary>
     /// <remarks>
-    /// Before adding the designation, existing application records 2–6 must contain unambiguous ASCII
+    /// Before adding the designation, retained application records 2–6 must contain unambiguous ASCII
     /// character data. Known binary record-2 datasets are excluded. Unknown application datasets are
     /// checked conservatively; object record 8 prevents adding a new designation. Existing UTF-8 text
-    /// is validated before editing. An empty list removes the selected dataset without adding a designation.
+    /// is validated before editing. Missing application RecordVersion is set to version 4.
+    /// An empty list removes the selected dataset without decoding text or adding a designation.
     /// Raw APIs remain available for legacy encodings and unknown binary data.
     /// </remarks>
     public void SetTextValues(byte dataset, IReadOnlyList<string> values)
     {
         EnsureTextDataset(dataset);
         ArgumentNullException.ThrowIfNull(values);
+        if (values.Count == 0)
+        {
+            SetValues(2, dataset, []);
+            return;
+        }
         if (dataset is 116 or 120 && values.Count > 1)
             throw new ArgumentException("This IPTC dataset is not repeatable.", nameof(values));
         int maximum = dataset switch { 80 => 32, 116 => 128, 120 => 2000, _ => int.MaxValue };
@@ -138,16 +144,23 @@ public sealed class IptcMetadata
             if (encoded[index].Length > maximum)
                 throw new ArgumentException($"IPTC dataset 2:{dataset} text must not exceed {maximum} UTF-8 bytes.", nameof(values));
             _ = DecodeText(encoded[index].Span, true);
+            if (dataset is 80 or 116 or 120 && values[index].Any(character => char.IsControl(character) &&
+                !(dataset == 120 && character is '\r' or '\n')))
+                throw new ArgumentException("This IPTC text field permits graphic characters and spaces; " +
+                    "only Caption-Abstract also permits CR/LF.", nameof(values));
         }
         bool utf8 = GetTextEncoding();
         foreach (Dataset entry in datasets)
-            if (entry.Record is >= 2 and <= 6 && !(entry.Record == 2 && IsBinaryDataset(entry.Number)))
+            if (entry.Record is >= 2 and <= 6 && !(entry.Record == 2 &&
+                (IsBinaryDataset(entry.Number) || entry.Number == dataset)))
                 _ = DecodeText(entry.Value.Span, utf8);
         if (!utf8 && values.Count != 0 && datasets.Any(entry => entry.Record == 8))
             throw new InvalidOperationException("Adding a character-set designation could relabel existing object-record data.");
         // All copying and validation precede mutation so failed text edits are atomic.
         if (!utf8 && values.Count != 0)
             SetValues(1, 90, [(ReadOnlyMemory<byte>)Utf8Designation.ToArray()]);
+        if (!datasets.Any(entry => entry.Record == 2 && entry.Number == 0))
+            SetValues(2, 0, [(ReadOnlyMemory<byte>)new byte[] { 0, 4 }]);
         SetValues(2, dataset, encoded);
     }
 
