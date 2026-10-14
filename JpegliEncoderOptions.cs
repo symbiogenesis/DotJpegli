@@ -257,6 +257,19 @@ public sealed record JpegliEncoderOptions
     /// </summary>
     public string? Comment { get; init; }
 
+    /// <summary>
+    /// Raw APP0..APP15 and COM markers, emitted in list order after built-in metadata (including
+    /// Comment) and before coding tables. Null or empty (the default) preserves existing bytes.
+    /// Each descriptor must be nonnull, with a supported marker code and at most 65,533 payload
+    /// bytes. Empty payloads and duplicate markers are permitted. The encoder adds only marker
+    /// and length bytes; callers supply signatures, chunking and format-specific structure.
+    /// All descriptors are copied and validated before output. Keep the list unchanged while
+    /// encoding starts, and keep payload memory unchanged and alive until encoding returns.
+    /// Metadata is not deduplicated, interpreted or reconciled with built-in fields. Recognized
+    /// payloads can change a reader's color interpretation; callers must ensure consistency.
+    /// </summary>
+    public IReadOnlyList<JpegMetadataMarker>? MetadataMarkers { get; init; }
+
     /// <summary>Units for JFIF densities. The default specifies a pixel aspect ratio. Ignored for RGB output.</summary>
     public JpegDensityUnit DensityUnit { get; init; }
 
@@ -457,6 +470,26 @@ public sealed record JpegliEncoderOptions
                         nameof(QuantizationTables));
         }
         return snapshot;
+    }
+
+    internal JpegMetadataMarker[]? PrepareMetadataMarkers(CancellationToken cancellationToken)
+    {
+        if (MetadataMarkers is not { } requested)
+            return null;
+        var markers = new JpegMetadataMarker[requested.Count];
+        for (int index = 0; index < markers.Length; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            JpegMetadataMarker marker = requested[index]
+                ?? throw new ArgumentException("Metadata marker descriptors must not be null.", nameof(MetadataMarkers));
+            if (marker.MarkerCode != 0xfe && marker.MarkerCode is not (>= 0xe0 and <= 0xef))
+                throw new ArgumentOutOfRangeException(nameof(MetadataMarkers), "Only APP0..APP15 (0xE0..0xEF) and COM (0xFE) markers are supported.");
+            if (marker.Data.Length > JpegMarkerWriter.MaxMarkerPayloadBytes)
+                throw new ArgumentOutOfRangeException(nameof(MetadataMarkers), "Each metadata marker payload must not exceed 65,533 bytes.");
+            markers[index] = marker;
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        return markers;
     }
 
     internal JpegliEncoderOptions ResolveProgressiveLevel(JpegSamplingFactors sampling)

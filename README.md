@@ -938,6 +938,39 @@ Null or empty writes no comment. Its UTF-8 length can be at most 65,533 bytes;
 non-ASCII characters can consume several bytes each. JPEG does not define a COM
 character encoding, so readers may display non-ASCII comments differently.
 
+Use `MetadataMarkers` for other metadata formats or additional raw comments.
+Each `JpegMetadataMarker` supplies a marker code without the leading `0xFF` and
+its complete payload, including any format-specific identifier:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    MetadataMarkers =
+    [
+        new(0xE3, File.ReadAllBytes("application-metadata.bin")), // APP3
+        new(0xFE, new byte[] { 0x63, 0x61, 0x66, 0xE9 }) // Raw COM in the caller's encoding.
+    ]
+});
+```
+
+This ports the pinned upstream's `jpegli_write_marker` support for all
+APP0..APP15 (`0xE0`..`0xEF`) and COM (`0xFE`) markers. Structural markers are
+rejected. Each payload must fit 65,533 bytes; larger payloads must be divided
+by the caller according to their format. The encoder adds the marker and
+big-endian length only, preserving payload bytes without signatures, padding,
+terminators or entropy byte stuffing. Empty payloads emit a length of two.
+Duplicates and caller order are preserved; null or an empty list writes nothing.
+All descriptors are copied and validated before output. Keep the list unchanged
+while encoding starts, and keep payload memory unchanged and alive until encoding
+returns. Invalid codes, oversized payloads and null descriptors are rejected
+with `ParamName` equal to `MetadataMarkers` before any output.
+
+Payloads are not interpreted or reconciled with built-in metadata. The caller
+must ensure valid structures and consistent values. In particular, recognized
+JFIF, Adobe or ICC signatures can change a reader's interpretation of the JPEG;
+adding them does not change the encoder's color-space or sampling settings.
+Structured metadata editing remains pending.
+
 `DensityUnit`, `HorizontalDensity`, and `VerticalDensity` configure the JFIF
 header. Each density must be 1..65535. `Unspecified`, the default, expresses
 the pixel aspect ratio; both values default to 1. `DotsPerInch` and
@@ -960,10 +993,11 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 
 Metadata is written after JFIF for grayscale/YCbCr, or directly after SOI for RGB,
 in this order: Exif APP1,
-standard XMP APP1, extended XMP APP1 chunks, ICC APP2 chunks, IPTC APP13 and COM,
+standard XMP APP1, extended XMP APP1 chunks, ICC APP2 chunks, IPTC APP13, COM
+and then `MetadataMarkers` in caller order,
 followed by the coding tables and scans.
 Defaults preserve the previous JPEG bytes. Metadata does not change coefficients
-or decoded sample values. Viewers may interpret orientation, profiles and other
+or coding bytes. Viewers may interpret orientation, profiles and other
 metadata when displaying the image.
 Invalid metadata options are rejected before writing output. Cancellation is
 checked between metadata segments as well as between MCUs; cancellation or an
@@ -1540,6 +1574,10 @@ Raw Exif TIFF embedding, standard and extended UTF-8 XMP packets in APP1,
 opt-in automatic partitioning of oversized XMP with selected standard properties, raw ICC profiles
 with APP2 chunking, raw IPTC-IIM in Photoshop APP13, UTF-8 COM comments, and
 configurable JFIF density fields are also implemented.
+Raw APP0..APP15 and COM markers complete other metadata embedding, matching
+the pinned upstream's generic marker API. Caller-supplied payloads and order
+are preserved, with descriptor snapshots and validation before output;
+interpreting or editing metadata structures remains pending.
 Direct perceptual-distance control and a public quality-to-distance mapping
 are available, retaining baseline quantization tables by default and existing quality bytes.
 Optional conventional Annex K quantization matrices use upstream distance scaling,
@@ -1619,7 +1657,7 @@ without CI performance measurements.
 
 Pending encoder work: fractional sampling ratios,
 arbitrary source ICC color management,
-structured metadata editing, other metadata, SIMD in other encoder stages and parallel encoding.
+structured metadata editing, SIMD in other encoder stages and parallel encoding.
 Fractional sampling ratios are also rejected by the pinned upstream encoder.
 The managed DCT uses standard JPEG coefficient units; upstream's DCT output is
 one eighth of those units. This scaling adaptation is accounted for during
@@ -1633,6 +1671,14 @@ MozJPEG and libjpeg-turbo in its tested conditions, rather than a universal
 "smallest JPEG encoder" ranking.
 
 ## Validation
+
+Raw-metadata regressions independently parse every supported APP/COM code,
+network-byte-order lengths, zero and maximum payloads, sliced storage and
+marker-looking payload bytes. They check duplicate and combined metadata order,
+descriptor snapshots, default compatibility and rejection before output across
+source precisions. Coding-byte and independent decoded-pixel comparisons use
+unrecognized application payloads and raw comments across scan modes. Nonseekable
+streams, cancellation between markers and I/O failures are also covered.
 
 Custom-chromaticity validation compares 252 complete RGB/grayscale profiles
 with independently compiled unchanged pinned C++ fixtures across six named

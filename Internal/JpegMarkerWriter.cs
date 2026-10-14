@@ -184,6 +184,19 @@ internal static class JpegMarkerWriter
             Word(output, comment.Length + 2);
             output.Write(comment);
         }
+        if (options.MetadataMarkers is { } markers)
+        {
+            // jpegli_write_m_header/jpegli_write_marker in the pinned encode.cc:
+            // APP and COM framing uses a big-endian payload length plus two,
+            // with the caller's complete bytes and no entropy byte stuffing.
+            foreach (JpegMetadataMarker marker in markers)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Marker(output, (byte)marker.MarkerCode);
+                Word(output, marker.Data.Length + 2);
+                output.Write(marker.Data.Span);
+            }
+        }
         cancellationToken.ThrowIfCancellationRequested();
     }
 

@@ -126,6 +126,8 @@ public static class JpegliEncoder
         if ((long)(height - 1) * stride + rowElements > pixels.Length)
             throw new ArgumentException("The source buffer does not contain all image rows.", nameof(pixels));
         cancellationToken.ThrowIfCancellationRequested();
+        if (options.MetadataMarkers is not null)
+            options = options with { MetadataMarkers = options.PrepareMetadataMarkers(cancellationToken) };
         bool hasOutOfRangeFloatSamples = pixels.ValidateSamples(width, height, stride, cancellationToken,
             options.AllowOutOfRangeFloatSamples);
         ExtendedXmpMetadata? extendedXmp = ExtendedXmpMetadata.Prepare(options, cancellationToken);
