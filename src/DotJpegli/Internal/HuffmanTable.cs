@@ -122,20 +122,38 @@ internal sealed class HuffmanTable
         counts[256] = 1;
         int[] depth = BuildCodeLengths(counts);
         byte[] histogram = new byte[16];
-        List<byte> symbols = new(256);
-        for (int length = 1; length <= 16; length++)
+        int symbolCount = 0;
+        for (int symbol = 0; symbol < 256; symbol++)
         {
-            for (int symbol = 0; symbol < 256; symbol++)
+            int length = depth[symbol];
+            if (length != 0)
             {
-                if (depth[symbol] == length)
-                {
-                    histogram[length - 1] = checked((byte)(histogram[length - 1] + 1));
-                    symbols.Add((byte)symbol);
-                }
+                histogram[length - 1] = checked((byte)(histogram[length - 1] + 1));
+                symbolCount++;
             }
         }
 
-        return new HuffmanTable(histogram, symbols.ToArray());
+        // Counting offsets group symbols by length while the ascending traversal
+        // preserves JPEG's canonical order within each length.
+        Span<int> offsets = stackalloc int[16];
+        int offset = 0;
+        for (int length = 0; length < histogram.Length; length++)
+        {
+            offsets[length] = offset;
+            offset += histogram[length];
+        }
+
+        byte[] symbols = new byte[symbolCount];
+        for (int symbol = 0; symbol < 256; symbol++)
+        {
+            int length = depth[symbol];
+            if (length != 0)
+            {
+                symbols[offsets[length - 1]++] = (byte)symbol;
+            }
+        }
+
+        return new HuffmanTable(histogram, symbols);
     }
 
     public void WriteSymbol(BitWriter writer, int symbol)
@@ -151,27 +169,29 @@ internal sealed class HuffmanTable
     private static int[] BuildCodeLengths(UInt128[] frequencies)
     {
         int[] depth = new int[frequencies.Length];
+        // Every retry has at most one leaf per frequency, one internal node per
+        // merge, and two sentinels. Reuse this bounded storage across retries.
+        Node[] tree = new Node[2 * frequencies.Length + 1];
         UInt128 minimumCount = 0;
         while (true)
         {
-            List<Node> tree = new(2 * frequencies.Length + 1);
+            int leafCount = 0;
             for (int symbol = frequencies.Length - 1; symbol >= 0; symbol--)
             {
                 if (frequencies[symbol] != 0)
                 {
-                    tree.Add(new Node(UInt128.Max(frequencies[symbol], minimumCount), -1, symbol));
+                    tree[leafCount++] = new Node(UInt128.Max(frequencies[symbol], minimumCount), -1, symbol);
                 }
             }
 
-            tree.Sort(static (left, right) =>
+            tree.AsSpan(0, leafCount).Sort(static (left, right) =>
             {
                 int comparison = left.Count.CompareTo(right.Count);
                 return comparison != 0 ? comparison : right.RightOrSymbol.CompareTo(left.RightOrSymbol);
             });
-            int leafCount = tree.Count;
             Node sentinel = new(UInt128.MaxValue, -1, -1);
-            tree.Add(sentinel);
-            tree.Add(sentinel);
+            tree[leafCount] = sentinel;
+            tree[leafCount + 1] = sentinel;
             int leafIndex = 0;
             int parentIndex = leafCount + 1;
             for (int merge = 1; merge < leafCount; merge++)
@@ -180,8 +200,8 @@ internal sealed class HuffmanTable
                 int right = tree[leafIndex].Count <= tree[parentIndex].Count ? leafIndex++ : parentIndex++;
                 // UInt128 keeps even 256 long.MaxValue frequencies exact;
                 // no saturated internal node can collide with the sentinel.
-                tree[^1] = new Node(tree[left].Count + tree[right].Count, left, right);
-                tree.Add(sentinel);
+                tree[leafCount + merge] = new Node(tree[left].Count + tree[right].Count, left, right);
+                tree[leafCount + merge + 1] = sentinel;
             }
 
             Array.Clear(depth);
@@ -197,7 +217,7 @@ internal sealed class HuffmanTable
         }
     }
 
-    private static void SetDepth(List<Node> tree, int nodeIndex, int[] depth, int level)
+    private static void SetDepth(Node[] tree, int nodeIndex, int[] depth, int level)
     {
         Node node = tree[nodeIndex];
         if (node.Left < 0)
