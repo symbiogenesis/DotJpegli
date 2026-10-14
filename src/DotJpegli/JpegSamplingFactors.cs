@@ -2,8 +2,8 @@ namespace DotJpegli;
 
 /// <summary>Custom component sampling factors, validated when encoding.</summary>
 /// <remarks>
-/// Each factor must be 1..4 and divide the largest corresponding factor across
-/// all three components. Subsampled YCbCr luma disables adaptive quantization.
+/// Each factor must be 1..4. Ratios to the largest corresponding factor across
+/// all three components may be fractional. Subsampled YCbCr luma disables adaptive quantization.
 /// The sum of Horizontal * Vertical over all three components must not exceed ten.
 /// Grayscale encoding ignores valid color sampling factors and always uses 1x1.
 /// RGB output maps Luma, Cb and Cr to R, G and B; subsampled green disables adaptive quantization.
@@ -42,16 +42,6 @@ public sealed record JpegSamplingFactors(
         if (blocks > 10)
             throw new ArgumentException("A color MCU must contain at most ten blocks.",
                 nameof(JpegliEncoderOptions.SamplingFactors));
-        int horizontal = MaxHorizontal;
-        int vertical = MaxVertical;
-        for (int component = 0; component < 3; component++)
-        {
-            JpegComponentSampling factor = this[component];
-            if (horizontal % factor.Horizontal != 0 || vertical % factor.Vertical != 0)
-                throw new ArgumentException(
-                    "Each component sampling factor must divide the largest corresponding factor across all components.",
-                    nameof(JpegliEncoderOptions.SamplingFactors));
-        }
     }
 
     internal static JpegSamplingFactors FromSubsampling(ChromaSubsampling subsampling)

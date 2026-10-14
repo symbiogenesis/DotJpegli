@@ -356,6 +356,15 @@ across custom MCU rows. Emitted chroma AC checks use those fixture strengths to
 verify component-local vertical indexing and scaled horizontal field columns,
 with cases that distinguish incorrect indexing in baseline and progressive output.
 
+Fractional-ratio regressions check 3:2 and 4:3 ratios, mixed axes, rational block
+boundaries, smoothing and replicated edges against independent double-precision
+pixel-area oracles. Independent entropy parsing checks real/dummy geometry,
+scan and restart counts, coefficient parity across sequential and progressive
+scans, and typed/padded input and nonseekable streams. Existing integer sample
+bits and complete JPEG fixtures remain unchanged. StbImageSharp's rejection of
+fractional upsampling is tested explicitly; these checks do not establish
+decoded-pixel parity with a fractional-capable reader or the pinned upstream.
+
 Subsampled-luma regressions check component maxima on different components,
 3x3 and 4x4 sample areas, ten-block MCUs, replicated edges, dummy DC continuity,
 restart cycling and coefficient parity through ten progressive refinement bits.
@@ -363,7 +372,8 @@ Independent double-precision box-average, smoothing and cosine-DCT oracles check
 luma DC and AC coefficients. An independent decoder verifies final pixel parity
 across scan modes for thirteen sampling schemes. Typed and padded input checks,
 grayscale's retained adaptive analysis, automatic disabling of adaptive analysis
-for subsampled luma, and fractional-ratio rejection before output are also covered.
+for subsampled luma, and acceptance of fractional factors across source precisions
+are also covered.
 
 Input smoothing regressions compare converted, filtered and subsampled block
 bits with independently compiled scalar C++ fixtures, including block seams,

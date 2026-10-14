@@ -159,8 +159,8 @@ public static class JpegliEncoder
         var componentRestartIntervals = new int[componentCount];
         for (int component = 0; component < componentCount; component++)
         {
-            int blockWidth = mcuWidth / sampling[component].Horizontal;
-            componentRestartIntervals[component] = options.ResolveRestartInterval((width + blockWidth - 1) / blockWidth);
+            int blocksWide = (width * sampling[component].Horizontal + mcuWidth - 1) / mcuWidth;
+            componentRestartIntervals[component] = options.ResolveRestartInterval(blocksWide);
         }
         int[] acScanEnds = options.PrepareProgressiveAcScanEnds();
         int[] acRefinementBits = options.PrepareProgressiveAcRefinementBits(acScanEnds.Length);
@@ -505,15 +505,15 @@ public static class JpegliEncoder
                     JpegComponentSampling factor = sampling[component];
                     int blocksWide = factor.Horizontal;
                     int blocksHigh = factor.Vertical;
-                    int sampleWidth = horizontal / blocksWide;
-                    int sampleHeight = vertical / blocksHigh;
+                    int realBlocksWide = (width * blocksWide + mcuWidth - 1) / mcuWidth;
+                    int realBlocksHigh = (height * blocksHigh + mcuHeight - 1) / mcuHeight;
                     for (int blockY = 0; blockY < blocksHigh; blockY++)
                     {
                         for (int blockX = 0; blockX < blocksWide; blockX++)
                         {
-                            int blockLeft = left + blockX * 8 * sampleWidth;
-                            int blockTop = top + blockY * 8 * sampleHeight;
-                            if (blockLeft >= width || blockTop >= height)
+                            int componentX = left / mcuWidth * blocksWide + blockX;
+                            int componentY = top / mcuHeight * blocksHigh + blockY;
+                            if (componentX >= realBlocksWide || componentY >= realBlocksHigh)
                             {
                                 // Upstream's baseline streaming path emits a zero DC difference
                                 // and AC EOB for a wholly padded MCU block. Keep the predictor,
@@ -524,12 +524,13 @@ public static class JpegliEncoder
                             else
                             {
                                 Downsampling.FillBlock(pixels, width, height, stride, component,
-                                    blockLeft, blockTop, sampleWidth, sampleHeight, samples, smoothingFactor);
+                                    componentX, componentY, horizontal, vertical, blocksWide, blocksHigh,
+                                    samples, smoothingFactor);
                                 ForwardDct.Transform(samples, coefficients);
                                 // The pinned streaming path indexes the adaptive field by
                                 // component-local block row and full-resolution column.
                                 float strength = adaptive is null ? 0f : strengths![
-                                    blockY * adaptive.BlocksWide + blockLeft / 8];
+                                    blockY * adaptive.BlocksWide + componentX * horizontal / blocksWide];
                                 Quantization.Quantize(coefficients, tables[component], quantized, component, distance,
                                     grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
                                     adaptiveStrength: strength,
@@ -581,9 +582,11 @@ public static class JpegliEncoder
         Span<float> samples = stackalloc float[64];
         Span<float> coefficients = stackalloc float[64];
         Span<short> quantized = stackalloc short[64];
+        int horizontal = sampling.MaxHorizontal;
         int vertical = sampling.MaxVertical;
-        int sampleWidth = sampling.MaxHorizontal / sampling[component].Horizontal;
-        int sampleHeight = vertical / sampling[component].Vertical;
+        JpegComponentSampling factor = sampling[component];
+        int blocksWide = (width * factor.Horizontal + 8 * horizontal - 1) / (8 * horizontal);
+        int blocksHigh = (height * factor.Vertical + 8 * vertical - 1) / (8 * vertical);
         int tableIndex = pixels.IsRgb || component == 0 ? 0 : 1;
         float[]? strengths = adaptive is null ? null : new float[adaptive.BlocksWide * vertical];
         int lastAnalysisTop = -1;
@@ -610,16 +613,16 @@ public static class JpegliEncoder
                 ProgressiveEntropyEncoder.FlushAc(writer, acTables[tableIndex], ref pendingEobRun);
         }
 
-        for (int top = 0; top < height; top += 8 * sampleHeight)
+        for (int blockY = 0; blockY < blocksHigh; blockY++)
         {
-            int analysisTop = top / (8 * vertical) * (8 * vertical);
+            int analysisTop = blockY / factor.Vertical * (8 * vertical);
             if (adaptive is not null && analysisTop != lastAnalysisTop)
             {
                 adaptive.ComputeRow(pixels, stride, analysisTop,
                     tables[pixels.AnalysisComponent][1], strengths!, cancellationToken);
                 lastAnalysisTop = analysisTop;
             }
-            for (int left = 0; left < width; left += 8 * sampleWidth)
+            for (int blockX = 0; blockX < blocksWide; blockX++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (restartInterval != 0 && mcusRemaining == 0)
@@ -633,12 +636,14 @@ public static class JpegliEncoder
                     mcusRemaining = restartInterval;
                 }
                 Downsampling.FillBlock(pixels, width, height, stride, component,
-                    left, top, sampleWidth, sampleHeight, samples, smoothingFactor);
+                    blockX, blockY, horizontal, vertical, factor.Horizontal, factor.Vertical,
+                    samples, smoothingFactor);
                 ForwardDct.Transform(samples, coefficients);
                 // Reproduce the interleaved pass's component-local row index,
                 // including chroma components with multiple blocks per MCU.
-                int strengthRow = (top - analysisTop) / (8 * sampleHeight);
-                float strength = adaptive is null ? 0f : strengths![strengthRow * adaptive.BlocksWide + left / 8];
+                int strengthRow = blockY % factor.Vertical;
+                float strength = adaptive is null ? 0f : strengths![strengthRow * adaptive.BlocksWide
+                    + blockX * horizontal / factor.Horizontal];
                 // AC thresholds and the zero DC threshold are independent of
                 // scan ordering. Each scan uses the same full coefficients.
                 Quantization.Quantize(coefficients, tables[component], quantized, component, distance,

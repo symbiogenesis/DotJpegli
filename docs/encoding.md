@@ -73,13 +73,28 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 
 Factors must be 1..4. The largest horizontal and vertical factors across Y, Cb
 and Cr determine the MCU size; the maxima may belong to different components.
-Each component factor must divide its corresponding maximum. A component's
+Ratios may be fractional. A component's
 sample area is `maxHorizontal / component.Horizontal` by
 `maxVertical / component.Vertical`. The sum of `Horizontal * Vertical` over all
 three components must be at most ten. Invalid factors are rejected before output,
 including for grayscale output; valid color settings are ignored for grayscale.
 The `Subsampling` enum must still be valid when overridden. Null `SamplingFactors`
 uses the preset and preserves its JPEG bytes.
+
+For example, `SamplingFactors = new(new(3, 1), new(2, 1), new(1, 1))`
+averages Cb over 1.5x1 source pixels and Cr over 3x1 pixels. Fractional ratios
+use area-weighted averaging of converted samples, horizontally then vertically,
+with exact rational sample boundaries and replicated image edges. Smoothing,
+when requested, precedes averaging. Component dimensions and noninterleaved
+scan/restart counts round up the rational dimensions without truncating ratios.
+Integer ratios retain the existing kernels and JPEG bytes.
+
+Fractional sampling extends the pinned upstream encoder, which rejects these
+ratios. It requires a decoder that supports nonintegral component upsampling;
+[StbImageSharp](https://github.com/StbSharp/StbImageSharp/blob/master/src/StbImage.Generated.Jpg.cs)
+and [libjpeg-turbo](https://github.com/libjpeg-turbo/libjpeg-turbo/blob/main/src/jdsample.c)
+reject it in their usual pixel decoding paths. Use integer ratios when targeting
+those readers.
 
 Luma may have smaller factors than Cb or Cr. For example, `SamplingFactors =
 new(new(1, 1), new(2, 2), new(1, 1))` averages Y and Cr over 2x2 pixels while
@@ -260,7 +275,7 @@ on RGB output. Adaptive quantization analyzes unsmoothed green, using uniform
 
 RGB defaults to full-resolution 1x1 factors and ignores the `Subsampling` preset.
 Custom `SamplingFactors` map `Luma`, `Cb` and `Cr` to R, G and B respectively,
-with the usual divisibility and ten-block MCU limits. Subsampled green disables
+with the usual factor range and ten-block MCU limits. Subsampled green disables
 adaptive quantization. Other sampling, smoothing, dummy blocks, restart markers,
 progressive scans, refinement and coefficient preflight use the existing paths.
 All options are still validated, including ignored sampling presets and JFIF densities.

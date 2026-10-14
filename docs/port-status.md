@@ -4,8 +4,8 @@
 
 ## Progress summary
 
-**23 of 27 tracked capability areas implemented (85.2%).**
-**4 capability areas pending.**
+**24 of 27 tracked capability areas implemented (88.9%).**
+**3 capability areas pending.**
 
 Each row in the implemented and pending tables counts once, with equal weight.
 Progress is calculated as `implemented / total × 100`, rounded to one decimal
@@ -46,6 +46,7 @@ for source attribution.
 | Input and output color spaces | Implemented | RGB/BGR, alpha-bearing, grayscale and interleaved full-range YCbCr layouts; grayscale, YCbCr and explicit RGB output. |
 | Input precision and float range | Implemented | Byte, 16-bit and float samples; fractional precision through quantization; optional out-of-range floats with finite-computation and eight-bit coefficient preflight. |
 | Integer component sampling | Implemented | Twelve chroma presets, custom asymmetric factors and subsampled luma, with at most ten blocks per MCU, replicated edges and dummy blocks preserving DC predictors. |
+| Fractional sampling ratios | Implemented | Custom ratios such as 3:2 and 4:3 use area-weighted averaging, rational block geometry, replicated edges and per-scan restarts. Requires a compatible decoder; extends the pinned upstream. |
 | Input smoothing | Implemented | Upstream 3×3 filter before sampling, with adaptive analysis of unsmoothed samples. |
 | DCT and managed SIMD | Implemented | Recursive scalar DCT, automatic managed vector acceleration and scalar fallback, retaining bounded stack storage and overlapping-span support. |
 | SIMD beyond the DCT | Implemented | Managed vector RGB-to-YCbCr conversion, unsmoothed integer-ratio downsampling and AC quantization, with automatic hardware dispatch, bounded storage and scalar fallbacks. |
@@ -69,7 +70,6 @@ describes the regression coverage behind these implementation statuses.
 
 | Capability area | Status | Remaining work |
 | --- | --- | --- |
-| Fractional sampling ratios | Pending | Extend sampling beyond integer component ratios. The pinned upstream also rejects fractional ratios; this is an extension in the existing roadmap. |
 | Source ICC color management | Pending | Convert arbitrary source profiles into the chosen output color space. Current profile attachment describes output samples. |
 | Structured metadata editing | Pending | Interpret, edit and reconcile metadata structures; current APIs embed supplied payloads. |
 | Parallel encoding | Pending | Add parallel encoder execution. |

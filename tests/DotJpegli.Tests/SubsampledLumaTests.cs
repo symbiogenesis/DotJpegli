@@ -252,7 +252,7 @@ public sealed class SubsampledLumaTests
     }
 
     [Fact]
-    public void FractionalRatiosToComponentMaximaFailBeforeAnyOutput()
+    public void FractionalRatiosToComponentMaximaEncodeAndAreIgnoredForGrayscale()
     {
         foreach (JpegSamplingFactors sampling in new[]
         {
@@ -279,9 +279,18 @@ public sealed class SubsampledLumaTests
                 ];
                 foreach (Action encode in encoders)
                 {
-                    var error = Assert.Throws<ArgumentException>(encode);
-                    Assert.Equal(nameof(JpegliEncoderOptions.SamplingFactors), error.ParamName);
-                    Assert.Equal(0, destination.Length);
+                    destination.SetLength(0);
+                    destination.Position = 0;
+                    encode();
+                    byte[] jpeg = destination.ToArray();
+                    JpegDocument document = Read(jpeg, options);
+                    Assert.Equal(grayscale ? 1 : 3, document.Components.Count);
+                    if (grayscale)
+                        Assert.Equal(Encode(new byte[1], 1, 1, PixelLayout.Gray8, new()), jpeg);
+                    else
+                        for (int id = 1; id <= 3; id++)
+                            Assert.Equal((sampling[id - 1].Horizontal, sampling[id - 1].Vertical),
+                                (document.Components[id].H, document.Components[id].V));
                     Assert.False(output.Closed);
                 }
             }

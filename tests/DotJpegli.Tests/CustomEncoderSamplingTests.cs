@@ -297,8 +297,6 @@ public sealed class CustomEncoderSamplingTests
             Factors(0, 1, 1, 1, 1, 1), Factors(1, 5, 1, 1, 1, 1),
             Factors(1, 1, -1, 1, 1, 1), Factors(1, 1, 1, 0, 1, 1),
             Factors(1, 1, 1, 1, 5, 1), Factors(1, 1, 1, 1, 1, -1),
-            Factors(2, 1, 3, 1, 1, 1), Factors(1, 2, 1, 1, 1, 3),
-            Factors(3, 1, 2, 1, 1, 1), Factors(1, 3, 1, 1, 1, 2),
             Factors(3, 3, 1, 1, 1, 1), Factors(2, 2, 2, 2, 2, 2)
         })
             foreach (bool grayscale in new[] { false, true })

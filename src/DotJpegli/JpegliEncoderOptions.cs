@@ -127,8 +127,8 @@ public sealed record JpegliEncoderOptions
     /// Optional per-component Y, Cb and Cr sampling factors, overriding Subsampling.
     /// Null (the default) uses the preset for YCbCr, full resolution for RGB,
     /// and factors 2x2/2x2/1x1 for scaled XYB.
-    /// Factors must be 1..4, with integer sample
-    /// areas relative to the largest factors and at most ten blocks per color MCU.
+    /// Factors must be 1..4, with at most ten blocks per color MCU. Fractional sample
+    /// areas relative to the largest factors use area-weighted averaging and may have limited reader support.
     /// For RGB output, Luma/Cb/Cr map to R/G/B and subsampled green disables adaptive quantization.
     /// For XYB output they map to scaled X/Y/B-minus-Y and subsampled Y disables adaptive quantization.
     /// Subsampled luma disables adaptive quantization for YCbCr, following upstream.

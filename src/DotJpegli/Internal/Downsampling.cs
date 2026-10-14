@@ -16,6 +16,53 @@ namespace DotJpegli.Internal;
 // the pinned upstream selector instead routes vertical factor 3 to two-row kernels.
 internal static class Downsampling
 {
+    // Block coordinates are in the component's output grid. Integer ratios
+    // retain the existing ordered kernels and automatic SIMD dispatch.
+    internal static void FillBlock(PixelSource pixels, int width, int height, int stride,
+        int component, int blockX, int blockY, int maxHorizontal, int maxVertical,
+        int componentHorizontal, int componentVertical, Span<float> samples, int smoothingFactor = 0)
+    {
+        if (maxHorizontal % componentHorizontal == 0 && maxVertical % componentVertical == 0)
+        {
+            int sampleWidth = maxHorizontal / componentHorizontal;
+            int sampleHeight = maxVertical / componentVertical;
+            FillBlock(pixels, width, height, stride, component, blockX * 8 * sampleWidth,
+                blockY * 8 * sampleHeight, sampleWidth, sampleHeight, samples, smoothingFactor);
+            return;
+        }
+
+        float neighborWeight = smoothingFactor / 1024f;
+        float centerWeight = 1f - 8f * neighborWeight;
+        // Express pixel and sample boundaries in integer units of 1/factor,
+        // avoiding drift at block/MCU boundaries for ratios such as 3/2 and 4/3.
+        for (int row = 0; row < 8; row++)
+        {
+            int yStart = (blockY * 8 + row) * maxVertical;
+            int yEnd = yStart + maxVertical;
+            for (int column = 0; column < 8; column++)
+            {
+                int xStart = (blockX * 8 + column) * maxHorizontal;
+                int xEnd = xStart + maxHorizontal;
+                float total = 0f;
+                for (int y = yStart / componentVertical; y * componentVertical < yEnd; y++)
+                {
+                    int yWeight = Math.Min(yEnd, (y + 1) * componentVertical)
+                        - Math.Max(yStart, y * componentVertical);
+                    float horizontal = 0f;
+                    for (int x = xStart / componentHorizontal; x * componentHorizontal < xEnd; x++)
+                    {
+                        int xWeight = Math.Min(xEnd, (x + 1) * componentHorizontal)
+                            - Math.Max(xStart, x * componentHorizontal);
+                        horizontal += ReadSample(pixels, width, height, stride, component, x, y,
+                            neighborWeight, centerWeight) * xWeight;
+                    }
+                    total += (horizontal / maxHorizontal) * yWeight;
+                }
+                samples[row * 8 + column] = total / maxVertical - 128f;
+            }
+        }
+    }
+
     internal static void FillBlock(ReadOnlySpan<byte> pixels, int width, int height, int stride,
         int bytesPerPixel, PixelLayout layout, int component, int left, int top,
         int sampleWidth, int sampleHeight, Span<float> samples, int smoothingFactor = 0)
