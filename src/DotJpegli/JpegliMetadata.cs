@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using DotJpegli.Internal;
 
 namespace DotJpegli;
@@ -152,7 +153,7 @@ public static class JpegliMetadata
     {
         if (text is null)
             return;
-        if (text.Length > maximum || text.Any(character => character is '\0' or > '\x7f'))
+        if (text.Length > maximum || text.AsSpan().Contains('\0') || !Ascii.IsValid(text))
             throw new ArgumentException($"{name} must be ASCII without NUL and at most {maximum} bytes.", name);
     }
 

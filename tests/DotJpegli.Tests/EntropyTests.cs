@@ -59,6 +59,56 @@ public sealed class EntropyTests
         Assert.Equal(new byte[] { 0x2b }, stream.ToArray());
     }
 
+    [Theory]
+    [InlineData(-1023)]
+    [InlineData(1023)]
+    public void FinalAcCoefficientIncludesCategoryTenWithoutTrailingEob(short value)
+    {
+        short[] block = new short[64];
+        block[JpegConstants.ZigZag[63]] = value;
+        long[] dc = new long[256];
+        long[] ac = new long[256];
+        int previous = 0;
+
+        EntropyEncoder.AccumulateFrequencies(block, ref previous, dc, ac);
+
+        Assert.Equal(1, dc[0]);
+        Assert.Equal(3, ac[0xf0]);
+        Assert.Equal(1, ac[0xea]);
+        Assert.Equal(0, ac[0]);
+        Assert.Equal(4, ac.Sum());
+    }
+
+    [Theory]
+    [InlineData(1, -1024)]
+    [InlineData(16, short.MinValue)]
+    [InlineData(32, short.MaxValue)]
+    [InlineData(63, 1024)]
+    public void InvalidAcCoefficientPreservesOutputPredictorAndFrequencies(int position, short value)
+    {
+        short[] block = new short[64];
+        block[0] = 5;
+        block[1] = 1;
+        block[position] = value;
+        long[] dc = new long[256];
+        long[] ac = new long[256];
+        int previous = 3;
+        using var stream = new MemoryStream();
+        var writer = new BitWriter(stream);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            EntropyEncoder.WriteBlock(writer, block, ref previous,
+                HuffmanTable.CreateDefault(false, false), HuffmanTable.CreateDefault(true, false)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            EntropyEncoder.AccumulateFrequencies(block, ref previous, dc, ac));
+
+        writer.Flush();
+        Assert.Equal(0, stream.Length);
+        Assert.Equal(3, previous);
+        Assert.Equal(0, dc.Sum());
+        Assert.Equal(0, ac.Sum());
+    }
+
     [Fact]
     public void OptimizerProducesValidBoundedCanonicalTables()
     {

@@ -186,7 +186,7 @@ internal sealed class HuffmanTable
 
             Array.Clear(depth);
             SetDepth(tree, 2 * leafCount - 1, depth, 0);
-            if (depth.Max() <= 16)
+            if (!depth.AsSpan().ContainsAnyInRange(17, int.MaxValue))
             {
                 return depth;
             }

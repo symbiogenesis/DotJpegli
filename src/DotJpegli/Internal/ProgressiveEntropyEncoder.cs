@@ -500,12 +500,9 @@ internal static class ProgressiveEntropyEncoder
     private static void ValidateAc(ReadOnlySpan<short> coefficients)
     {
         ValidateLength(coefficients);
-        for (int index = 1; index < 64; index++)
+        if (coefficients[1..].ContainsAnyExceptInRange((short)-1023, (short)1023))
         {
-            if (coefficients[index] is < -1023 or > 1023)
-            {
-                throw new ArgumentOutOfRangeException(nameof(coefficients), "An AC coefficient exceeds eight-bit JPEG's 10-bit category.");
-            }
+            throw new ArgumentOutOfRangeException(nameof(coefficients), "An AC coefficient exceeds eight-bit JPEG's 10-bit category.");
         }
     }
 }

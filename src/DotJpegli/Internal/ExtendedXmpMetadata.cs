@@ -53,7 +53,9 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
                 parameter, error);
         }
 
-        string digest = Convert.ToHexString(hash.GetHashAndReset());
+        Span<byte> digestBytes = stackalloc byte[MD5.HashSizeInBytes];
+        hash.GetHashAndReset(digestBytes);
+        string digest = Convert.ToHexString(digestBytes);
         string standard = automatic?.StandardRoot is XElement standardRoot
             ? AutomaticXmpPartitioning.CreateStandardPacket(standardRoot, digest, cancellationToken)
             : automatic is not null || string.IsNullOrEmpty(options.XmpPacket)

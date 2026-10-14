@@ -119,7 +119,8 @@ internal static class JpegMarkerWriter
         if (extendedXmp is not null)
         {
             var chunks = new ExtendedXmpMetadata.Utf8Chunks(extendedXmp.Packet);
-            byte[] digest = Encoding.ASCII.GetBytes(extendedXmp.Digest);
+            Span<byte> digest = stackalloc byte[32];
+            Encoding.ASCII.GetBytes(extendedXmp.Digest, digest);
             uint offset = 0;
             while (true)
             {

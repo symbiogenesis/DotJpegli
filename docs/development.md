@@ -4,6 +4,17 @@
 
 ## Build
 
+The projects target .NET 10 and use its default C# 14 language version.
+`global.json` selects the newest installed stable .NET 10 SDK feature band and
+patch, starting at 10.0.100. CI installs the newest available `10.0.x` SDK.
+Keep the SDK current to receive compiler, runtime and analyzer improvements.
+
+Prefer framework span APIs for buffer searches, validation and counting, and
+span splitting when substrings do not need to be retained. Use collection
+expressions, records and primary constructors where they simplify the code.
+Keep numerical operation ordering and caller-owned buffer snapshots intact:
+modernization must preserve JPEG bytes, validation and the managed-only contract.
+
 The library project and its source are in `src/DotJpegli/`; tests are in
 `tests/DotJpegli.Tests/`. Build the library from the repository root with:
 

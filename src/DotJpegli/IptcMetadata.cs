@@ -178,13 +178,12 @@ public sealed class IptcMetadata
     {
         // Escape and shift control functions can change legacy character sets,
         // so even ASCII bytes containing them cannot safely be relabeled UTF-8.
-        if (value.Contains((byte)0x1b) || value.Contains((byte)0x0e) || value.Contains((byte)0x0f))
+        if (value.ContainsAny((byte)0x1b, (byte)0x0e, (byte)0x0f))
             throw new InvalidOperationException("IPTC text containing character-set escape or shift functions is unsupported.");
         if (!utf8)
         {
-            foreach (byte octet in value)
-                if (octet >= 0x80)
-                    throw new InvalidOperationException("Undesignated non-ASCII IPTC text has an ambiguous legacy encoding.");
+            if (!Ascii.IsValid(value))
+                throw new InvalidOperationException("Undesignated non-ASCII IPTC text has an ambiguous legacy encoding.");
             return Encoding.ASCII.GetString(value);
         }
         try

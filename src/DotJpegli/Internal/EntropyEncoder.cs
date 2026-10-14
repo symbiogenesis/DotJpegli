@@ -114,19 +114,8 @@ internal static class EntropyEncoder
     private static uint AdditionalBits(int value, int category) =>
         unchecked((uint)(value < 0 ? value - 1 : value)) & ((1U << category) - 1);
 
-    private static int CountNonzeroAc(ReadOnlySpan<short> coefficients)
-    {
-        int count = 0;
-        for (int index = 1; index < 64; index++)
-        {
-            if (coefficients[index] != 0)
-            {
-                count++;
-            }
-        }
-
-        return count;
-    }
+    private static int CountNonzeroAc(ReadOnlySpan<short> coefficients) =>
+        63 - coefficients[1..].Count((short)0);
 
     private static void ValidateBlock(ReadOnlySpan<short> coefficients, int previousDc)
     {
@@ -143,12 +132,9 @@ internal static class EntropyEncoder
             throw new ArgumentOutOfRangeException(nameof(coefficients), "The DC difference exceeds baseline JPEG's 11-bit category.");
         }
 
-        for (int index = 1; index < 64; index++)
+        if (coefficients[1..].ContainsAnyExceptInRange((short)-1023, (short)1023))
         {
-            if (coefficients[index] is < -1023 or > 1023)
-            {
-                throw new ArgumentOutOfRangeException(nameof(coefficients), "An AC coefficient exceeds baseline JPEG's 10-bit category.");
-            }
+            throw new ArgumentOutOfRangeException(nameof(coefficients), "An AC coefficient exceeds baseline JPEG's 10-bit category.");
         }
     }
 }

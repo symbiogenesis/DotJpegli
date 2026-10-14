@@ -507,10 +507,9 @@ public sealed record JpegliEncoderOptions
                     nameof(QuantizationTables));
             snapshot[index] = table.ToArray();
             int maximum = ForceBaseline ? 255 : 32767;
-            foreach (ushort value in snapshot[index])
-                if (value < 1 || value > maximum)
-                    throw new ArgumentException($"Quantization values must be between 1 and {maximum}.",
-                        nameof(QuantizationTables));
+            if (snapshot[index].AsSpan().ContainsAnyExceptInRange((ushort)1, (ushort)maximum))
+                throw new ArgumentException($"Quantization values must be between 1 and {maximum}.",
+                    nameof(QuantizationTables));
         }
         return snapshot;
     }

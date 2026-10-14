@@ -291,8 +291,16 @@ public sealed class XmpMetadata
         ArgumentException.ThrowIfNullOrEmpty(language);
         // Language tags consist of ASCII alphanumeric subtags separated by '-'.
         // This also allows XMP's special x-default language without a culture lookup.
-        if (language.Split('-').Any(part => part.Length == 0 || part.Any(character => !char.IsAsciiLetterOrDigit(character))))
-            throw new ArgumentException("The language must be a hyphen-separated ASCII language tag.", nameof(language));
+        ReadOnlySpan<char> tag = language;
+        foreach (Range range in tag.Split('-'))
+        {
+            ReadOnlySpan<char> part = tag[range];
+            if (part.IsEmpty)
+                throw new ArgumentException("The language must be a hyphen-separated ASCII language tag.", nameof(language));
+            foreach (char character in part)
+                if (!char.IsAsciiLetterOrDigit(character))
+                    throw new ArgumentException("The language must be a hyphen-separated ASCII language tag.", nameof(language));
+        }
     }
 
     private static bool HasText(XElement element) =>

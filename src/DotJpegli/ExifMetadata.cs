@@ -247,7 +247,7 @@ public sealed class ExifMetadata
         if (entry?.FieldType != ExifFieldType.Ascii)
             return null;
         ReadOnlySpan<byte> value = entry.Value.Span;
-        if (value.IsEmpty || value[^1] != 0 || value.ContainsAnyInRange((byte)128, byte.MaxValue))
+        if (value.IsEmpty || value[^1] != 0 || !Ascii.IsValid(value))
             throw Invalid("An ASCII entry must contain ASCII bytes and end in NUL.");
         return Encoding.ASCII.GetString(value[..^1]);
     }
@@ -256,7 +256,7 @@ public sealed class ExifMetadata
     public void SetAscii(ExifDirectory directory, ushort tag, string value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        if (value.AsSpan().Contains('\0') || value.Any(character => character > 127))
+        if (value.AsSpan().Contains('\0') || !Ascii.IsValid(value))
             throw new ArgumentException("The string must contain ASCII characters without embedded NULs.", nameof(value));
         byte[] bytes = new byte[checked(value.Length + 1)];
         Encoding.ASCII.GetBytes(value, bytes);
