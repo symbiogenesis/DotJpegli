@@ -29,6 +29,16 @@ See the [GitHub Actions workflow](../.github/workflows/ci.yml) for the hosted ch
 
 ## Regression coverage
 
+Structured-metadata regressions independently inspect TIFF directories and values,
+XMP XML/RDF properties and IIM dataset bytes. They cover typed and generic edits,
+unknown-value preservation, byte orders, thumbnail offsets, language alternatives,
+repeated datasets, UTF-8 declarations, malformed input and explicit unsupported
+structures. Reconciliation checks dimensions, orientation, physical densities,
+descriptive mappings, alias removal, owned output storage, raw-marker conflicts,
+automatic XMP partitioning and cancellation. Complete coding-byte comparisons
+across source precisions and scan modes, plus independent decoded-pixel checks,
+verify that metadata editing does not change image encoding.
+
 Parallel-encoding regressions compare complete JPEG bytes with serial execution
 across source precisions, padded layouts, color spaces, odd edges, custom and
 fractional sampling, smoothing, adaptive quantization, Huffman modes, sequential

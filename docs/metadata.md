@@ -2,6 +2,89 @@
 
 [Documentation](README.md)
 
+## Structured editing and reconciliation
+
+Raw encoder options embed supplied payloads. The separate `ExifMetadata`,
+`XmpMetadata` and `IptcMetadata` editors interpret supported structures and
+serialize owned results for those options. Editing is explicit; it never changes
+source pixels. These managed APIs extend the encoder port.
+
+`ExifMetadata.Parse` reads a TIFF body in either byte order. `GetEntry`/`SetEntry`
+edit standard TIFF values, and typed methods edit unsigned integers, ASCII and
+unsigned rationals. Image, Photo, GPS, Interoperability and Thumbnail directories
+are supported. Serialization emits little-endian TIFF, retains unknown standard
+entries and rebases JPEG thumbnail offsets. Malformed directories, offsets,
+counts and cycles are rejected. MakerNotes and unsupported offset-bearing
+structures cannot safely be relocated: serialization rejects them until removed.
+`RemoveThumbnail` removes the complete preview directory and JPEG data.
+
+`XmpMetadata.Parse` accepts ordinary empty-subject RDF descriptions inside an
+`x:xmpmeta` or `rdf:RDF` envelope. Simple properties, complete `XElement` property
+trees, ordered/unordered string arrays and language alternatives can be read,
+replaced or removed by namespace URI and local name. Unedited properties and
+qualifiers are retained; XML values returned or supplied are copied. DTDs and
+external entities are prohibited. Standard packets containing `HasExtendedXMP`
+links can be inspected but cannot be edited: combine the standard and extended
+trees and remove the old link first, then let the encoder partition the result.
+
+`IptcMetadata.Parse` reads IIM datasets with standard or extended lengths.
+`GetValues`/`SetValues` edit opaque repeated datasets; `GetTextValues`/
+`SetTextValues` edit Application Record 2 text. Text editing uses strict UTF-8
+with the `ESC % G` coded-character-set designation. Undesignated existing text
+must be ASCII, and incompatible encodings are rejected rather than relabeled.
+Known By-line, CopyrightNotice and Caption-Abstract byte limits are enforced,
+including their repeatability rules. Raw dataset editing remains available for
+other values and schemas.
+
+Use `JpegliMetadata.Reconcile` to prepare a consistent set of metadata before
+encoding:
+
+```csharp
+var options = JpegliMetadata.Reconcile(new JpegliEncoderOptions
+{
+    ExifData = existingTiff,
+    XmpPacket = existingXmp,
+    IptcData = existingIim,
+    DensityUnit = JpegDensityUnit.DotsPerInch,
+    HorizontalDensity = 300,
+    VerticalDensity = 300
+}, width, height, new JpegliMetadataEdits
+{
+    Orientation = 1,
+    Artist = "Ada",
+    Copyright = "Copyright 2026 Ada",
+    Description = "Portrait",
+    ExifColorSpace = 1 // Only when the stored samples have an sRGB interpretation.
+});
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: options);
+```
+
+The helper returns an options copy with owned Exif/IPTC bytes and serialized XMP;
+it does not mutate the original storage. It updates TIFF/Exif and XMP dimensions,
+sets the requested orientation (default 1), and removes the old Exif thumbnail.
+Orientation describes the supplied pixels and does not rotate them. Physical
+JFIF densities are copied to Exif and XMP; unspecified units remove stale physical
+resolution fields while preserving the JFIF pixel aspect ratio. RGB/XYB output
+omits JFIF as usual, but retains explicitly supplied physical resolution in Exif/XMP.
+
+Supplied artist, copyright and description values replace the corresponding
+Exif ASCII, XMP Dublin Core and IPTC text fields. Stale XMP TIFF aliases are removed;
+copyright and description update `x-default` while retaining other languages.
+Null leaves a descriptive field untouched, including existing differences between
+formats; empty removes all representations of that field. These shared edits
+must be ASCII without NUL, to fit Exif ASCII, and meet IPTC limits (artist 32 bytes,
+copyright 128, description 2,000). Use the individual XMP/IPTC editors for Unicode.
+Optional Exif color space accepts 1 (sRGB) or 65535 (uncalibrated), synchronizing
+Exif and XMP without inferring ICC transforms. Unrelated fields are retained.
+
+Reconciliation enables automatic XMP partitioning and validates final payload
+sizes before returning. Existing manual extended packets, stale digest links and
+recognized raw Exif/XMP/JFIF/Photoshop markers must be resolved first; unrelated
+raw markers and ICC bytes are retained. Use the returned options with the same
+dimensions supplied to the helper. Schema mappings follow the
+[Adobe XMP namespaces](https://developer.adobe.com/xmp/docs/xmp-namespaces/)
+and [IPTC IIM specification](https://www.iptc.org/std/IIM/4.2/specification/IIMV4.2.pdf).
+
 ## Exif
 
 Set `ExifData` to raw TIFF bytes for Exif metadata, beginning with the TIFF header.

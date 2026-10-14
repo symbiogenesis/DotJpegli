@@ -4,8 +4,8 @@
 
 ## Progress summary
 
-**25 of 27 tracked capability areas implemented (92.6%).**
-**2 capability areas pending.**
+**26 of 27 tracked capability areas implemented (96.3%).**
+**1 capability area pending.**
 
 Each row in the implemented and pending tables counts once, with equal weight.
 Progress is calculated as `implemented / total × 100`, rounded to one decimal
@@ -57,6 +57,7 @@ for source attribution.
 | Custom and extended quantization | Implemented | Shared/separate selectors, snapshots and validation; optional quantizers up to 32767, mixed eight/sixteen-bit DQT tables and eight-bit SOF1 output. |
 | Transfer-function tuning | Implemented | PQ/HLG CICP hints and opt-in raw ICC transfer lookup, preserving profile bytes and source samples. |
 | Metadata embedding | Implemented | Exif TIFF, standard/extended XMP, chunked ICC, Photoshop IPTC-IIM, UTF-8 comments, JFIF densities and raw APP0–APP15/COM markers with caller order preserved. |
+| Structured metadata editing | Implemented | Opt-in Exif directory/tag, XMP property/array/language and IPTC dataset editors; explicit reconciliation of dimensions, orientation, physical density and supplied descriptive fields. Unsupported offset-sensitive Exif structures fail explicitly; see the metadata guide for supported formats and restrictions. |
 | Automatic XMP partitioning | Implemented | Oversized packets move to extended XMP; selected top-level properties can remain in the standard packet. |
 | XYB encoding and profile | Implemented | Already scaled XYB input and sRGB/grayscale conversion, upstream XYB quantizers/sampling/Y-based analysis, and a managed scaled XYB output profile. |
 | Named and generic ICC profiles | Implemented | RGB/grayscale sRGB, linear, P3, Rec.709/2020, DCI, PQ/HLG and pure-gamma profiles; every named combination of three whites, three RGB primary sets and six transfers, plus gamma. |
@@ -72,7 +73,6 @@ describes the regression coverage behind these implementation statuses.
 | Capability area | Status | Remaining work |
 | --- | --- | --- |
 | Source ICC color management | Pending | Convert arbitrary source profiles into the chosen output color space. Current profile attachment describes output samples. |
-| Structured metadata editing | Pending | Interpret, edit and reconcile metadata structures; current APIs embed supplied payloads. |
 
 ## Validation and compatibility
 
