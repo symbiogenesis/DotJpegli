@@ -389,6 +389,169 @@ internal static class Quantization
             adaptiveQuantization, adaptiveStrength, adaptiveMultipliers, previousDc,
             requireEightBitCoefficients, rgb, useVector: true);
 
+    /// <summary>Immutable per-component quantizer data validated once for an encoding pass.</summary>
+    internal sealed class PreparedTable
+    {
+        private readonly float[] divisors;
+        private readonly float[] multipliers;
+
+        private PreparedTable(float[] divisors, float[] multipliers, float acOffset, bool adaptiveQuantization)
+        {
+            this.divisors = divisors;
+            this.multipliers = multipliers;
+            AcOffset = acOffset;
+            AdaptiveQuantization = adaptiveQuantization;
+        }
+
+        internal ReadOnlySpan<float> Divisors => divisors;
+        internal ReadOnlySpan<float> Multipliers => multipliers;
+        internal float AcOffset { get; }
+        internal bool AdaptiveQuantization { get; }
+
+        internal static PreparedTable Create(ReadOnlySpan<ushort> table, int component, float distance,
+            bool grayscale = false, bool adaptiveQuantization = false,
+            ReadOnlySpan<float> adaptiveMultipliers = default, bool rgb = false)
+        {
+            ValidateComponent(component);
+            if (grayscale && component != 0)
+                throw new ArgumentOutOfRangeException(nameof(component), "Grayscale has only component 0.");
+            if (!float.IsFinite(distance) || distance <= 0)
+                throw new ArgumentOutOfRangeException(nameof(distance));
+            if (table.Length < BlockSize)
+                throw new ArgumentException("A quantization table requires 64 values.", nameof(table));
+            if (adaptiveQuantization && adaptiveMultipliers.Length < BlockSize)
+                throw new ArgumentException("Adaptive quantization requires 64 multipliers.", nameof(adaptiveMultipliers));
+
+            var divisors = new float[BlockSize];
+            float[] multipliers = adaptiveQuantization ? new float[BlockSize] : [];
+            for (int i = 0; i < BlockSize; i++)
+            {
+                if (table[i] is < 1 or > 32767)
+                    throw new ArgumentException("Quantization values must be between 1 and 32767.", nameof(table));
+                // Every valid ushort divisor is exactly representable as float.
+                // Store the divisor itself: a reciprocal would change rounding.
+                divisors[i] = table[i];
+                if (adaptiveQuantization)
+                {
+                    float multiplier = adaptiveMultipliers[i];
+                    if (!float.IsFinite(multiplier) || multiplier < 0)
+                        throw new ArgumentException("Adaptive multipliers must be finite and nonnegative.", nameof(adaptiveMultipliers));
+                    multipliers[i] = multiplier;
+                }
+            }
+            float acOffset = grayscale || rgb ? (adaptiveQuantization ? 0.5f : 0f) : component switch
+            {
+                0 => 0.59082f,
+                1 => 0.58146f,
+                _ => 0.57988f,
+            };
+            return new(divisors, multipliers, acOffset, adaptiveQuantization);
+        }
+    }
+
+    internal static void QuantizePrepared(ReadOnlySpan<float> coefficients, PreparedTable table, Span<short> output,
+        float adaptiveStrength = 0f, int previousDc = 0, bool requireEightBitCoefficients = false)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        if (coefficients.Length < BlockSize)
+            throw new ArgumentException("A DCT block requires 64 coefficients.", nameof(coefficients));
+        if (output.Length < BlockSize)
+            throw new ArgumentException("A quantized block requires 64 values.", nameof(output));
+        if (table.AdaptiveQuantization && (!float.IsFinite(adaptiveStrength) || adaptiveStrength < 0))
+            throw new ArgumentOutOfRangeException(nameof(adaptiveStrength));
+        if (Vector.IsHardwareAccelerated && Vector<float>.Count < BlockSize
+            && !MemoryMarshal.AsBytes(coefficients).Overlaps(MemoryMarshal.AsBytes(output)))
+            QuantizePreparedVectorCore(coefficients, table, output, adaptiveStrength, previousDc, requireEightBitCoefficients);
+        else
+            QuantizePreparedScalarCore(coefficients, table, output, adaptiveStrength, previousDc, requireEightBitCoefficients);
+    }
+
+    private static void QuantizePreparedScalarCore(ReadOnlySpan<float> coefficients, PreparedTable table,
+        Span<short> output, float adaptiveStrength, int previousDc, bool requireEightBitCoefficients,
+        int start = 0, int end = BlockSize)
+    {
+        ReadOnlySpan<float> divisors = table.Divisors;
+        ReadOnlySpan<float> multipliers = table.Multipliers;
+        bool adaptive = table.AdaptiveQuantization;
+        for (int i = start; i < end; i++)
+        {
+            if (!float.IsFinite(coefficients[i]))
+                throw new ArgumentException("DCT coefficients must be finite.", nameof(coefficients));
+            float quantized = coefficients[i] / divisors[i];
+            float threshold = (i == 0 ? 0f : table.AcOffset) + (adaptive ? adaptiveStrength * multipliers[i] : 0f);
+            float value = i == 0
+                ? MathF.Abs(quantized - previousDc) < threshold ? previousDc
+                    : MathF.Round(quantized, MidpointRounding.AwayFromZero)
+                : MathF.Abs(quantized) < threshold ? 0f : MathF.Round(quantized, MidpointRounding.ToEven);
+            StoreQuantizedValue(value, i, output, requireEightBitCoefficients);
+        }
+    }
+
+    private static void QuantizePreparedVectorCore(ReadOnlySpan<float> coefficients, PreparedTable table,
+        Span<short> output, float adaptiveStrength, int previousDc, bool requireEightBitCoefficients)
+    {
+        QuantizePreparedScalarCore(coefficients, table, output, adaptiveStrength, previousDc, requireEightBitCoefficients, end: 1);
+        short dc = output[0];
+        ReadOnlySpan<float> divisors = table.Divisors;
+        ReadOnlySpan<float> multipliers = table.Multipliers;
+        bool adaptive = table.AdaptiveQuantization;
+        int width = Vector<float>.Count;
+        int batch = 2 * width;
+        var offset = new Vector<float>(table.AcOffset);
+        var strength = new Vector<float>(adaptiveStrength);
+        var finiteLimit = new Vector<float>(float.MaxValue);
+        var minimum = new Vector<float>(short.MinValue);
+        var maximum = new Vector<float>(short.MaxValue);
+        int i = 0;
+        for (; i <= BlockSize - batch; i += batch)
+        {
+            Vector<float> lower = new(coefficients.Slice(i, width));
+            Vector<float> upper = new(coefficients.Slice(i + width, width));
+            Vector<int> valid = Vector.LessThanOrEqual(Vector.Abs(lower), finiteLimit)
+                & Vector.LessThanOrEqual(Vector.Abs(upper), finiteLimit);
+            if (!Vector.EqualsAll(valid, new Vector<int>(-1)))
+            {
+                QuantizePreparedScalarCore(coefficients, table, output, adaptiveStrength, previousDc,
+                    requireEightBitCoefficients, start: Math.Max(i, 1));
+                return;
+            }
+            Vector<float> lowerThreshold = offset;
+            Vector<float> upperThreshold = offset;
+            if (adaptive)
+            {
+                lowerThreshold += strength * new Vector<float>(multipliers.Slice(i, width));
+                upperThreshold += strength * new Vector<float>(multipliers.Slice(i + width, width));
+            }
+            lower /= new Vector<float>(divisors.Slice(i, width));
+            upper /= new Vector<float>(divisors.Slice(i + width, width));
+            lower = Vector.ConditionalSelect(Vector.LessThan(Vector.Abs(lower), lowerThreshold),
+                Vector<float>.Zero, Vector.Round(lower, MidpointRounding.ToEven));
+            upper = Vector.ConditionalSelect(Vector.LessThan(Vector.Abs(upper), upperThreshold),
+                Vector<float>.Zero, Vector.Round(upper, MidpointRounding.ToEven));
+            if (i == 0)
+                lower = Vector.WithElement(lower, 0, dc);
+            if (requireEightBitCoefficients)
+            {
+                var acMinimum = new Vector<float>(-1023f);
+                Vector<float> lowerMinimum = i == 0 ? Vector.WithElement(acMinimum, 0, -1024f) : acMinimum;
+                Vector<int> inRange = Vector.GreaterThanOrEqual(lower, lowerMinimum)
+                    & Vector.LessThanOrEqual(lower, new Vector<float>(1023f))
+                    & Vector.GreaterThanOrEqual(upper, acMinimum)
+                    & Vector.LessThanOrEqual(upper, new Vector<float>(1023f));
+                if (!Vector.EqualsAll(inRange, new Vector<int>(-1)))
+                {
+                    QuantizePreparedScalarCore(coefficients, table, output, adaptiveStrength, previousDc,
+                        requireEightBitCoefficients, start: Math.Max(i, 1));
+                    return;
+                }
+            }
+            Vector<int> lowerIntegers = Vector.ConvertToInt32(Vector.Clamp(lower, minimum, maximum));
+            Vector<int> upperIntegers = Vector.ConvertToInt32(Vector.Clamp(upper, minimum, maximum));
+            Vector.Narrow(lowerIntegers, upperIntegers).CopyTo(output.Slice(i, batch));
+        }
+        QuantizePreparedScalarCore(coefficients, table, output, adaptiveStrength, previousDc, requireEightBitCoefficients, start: i);
+    }
+
     private static void QuantizeCore(ReadOnlySpan<float> coefficients,
         ReadOnlySpan<ushort> table, Span<short> output, int component, float distance,
         bool grayscale, bool adaptiveQuantization, float adaptiveStrength,
