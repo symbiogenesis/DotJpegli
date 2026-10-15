@@ -105,9 +105,11 @@ or upstream performance parity.
 
 `MaxDegreeOfParallelism` defaults to one worker; positive limits or automatic
 selection (`-1`) enable parallel conversion, sampling and DCT when the effective
-limit exceeds one. Parallel execution copies the consumed source storage once
-and retains one MCU row of DCT coefficients, with no image-sized coefficient
-buffer. All workers finish before encoding returns. Adaptive analysis,
+limit exceeds one. Parallel execution shares cached converted samples or copies
+the consumed source storage once, and retains one MCU row of DCT coefficients.
+Converted samples and optimized grayscale/YCbCr quantized coefficients each
+have a separate 64 MiB cache budget; larger images use streaming recomputation.
+All workers finish before encoding returns. Adaptive analysis,
 quantization and stream writes remain ordered. This execution option extends
 the managed port and does not establish a measured speed improvement.
 

@@ -264,6 +264,7 @@ public static class JpegliEncoder
                     nameof(pixels), error);
             }
         }
+        pixels = pixels.WithConvertedPlanes(width, height, stride, cancellationToken);
         int workerLimit = options.MaxDegreeOfParallelism == -1
             ? Environment.ProcessorCount : options.MaxDegreeOfParallelism;
         if (workerLimit > 1)

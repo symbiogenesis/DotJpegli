@@ -126,6 +126,12 @@ Use `MaxDegreeOfParallelism` to opt into
 bytes and additional source-copy/row-buffer memory. The stream remains on the
 calling thread and all workers finish before encoding returns.
 
+The encoder caches converted samples when they fit within 64 MiB, avoiding
+repeated color conversion during analysis and scan preparation. Optimized
+grayscale/YCbCr encoding also reuses pooled quantized coefficients within a
+separate 64 MiB budget. Larger images retain the row/block streaming paths.
+These budgets exclude the source, output, metadata, and ordinary row scratch.
+
 ## Higher-precision input
 
 The `ReadOnlySpan<ushort>` and `ReadOnlySpan<float>` overloads accept interleaved
@@ -165,8 +171,8 @@ values; deserialize byte-oriented source data with its correct endianness first.
 The output remains a lossy eight-bit JPEG. Higher-precision input retains more
 information before coefficient quantization; it does not enable 12-bit JPEG or
 lossless encoding. Stream behavior, cancellation, pixel limits and source lifetime
-requirements are the same as for byte input. Samples are read on demand with
-bounded working storage; no full-image conversion buffer is allocated. Float
+requirements are the same as for byte input. Converted samples may be retained
+within the fixed cache budget described above. Float
 validation adds one input pass, with cancellation checks between rows.
 
 ## Out-of-range floating-point input
@@ -259,8 +265,8 @@ Consumed float samples must be finite and in 0..1, even with
 profiles and nonfinite conversion results fail before output. Profiles are
 parsed into immutable owned transforms and the destination bytes are copied
 before stream writes; do not mutate profile memory while encoding starts.
-The source profile is not embedded. Conversion uses bounded per-pixel storage
-without a full-image converted buffer and is shared safely by parallel workers.
+The source profile is not embedded. Converted samples are cached within the
+fixed budget above, or converted on demand for larger images, and shared safely by parallel workers.
 Cancellation is checked during profile preparation and between image rows.
 Leaving `SourceIccProfile` empty preserves the existing JPEG coding and opaque
 profile-attachment behavior. This capability does not establish quality,
@@ -370,7 +376,7 @@ sRGB primaries, D65 white and the sRGB transfer function. Samples are normalized
 directly to 0..1, linearized, transformed through upstream's biased opsin matrix
 at its default intensity target of 255, then scaled to X, Y and B-minus-Y.
 Fractional values pass to the existing XYB quantization and sampling paths;
-conversion is performed on demand without a full-image conversion buffer.
+conversion uses the fixed cache budget above, with on-demand conversion for larger images.
 
 A nonempty matching **scaled XYB output** ICC profile is required. Use
 `JpegliIccProfiles.CreateXybProfile()` for the built-in Jpegli profile at the
