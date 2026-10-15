@@ -421,13 +421,13 @@ exhausted token budgets use coefficient replay or row/block recomputation.
 These budgets exclude caller pixels, output, metadata, histograms and ordinary
 row/block scratch.
 
-A single-worker optimized interleaved sequential color scan records entropy
+A single-worker optimized interleaved sequential YCbCr scan records entropy
 tokens while transforming and quantizing blocks, avoiding the image-wide
 coefficient cache and its subsequent traversal. If tokens exceed their budget,
-emission recomputes blocks with the same prepared quantizers. Progressive and
-other scan layouts reuse quantized coefficients when that cache fits, and
-otherwise recompute blocks in scan order. Optimized progressive output collects
-frequencies from the initial DC and all AC scans before writing them. Histogram
+emission recomputes blocks with the same prepared quantizers. Other optimized
+grayscale/YCbCr scan layouts reuse quantized coefficients when that cache fits,
+and otherwise recompute blocks in scan order. Optimized progressive output
+collects frequencies from the initial DC and all AC scans before writing them. Histogram
 storage grows with the bounded scan-context count, independently of image area;
 spatial analysis uses bounded neighboring rows.
 

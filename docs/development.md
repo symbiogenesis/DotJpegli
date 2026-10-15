@@ -15,8 +15,8 @@ The managed DCT uses standard JPEG coefficient units; upstream's transform emits
 one eighth of those units, accounted for during quantization. Portable
 `System.Numerics.Vector<float>` paths accelerate the DCT, RGB-to-YCbCr conversion,
 unsmoothed integer-ratio downsampling and AC quantization. DCT dispatch requires
-runtime hardware acceleration and a vector width that divides an eight-sample
-row; unsupported cases use scalar fallbacks. Paths preserve scalar evaluation order,
+runtime hardware acceleration and four or eight float lanes; unsupported cases
+use scalar fallbacks. Paths preserve scalar evaluation order,
 fused multiply-add rounding, sample normalization, averaging order and
 quantization thresholds and rounding.
 
