@@ -1,4 +1,3 @@
-#if NET11_0_OR_GREATER
 using System.Runtime.Intrinsics;
 using DotJpegli.Internal;
 using Xunit;
@@ -22,11 +21,11 @@ public sealed class Net11DctTransposeTests
         float[] values = bits.Select(BitConverter.Int32BitsToSingle).ToArray();
         Vector256<float>[] rows = Enumerable.Range(0, 9)
             .Select(row => Vector256.Create(values.AsSpan(row * 8, 8))).ToArray();
-        ForwardDct.TransposeNet11(rows);
+        ForwardDct.TransposePortable(rows);
         for (int row = 0; row < 8; row++)
             for (int column = 0; column < 8; column++)
                 Assert.Equal(bits[column * 8 + row], BitConverter.SingleToInt32Bits(rows[row][column]));
-        ForwardDct.TransposeNet11(rows);
+        ForwardDct.TransposePortable(rows);
         for (int row = 0; row < rows.Length; row++)
             for (int column = 0; column < 8; column++)
                 Assert.Equal(bits[row * 8 + column], BitConverter.SingleToInt32Bits(rows[row][column]));
@@ -37,8 +36,7 @@ public sealed class Net11DctTransposeTests
     {
         Vector256<float>[] rows = Enumerable.Range(0, 7).Select(row => Vector256.Create((float)row)).ToArray();
         Vector256<float>[] original = (Vector256<float>[])rows.Clone();
-        Assert.Equal("rows", Assert.Throws<ArgumentException>(() => ForwardDct.TransposeNet11(rows)).ParamName);
+        Assert.Equal("rows", Assert.Throws<ArgumentException>(() => ForwardDct.TransposePortable(rows)).ParamName);
         Assert.Equal(original, rows);
     }
 }
-#endif

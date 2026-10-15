@@ -5,7 +5,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
-using System.Runtime.Intrinsics.X86;
 
 namespace DotJpegli.Internal;
 
@@ -55,7 +54,7 @@ internal static class ForwardDct
         if (coefficients.Length < 64)
             throw new ArgumentException("The coefficient buffer requires at least 64 values.", nameof(coefficients));
 
-        if (Vector<float>.Count == 8 && Avx.IsSupported)
+        if (Vector.IsHardwareAccelerated && Vector<float>.Count == 8)
         {
             Span<Vector<float>> rows = stackalloc Vector<float>[8];
             var center = new Vector<float>(128f);
@@ -63,7 +62,11 @@ internal static class ForwardDct
             // coefficient span overlaps any of these strided input rows.
             for (int row = 0; row < 8; row++)
                 rows[row] = new Vector<float>(plane.Slice((top + row) * stride + left, 8)) - center;
-            TransformAvxRows(rows, coefficients);
+            TransformEightLaneRows(rows, coefficients);
+        }
+        else if (Vector.IsHardwareAccelerated && Vector<float>.Count == 4)
+        {
+            TransformFourLane(plane[(top * stride + left)..], stride, centerInput: true, coefficients);
         }
         else
         {
@@ -94,7 +97,7 @@ internal static class ForwardDct
 
     // A future runtime may use vectors wider than one eight-sample row.
     // Keep that case on the scalar path rather than reading outside a block.
-    private static bool CanUseVector => Vector<float>.Count <= 8 && 8 % Vector<float>.Count == 0;
+    private static bool CanUseVector => Vector<float>.Count is 4 or 8;
 
     private static void ValidateBuffers(ReadOnlySpan<float> samples, Span<float> coefficients)
     {
@@ -145,139 +148,174 @@ internal static class ForwardDct
 
     private static void TransformVectorCore(ReadOnlySpan<float> samples, Span<float> coefficients)
     {
-        if (Vector<float>.Count == 8 && Avx.IsSupported)
+        if (Vector<float>.Count == 8)
         {
-            TransformAvx(samples, coefficients);
+            TransformEightLane(samples, coefficients);
             return;
         }
-        Span<float> intermediate = stackalloc float[64];
-        Span<Vector<float>> lanes = stackalloc Vector<float>[8];
-        int width = Vector<float>.Count;
-        var scale = new Vector<float>(0.125f);
+        TransformFourLane(samples, 8, centerInput: false, coefficients);
+    }
 
-        // Each vector holds independent columns. Transpose the first pass
-        // into intermediate so the second pass can load independent rows.
-        // Consume all source samples before writing any coefficients to
-        // retain the scalar path's support for overlapping spans.
-        for (int x = 0; x < 8; x += width)
+    private static void TransformFourLane(ReadOnlySpan<float> samples, int stride, bool centerInput,
+        Span<float> coefficients)
+    {
+        Span<Vector<float>> intermediate = stackalloc Vector<float>[16];
+        Span<Vector<float>> lanes = stackalloc Vector<float>[8];
+        var scale = new Vector<float>(0.125f);
+        var center = new Vector<float>(128f);
+        // Two four-column panels consume all source pixels before output.
+        for (int panel = 0; panel < 2; panel++)
         {
-            for (int y = 0; y < 8; y++)
-                lanes[y] = new Vector<float>(samples.Slice(y * 8 + x, width));
+            if (centerInput)
+                for (int row = 0; row < 8; row++)
+                    lanes[row] = new Vector<float>(samples.Slice(row * stride + panel * 4, 4)) - center;
+            else
+                for (int row = 0; row < 8; row++)
+                    lanes[row] = new Vector<float>(samples.Slice(row * stride + panel * 4, 4));
             TransformRecursiveVector(lanes);
             for (int v = 0; v < 8; v++)
-            {
-                Vector<float> scaled = lanes[v] * scale;
-                for (int lane = 0; lane < width; lane++)
-                    intermediate[(x + lane) * 8 + v] = scaled[lane];
-            }
+                intermediate[v * 2 + panel] = lanes[v] * scale;
         }
-
-        for (int v = 0; v < 8; v += width)
+        // Four 4x4 quadrant transposes replace every scalar lane gather and
+        // extraction. The .NET 10 and .NET 11 paths share this dataflow.
+        for (int v = 0; v < 8; v += 4)
         {
-            for (int x = 0; x < 8; x++)
-                lanes[x] = new Vector<float>(intermediate.Slice(x * 8 + v, width));
+            for (int row = 0; row < 4; row++)
+            {
+                lanes[row] = intermediate[(v + row) * 2];
+                lanes[row + 4] = intermediate[(v + row) * 2 + 1];
+            }
+            TransposeFourRows(lanes, 0);
+            TransposeFourRows(lanes, 4);
             TransformRecursiveVector(lanes);
-            for (int u = 0; u < 8; u++)
-                for (int lane = 0; lane < width; lane++)
-                    coefficients[(v + lane) * 8 + u] = lanes[u][lane];
+            TransposeFourRows(lanes, 0);
+            TransposeFourRows(lanes, 4);
+            for (int row = 0; row < 4; row++)
+            {
+                lanes[row].CopyTo(coefficients.Slice((v + row) * 8, 4));
+                lanes[row + 4].CopyTo(coefficients.Slice((v + row) * 8 + 4, 4));
+            }
         }
     }
 
-    private static void TransformAvx(ReadOnlySpan<float> samples, Span<float> coefficients)
+    private static void TransformEightLane(ReadOnlySpan<float> samples, Span<float> coefficients)
     {
         Span<Vector<float>> rows = stackalloc Vector<float>[8];
         for (int row = 0; row < 8; row++)
             rows[row] = new Vector<float>(samples.Slice(row * 8, 8));
-        TransformAvxRows(rows, coefficients);
+        TransformEightLaneRows(rows, coefficients);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void TransformAvxRows(Span<Vector<float>> rows, Span<float> coefficients)
+    private static void TransformEightLaneRows(Span<Vector<float>> rows, Span<float> coefficients)
     {
         TransformRecursiveVector(rows);
         for (int row = 0; row < 8; row++)
             rows[row] *= new Vector<float>(0.125f);
-#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
-        TransposeNet11(System.Runtime.InteropServices.MemoryMarshal.Cast<Vector<float>, Vector256<float>>(rows));
-#else
-        TransposeAvx(rows);
-#endif
+        TransposePortable(System.Runtime.InteropServices.MemoryMarshal.Cast<Vector<float>, Vector256<float>>(rows));
         TransformRecursiveVector(rows);
-#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
-        TransposeNet11(System.Runtime.InteropServices.MemoryMarshal.Cast<Vector<float>, Vector256<float>>(rows));
-#else
-        TransposeAvx(rows);
-#endif
+        TransposePortable(System.Runtime.InteropServices.MemoryMarshal.Cast<Vector<float>, Vector256<float>>(rows));
         for (int row = 0; row < 8; row++)
             rows[row].CopyTo(coefficients.Slice(row * 8, 8));
     }
 
-    // Two in-register transposes replace the scalar lane extraction/gathers
-    // between the column and row transforms. Only data movement changes.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void TransposeAvx(Span<Vector<float>> rows)
-    {
-        Vector256<float> t0 = Avx.UnpackLow(rows[0].AsVector256(), rows[1].AsVector256());
-        Vector256<float> t1 = Avx.UnpackHigh(rows[0].AsVector256(), rows[1].AsVector256());
-        Vector256<float> t2 = Avx.UnpackLow(rows[2].AsVector256(), rows[3].AsVector256());
-        Vector256<float> t3 = Avx.UnpackHigh(rows[2].AsVector256(), rows[3].AsVector256());
-        Vector256<float> t4 = Avx.UnpackLow(rows[4].AsVector256(), rows[5].AsVector256());
-        Vector256<float> t5 = Avx.UnpackHigh(rows[4].AsVector256(), rows[5].AsVector256());
-        Vector256<float> t6 = Avx.UnpackLow(rows[6].AsVector256(), rows[7].AsVector256());
-        Vector256<float> t7 = Avx.UnpackHigh(rows[6].AsVector256(), rows[7].AsVector256());
-        Vector256<float> s0 = Avx.Shuffle(t0, t2, 0x44);
-        Vector256<float> s1 = Avx.Shuffle(t0, t2, 0xee);
-        Vector256<float> s2 = Avx.Shuffle(t1, t3, 0x44);
-        Vector256<float> s3 = Avx.Shuffle(t1, t3, 0xee);
-        Vector256<float> s4 = Avx.Shuffle(t4, t6, 0x44);
-        Vector256<float> s5 = Avx.Shuffle(t4, t6, 0xee);
-        Vector256<float> s6 = Avx.Shuffle(t5, t7, 0x44);
-        Vector256<float> s7 = Avx.Shuffle(t5, t7, 0xee);
-        rows[0] = Avx.Permute2x128(s0, s4, 0x20).AsVector();
-        rows[1] = Avx.Permute2x128(s1, s5, 0x20).AsVector();
-        rows[2] = Avx.Permute2x128(s2, s6, 0x20).AsVector();
-        rows[3] = Avx.Permute2x128(s3, s7, 0x20).AsVector();
-        rows[4] = Avx.Permute2x128(s0, s4, 0x31).AsVector();
-        rows[5] = Avx.Permute2x128(s1, s5, 0x31).AsVector();
-        rows[6] = Avx.Permute2x128(s2, s6, 0x31).AsVector();
-        rows[7] = Avx.Permute2x128(s3, s7, 0x31).AsVector();
-    }
-
-#if NET11_0_OR_GREATER
-    // Opt-in portable lane composition for comparison with the existing AVX
-    // transpose. Zip interleaves full vector halves, unlike lane-local AVX
-    // unpack/shuffle operations; hardware code generation must be measured.
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void TransposeNet11(Span<Vector256<float>> rows)
+    internal static void TransposePortable(Span<Vector256<float>> rows)
     {
         if (rows.Length < 8)
             throw new ArgumentException("An 8 by 8 transpose requires eight vector rows.", nameof(rows));
-        Vector256<float> t0 = Vector256.ZipLower(rows[0], rows[1]);
-        Vector256<float> t1 = Vector256.ZipUpper(rows[0], rows[1]);
-        Vector256<float> t2 = Vector256.ZipLower(rows[2], rows[3]);
-        Vector256<float> t3 = Vector256.ZipUpper(rows[2], rows[3]);
-        Vector256<float> t4 = Vector256.ZipLower(rows[4], rows[5]);
-        Vector256<float> t5 = Vector256.ZipUpper(rows[4], rows[5]);
-        Vector256<float> t6 = Vector256.ZipLower(rows[6], rows[7]);
-        Vector256<float> t7 = Vector256.ZipUpper(rows[6], rows[7]);
-        // Reinterpret paired floats as 64-bit lanes solely for data movement.
-        Vector256<float> s0 = Vector256.ZipLower(t0.AsDouble(), t2.AsDouble()).AsSingle();
-        Vector256<float> s1 = Vector256.ZipUpper(t0.AsDouble(), t2.AsDouble()).AsSingle();
-        Vector256<float> s2 = Vector256.ZipLower(t1.AsDouble(), t3.AsDouble()).AsSingle();
-        Vector256<float> s3 = Vector256.ZipUpper(t1.AsDouble(), t3.AsDouble()).AsSingle();
-        Vector256<float> s4 = Vector256.ZipLower(t4.AsDouble(), t6.AsDouble()).AsSingle();
-        Vector256<float> s5 = Vector256.ZipUpper(t4.AsDouble(), t6.AsDouble()).AsSingle();
-        Vector256<float> s6 = Vector256.ZipLower(t5.AsDouble(), t7.AsDouble()).AsSingle();
-        Vector256<float> s7 = Vector256.ZipUpper(t5.AsDouble(), t7.AsDouble()).AsSingle();
-        rows[0] = Vector256.ConcatLowerLower(s0, s4);
-        rows[1] = Vector256.ConcatUpperUpper(s0, s4);
-        rows[2] = Vector256.ConcatLowerLower(s1, s5);
-        rows[3] = Vector256.ConcatUpperUpper(s1, s5);
-        rows[4] = Vector256.ConcatLowerLower(s2, s6);
-        rows[5] = Vector256.ConcatUpperUpper(s2, s6);
-        rows[6] = Vector256.ConcatLowerLower(s3, s7);
-        rows[7] = Vector256.ConcatUpperUpper(s3, s7);
+        Vector128<float> a0 = rows[0].GetLower(), a1 = rows[1].GetLower(), a2 = rows[2].GetLower(), a3 = rows[3].GetLower();
+        Vector128<float> b0 = rows[0].GetUpper(), b1 = rows[1].GetUpper(), b2 = rows[2].GetUpper(), b3 = rows[3].GetUpper();
+        Vector128<float> c0 = rows[4].GetLower(), c1 = rows[5].GetLower(), c2 = rows[6].GetLower(), c3 = rows[7].GetLower();
+        Vector128<float> d0 = rows[4].GetUpper(), d1 = rows[5].GetUpper(), d2 = rows[6].GetUpper(), d3 = rows[7].GetUpper();
+        Transpose4x4(ref a0, ref a1, ref a2, ref a3);
+        Transpose4x4(ref b0, ref b1, ref b2, ref b3);
+        Transpose4x4(ref c0, ref c1, ref c2, ref c3);
+        Transpose4x4(ref d0, ref d1, ref d2, ref d3);
+        Vector256<float> ac0 = Vector256.Create(a0, a1), ac1 = Vector256.Create(a2, a3);
+        Vector256<float> ac2 = Vector256.Create(c0, c1), ac3 = Vector256.Create(c2, c3);
+        Vector256<float> bd0 = Vector256.Create(b0, b1), bd1 = Vector256.Create(b2, b3);
+        Vector256<float> bd2 = Vector256.Create(d0, d1), bd3 = Vector256.Create(d2, d3);
+        rows[0] = ConcatLowerLower(ac0, ac2);
+        rows[1] = ConcatUpperUpper(ac0, ac2);
+        rows[2] = ConcatLowerLower(ac1, ac3);
+        rows[3] = ConcatUpperUpper(ac1, ac3);
+        rows[4] = ConcatLowerLower(bd0, bd2);
+        rows[5] = ConcatUpperUpper(bd0, bd2);
+        rows[6] = ConcatLowerLower(bd1, bd3);
+        rows[7] = ConcatUpperUpper(bd1, bd3);
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TransposeFourRows(Span<Vector<float>> rows, int start)
+    {
+        Vector128<float> r0 = rows[start].AsVector128(), r1 = rows[start + 1].AsVector128();
+        Vector128<float> r2 = rows[start + 2].AsVector128(), r3 = rows[start + 3].AsVector128();
+        Transpose4x4(ref r0, ref r1, ref r2, ref r3);
+        rows[start] = r0.AsVector();
+        rows[start + 1] = r1.AsVector();
+        rows[start + 2] = r2.AsVector();
+        rows[start + 3] = r3.AsVector();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void Transpose4x4(ref Vector128<float> r0, ref Vector128<float> r1,
+        ref Vector128<float> r2, ref Vector128<float> r3)
+    {
+        Vector128<float> t0 = ZipLower(r0, r1), t1 = ZipUpper(r0, r1);
+        Vector128<float> t2 = ZipLower(r2, r3), t3 = ZipUpper(r2, r3);
+        r0 = ZipLower(t0.AsDouble(), t2.AsDouble()).AsSingle();
+        r1 = ZipUpper(t0.AsDouble(), t2.AsDouble()).AsSingle();
+        r2 = ZipLower(t1.AsDouble(), t3.AsDouble()).AsSingle();
+        r3 = ZipUpper(t1.AsDouble(), t3.AsDouble()).AsSingle();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector128<float> ZipLower(Vector128<float> left, Vector128<float> right)
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        => Vector128.ZipLower(left, right);
+#else
+        => Vector128.Shuffle(Vector128.Create(left.GetLower(), right.GetLower()), Vector128.Create(0, 2, 1, 3));
+#endif
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector128<float> ZipUpper(Vector128<float> left, Vector128<float> right)
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        => Vector128.ZipUpper(left, right);
+#else
+        => Vector128.Shuffle(Vector128.Create(left.GetUpper(), right.GetUpper()), Vector128.Create(0, 2, 1, 3));
+#endif
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector128<double> ZipLower(Vector128<double> left, Vector128<double> right)
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        => Vector128.ZipLower(left, right);
+#else
+        => Vector128.Create(left.GetLower(), right.GetLower());
+#endif
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector128<double> ZipUpper(Vector128<double> left, Vector128<double> right)
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        => Vector128.ZipUpper(left, right);
+#else
+        => Vector128.Create(left.GetUpper(), right.GetUpper());
+#endif
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector256<float> ConcatLowerLower(Vector256<float> left, Vector256<float> right)
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        => Vector256.ConcatLowerLower(left, right);
+#else
+        => Vector256.Create(left.GetLower(), right.GetLower());
+#endif
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector256<float> ConcatUpperUpper(Vector256<float> left, Vector256<float> right)
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        => Vector256.ConcatUpperUpper(left, right);
+#else
+        => Vector256.Create(left.GetUpper(), right.GetUpper());
 #endif
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
