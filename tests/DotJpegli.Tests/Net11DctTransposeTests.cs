@@ -18,6 +18,10 @@ public sealed class Net11DctTransposeTests
         bits[5] = unchecked((int)0xffc05678);
         bits[6] = 1;
         bits[7] = unchecked((int)0x80000001);
+        bits[8] = 0x7f801234;
+        bits[9] = unchecked((int)0xff805678);
+        bits[10] = 0x7f7fffff;
+        bits[11] = unchecked((int)0xff7fffff);
         float[] values = bits.Select(BitConverter.Int32BitsToSingle).ToArray();
         Vector256<float>[] rows = Enumerable.Range(0, 9)
             .Select(row => Vector256.Create(values.AsSpan(row * 8, 8))).ToArray();

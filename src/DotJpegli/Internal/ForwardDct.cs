@@ -275,7 +275,11 @@ internal static class ForwardDct
 #if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
         => Vector128.ZipLower(left, right);
 #else
-        => Vector128.Shuffle(Vector128.Create(left.GetLower(), right.GetLower()), Vector128.Create(0, 2, 1, 3));
+        // Keep both inputs as full vectors. Constructing a Vector128 from
+        // Vector64 halves can move these bits through scalar stack slots.
+        => Vector128.ConditionalSelect(Vector128.Create(-1, 0, -1, 0).AsSingle(),
+            Vector128.Shuffle(left, Vector128.Create(0, 0, 1, 1)),
+            Vector128.Shuffle(right, Vector128.Create(0, 0, 1, 1)));
 #endif
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -283,7 +287,9 @@ internal static class ForwardDct
 #if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
         => Vector128.ZipUpper(left, right);
 #else
-        => Vector128.Shuffle(Vector128.Create(left.GetUpper(), right.GetUpper()), Vector128.Create(0, 2, 1, 3));
+        => Vector128.ConditionalSelect(Vector128.Create(-1, 0, -1, 0).AsSingle(),
+            Vector128.Shuffle(left, Vector128.Create(2, 2, 3, 3)),
+            Vector128.Shuffle(right, Vector128.Create(2, 2, 3, 3)));
 #endif
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -291,7 +297,8 @@ internal static class ForwardDct
 #if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
         => Vector128.ZipLower(left, right);
 #else
-        => Vector128.Create(left.GetLower(), right.GetLower());
+        => Vector128.ConditionalSelect(Vector128.Create(-1L, 0L).AsDouble(), left,
+            Vector128.Shuffle(right, Vector128.Create(0L, 0L)));
 #endif
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -299,7 +306,8 @@ internal static class ForwardDct
 #if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
         => Vector128.ZipUpper(left, right);
 #else
-        => Vector128.Create(left.GetUpper(), right.GetUpper());
+        => Vector128.ConditionalSelect(Vector128.Create(-1L, 0L).AsDouble(),
+            Vector128.Shuffle(left, Vector128.Create(1L, 1L)), right);
 #endif
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
