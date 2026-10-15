@@ -148,7 +148,7 @@ internal sealed class AdaptiveQuantization
                 float value = fuzzy[preStride + x] + fuzzy[preStride + x + 1]
                     + fuzzy[x] + fuzzy[x + 1];
                 value = ComputeMask(value);
-                value = HfModulation(blockX * 8, 5 + blockY * 8, value);
+                value = HfModulation(blockX * 8, 5 + blockY * 8, value, useVector);
                 value = GammaModulation(blockX * 8, 5 + blockY * 8, value, useVector);
                 float field = FastPow2(value * 1.442695041f) * mul + add;
                 strengths[blockY * BlocksWide + blockX] = MathF.Max(0f, 0.6f / field - 1f);
@@ -266,17 +266,45 @@ internal sealed class AdaptiveQuantization
             + (12.906028311180409f * v2 + 5.0220313103171232f * v3));
     }
 
-    private float HfModulation(int x, int y, float value)
+    private float HfModulation(int x, int y, float value, bool useVector)
     {
         float sum = 0;
-        for (int dy = 0; dy < 8; dy++)
+        if (useVector && Vector<float>.Count <= 8)
         {
-            int row = (y + dy) * lumaStride + x + 1;
-            int next = dy == 7 ? row : row + lumaStride;
-            for (int dx = 0; dx < 8; dx++)
+            Span<float> horizontal = stackalloc float[8];
+            Span<float> vertical = stackalloc float[8];
+            int lanes = Vector<float>.Count;
+            for (int dy = 0; dy < 8; dy++)
             {
-                if (dx != 7) sum += MathF.Abs(luma[row + dx] - luma[row + dx + 1]);
-                sum += MathF.Abs(luma[row + dx] - luma[next + dx]);
+                int row = (y + dy) * lumaStride + x + 1;
+                int next = dy == 7 ? row : row + lumaStride;
+                for (int dx = 0; dx < 8; dx += lanes)
+                {
+                    Vector<float> samples = new(luma, row + dx);
+                    Vector.Abs(samples - new Vector<float>(luma, row + dx + 1)).CopyTo(horizontal[dx..]);
+                    Vector.Abs(samples - new Vector<float>(luma, next + dx)).CopyTo(vertical[dx..]);
+                }
+                // SIMD computes independent differences. Keep the original
+                // horizontal/vertical interleaving and left-to-right additions.
+                for (int dx = 0; dx < 7; dx++)
+                {
+                    sum += horizontal[dx];
+                    sum += vertical[dx];
+                }
+                sum += vertical[7];
+            }
+        }
+        else
+        {
+            for (int dy = 0; dy < 8; dy++)
+            {
+                int row = (y + dy) * lumaStride + x + 1;
+                int next = dy == 7 ? row : row + lumaStride;
+                for (int dx = 0; dx < 8; dx++)
+                {
+                    if (dx != 7) sum += MathF.Abs(luma[row + dx] - luma[row + dx + 1]);
+                    sum += MathF.Abs(luma[row + dx] - luma[next + dx]);
+                }
             }
         }
         const float sumCoeff = (float)(-2.0052193233688884f * InputScaling / 112.0);
