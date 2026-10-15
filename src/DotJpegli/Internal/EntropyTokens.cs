@@ -144,8 +144,7 @@ internal sealed class EntropyTokens : IDisposable
         if (!IsComplete)
             throw new InvalidOperationException("An abandoned entropy token sequence cannot be replayed.");
         cancellationToken.ThrowIfCancellationRequested();
-        int contextCount = Math.Max(coding.DcTables.Length, coding.AcTables.Length) * 2;
-        Span<ulong> lookups = contextCount <= 6 ? stackalloc ulong[contextCount * 256] : new ulong[contextCount * 256];
+        Span<ulong> lookups = stackalloc ulong[6 * 256];
         lookups.Clear();
         for (int component = 0; component < coding.DcTables.Length; component++)
             coding.DcTables[component].GetPrebiasedCodes().CopyTo(lookups.Slice(component * 512, 256));
@@ -159,9 +158,13 @@ internal sealed class EntropyTokens : IDisposable
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 int end = Math.Min(chunk + 256, length);
-                for (int index = chunk; index < end; index++)
+                int index = chunk;
+                while (index < end)
                 {
-                    uint token = segment[index];
+                    index += writer.WriteHuffmanTokens(segment.AsSpan(index, end - index), lookups);
+                    if (index == end)
+                        break;
+                    uint token = segment[index++];
                     int context = (int)(token >> ContextShift) & 7;
                     int count = (int)(token >> CountShift);
                     if (context < 6)

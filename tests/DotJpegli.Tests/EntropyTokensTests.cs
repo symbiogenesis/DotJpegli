@@ -5,6 +5,77 @@ namespace DotJpegli.Tests;
 
 public sealed class EntropyTokensTests
 {
+    [Fact]
+    public void BufferedTokenBatchesPreserveEveryAlignmentAcrossFallbacksAndRestarts()
+    {
+        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        var coding = new HuffmanCodingPlan.ScanCoding([table, table, table], [table, table, table], [], []);
+        for (int prefix = 0; prefix < 64; prefix++)
+        {
+            using var tokens = new EntropyTokens();
+            using var expected = new MemoryStream();
+            var writer = new BitWriter(expected, buffered: true);
+            for (int index = 0; index < prefix; index++)
+            {
+                writer.WriteBits((uint)(index & 1), 1);
+                tokens.AddBits((uint)(index & 1), 1);
+            }
+            for (int index = 0; index < 1027; index++)
+            {
+                int symbol = index & 255;
+                int count = symbol == 0xf0 ? 0 : (symbol & 15) == 0 ? symbol >> 4 : symbol & 15;
+                if (index % 129 == 128)
+                    count = (count + 3) % 17;
+                uint suffix = unchecked((uint)index * 0x9e3779b9U) & ((1U << count) - 1);
+                table.WriteSymbolWithBits(writer, symbol, suffix, count);
+                tokens.AddHuffman(index % 3, (index & 1) != 0, symbol, suffix, count);
+                if (index % 97 == 96)
+                {
+                    writer.WriteBits(uint.MaxValue, 32);
+                    tokens.AddBits(uint.MaxValue, 32);
+                }
+                if (index % 263 == 262)
+                {
+                    writer.WriteRestartMarker(index & 7);
+                    tokens.AddRestart(index & 7);
+                }
+            }
+            writer.Flush();
+            using var actual = new MemoryStream();
+            var replay = new BitWriter(actual, buffered: true);
+            tokens.Replay(replay, coding, TestContext.Current.CancellationToken);
+            replay.Flush();
+            Assert.Equal(expected.ToArray(), actual.ToArray());
+        }
+    }
+
+    [Fact]
+    public void BufferedBatchStopsBeforeAMissingSymbolAndRetainsItsPendingPrefix()
+    {
+        long[] frequencies = new long[256];
+        frequencies[5] = 1;
+        HuffmanTable table = HuffmanTable.CreateOptimized(frequencies);
+        var coding = new HuffmanCodingPlan.ScanCoding([table], [table], [], []);
+        using var tokens = new EntropyTokens();
+        using var expected = new MemoryStream();
+        var expectedWriter = new BitWriter(expected, buffered: true);
+        for (int index = 0; index < 27; index++)
+        {
+            table.WriteSymbolWithBits(expectedWriter, 5, (uint)index & 31, 5);
+            tokens.AddHuffman(0, true, 5, (uint)index & 31, 5);
+        }
+        tokens.AddHuffman(0, true, 0, 0, 0);
+        using var actual = new MemoryStream();
+        var writer = new BitWriter(actual, buffered: true);
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            tokens.Replay(writer, coding, TestContext.Current.CancellationToken));
+        Assert.Equal("The Huffman table has no code for symbol 0.", error.Message);
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        expectedWriter.Flush();
+        writer.Flush();
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

@@ -73,6 +73,55 @@ internal sealed class BitWriter
         WriteEagerBits(bits, count);
     }
 
+    // Token replay normally emits a long run of prebiased Huffman codes. Keep
+    // its accumulator in locals until a word is discharged instead of loading
+    // and storing the writer fields, and testing its mode, for every symbol.
+    // Special records and noncanonical suffix widths stop at an exact prefix
+    // so the caller can preserve the strict generic write behavior.
+    internal int WriteHuffmanTokens(ReadOnlySpan<uint> tokens, ReadOnlySpan<ulong> lookups)
+    {
+        if (outputBuffer is null)
+            return 0;
+        if (lookups.Length < 6 * 256)
+            throw new ArgumentException("All six Huffman contexts must have lookup storage.", nameof(lookups));
+
+        ulong pending = buffer;
+        int pendingBits = bufferedBits;
+        int index = 0;
+        for (; index < tokens.Length; index++)
+        {
+            uint token = tokens[index];
+            int lookupIndex = (int)(token >> 16) & 2047;
+            if (lookupIndex >= 6 * 256)
+                break;
+            ulong prepared = lookups[lookupIndex];
+            if ((int)(prepared >> 38) != (int)(token >> 27) + 1)
+                break;
+
+            uint bits = (uint)prepared | (token & 0xffffU);
+            int count = (int)(prepared >> 32) & 63;
+            int totalBits = pendingBits + count;
+            if (totalBits >= 64)
+            {
+                // Preserve the same pending prefix if the destination throws.
+                buffer = pending;
+                bufferedBits = pendingBits;
+                int spillBits = totalBits - 64;
+                WriteWord((pending << (count - spillBits)) | (bits >> spillBits));
+                pending = bits & ((1UL << spillBits) - 1);
+                pendingBits = spillBits;
+            }
+            else
+            {
+                pending = (pending << count) | bits;
+                pendingBits = totalBits;
+            }
+        }
+        buffer = pending;
+        bufferedBits = pendingBits;
+        return index;
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void WriteSpilledBits(uint bits, int count, int spillBits)
     {

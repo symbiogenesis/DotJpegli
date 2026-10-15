@@ -226,11 +226,18 @@ internal static class EntropyEncoder
         }
     }
 
-    private static int Category(int value) =>
-        value == 0 ? 0 : BitOperations.Log2((uint)Math.Abs(value)) + 1;
+    // Signed amplitudes are unpredictable in image data. Derive magnitude and
+    // the negative-value suffix adjustment without a branch for each symbol;
+    // leading-zero count also handles the zero DC difference directly.
+    private static int Category(int value)
+    {
+        int sign = value >> 31;
+        uint magnitude = unchecked((uint)((value ^ sign) - sign));
+        return 32 - BitOperations.LeadingZeroCount(magnitude);
+    }
 
     private static uint AdditionalBits(int value, int category) =>
-        unchecked((uint)(value < 0 ? value - 1 : value)) & ((1U << category) - 1);
+        unchecked((uint)(value + (value >> 31))) & ((1U << category) - 1);
 
     private static int CountNonzeroAc(ReadOnlySpan<short> coefficients) =>
         63 - coefficients[1..].Count((short)0);

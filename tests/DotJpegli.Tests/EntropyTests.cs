@@ -5,6 +5,47 @@ namespace DotJpegli.Tests;
 
 public sealed class EntropyTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void EveryBaselineAmplitudePreservesItsCategoryAndComplementSuffix(bool ordered)
+    {
+        HuffmanTable dc = HuffmanTable.CreateDefault(false, false);
+        HuffmanTable ac = HuffmanTable.CreateDefault(true, false);
+        using var expected = new MemoryStream();
+        using var actual = new MemoryStream();
+        var expectedWriter = new BitWriter(expected, buffered: true);
+        var actualWriter = new BitWriter(actual, buffered: true);
+        short[] block = new short[64];
+        for (int value = -2047; value <= 2047; value++)
+        {
+            block[0] = (short)value;
+            block[1] = (short)(value / 2);
+            int previous = 0;
+            EntropyEncoder.WriteBlock(actualWriter, block, ref previous, dc, ac, zigZagOrdered: ordered);
+            WriteAmplitude(expectedWriter, dc, value);
+            if (block[1] != 0)
+                WriteAmplitude(expectedWriter, ac, block[1]);
+            ac.WriteSymbol(expectedWriter, 0);
+        }
+        expectedWriter.Flush();
+        actualWriter.Flush();
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+
+        static void WriteAmplitude(BitWriter writer, HuffmanTable table, int value)
+        {
+            int magnitude = Math.Abs(value);
+            int category = 0;
+            while (magnitude != 0)
+            {
+                category++;
+                magnitude >>= 1;
+            }
+            uint bits = (uint)(value < 0 ? value - 1 : value) & ((1U << category) - 1);
+            table.WriteSymbolWithBits(writer, category, bits, category);
+        }
+    }
+
     [Fact]
     public void BitsStuffFfAndPadWithOnes()
     {
