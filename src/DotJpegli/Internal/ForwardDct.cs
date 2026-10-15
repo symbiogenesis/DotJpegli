@@ -214,6 +214,7 @@ internal static class ForwardDct
 
     // Two in-register transposes replace the scalar lane extraction/gathers
     // between the column and row transforms. Only data movement changes.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void TransposeAvx(Span<Vector<float>> rows)
     {
         Vector256<float> t0 = Avx.UnpackLow(rows[0].AsVector256(), rows[1].AsVector256());
@@ -246,6 +247,7 @@ internal static class ForwardDct
     // Opt-in portable lane composition for comparison with the existing AVX
     // transpose. Zip interleaves full vector halves, unlike lane-local AVX
     // unpack/shuffle operations; hardware code generation must be measured.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void TransposeNet11(Span<Vector256<float>> rows)
     {
         if (rows.Length < 8)
@@ -278,6 +280,7 @@ internal static class ForwardDct
     }
 #endif
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void TransformRecursiveVector(Span<Vector<float>> values)
     {
         // Specialize the fixed eight-point recursion. This keeps each stage in
