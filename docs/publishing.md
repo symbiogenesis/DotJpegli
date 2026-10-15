@@ -37,6 +37,10 @@ publish to nuget.org. Do not add a `NUGET_API_KEY` repository secret.
 
 ## Publish a version
 
+The root `README.md` is the source for both GitHub and the package page. Packing
+generates the package's `README.md` under `obj`, removing the HTML wrapper used
+to center the header on GitHub. Edit the root README rather than the generated copy.
+
 1. Set `<Version>` in `src/DotJpegli/DotJpegli.csproj` to the intended version,
    such as `1.0.0` or `1.1.0-rc.1`, and commit it with the release changes to
    `main`. Publishing uses that version without rewriting it.

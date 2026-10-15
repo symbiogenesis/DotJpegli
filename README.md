@@ -1,3 +1,5 @@
+<div align="center">
+
 # DotJpegli
 
 **Pure managed JPEG encoding for .NET.**
@@ -7,6 +9,8 @@
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE)
 
 [Quick start](#quick-start) · [Features](#features) · [Documentation](#documentation)
+
+</div>
 
 DotJpegli is a safe, portable C# JPEG encoder based on
 [Google Jpegli](https://github.com/google/jpegli). Encode RGB or grayscale pixels

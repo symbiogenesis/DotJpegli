@@ -26,7 +26,21 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="DotJpegli.Tests" />
-    <None Include="../../README.md;../../LICENSE;../../LICENSE.jpegli;../../THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" Pack="true" PackagePath="" />
+    <None Include="../../LICENSE;../../LICENSE.jpegli;../../THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" Pack="true" PackagePath="" />
   </ItemGroup>
+
+  <!-- Keep GitHub's centered header, but omit its HTML wrapper on NuGet. -->
+  <Target Name="GenerateNuGetReadme" BeforeTargets="_GetPackageFiles">
+    <PropertyGroup>
+      <_NuGetReadmePath>$(IntermediateOutputPath)nuget/README.md</_NuGetReadmePath>
+      <_NuGetReadmeContent>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/../../README.md'))</_NuGetReadmeContent>
+      <_NuGetReadmeContent>$([System.Text.RegularExpressions.Regex]::Replace('$(_NuGetReadmeContent)', '(?m)^&lt;(?:div align="center"|/div)&gt;\r?\n(?:\r?\n)?', ''))</_NuGetReadmeContent>
+    </PropertyGroup>
+    <MakeDir Directories="$(IntermediateOutputPath)nuget" />
+    <WriteLinesToFile File="$(_NuGetReadmePath)" Lines="$([MSBuild]::Escape($(_NuGetReadmeContent)))" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <None Include="$(_NuGetReadmePath)" Pack="true" PackagePath="" Visible="false" />
+    </ItemGroup>
+  </Target>
 
 </Project>
