@@ -47,6 +47,17 @@ always record `parityVerdict: not-evaluated` and `passed: null`: selected-case
 success never establishes full parity or the full protocol's group bounds.
 Count/selection overrides require `--diagnostic`; they cannot change acceptance.
 
+An automatic push whose final commit message includes `[compare-baseline]` also
+builds revision `60835e6ad1613627fe852bd7678a5ef165ec3b43` in a temporary lane.
+The same performance job measures that baseline after the current four-case
+comparison, serially on the same CPU, runtime, corpus and native executable.
+The `performance-baseline-<revision>` artifact retains both the baseline evidence
+and a report of current/baseline managed and native latency ratios. JPEG hashes
+must match. Code revisions run serially rather than interleaved, so the retained
+native ratios expose possible drift; these diagnostics do not change the
+current revision's acceptance bounds or establish full parity. This uses the
+single planned automatic run and requires no additional workflow dispatch.
+
 ## Full acceptance protocol
 
 Use workflow dispatch with `mode=full` only when the full quality/compression and

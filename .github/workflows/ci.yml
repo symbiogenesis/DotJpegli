@@ -231,6 +231,82 @@ jobs:
           args=(--diagnostic --images "$TARGET_IMAGES" --distances "$TARGET_DISTANCES" --samplings "$TARGET_SAMPLINGS" --progressions "$TARGET_PROGRESSIONS" --blocks "$TARGET_BLOCKS" --warmups "$TARGET_WARMUPS")
           if [[ -n "$TARGET_ITERATIONS" ]]; then args+=(--iterations "$TARGET_ITERATIONS"); fi
           taskset -c "$cpu" dotnet run --project tools/DotJpegli.Performance -c Release -f ${{ inputs.framework || 'net11.0' }} --no-build -- --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/performance-evidence" "${args[@]}"
+      - name: Build fixed encoder baseline for a same-host development comparison
+        id: baseline_build
+        if: always() && github.event_name == 'push' && contains(github.event.head_commit.message, '[compare-baseline]') && (steps.targeted.outcome == 'success' || steps.targeted.outcome == 'failure')
+        env:
+          BASELINE_REVISION: 60835e6ad1613627fe852bd7678a5ef165ec3b43
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASELINE_REVISION"
+          lane="${{ runner.temp }}/encoder-baseline-source"
+          mkdir -p "$lane"
+          git archive "$BASELINE_REVISION" | tar -x -C "$lane"
+          cd "$lane"
+          dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
+          dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release -f net11.0 --no-restore -p:SourceRevisionId="$BASELINE_REVISION"
+      - name: Measure the baseline serially on the same CPU (CI only)
+        if: always() && steps.baseline_build.outcome == 'success' && (steps.targeted.outcome == 'success' || steps.targeted.outcome == 'failure')
+        env:
+          DOTJPEGLI_PERFORMANCE_REVISION: 60835e6ad1613627fe852bd7678a5ef165ec3b43
+          DOTNET_TieredCompilation: '0'
+        run: |
+          cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
+          set +e
+          taskset -c "$cpu" dotnet "${{ runner.temp }}/encoder-baseline-source/tools/DotJpegli.Performance/bin/Release/net11.0/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/baseline-evidence" --diagnostic --images kodim01 --distances 1 --samplings 444,420 --progressions 0,2 --blocks 7 --warmups 5
+          verdict=$?
+          set -e
+          if [[ "$verdict" -gt 1 ]]; then exit "$verdict"; fi
+      - name: Report same-host encoder comparison without changing acceptance
+        if: always() && steps.baseline_build.outcome == 'success' && (steps.targeted.outcome == 'success' || steps.targeted.outcome == 'failure')
+        env:
+          CURRENT_REVISION: ${{ github.sha }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          paths = [root / 'baseline-evidence', root / 'performance-evidence']
+          runs = [json.loads((p / 'run.json').read_text()) for p in paths]
+          summaries = [json.loads((p / 'summary.json').read_text()) for p in paths]
+          cases = [json.loads((p / 'cases.json').read_text()) for p in paths]
+          assert all(s['valid'] for s in summaries), 'Both comparisons require stable matched evidence'
+          assert runs[0]['testedRevision'] == '60835e6ad1613627fe852bd7678a5ef165ec3b43'
+          assert runs[1]['testedRevision'] == os.environ['CURRENT_REVISION']
+          assert runs[0]['policy'] == runs[1]['policy'], 'Evidence policy mismatch'
+          for field in ['nativeExecutableSha256', 'corpusManifestSha256']:
+              assert runs[0][field] == runs[1][field], 'Reference/input mismatch'
+          for field in ['cpu', 'affinity', 'runtimeProductVersion', 'vectorFloatWidth', 'dotnetTieredCompilation']:
+              assert runs[0]['environment'][field] == runs[1]['environment'][field], 'Host/runtime mismatch'
+          def key(c): return (c['id'], c['sampling'], c['progressiveLevel'], c['distance'])
+          before, after = [{key(c): c for c in items} for items in cases]
+          assert before.keys() == after.keys() and len(after) == 4, 'Selected-case mismatch'
+          report = '# Same-host encoder development comparison\n\n'
+          report += f"Baseline `60835e6`, current `{os.environ['CURRENT_REVISION']}`; CPU: {runs[1]['environment']['cpu']}.\n\n"
+          report += 'Both uninstrumented comparisons use the same pinned native executable, corpus, CPU affinity, runtime and fixed evidence policy. The current comparison runs first, then the baseline; source revisions are not interleaved. Native-calibrated iteration counts and all samples are retained. This diagnostic cannot replace the current revision\'s managed/native bounds or establish whole-corpus parity.\n\n'
+          report += '| Case | Baseline managed (ms) | Current managed (ms) | Current/baseline managed | Current/baseline native |\n| --- | ---: | ---: | ---: | ---: |\n'
+          comparisons = []
+          for label in sorted(after):
+              b, a = before[label], after[label]
+              assert b['managedJpegSha256'] == a['managedJpegSha256'], 'Encoder changed JPEG bytes'
+              mr = a['managed']['median'] / b['managed']['median']
+              nr = a['native']['median'] / b['native']['median']
+              comparisons.append({'case': label, 'managedRatio': mr, 'nativeRatio': nr})
+              report += f"| {label[0]}/{label[1]}/p{label[2]}/d{label[3]} | {b['managed']['median']/1e6:.3f} | {a['managed']['median']/1e6:.3f} | {mr:.6f} | {nr:.6f} |\n"
+          (root / 'baseline-comparison.md').write_text(report)
+          (root / 'baseline-comparison.json').write_text(json.dumps({'baselineRevision': runs[0]['testedRevision'], 'currentRevision': runs[1]['testedRevision'], 'comparisons': comparisons}, indent=2))
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output: output.write(report)
+          print(report)
+          PY
+      - name: Retain the optional same-host baseline diagnostic
+        if: always() && steps.baseline_build.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: performance-baseline-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/baseline-evidence/
+            ${{ runner.temp }}/baseline-comparison.*
+          retention-days: 30
+          if-no-files-found: warn
       - name: Install pinned CPU diagnostic tool after selected-case failure
         id: profiler
         if: failure() && steps.targeted.outcome == 'failure' && (github.event_name == 'push' || inputs.profile)
