@@ -10,6 +10,10 @@ that corpus, configuration and CI host; they do not prove universal speed parity
 The checked-in policy requires each corpus/sampling/progression group to have
 geometric mean managed/native median latency ratio <=1.05, and every case <=1.10.
 Parallel managed results cannot satisfy this single-worker gate.
+One stable matched case above the individual limit stops measurement with a
+failed verdict and explicit incomplete coverage. Such a counterexample cannot
+be reversed by later cases. A passing verdict always requires all 256 cases;
+unmatched or unstable measurements cannot trigger this early failure.
 
 Seven independent blocks alternate native/managed measurement order. Each block
 warms both encoders with five untimed encodes. Tiered JIT compilation is disabled
@@ -27,6 +31,8 @@ structure invalidates the result. Exit 0 means valid passing evidence, 1 means
 valid failed latency bounds, and 2 means invalid evidence. Raw blocks, percentiles,
 MAD, GC diagnostics, hashes, exact inputs/JPEGs, settings, native command metadata,
 revision and CPU/OS/runtime/vector/affinity information are retained in the output.
+Run identity and an incomplete summary are written before measurement; progress
+is saved after every completed case so interrupted runs retain useful evidence.
 
 The measured run requires a Release build and GitHub Actions:
 

@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "kind": "Derived analysis of an interrupted run; not a runner-produced parity summary",
+  "status": "incomplete",
+  "validCompleteParityEvidence": false,
+  "runUrl": "https://github.com/symbiogenesis/DotJpegli/actions/runs/38572245330",
+  "testedRevision": "64c5ebeb6e48edb6b6228c8fb97f64224a88c235",
+  "completedCases": 138,
+  "expectedCases": 256,
+  "completeCoverage": false,
+  "structureDifferences": 0,
+  "unstableCases": 0,
+  "measuredCasesExceedingLatencyBound": 138,
+  "fixedGroupLimit": 1.05,
+  "fixedCaseLimit": 1.1,
+  "environment": "Ubuntu GitHub-hosted runner, CPU affinity restricted to one CPU, .NET10, tiered compilation disabled. Exact CPU model was not retained by this interrupted runner version.",
+  "groups": [
+    {
+      "category": "natural",
+      "sampling": 420,
+      "progressiveLevel": 0,
+      "measuredCases": 34,
+      "expectedCases": 48,
+      "geometricMeanRatio": 23.650992103020183,
+      "minimumRatio": 13.3566656444795,
+      "maximumRatio": 31.7320182739292
+    },
+    {
+      "category": "natural",
+      "sampling": 420,
+      "progressiveLevel": 2,
+      "measuredCases": 34,
+      "expectedCases": 48,
+      "geometricMeanRatio": 92.88040399498179,
+      "minimumRatio": 55.336849820280484,
+      "maximumRatio": 128.36536456206835
+    },
+    {
+      "category": "natural",
+      "sampling": 444,
+      "progressiveLevel": 0,
+      "measuredCases": 36,
+      "expectedCases": 48,
+      "geometricMeanRatio": 24.6099536943038,
+      "minimumRatio": 16.7332730798152,
+      "maximumRatio": 31.504789586241543
+    },
+    {
+      "category": "natural",
+      "sampling": 444,
+      "progressiveLevel": 2,
+      "measuredCases": 34,
+      "expectedCases": 48,
+      "geometricMeanRatio": 78.31493951525476,
+      "minimumRatio": 53.688705650875605,
+      "maximumRatio": 97.27265410857908
+    }
+  ]
+}

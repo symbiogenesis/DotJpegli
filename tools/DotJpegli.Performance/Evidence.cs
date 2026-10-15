@@ -93,6 +93,25 @@ internal static class Evidence
         return invalid.ToArray();
     }
 
+    private static string[] ValidateCase(CaseResult item, Policy policy)
+    {
+        var invalid = new List<string>();
+        invalid.AddRange(item.InvalidReasons.Select(reason => $"{Label(item)}: {reason}"));
+        invalid.AddRange(ValidateSamples(item.Blocks, item.Iterations, policy).Select(reason => $"{Label(item)}: {reason}"));
+        if (item.Blocks.Length > 0 && item.Blocks.All(block => double.IsFinite(block.ManagedNsPerEncode) && block.ManagedNsPerEncode > 0 && double.IsFinite(block.NativeNsPerEncode) && block.NativeNsPerEncode > 0))
+        {
+            double computedRatio = Statistics(item.Blocks.Select(block => block.ManagedNsPerEncode).ToArray()).Median /
+                Statistics(item.Blocks.Select(block => block.NativeNsPerEncode).ToArray()).Median;
+            if (Math.Abs(computedRatio - item.MedianRatio) > 1e-12) invalid.Add($"{Label(item)}: stored ratio contradicts raw samples.");
+        }
+        if (!double.IsFinite(item.MedianRatio) || item.MedianRatio <= 0) invalid.Add($"{Label(item)}: invalid ratio.");
+        if (item.StructureDifference is not null) invalid.Add($"{Label(item)}: JPEG structure differs: {item.StructureDifference}");
+        if (item.Category is not ("natural" or "controlled") || !ImageIds(item.Category).Contains(item.Id, StringComparer.Ordinal) ||
+            !Samplings.Contains(item.Sampling) || !Progressions.Contains(item.ProgressiveLevel) || !Distances.Contains(item.Distance))
+            invalid.Add($"{Label(item)}: case outside the declared matrix.");
+        return invalid.Distinct().ToArray();
+    }
+
     public static Evaluation Evaluate(IReadOnlyList<CaseResult> cases, Policy policy)
     {
         var invalid = new List<string>();
@@ -102,19 +121,7 @@ internal static class Evidence
             invalid.Add("Expected exactly 256 cases across 32 images and the fixed settings matrix.");
         foreach (CaseResult item in cases)
         {
-            invalid.AddRange(item.InvalidReasons.Select(reason => $"{Label(item)}: {reason}"));
-            invalid.AddRange(ValidateSamples(item.Blocks, item.Iterations, policy).Select(reason => $"{Label(item)}: {reason}"));
-            if (item.Blocks.Length > 0 && item.Blocks.All(block => double.IsFinite(block.ManagedNsPerEncode) && block.ManagedNsPerEncode > 0 && double.IsFinite(block.NativeNsPerEncode) && block.NativeNsPerEncode > 0))
-            {
-                double computedRatio = Statistics(item.Blocks.Select(block => block.ManagedNsPerEncode).ToArray()).Median /
-                    Statistics(item.Blocks.Select(block => block.NativeNsPerEncode).ToArray()).Median;
-                if (Math.Abs(computedRatio - item.MedianRatio) > 1e-12) invalid.Add($"{Label(item)}: stored ratio contradicts raw samples.");
-            }
-            if (!double.IsFinite(item.MedianRatio) || item.MedianRatio <= 0) invalid.Add($"{Label(item)}: invalid ratio.");
-            if (item.StructureDifference is not null) invalid.Add($"{Label(item)}: JPEG structure differs: {item.StructureDifference}");
-            if (item.Category is not ("natural" or "controlled") || !ImageIds(item.Category).Contains(item.Id, StringComparer.Ordinal) ||
-                !Samplings.Contains(item.Sampling) || !Progressions.Contains(item.ProgressiveLevel) || !Distances.Contains(item.Distance))
-                invalid.Add($"{Label(item)}: case outside the declared matrix.");
+            invalid.AddRange(ValidateCase(item, policy));
             if (item.MedianRatio > policy.MaximumCaseRatio) failures.Add($"{Label(item)}: median latency ratio {item.MedianRatio:F6} exceeds 1.10.");
         }
         foreach (string category in new[] { "natural", "controlled" })
@@ -122,12 +129,7 @@ internal static class Evidence
                 foreach (int progression in Progressions)
                 {
                     CaseResult[] group = cases.Where(item => item.Category == category && item.Sampling == sampling && item.ProgressiveLevel == progression).ToArray();
-                    bool groupValid = group.Length == ImageIds(category).Length * Distances.Length && group.All(item =>
-                        item.StructureDifference is null && item.InvalidReasons.Length == 0 && ValidateSamples(item.Blocks, item.Iterations, policy).Length == 0 &&
-                        ImageIds(category).Contains(item.Id, StringComparer.Ordinal) && Distances.Contains(item.Distance) &&
-                        double.IsFinite(item.MedianRatio) && item.MedianRatio > 0 &&
-                        Math.Abs(Statistics(item.Blocks.Select(block => block.ManagedNsPerEncode).ToArray()).Median /
-                            Statistics(item.Blocks.Select(block => block.NativeNsPerEncode).ToArray()).Median - item.MedianRatio) <= 1e-12);
+                    bool groupValid = group.Length == ImageIds(category).Length * Distances.Length && group.All(item => ValidateCase(item, policy).Length == 0);
                     foreach (string id in ImageIds(category))
                         foreach (float distance in Distances)
                             if (group.Count(item => item.Id == id && item.Distance == distance) != 1)
@@ -142,6 +144,20 @@ internal static class Evidence
                     if (mean > policy.MaximumGroupGeometricMeanRatio) failures.Add($"{category}/{sampling}/p{progression}: geometric mean latency ratio {mean:F6} exceeds 1.05.");
                 }
         return new(invalid.Count == 0, invalid.Count == 0 && failures.Count == 0, groups.ToArray(), invalid.Distinct().ToArray(), failures.ToArray());
+    }
+
+    // One valid counterexample disproves the per-case bound. Early termination
+    // may report failure, but must never bypass complete coverage for a pass.
+    public static bool IsDecisiveCaseFailure(CaseResult item, Policy policy) =>
+        ValidateCase(item, policy).Length == 0 && item.MedianRatio > policy.MaximumCaseRatio;
+
+    public static Evaluation EvaluateCounterexample(IReadOnlyList<CaseResult> cases, Policy policy)
+    {
+        if (cases.Count == 0 || !IsDecisiveCaseFailure(cases[^1], policy))
+            throw new InvalidDataException("Early failure requires a stable matched counterexample.");
+        string[] invalid = cases.SelectMany(item => ValidateCase(item, policy)).Distinct().ToArray();
+        return new(invalid.Length == 0, false, [], invalid,
+            [$"{Label(cases[^1])}: median latency ratio {cases[^1].MedianRatio:F6} exceeds 1.10. Stable matched counterexample; remaining cases are unmeasured."]);
     }
 
     internal static string Label(CaseResult item) => $"{item.Id}/{item.Sampling}/p{item.ProgressiveLevel}/d{item.Distance}";

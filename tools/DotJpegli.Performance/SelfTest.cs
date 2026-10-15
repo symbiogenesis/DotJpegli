@@ -33,6 +33,16 @@ internal static class SelfTest
         Assert(Evidence.Evaluate(Corpus(.5), policy).Passed, "Faster managed latency is accepted.");
         cases[0] = Case(cases[0].Id, cases[0].Category, cases[0].Sampling, cases[0].ProgressiveLevel, cases[0].Distance, 1.11);
         Evaluation isolatedSlow = Evidence.Evaluate(cases, policy);
+        Assert(Evidence.IsDecisiveCaseFailure(cases[0], policy), "A stable individual counterexample must permit a failed verdict.");
+        Assert(!Evidence.IsDecisiveCaseFailure(Corpus(1)[0], policy), "An in-bound observation cannot bypass complete passing coverage.");
+        Assert(!Evidence.IsDecisiveCaseFailure(cases[0] with { StructureDifference = "wrong quantizers" }, policy), "Unmatched settings cannot establish a counterexample.");
+        Assert(!Evidence.IsDecisiveCaseFailure(cases[0] with { MedianRatio = 100 }, policy), "A counterexample ratio must agree with raw measurements.");
+        Assert(!Evidence.IsDecisiveCaseFailure(cases[0] with { Blocks = cases[0].Blocks[..6] }, policy), "Incomplete blocks cannot establish a counterexample.");
+        Evaluation counterexample = Evidence.EvaluateCounterexample([cases[0]], policy);
+        Assert(counterexample.Valid && !counterexample.Passed && counterexample.Groups.Length == 0, "A counterexample permits only a failed verdict without aggregate claims.");
+        Evaluation invalidPrior = Evidence.EvaluateCounterexample([cases[1] with { StructureDifference = "wrong quantizers" }, cases[0]], policy);
+        Assert(!invalidPrior.Valid && !invalidPrior.Passed && invalidPrior.InvalidReasons.Any(reason => reason.Contains("wrong quantizers", StringComparison.Ordinal)), "Early failure must preserve invalid earlier evidence.");
+        Reject(() => Evidence.EvaluateCounterexample([Corpus(1)[0]], policy));
         Assert(isolatedSlow.Valid && !isolatedSlow.Passed && isolatedSlow.Groups[0].GeometricMeanRatio < 1.05 && isolatedSlow.Failures.Any(reason => reason.Contains("exceeds 1.10", StringComparison.Ordinal)), "A slow individual case cannot hide in the mean.");
         Evaluation meanSlow = Evidence.Evaluate(Corpus(1.051), policy);
         Assert(meanSlow.Valid && !meanSlow.Passed && meanSlow.Failures.Length == 8, "Group mean alone must fail despite acceptable individual ratios.");

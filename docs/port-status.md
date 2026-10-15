@@ -80,7 +80,7 @@ work below remains outstanding.
 | --- | --- |
 | Encoder functionality and output compatibility | Focused regressions check coefficients, marker framing, independent decoding, stream behavior and validation. Optional modes retain the reader requirements in the API guides. |
 | Quality and compression parity | Established within the [documented RGB8 YCbCr scope and fixed tolerances](quality-compression-parity.md): 1,280 matched pairs passed on the pinned upstream corpus comparison, with complete matched-rate/quality coverage. Worst size overhead was 0.087051%; worst matched-size losses were 0.013825 dB PSNR and 0.000136338 SSIM. [Hosted proof](https://github.com/symbiogenesis/DotJpegli/actions/runs/38517910693), tested revision `b30697e`. |
-| Performance parity | Not established. The [performance comparison](performance-parity.md) measures matched in-memory encoding latency in CI against fixed noninferiority bounds. A passing hosted result is required. |
+| Performance parity | Not established. The [initial hosted measurements](performance-parity.md) retained 138 cases before the CI time limit; managed encoding was 13.36–128.37 times slower, exceeding the fixed case bound in every retained case. Complete corpus coverage remains outstanding. |
 
 Output remains **lossy eight-bit JPEG**, including at quality 100. Jpegli's quality
 scale is not interchangeable with libjpeg's. Quality/compression parity is

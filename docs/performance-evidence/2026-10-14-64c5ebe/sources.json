@@ -1,0 +1,164 @@
+[
+  {
+    "id": "kodim01",
+    "category": "natural",
+    "sourcePath": "kodim01.ppm",
+    "ppmSha256": "998ccf0be59a31ed12dfc2296a957f5363e35043e47ee232932ca5f1039e8628",
+    "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "kodim02",
+    "category": "natural",
+    "sourcePath": "kodim02.ppm",
+    "ppmSha256": "914943215155443fbb1785afa6ae91f136a4d2608b426a670e1050d7d66681b4",
+    "pixelsSha256": "ae5a495df4ec40e0941265440ccf98973915b4190ab803e37a23ca93dd43a07e",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "kodim03",
+    "category": "natural",
+    "sourcePath": "kodim03.ppm",
+    "ppmSha256": "ee3721fc6e0f53b3bcc61bb0b7183962d3f31286619b5739954ab702d90ee5ae",
+    "pixelsSha256": "234e61f585503f2a44400f5561131e8a512ef2c15328cd83d5cdbf10e2616cf2",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "kodim04",
+    "category": "natural",
+    "sourcePath": "kodim04.ppm",
+    "ppmSha256": "624321d37c4f3c9903011b4aa592bf4a89ad7038228aaec4441ce01b52ed97e5",
+    "pixelsSha256": "e88e788fca00e6c723bb66ff45edb8cb56091ee284dcb73e3909834f2c96eeb6",
+    "width": 512,
+    "height": 768
+  },
+  {
+    "id": "kodim05",
+    "category": "natural",
+    "sourcePath": "kodim05.ppm",
+    "ppmSha256": "d3167a6d9f0461c33a48f18796c58a3b0e80a742ac41bffd4eba16355bc50c87",
+    "pixelsSha256": "ed3d1ee770909d3b27903b52ce19ee59a9bf24621a7bf1fb57b90677da880cb6",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "kodim06",
+    "category": "natural",
+    "sourcePath": "kodim06.ppm",
+    "ppmSha256": "088424c10db10cc87fcbf3c362f38511c9b6e55671e6d7c91bbc7b78f227a87b",
+    "pixelsSha256": "7f45158999fa297d1cfbd292b3e2f3f5b27770701c3473155c211c3f512cc97f",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "kodim07",
+    "category": "natural",
+    "sourcePath": "kodim07.ppm",
+    "ppmSha256": "02a4fbc79d6e5ce4cc07726e6627da5573edb208982827404fa4d6be6cbbf635",
+    "pixelsSha256": "4e3664bf6fe865b49f15f7b554efa7dbecaf73ae0e8699f2e307bf07849f1264",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "kodim08",
+    "category": "natural",
+    "sourcePath": "kodim08.ppm",
+    "ppmSha256": "b9e248f779e67e75208db18da7cec9e18ae6f379800e8c9c38edca064d698252",
+    "pixelsSha256": "889c3740e4ed54ca53d11ae735a44d15fa24fe312b3bd1609a80618a4092c208",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "kodim09",
+    "category": "natural",
+    "sourcePath": "kodim09.ppm",
+    "ppmSha256": "44bdce3851a934e8ce52895341c0f3c8815b124dd599d9bf1516fec94b65fe45",
+    "pixelsSha256": "f8453140e63a42301a6dbebb849a3cc40d34e4e59580eb1f372f7f5460df0dbe",
+    "width": 512,
+    "height": 768
+  },
+  {
+    "id": "kodim10",
+    "category": "natural",
+    "sourcePath": "kodim10.ppm",
+    "ppmSha256": "85be383b7825c53a32d699d5f5cf520ac2a999c7df0006deea496bfbf8bd3909",
+    "pixelsSha256": "fabe11b5c4f028394e093a5b5907e5fabc8072da0d5334fb3a38547a7e1be842",
+    "width": 512,
+    "height": 768
+  },
+  {
+    "id": "kodim11",
+    "category": "natural",
+    "sourcePath": "kodim11.ppm",
+    "ppmSha256": "246f8c885cea96d9d12a8811e00e8a01dd65d097f4f8c133c0fff0342a4b29ba",
+    "pixelsSha256": "ab4dd9bf8431e717d33892b3ba03c63bfea3c7fa72c2610010de7df3c194c075",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "kodim12",
+    "category": "natural",
+    "sourcePath": "kodim12.ppm",
+    "ppmSha256": "1ecbafe928b9c833f8bd8e7adfea72739ed5fcddd0a4a7765cd3c7025aee68a2",
+    "pixelsSha256": "f412db2168e599949aac26bd3264f111b23a684f30a21cfd320e9e95bc69bbae",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "kodim13",
+    "category": "natural",
+    "sourcePath": "kodim13.ppm",
+    "ppmSha256": "b5bbd7da7e6a08f3bd93968b8c84801ae0973f1e627d9f6bbf5781f00d4025b0",
+    "pixelsSha256": "875703d56fb9396f478b5d7d3b18e2b77c17147a685c6dc2567e1c574aaf01e3",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "kodim14",
+    "category": "natural",
+    "sourcePath": "kodim14.ppm",
+    "ppmSha256": "5148c95eed0f82c079854c797e19a3fa70f134ee4e05cfa958416a63ab715c9b",
+    "pixelsSha256": "2bd5029ee75ac1697542e5b05624e8afe186e3250abd7513d6a806b52084c2f0",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "kodim15",
+    "category": "natural",
+    "sourcePath": "kodim15.ppm",
+    "ppmSha256": "4ec14eab8c3fded683abb6acc883b3b80a5964e38e83507db75d6d60e6bbb7a6",
+    "pixelsSha256": "b5353e7511277009922ecbdebfc6418fec53aa1b2a08d44fc957a7540825697b",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "kodim16",
+    "category": "natural",
+    "sourcePath": "kodim16.ppm",
+    "ppmSha256": "360c57cb87479b3744835a0d09daeaf11b3ab5d07b8bfbe0837895ab75c57fa7",
+    "pixelsSha256": "ed21745fd32fce95cc2c6af7fc52b1b15e590c7a14ab18ab34bd65ecaf955ac7",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "kodim17",
+    "category": "natural",
+    "sourcePath": "kodim17.ppm",
+    "ppmSha256": "95c6dc97d54e0c7df5ab9dc8449905386494cb36e857ca1e59340d0c8b811b34",
+    "pixelsSha256": "566bc866664e9b06dc86e2654051b454844efe17322dbf7e24156d8243f1943e",
+    "width": 512,
+    "height": 768
+  },
+  {
+    "id": "kodim18",
+    "category": "natural",
+    "sourcePath": "kodim18.ppm",
+    "ppmSha256": "03faa4d4b71f73ff1c3808052ab500f7bdea5ef68b8ff9c8a369e33df9bc0ae4",
+    "pixelsSha256": "3475af71066f3ca8206eb12cfc989ebe9c6e44820a96604e88ae018606e1f7bd",
+    "width": 512,
+    "height": 768
+  }
+]

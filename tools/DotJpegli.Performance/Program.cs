@@ -44,74 +44,102 @@ internal static class Program
             var sources = new List<SourceImage>();
             var cases = new List<CaseResult>();
             var policy = new Policy();
+            bool stoppedAfterCounterexample = false;
+            var configurations = from sampling in Evidence.Samplings
+                                 from progression in Evidence.Progressions
+                                 from distance in Evidence.Distances
+                                 select (sampling, progression, distance);
+            object environment = EnvironmentDetails();
+            await WriteJson(output, "run.json", new
+            {
+                schemaVersion = 1, startedAtUtc = DateTimeOffset.UtcNow, expectedCases = 256, upstreamPin = UpstreamPin,
+                testedRevision = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA"),
+                githubRunId = Environment.GetEnvironmentVariable("GITHUB_RUN_ID"),
+                nativeExecutableSha256 = HashFile(options.Native), managedEncoderSha256 = HashFile(typeof(JpegliEncoder).Assembly.Location),
+                managedRunnerSha256 = HashFile(Assembly.GetExecutingAssembly().Location),
+                corpusManifestSha256 = HashFile(Path.Combine(AppContext.BaseDirectory, "corpus.json")), policy, environment
+            });
+            await WriteJson(output, "summary.json", new { schemaVersion = 1, status = "incomplete", valid = false, passed = false,
+                runMetadata = "run.json", progress = "progress.json", rawMeasurements = "cases.json" });
+            await File.WriteAllTextAsync(Path.Combine(output, "report.md"),
+                "# Performance parity: INCOMPLETE\n\nMeasurement has not completed; no passing parity verdict is available. " +
+                "run.json retains the machine, policy and executable identities; progress.json and cases.json retain completed work.\n");
             foreach (var (id, category, sourcePath, image) in images)
             {
                 string input = Path.Combine(inputs, id + ".ppm");
                 image.Write(input);
                 sources.Add(new(id, category, sourcePath, HashFile(input), Hash(image.Pixels), image.Width, image.Height));
                 await WriteJson(output, "sources.json", sources);
-                foreach (int sampling in Evidence.Samplings)
-                    foreach (int progression in Evidence.Progressions)
-                        foreach (float distance in Evidence.Distances)
+                foreach (var (sampling, progression, distance) in configurations)
+                {
+                    int caseIndex = cases.Count;
+                    var settings = new JpegliEncoderOptions
+                    {
+                        ColorSpace = JpegColorSpace.YCbCr, Distance = distance, ProgressiveLevel = progression,
+                        Subsampling = sampling == 444 ? ChromaSubsampling.None : ChromaSubsampling.Quarter,
+                        OptimizeHuffmanTables = true, AdaptiveQuantization = true, ForceBaseline = true,
+                        MaxDegreeOfParallelism = policy.ManagedWorkers
+                    };
+                    string stem = $"{id}_{sampling}_p{progression}_d{distance.ToString("0", CultureInfo.InvariantCulture)}";
+                    string managedPath = Path.Combine(jpegs, stem + "_managed.jpg"), nativePath = Path.Combine(jpegs, stem + "_native.jpg");
+                    byte[] managedJpeg = Encode(image, settings);
+                    await File.WriteAllBytesAsync(managedPath, managedJpeg);
+                    var calibration = await BenchmarkNative(options, worker, image, input, distance, sampling, progression, policy.MinimumIterations, policy);
+                    int iterations = Evidence.Iterations(calibration.NsPerEncode, policy);
+                    var blocks = new List<BlockSample>();
+                    long nativeBytes = 0;
+                    string? expectedNativeHash = null;
+                    for (int block = 0; block < policy.Blocks; block++)
+                    {
+                        NativeSample nativeSample;
+                        ManagedSample managedSample;
+                        bool nativeFirst = (caseIndex + block) % 2 == 0;
+                        if (nativeFirst)
                         {
-                            int caseIndex = cases.Count;
-                            var settings = new JpegliEncoderOptions
-                            {
-                                ColorSpace = JpegColorSpace.YCbCr, Distance = distance, ProgressiveLevel = progression,
-                                Subsampling = sampling == 444 ? ChromaSubsampling.None : ChromaSubsampling.Quarter,
-                                OptimizeHuffmanTables = true, AdaptiveQuantization = true, ForceBaseline = true,
-                                MaxDegreeOfParallelism = policy.ManagedWorkers
-                            };
-                            string stem = $"{id}_{sampling}_p{progression}_d{distance.ToString("0", CultureInfo.InvariantCulture)}";
-                            string managedPath = Path.Combine(jpegs, stem + "_managed.jpg"), nativePath = Path.Combine(jpegs, stem + "_native.jpg");
-                            byte[] managedJpeg = Encode(image, settings);
-                            await File.WriteAllBytesAsync(managedPath, managedJpeg);
-                            var calibration = await BenchmarkNative(options, worker, image, input, distance, sampling, progression, policy.MinimumIterations, policy);
-                            int iterations = Evidence.Iterations(calibration.NsPerEncode, policy);
-                            var blocks = new List<BlockSample>();
-                            long nativeBytes = 0;
-                            string? expectedNativeHash = null;
-                            for (int block = 0; block < policy.Blocks; block++)
-                            {
-                                NativeSample nativeSample;
-                                ManagedSample managedSample;
-                                bool nativeFirst = (caseIndex + block) % 2 == 0;
-                                if (nativeFirst)
-                                {
-                                    nativeSample = await BenchmarkNative(options, worker, image, input, distance, sampling, progression, iterations, policy, nativePath);
-                                    managedSample = BenchmarkManaged(image, settings, managedJpeg, iterations, policy.Warmups);
-                                }
-                                else
-                                {
-                                    managedSample = BenchmarkManaged(image, settings, managedJpeg, iterations, policy.Warmups);
-                                    nativeSample = await BenchmarkNative(options, worker, image, input, distance, sampling, progression, iterations, policy, nativePath);
-                                }
-                                if (block != 0 && nativeSample.Bytes != nativeBytes) throw new InvalidDataException("Native byte count changed across independent blocks.");
-                                string nativeHash = HashFile(nativePath);
-                                if (expectedNativeHash is not null && nativeHash != expectedNativeHash)
-                                    throw new InvalidDataException("Native JPEG bytes changed across independent blocks.");
-                                expectedNativeHash = nativeHash;
-                                nativeBytes = nativeSample.Bytes;
-                                blocks.Add(new(block, nativeFirst ? "native-managed" : "managed-native", managedSample.NsPerEncode, nativeSample.NsPerEncode,
-                                    managedSample.Gen0Collections, managedSample.Gen1Collections, managedSample.Gen2Collections, managedSample.AllocatedBytes));
-                            }
-                            byte[] nativeJpeg = await File.ReadAllBytesAsync(nativePath);
-                            if (nativeJpeg.LongLength != nativeBytes) throw new InvalidDataException("Retained native JPEG does not match measured output size.");
-                            string? structure = JpegStructure.Compare(managedJpeg, nativeJpeg, image, sampling, progression);
-                            TimingStatistics managedStats = Evidence.Statistics(blocks.Select(block => block.ManagedNsPerEncode).ToArray());
-                            TimingStatistics nativeStats = Evidence.Statistics(blocks.Select(block => block.NativeNsPerEncode).ToArray());
-                            cases.Add(new(id, category, sampling, progression, distance, iterations, calibration.NsPerEncode, blocks.ToArray(), managedStats, nativeStats,
-                                managedStats.Median / nativeStats.Median, managedJpeg.LongLength, nativeBytes, Hash(managedJpeg), Hash(nativeJpeg), structure,
-                                Evidence.ValidateSamples(blocks.ToArray(), iterations, policy)));
-                            await WriteJson(output, "cases.json", cases);
+                            nativeSample = await BenchmarkNative(options, worker, image, input, distance, sampling, progression, iterations, policy, nativePath);
+                            managedSample = BenchmarkManaged(image, settings, managedJpeg, iterations, policy.Warmups);
                         }
+                        else
+                        {
+                            managedSample = BenchmarkManaged(image, settings, managedJpeg, iterations, policy.Warmups);
+                            nativeSample = await BenchmarkNative(options, worker, image, input, distance, sampling, progression, iterations, policy, nativePath);
+                        }
+                        if (block != 0 && nativeSample.Bytes != nativeBytes) throw new InvalidDataException("Native byte count changed across independent blocks.");
+                        string nativeHash = HashFile(nativePath);
+                        if (expectedNativeHash is not null && nativeHash != expectedNativeHash)
+                            throw new InvalidDataException("Native JPEG bytes changed across independent blocks.");
+                        expectedNativeHash = nativeHash;
+                        nativeBytes = nativeSample.Bytes;
+                        blocks.Add(new(block, nativeFirst ? "native-managed" : "managed-native", managedSample.NsPerEncode, nativeSample.NsPerEncode,
+                            managedSample.Gen0Collections, managedSample.Gen1Collections, managedSample.Gen2Collections, managedSample.AllocatedBytes));
+                    }
+                    byte[] nativeJpeg = await File.ReadAllBytesAsync(nativePath);
+                    if (nativeJpeg.LongLength != nativeBytes) throw new InvalidDataException("Retained native JPEG does not match measured output size.");
+                    string? structure = JpegStructure.Compare(managedJpeg, nativeJpeg, image, sampling, progression);
+                    TimingStatistics managedStats = Evidence.Statistics(blocks.Select(block => block.ManagedNsPerEncode).ToArray());
+                    TimingStatistics nativeStats = Evidence.Statistics(blocks.Select(block => block.NativeNsPerEncode).ToArray());
+                    cases.Add(new(id, category, sampling, progression, distance, iterations, calibration.NsPerEncode, blocks.ToArray(), managedStats, nativeStats,
+                        managedStats.Median / nativeStats.Median, managedJpeg.LongLength, nativeBytes, Hash(managedJpeg), Hash(nativeJpeg), structure,
+                        Evidence.ValidateSamples(blocks.ToArray(), iterations, policy)));
+                    await WriteJson(output, "cases.json", cases);
+                    await WriteJson(output, "progress.json", new { completedCases = cases.Count, expectedCases = 256, updatedAtUtc = DateTimeOffset.UtcNow });
+                    if (Evidence.IsDecisiveCaseFailure(cases[^1], policy))
+                    {
+                        stoppedAfterCounterexample = true;
+                        break;
+                    }
+                }
                 Console.WriteLine($"Measured {id} ({category}); {cases.Count}/256 cases retained.");
+                if (stoppedAfterCounterexample) break;
             }
-            Evaluation evaluation = Evidence.Evaluate(cases, policy);
+            Evaluation evaluation = stoppedAfterCounterexample
+                ? Evidence.EvaluateCounterexample(cases, policy)
+                : Evidence.Evaluate(cases, policy);
             string status = !evaluation.Valid ? "invalid" : evaluation.Passed ? "passed" : "failed";
             var summary = new
             {
                 schemaVersion = 1, status, evaluation.Valid, evaluation.Passed,
+                coverageComplete = cases.Count == 256, stoppedAfterCounterexample,
                 scope = "Encode latency noninferiority for RGB8 to YCbCr, Kodak24 and eight fixed controls, distances1/4, 444/420, progression0/2, one managed/native worker on this CI CPU; no universal speed claim",
                 upstreamPin = UpstreamPin, nativeVersion, testedRevision = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA"),
                 githubRevision = Environment.GetEnvironmentVariable("GITHUB_SHA"), githubRunId = Environment.GetEnvironmentVariable("GITHUB_RUN_ID"),
@@ -131,10 +159,10 @@ internal static class Program
                     percentiles = "Linear interpolation between sorted block samples, p10/p50/p90; MAD=median absolute deviation/median; any case over10%MAD invalidates evidence",
                     minimumInterval = "At least1ms summed encode interval per block; calibration50ms is a target, capped tiny-image loops may be shorter",
                     structures = "Untimed one JPEG per encoder: frame/component/sampling/precision, all DQT values, scan script and JFIF compared" },
-                environment = EnvironmentDetails(), groups = evaluation.Groups, invalidReasons = evaluation.InvalidReasons, failures = evaluation.Failures
+                environment, groups = evaluation.Groups, invalidReasons = evaluation.InvalidReasons, failures = evaluation.Failures
             };
             await WriteJson(output, "summary.json", summary);
-            await File.WriteAllTextAsync(Path.Combine(output, "report.md"), Report(status, cases.Count, evaluation));
+            await File.WriteAllTextAsync(Path.Combine(output, "report.md"), Report(status, cases.Count, evaluation, stoppedAfterCounterexample));
             Console.WriteLine($"Performance parity {status.ToUpperInvariant()}; evidence: {output}");
             return !evaluation.Valid ? 2 : evaluation.Passed ? 0 : 1;
         }
@@ -279,7 +307,7 @@ internal static class Program
             githubRunnerOs = Environment.GetEnvironmentVariable("RUNNER_OS"), githubRunnerArchitecture = Environment.GetEnvironmentVariable("RUNNER_ARCH") };
     }
 
-    private static string Report(string status, int count, Evaluation evaluation)
+    private static string Report(string status, int count, Evaluation evaluation, bool stoppedAfterCounterexample)
     {
         var text = new StringBuilder();
         text.AppendLine($"# Performance parity: {status.ToUpperInvariant()}");
@@ -287,6 +315,11 @@ internal static class Program
         text.AppendLine($"{count}/256 cases: RGB8 YCbCr, Kodak24 plus eight fixed controls, distances1/4, 444/420 and progression0/2, one worker on this CI host. Pinned upstream `{UpstreamPin}`.");
         text.AppendLine($"Tested revision: `{Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA")}`.");
         text.AppendLine();
+        if (stoppedAfterCounterexample)
+        {
+            text.AppendLine("Stopped after a stable, matched case exceeded the fixed individual latency bound. This valid counterexample establishes failure; the rest of the matrix is unmeasured. A passing verdict always requires complete coverage of all 256 cases. No whole-matrix aggregate is inferred.");
+            text.AppendLine();
+        }
         text.AppendLine("Fixed latency noninferiority limits: geometric mean managed/native median latency ratio <=1.05 in each corpus/sampling/progression group; every case <=1.10. A faster case cannot excuse a slower case. No universal performance claim is made.");
         text.AppendLine();
         text.AppendLine("Seven alternating order blocks, five untimed warmups before each block. The native-only three-iteration calibration targets50ms and selects a shared count clamped3..100. Medians use all seven blocks; no outliers are discarded. Complete in-memory encode calls are timed individually and their elapsed times summed; subprocess startup, file I/O, verification and native buffer free are excluded. Managed collections inside encode are included. Tiered compilation is disabled.");

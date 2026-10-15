@@ -7,6 +7,18 @@ Jpegli at `031a0077f5799a6041004267fc12b956c1f52a20`. The presence of the runner
 does not establish parity. Results must name the tested revision, hosted run,
 machine and measured bounds. This protocol was fixed before its first measurement.
 
+## Initial hosted result
+
+[Run 38572245330](https://github.com/symbiogenesis/DotJpegli/actions/runs/38572245330),
+testing `64c5ebe`, exceeded its original 90-minute limit with 138 of 256 cases
+retained. All 138 passed timing stability and matched JPEG settings, but managed
+latency was **13.36–128.37 times native latency**, exceeding the 1.10 case limit
+in every retained case. Performance parity is not established. The
+[interrupted-run evidence](performance-evidence/2026-10-14-64c5ebe/report.md)
+records this limited coverage and the failed bounds. Follow-up runs stop after
+a stable matched case fails the individual bound; completing the other cases
+cannot make that bound pass. Positive parity still requires all 256 cases.
+
 ## Scope and acceptance policy
 
 The comparison covers the 24 hash-pinned Kodak photographs and eight deterministic
@@ -32,6 +44,9 @@ They are never relaxed after measurements. An aggregate speedup cannot conceal
 a slower individual case or a failed group. Each image and distance has equal
 weight within its group. A failed or unstable measurement cannot support a parity
 claim. Raw timings expose variation so reviewers can assess the evidence.
+One stable matched case above the individual bound permits an early failed
+verdict. Such a report records incomplete coverage, the counterexample and no
+whole-matrix aggregate; early termination can never produce a passing verdict.
 Every block must contain at least 1 ms of summed timed work. The relative median
 absolute deviation must be at most 10% separately for each encoder in every case;
 exceeding this fixed variability limit makes the evidence invalid.
@@ -76,7 +91,11 @@ same pinned native build and prepared corpus. It uploads
 
 Evidence includes a versioned summary, group verdicts and failures, raw repeated
 timings, per-case output and input hashes, native build provenance, runtime and
-machine details and a readable report. Exit 0 means every bound passed; exit 1
+machine details and a readable report. Run identity is written before measurement,
+and each completed case is saved with progress; an interrupted run retains an
+explicit incomplete summary and cannot pass. A valid counterexample produces an explicit failed summary
+with `coverageComplete=false`; a positive result requires the full matrix.
+Exit 0 means every bound passed; exit 1
 means valid measurements exceeded the latency bounds; exit 2 means invalid
 input, settings, coverage or timing evidence, or a runner error.
 Retain the report and machine-readable evidence durably when recording a
