@@ -145,6 +145,38 @@ jobs:
           & "${{ runner.temp }}/aot-smoke/DotJpegli.AotSmoke$extension"
           if ($LASTEXITCODE -ne 0) { throw 'NativeAOT consumer failed.' }
 
+  package:
+    name: Release NuGet package
+    needs: [test, deployment]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - run: dotnet restore src/DotJpegli/DotJpegli.csproj --locked-mode
+      - name: Pack all library targets once
+        run: dotnet pack src/DotJpegli/DotJpegli.csproj -c Release --no-restore --output "${{ runner.temp }}/nuget" -p:ContinuousIntegrationBuild=true -p:RepositoryBranch=refs/heads/main
+      - name: Verify package contents and provenance
+        shell: pwsh
+        env:
+          EXPECTED_REVISION: ${{ github.sha }}
+        run: |
+          $packages = @(Get-ChildItem -LiteralPath "$env:RUNNER_TEMP/nuget" -Filter '*.nupkg' -File)
+          if ($packages.Count -ne 1) { throw 'Expected exactly one NuGet package.' }
+          $version = dotnet msbuild src/DotJpegli/DotJpegli.csproj -nologo -getProperty:PackageVersion
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve package version.' }
+          ./tools/verify-nuget-package.ps1 -PackagePath $packages[0].FullName -ExpectedVersion $version -ExpectedRevision $env:EXPECTED_REVISION
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nuget-${{ github.sha }}
+          path: ${{ runner.temp }}/nuget/*.nupkg
+          retention-days: 30
+          if-no-files-found: error
+
   native-reference:
     strategy:
       fail-fast: false

@@ -122,6 +122,7 @@ for coverage.
 | [Compression and scans](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/compression.md) | Quality, distance, scan scripts, parallel execution and memory use. |
 | [Quantization](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/quantization.md) | Standard and custom tables, transfer functions and advanced tuning. |
 | [Development and validation](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/development.md) | Source builds, focused tests, reproducibility and deployment checks. |
+| [Publishing to NuGet](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/publishing.md) | Trusted publishing setup and publishing a tested package from CI. |
 | [Quality and compression parity](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/quality-compression-parity.md) | Comparison scope, acceptance bounds and hosted evidence. |
 | [Performance parity](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md) | Measurement scope, encoding latency and CI diagnostics. |
 

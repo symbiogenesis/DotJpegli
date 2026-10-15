@@ -1,0 +1,136 @@
+name: Publish NuGet
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Exact package version already committed and built by CI (for example, 1.0.0)'
+        required: true
+        type: string
+      publish:
+        description: 'Publish to nuget.org after environment approval; false only previews the package'
+        type: boolean
+        default: false
+
+concurrency:
+  group: nuget-publication
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    name: Verify tested package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      run-id: ${{ steps.ci.outputs.run-id }}
+      artifact-id: ${{ steps.ci.outputs.artifact-id }}
+    steps:
+      - name: Require main and a successful CI run for this exact revision
+        id: ci
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          REVISION: ${{ github.sha }}
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [[ "$REF" != refs/heads/main ]]; then
+            echo '::error::Run this workflow on main.'
+            exit 1
+          fi
+          runs=$(gh api --method GET "repos/$REPOSITORY/actions/workflows/ci.yml/runs" \
+            -f branch=main -f event=push -f head_sha="$REVISION" -f per_page=100)
+          run_id=$(jq -er --arg sha "$REVISION" --arg repo "$REPOSITORY" '
+            [.workflow_runs[] | select(.head_sha == $sha and .head_branch == "main"
+              and .event == "push" and .head_repository.full_name == $repo)]
+            | first | if .status == "completed" and .conclusion == "success" then .id
+              else error("The latest push CI run for this commit must finish successfully; reuse or rerun that CI run.") end
+          ' <<< "$runs")
+          artifacts=$(gh api --paginate "repos/$REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]')
+          artifact_id=$(jq -ser --arg name "nuget-$REVISION" '
+            [.[] | select(.name == $name and .expired == false)]
+            | sort_by(.id) | last
+            | .id // error("Expected an unexpired CI package artifact.")
+          ' <<< "$artifacts")
+          echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "artifact-id=$artifact_id" >> "$GITHUB_OUTPUT"
+          echo "Validated CI: https://github.com/$REPOSITORY/actions/runs/$run_id" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download the package built by CI
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ steps.ci.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/nuget
+          run-id: ${{ steps.ci.outputs.run-id }}
+          github-token: ${{ github.token }}
+      - name: Check the requested version and record package hash
+        shell: pwsh
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+          EXPECTED_REVISION: ${{ github.sha }}
+        run: |
+          $packages = @(Get-ChildItem -LiteralPath "$env:RUNNER_TEMP/nuget" -File)
+          if ($packages.Count -ne 1) { throw 'Expected exactly one package artifact file.' }
+          ./tools/verify-nuget-package.ps1 -PackagePath $packages[0].FullName -ExpectedVersion $env:EXPECTED_VERSION -ExpectedRevision $env:EXPECTED_REVISION
+          $hash = (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash
+          "Package: $($packages[0].Name)`n`nSHA-256: $hash`n`nPublish requested: ${{ inputs.publish }}" >> $env:GITHUB_STEP_SUMMARY
+
+  publish:
+    name: Publish verified package to nuget.org
+    if: inputs.publish
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: nuget
+      url: https://www.nuget.org/packages/DotJpegli
+    permissions:
+      actions: read
+      id-token: write
+    steps:
+      - name: Require NuGet account configuration
+        shell: bash
+        env:
+          NUGET_USER: ${{ vars.NUGET_USER }}
+        run: |
+          if [[ -z "$NUGET_USER" ]]; then
+            echo '::error::Set NUGET_USER to the nuget.org profile name in the nuget environment.'
+            exit 1
+          fi
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.402
+      - name: Download the same verified CI artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.verify.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/nuget
+          run-id: ${{ needs.verify.outputs.run-id }}
+          github-token: ${{ github.token }}
+      - name: Authenticate to nuget.org with OIDC
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+      - name: Push the tested package
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=("$RUNNER_TEMP"/nuget/*.nupkg)
+          if [[ ${#packages[@]} != 1 ]]; then
+            echo '::error::Expected exactly one NuGet package.'
+            exit 1
+          fi
+          dotnet nuget push "${packages[0]}" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json

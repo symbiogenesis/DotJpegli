@@ -9,6 +9,7 @@ Start with the [project overview](../README.md) for setup and a minimal encoding
 | [Compression and scan options](compression.md) | Quality, distance, restart intervals, scan scripts, progression, smoothing, parallel execution and memory use. |
 | [Quantization](quantization.md) | Standard, custom and extended tables, plus transfer-function tuning and ICC lookup. |
 | [Development and validation](development.md) | Upstream implementation, managed SIMD, local builds, focused tests, CI policy and regression coverage. |
+| [Publishing to NuGet](publishing.md) | Trusted publishing setup, protected main-only releases, CI package previews and retries. |
 | [Quality and compression parity](quality-compression-parity.md) | Pinned matched-corpus comparison, metrics, acceptance bounds and hosted evidence. |
 | [Performance parity](performance-parity.md) | Current measurement scope, matched encoding latency, fixed acceptance bounds and CI diagnostics. |
 
