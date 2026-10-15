@@ -458,7 +458,8 @@ internal static class ProgressiveEntropyEncoder
                 if (run == 16 && position < lastNew)
                 {
                     WriteRefinementSymbol(0xf0, writer, ac, frequencies, tokens: tokens, component: component);
-                    WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
+                    if (correctionCount != 0)
+                        WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
                     correctionCount = 0;
                     run = 0;
                 }
@@ -472,7 +473,8 @@ internal static class ProgressiveEntropyEncoder
             {
                 WriteRefinementSymbol((run << 4) | 1, writer, ac, frequencies, value > 0 ? 1U : 0U, 1,
                     tokens, component);
-                WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
+                if (correctionCount != 0)
+                    WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
                 correctionCount = 0;
                 run = 0;
             }
@@ -519,7 +521,8 @@ internal static class ProgressiveEntropyEncoder
             while (run >= 16 && position <= lastNew)
             {
                 WriteRefinementSymbol(0xf0, writer, ac, frequencies, tokens: tokens, component: component);
-                WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
+                if (correctionCount != 0)
+                    WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
                 correctionCount = 0;
                 run -= 16;
             }
@@ -530,7 +533,8 @@ internal static class ProgressiveEntropyEncoder
             {
                 WriteRefinementSymbol((run << 4) | 1, writer, ac, frequencies, value > 0 ? 1U : 0U, 1,
                     tokens, component);
-                WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
+                if (correctionCount != 0)
+                    WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
                 correctionCount = 0;
                 run = 0;
             }
