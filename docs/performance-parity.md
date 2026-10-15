@@ -15,11 +15,45 @@ retained. All 138 passed timing stability and matched JPEG settings, but managed
 latency was **13.36–128.37 times native latency**, exceeding the 1.10 case limit
 in every retained case. Performance parity is not established. The
 [interrupted-run evidence](performance-evidence/2026-10-14-64c5ebe/report.md)
-records this limited coverage and the failed bounds. Follow-up runs stop after
-a stable matched case fails the individual bound; completing the other cases
-cannot make that bound pass. Positive parity still requires all 256 cases.
+records this limited coverage and the failed bounds. The full acceptance runner
+stops after a stable matched case fails the individual bound; completing the
+other cases cannot make that bound pass. Targeted development diagnostics measure
+all selected cases. Positive parity still requires all 256 cases.
 
-## Scope and acceptance policy
+## Targeted development comparisons
+
+A normal push to `main` runs four cases directly: `kodim01` at distance 1,
+444/420 and progression 0/2. It does not wait for the full quality/compression
+matrix. The default measurement counts remain seven blocks, five warmups and
+native-calibrated shared iteration counts. The native executable and corpus are
+cached by their source/toolchain and manifest identities; native provenance,
+executable identity and input hashes are checked when reused.
+
+For a smaller development question, workflow dispatch accepts comma-separated
+`images`, `distances`, `samplings` and `progressions`, plus bounded `blocks`,
+`warmups` and optional fixed `iterations`. For example, this selects one image
+and configuration with three blocks of three encodes:
+
+```sh
+gh workflow run ci.yml --ref main -f mode=targeted \
+  -f images=kodim03 -f distances=4 -f samplings=420 -f progressions=2 \
+  -f blocks=3 -f iterations=3 -f warmups=1
+```
+
+Reuse the automatic run for the intended revision when it already covers the
+desired comparison; inspect existing runs before dispatching another. See the
+[runner guide](../tools/DotJpegli.Performance/README.md) for selection limits and
+the equivalent CLI options. All measured runs remain CI-only.
+
+The job summary and `performance-targeted-<revision>` artifact show per-case
+latencies, ratios, noise and retained raw evidence. Exit 1 identifies a stable
+matched selected case above the fixed 1.10 latency bound; exit 2 identifies
+invalid evidence. Exit 0 means only that the selected cases were valid and within
+their individual bounds. The diagnostic records `passed: null` and
+`parityVerdict: not-evaluated`; it cannot establish the full protocol's group
+bounds or a passing performance parity verdict.
+
+## Full acceptance scope and policy
 
 The comparison covers the 24 hash-pinned Kodak photographs and eight deterministic
 controls used by the [quality/compression comparison](quality-compression-parity.md).
@@ -84,10 +118,12 @@ measurement. This measured runtime configuration must accompany any speed claim.
 ## Reproduction and retained evidence
 
 All benchmarks run only on CI under [agent instructions](../AGENTS.md). Publishing
-`main` starts the existing workflow; reuse its automatic run. The comparison
-follows the quality/compression measurement on the same Ubuntu runner, using the
-same pinned native build and prepared corpus. It uploads
-`performance-parity-<revision>`, including unsuccessful comparisons.
+`main` starts the targeted comparison described above; reuse its automatic run.
+The full acceptance protocol is opt-in through workflow dispatch with `mode=full`.
+It follows the complete quality/compression measurement on the same Ubuntu runner,
+using the shared pinned native build and prepared corpus, and uploads
+`performance-parity-<revision>`, including unsuccessful comparisons. Diagnostic
+selection/count overrides cannot alter this fixed acceptance protocol.
 
 Evidence includes a versioned summary, group verdicts and failures, raw repeated
 timings, per-case output and input hashes, native build provenance, runtime and
@@ -95,7 +131,7 @@ machine details and a readable report. Run identity is written before measuremen
 and each completed case is saved with progress; an interrupted run retains an
 explicit incomplete summary and cannot pass. A valid counterexample produces an explicit failed summary
 with `coverageComplete=false`; a positive result requires the full matrix.
-Exit 0 means every bound passed; exit 1
+For the full acceptance protocol, exit 0 means every bound passed; exit 1
 means valid measurements exceeded the latency bounds; exit 2 means invalid
 input, settings, coverage or timing evidence, or a runner error.
 Retain the report and machine-readable evidence durably when recording a
