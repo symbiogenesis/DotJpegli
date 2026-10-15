@@ -3,6 +3,7 @@
 // THIRD-PARTY-NOTICES.md.
 
 using System.Numerics;
+using System.Runtime.Intrinsics;
 
 namespace DotJpegli.Internal;
 
@@ -18,7 +19,8 @@ internal static class EntropyEncoder
         ref int previousDc,
         HuffmanTable dc,
         HuffmanTable ac,
-        bool coefficientsValidated = false)
+        bool coefficientsValidated = false,
+        bool zigZagOrdered = false)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(dc);
@@ -29,6 +31,30 @@ internal static class EntropyEncoder
         int category = Category(difference);
         dc.WriteSymbolWithBits(writer, category, AdditionalBits(difference, category), category);
         previousDc = naturalCoefficients[0];
+
+        if (zigZagOrdered)
+        {
+            ulong nonzero = NonzeroAcMask(naturalCoefficients);
+            int previousPosition = 0;
+            while (nonzero != 0)
+            {
+                int position = BitOperations.TrailingZeroCount(nonzero);
+                int run = position - previousPosition - 1;
+                while (run >= 16)
+                {
+                    ac.WriteSymbol(writer, 0xf0);
+                    run -= 16;
+                }
+                int value = naturalCoefficients[position];
+                category = Category(value);
+                ac.WriteSymbolWithBits(writer, (run << 4) | category, AdditionalBits(value, category), category);
+                previousPosition = position;
+                nonzero &= nonzero - 1;
+            }
+            if (previousPosition != 63)
+                ac.WriteSymbol(writer, 0);
+            return;
+        }
 
         int nonzeros = CountNonzeroAc(naturalCoefficients);
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
@@ -67,7 +93,8 @@ internal static class EntropyEncoder
         long[] ac,
         bool coefficientsValidated = false,
         EntropyTokens? tokens = null,
-        int component = 0)
+        int component = 0,
+        bool zigZagOrdered = false)
     {
         ArgumentNullException.ThrowIfNull(dc);
         ArgumentNullException.ThrowIfNull(ac);
@@ -82,6 +109,36 @@ internal static class EntropyEncoder
         checked { dc[category]++; }
         tokens?.AddHuffman(component, false, category, AdditionalBits(difference, category), category);
         previousDc = naturalCoefficients[0];
+
+        if (zigZagOrdered)
+        {
+            ulong nonzero = NonzeroAcMask(naturalCoefficients);
+            int previousPosition = 0;
+            while (nonzero != 0)
+            {
+                int position = BitOperations.TrailingZeroCount(nonzero);
+                int run = position - previousPosition - 1;
+                while (run >= 16)
+                {
+                    checked { ac[0xf0]++; }
+                    tokens?.AddHuffman(component, true, 0xf0, 0, 0);
+                    run -= 16;
+                }
+                int value = naturalCoefficients[position];
+                category = Category(value);
+                int symbol = (run << 4) | category;
+                checked { ac[symbol]++; }
+                tokens?.AddHuffman(component, true, symbol, AdditionalBits(value, category), category);
+                previousPosition = position;
+                nonzero &= nonzero - 1;
+            }
+            if (previousPosition != 63)
+            {
+                checked { ac[0]++; }
+                tokens?.AddHuffman(component, true, 0, 0, 0);
+            }
+            return;
+        }
 
         int nonzeros = CountNonzeroAc(naturalCoefficients);
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
@@ -125,6 +182,38 @@ internal static class EntropyEncoder
 
     private static int CountNonzeroAc(ReadOnlySpan<short> coefficients) =>
         63 - coefficients[1..].Count((short)0);
+
+    // One bit per zigzag position. Masking DC lets its wider signed range use
+    // the same full-vector loads as the AC coefficients without a scalar tail.
+    internal static ulong NonzeroAcMask(ReadOnlySpan<short> zigZagCoefficients)
+    {
+        ulong mask = 0;
+        if (Vector256.IsHardwareAccelerated)
+        {
+            for (int position = 0; position < 64; position += Vector256<short>.Count)
+            {
+                Vector256<short> values = Vector256.Create(zigZagCoefficients.Slice(position, Vector256<short>.Count));
+                uint zeros = Vector256.ExtractMostSignificantBits(Vector256.Equals(values, Vector256<short>.Zero));
+                mask |= (ulong)(~zeros & 0xffffU) << position;
+            }
+        }
+        else if (Vector128.IsHardwareAccelerated)
+        {
+            for (int position = 0; position < 64; position += Vector128<short>.Count)
+            {
+                Vector128<short> values = Vector128.Create(zigZagCoefficients.Slice(position, Vector128<short>.Count));
+                uint zeros = Vector128.ExtractMostSignificantBits(Vector128.Equals(values, Vector128<short>.Zero));
+                mask |= (ulong)(~zeros & 0xffU) << position;
+            }
+        }
+        else
+        {
+            for (int position = 1; position < 64; position++)
+                if (zigZagCoefficients[position] != 0)
+                    mask |= 1UL << position;
+        }
+        return mask & ~1UL;
+    }
 
     private static void ValidateBlock(ReadOnlySpan<short> coefficients, int previousDc, bool coefficientsValidated)
     {
