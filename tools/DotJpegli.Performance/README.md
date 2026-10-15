@@ -8,9 +8,9 @@ provenance and input hashes remain checked when reused. The selected-case table
 appears in the CI job summary and the `performance-targeted-<revision>` artifact.
 
 If the selected comparison fails, CI also captures one CPU profile using pinned
-`dotnet-trace 10.0.750501`: `kodim01`, 444, progression 0, distance 1, three
-blocks, 20 iterations and five warmups. This follow-up has a five-minute limit and
-retains its trace, Speedscope JSON, logs and marked instrumented evidence in the
+`dotnet-trace 10.0.750501` on the selected case with the highest managed/native
+ratio, using three blocks, 20 iterations and five warmups. This follow-up has a
+five-minute limit and retains its trace, Speedscope JSON, logs and marked instrumented evidence in the
 separate `performance-profile-<revision>` artifact. Its instrumented timings do
 not establish latency acceptance and do not replace the original unprofiled
 result. Set the workflow-dispatch `profile` input to `false` to skip this capture.

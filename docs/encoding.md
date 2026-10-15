@@ -87,7 +87,7 @@ use area-weighted averaging of converted samples, horizontally then vertically,
 with exact rational sample boundaries and replicated image edges. Smoothing,
 when requested, precedes averaging. Component dimensions and noninterleaved
 scan/restart counts round up the rational dimensions without truncating ratios.
-Integer ratios retain the existing kernels and JPEG bytes.
+Integer ratios use the integer downsampling kernels.
 
 Fractional sampling extends the pinned upstream encoder, which rejects these
 ratios. It requires a decoder that supports nonintegral component upsampling;
@@ -123,17 +123,12 @@ partial JPEG. Pass a `CancellationToken` for cancellation between MCUs. Dimensio
 must be 1..65535 and fit `MaxPixels` (100 million by default).
 Use `MaxDegreeOfParallelism` to opt into
 [parallel execution](compression.md#parallel-execution), with identical JPEG
-bytes and additional source-copy/row-buffer memory. The stream remains on the
-calling thread and all workers finish before encoding returns.
+bytes and additional row buffers and, when needed, a source copy. The stream
+remains on the calling thread and all workers finish before encoding returns.
 
-The encoder caches converted samples when they fit within 64 MiB, avoiding
-repeated color conversion during analysis and scan preparation. Optimized
-grayscale/YCbCr encoding also reuses pooled quantized coefficients within a
-separate 64 MiB budget. Larger images retain the row/block streaming paths.
-Optimized encoding may retain entropy tokens within another 64 MiB budget,
-divided across its scans, avoiding another coefficient traversal when emitting
-the JPEG. A scan exceeding its token budget falls back to retained coefficients.
-These budgets exclude the source, output, metadata, and ordinary row scratch.
+Keep the input unchanged until encoding returns. See
+[memory and source lifetime](compression.md#memory-and-source-lifetime) for
+converted-sample, coefficient and entropy-token cache budgets and streaming fallbacks.
 
 ## Higher-precision input
 
@@ -175,7 +170,7 @@ The output remains a lossy eight-bit JPEG. Higher-precision input retains more
 information before coefficient quantization; it does not enable 12-bit JPEG or
 lossless encoding. Stream behavior, cancellation, pixel limits and source lifetime
 requirements are the same as for byte input. Converted samples may be retained
-within the fixed cache budget described above. Float
+within the [fixed cache budget](compression.md#memory-and-source-lifetime). Float
 validation adds one input pass, with cancellation checks between rows.
 
 ## Out-of-range floating-point input
@@ -269,10 +264,11 @@ profiles and nonfinite conversion results fail before output. Profiles are
 parsed into immutable owned transforms and the destination bytes are copied
 before stream writes; do not mutate profile memory while encoding starts.
 The source profile is not embedded. Converted samples are cached within the
-fixed budget above, or converted on demand for larger images, and shared safely by parallel workers.
+[converted-sample budget](compression.md#memory-and-source-lifetime), or converted
+on demand for larger images, and shared safely by parallel workers.
 Cancellation is checked during profile preparation and between image rows.
-Leaving `SourceIccProfile` empty preserves the existing JPEG coding and opaque
-profile-attachment behavior. This capability does not establish quality,
+Leaving `SourceIccProfile` empty attaches the destination profile without
+converting samples. This capability does not establish quality,
 compression or performance parity with upstream.
 
 ## Direct YCbCr input

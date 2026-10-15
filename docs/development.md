@@ -2,6 +2,34 @@
 
 [Documentation](README.md)
 
+## Upstream implementation
+
+DotJpegli adapts the encoder at Google Jpegli revision
+[`031a0077f5799a6041004267fc12b956c1f52a20`](https://github.com/google/jpegli/tree/031a0077f5799a6041004267fc12b956c1f52a20).
+The [upstream manifest](upstream.json) records provenance and managed extensions;
+[third-party notices](../THIRD-PARTY-NOTICES.md) map managed files to upstream routines.
+The library has no native binaries, P/Invoke, pointer code, `Unsafe` APIs or runtime
+NuGet dependencies. Decoder dependencies are validation-only.
+
+The managed DCT uses standard JPEG coefficient units; upstream's transform emits
+one eighth of those units, accounted for during quantization. Portable
+`System.Numerics.Vector<float>` paths accelerate the DCT, RGB-to-YCbCr conversion,
+unsmoothed integer-ratio downsampling and AC quantization. DCT dispatch requires
+runtime hardware acceleration and a vector width that divides an eight-sample
+row; unsupported cases use scalar fallbacks. Paths preserve scalar evaluation order,
+fused multiply-add rounding, sample normalization, averaging order and
+quantization thresholds and rounding.
+
+Eight-lane SIMD batches adaptive modulation across neighboring blocks while
+preserving each block's addition order. Complete converted-plane blocks combine
+DCT, prepared quantization, AC validation and zigzag ordering without a final
+float transpose or intermediate coefficient buffer. Other vector widths use
+separate operations. The .NET 11 target uses portable `Zip`/`Unzip`/`Concat`
+for DCT transposes and adjacent-pair downsampling; .NET 10 uses portable lane
+assembly. No CPU-specific intrinsics are used. Smoothing and nonlinear
+RGB-to-XYB conversion use scalar paths. These implementation choices do not
+establish speed parity; see the [performance measurements and protocol](performance-parity.md).
+
 ## Build
 
 The library, tests and tools target both `net10.0` and `net11.0`. The .NET 11
@@ -316,16 +344,15 @@ SIMD color-conversion, downsampling and quantization regressions compare managed
 vector and automatic dispatch results with the scalar implementations, including fractional
 source normalization, chroma FMA rounding, adaptive threshold and coefficient
 rounding boundaries, padded edges and scalar fallbacks. Complete JPEG SHA-256
-fixtures captured before these paths were introduced check unchanged encoding
+fixtures check complete encoding bytes
 across byte, 16-bit and float input, color spaces, sampling, smoothing, custom
 extended tables, scan modes, refinement and restarts. CI repeats focused SIMD
 and encoder fixture checks with hardware intrinsics disabled. Performance
 measurements remain CI-only and speed parity is not established.
 
-Numerical development probes checked the DCT against an independent cosine
-definition. Compiled C++ reference probes matched 120 color and grayscale quantization tables
-(7,680 entries); selected native-reference tables are retained as regression
-fixtures. Adaptive-analysis and coefficient regressions also use independently compiled
+Numerical regressions check the DCT against an independent cosine definition.
+Quantization regressions use selected independently compiled native-reference
+tables. Adaptive-analysis and coefficient regressions also use independently compiled
 C++ scalar fixtures from the pinned source, including edge padding and saturated
 quantization tables. These sampled numerical checks do not establish full encoder
 parity. Sampling regressions retain independent scalar C++ fixtures for pairwise

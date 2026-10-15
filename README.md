@@ -7,10 +7,11 @@ Encode RGB or grayscale pixels as baseline or progressive JPEG, with configurabl
 quality, sampling and metadata.
 Both target frameworks support trimming and NativeAOT publishing.
 
-**Experimental:** This is an encoder-only port. Output is lossy eight-bit JPEG;
-full Jpegli output, compression and performance parity has not been established.
-Quality/compression parity has been measured within a
-[documented RGB8 YCbCr scope](docs/quality-compression-parity.md).
+**Experimental:** Output is lossy eight-bit JPEG, including at quality 100.
+Decoding is outside the project's scope. Quality/compression parity is established
+within a [documented RGB8 YCbCr scope](docs/quality-compression-parity.md);
+byte-identical upstream output and full [performance parity](docs/performance-parity.md)
+are not claimed. Jpegli's quality scale is not interchangeable with libjpeg's.
 
 ## Getting started
 
@@ -57,7 +58,6 @@ library's smoke checks.
 - [Encoding](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/encoding.md): pixel layouts, sampling, streams and color spaces.
 - [Profiles and metadata](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/metadata.md): ICC profiles, Exif, XMP and other metadata.
 - [Compression](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/compression.md) and [quantization](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/quantization.md): quality and advanced options.
-- [Port status](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/port-status.md): implemented features, limitations and upstream provenance.
 - [Development](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/development.md): builds, focused tests and validation coverage.
 
 ## License
@@ -65,3 +65,4 @@ library's smoke checks.
 BSD-3-Clause. See [LICENSE](https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE),
 [upstream license](https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE.jpegli) and
 [third-party notices](https://github.com/symbiogenesis/DotJpegli/blob/main/THIRD-PARTY-NOTICES.md).
+The [upstream manifest](docs/upstream.json) records the pinned source revision.

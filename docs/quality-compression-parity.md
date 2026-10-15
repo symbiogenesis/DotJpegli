@@ -33,9 +33,8 @@ no image or comparison was excluded.
 
 Decoded RGB bytes were identical in 872 of 1,280 pairs; complete JPEG bytes
 were identical in 496. Remaining cases met every measured quality and size
-bound. The encoder now ports upstream cost-based Huffman histogram clustering;
-this intentionally changes optimized grayscale/YCbCr entropy bytes while
-preserving quantized image content relative to the previous managed encoder.
+bound. Optimized grayscale/YCbCr output uses upstream cost-based
+[Huffman histogram clustering](compression.md#huffman-optimization).
 
 The [full result table](parity-evidence/2026-10-14-b30697e/report.md),
 [summary](parity-evidence/2026-10-14-b30697e/summary.json),

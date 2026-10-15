@@ -7,18 +7,27 @@ Jpegli at `031a0077f5799a6041004267fc12b956c1f52a20`. The presence of the runner
 does not establish parity. Results must name the tested revision, hosted run,
 machine and measured bounds. This protocol was fixed before its first measurement.
 
-## Initial hosted result
+## Current measurement scope
 
-[Run 38572245330](https://github.com/symbiogenesis/DotJpegli/actions/runs/38572245330),
-testing `64c5ebe`, exceeded its original 90-minute limit with 138 of 256 cases
-retained. All 138 passed timing stability and matched JPEG settings, but managed
-latency was **13.36–128.37 times native latency**, exceeding the 1.10 case limit
-in every retained case. Performance parity is not established. The
-[interrupted-run evidence](performance-evidence/2026-10-14-64c5ebe/report.md)
-records this limited coverage and the failed bounds. The full acceptance runner
-stops after a stable matched case fails the individual bound; completing the
-other cases cannot make that bound pass. Targeted development diagnostics measure
-all selected cases. Positive parity still requires all 256 cases.
+Full performance parity is not established. The retained reference measurement
+tests revision `5604d601ceda2b9600aeff153a1ee65a4e9774cf` in
+[hosted run 38688881338](https://github.com/symbiogenesis/DotJpegli/actions/runs/38688881338).
+All four selected cases pass timing stability, matched JPEG settings and the
+fixed 1.10 individual latency bound:
+
+| Sampling | Sequential | Progressive level 2 |
+| --- | ---: | ---: |
+| 4:4:4 | 0.848× | 0.838× |
+| 4:2:0 | 0.811× | 0.757× |
+
+Ratios are managed/native median latency; lower is better. The comparison uses
+Kodak01 RGB8 to YCbCr at distance 1, adaptive quantization, optimized Huffman
+coding and one worker, on an AMD EPYC 9V74 x64 host with
+.NET `11.0.0-rc.2.26504.105` and tiered compilation disabled. The
+[reference evidence](performance-evidence/2026-10-15-5604d60/README.md) retains
+raw samples, host identity, settings, hashes and native build provenance.
+These selected cases do not establish the 256-case acceptance protocol or
+predict performance for other images, runtimes, architectures or options.
 
 ## Targeted development comparisons
 
@@ -62,27 +71,6 @@ These profiling timings cannot establish latency acceptance; the original
 unprofiled comparison remains the job's result. Manual dispatch can disable this
 follow-up with `profile=false`.
 
-## Upstream implementation review
-
-The investigation compares the managed port with the same pinned upstream code,
-including its optimized-Huffman path:
-
-- [Native token histograms](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/entropy_coding.cc#L525-L545)
-  and [token replay](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/bitstream.cc#L318-L349)
-  avoid a second coefficient walk. The original port repeated coefficient decisions.
-- [Native bit output](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/bit_writer.h#L57-L100)
-  discharges complete 64-bit words, checking stuffing once for the common case.
-  The original port drained individual bytes after every symbol.
-- [Native DCT input](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/dct-inl.h#L138-L208)
-  reads strided converted planes directly. The original port repeatedly converted
-  pixels and copied centered blocks into scratch storage.
-- [Native adaptive analysis](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/adaptive_quantization.cc#L539-L550)
-  retains neighboring pre-erosion rows. The original port recomputed them for each MCU row.
-
-These are identified implementation gaps, not speedup estimates. Targeted hosted
-measurements determine the effect of each settled batch. Exact arithmetic ordering
-and existing JPEG regression hashes remain checked.
-
 ## Optional .NET 11 runtime and portable SIMD API comparison
 
 The workflow's `compare_net11=true` input runs one Kodak01 4:2:0 sequential case
@@ -99,8 +87,8 @@ implementation uses CPU-specific intrinsics. The 4:2:0 case exercises both kerne
 Both variants run on the identical .NET 11 runtime and CPU, with matching JPEG
 hashes and focused kernel regression tests. This second pair measures the extra
 effect of these API rewrites; it cannot predict gains for other operations or CPUs.
-Normal net11.0 builds use the new APIs automatically; net10.0 retains the compatible
-portable implementation. `DotJpegliNet11Simd=false` disables the new APIs for the
+Normal net11.0 builds use these APIs automatically; net10.0 uses compatible
+portable lane assembly. `DotJpegliNet11Simd=false` disables these APIs for the
 comparison baseline only. The default `true` defines `DOTJPEGLI_NET11_SIMD`.
 Evidence is retained separately as `runtime-comparison-X64-<revision>` and
 `runtime-comparison-ARM64-<revision>`, including exact runtime product builds.

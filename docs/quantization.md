@@ -15,7 +15,7 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 });
 ```
 
-The default is false and preserves existing JPEG bytes. `Quality` still maps
+The default is false, selecting Jpegli's perceptual matrices. `Quality` maps
 through `QualityToDistance`; a positive finite `Distance` still overrides it.
 The standard matrices use the pinned upstream's piecewise linear-quality scale
 from that distance, with rounding and clamping to the `ForceBaseline` range
@@ -158,7 +158,7 @@ byte[] jpeg = JpegliEncoder.Encode(pqPixels, width, height, options: new()
 });
 ```
 
-The default is false and preserves the existing output for every attached
+The default is false, leaving transfer-function tuning independent of the attached
 profile. Lookup applies only when `CicpTransferFunction` is 2 (unspecified);
 every other explicit code takes precedence, including codes that retain default
 tuning. To request unspecified tuning independently of the profile, leave lookup

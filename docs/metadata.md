@@ -262,8 +262,8 @@ Use `JpegliIccProfiles.CreateSrgbProfile()` for a built-in RGB sRGB profile,
 `JpegliIccProfiles.CreateSrgbGrayscaleProfile()` for grayscale with the sRGB
 transfer function, or `JpegliIccProfiles.CreateXybProfile()` for scaled XYB. These factories return a
 fresh mutable array with deterministic bytes and require explicit assignment to
-`IccProfile`. With `SourceIccProfile` empty, the encoder preserves the existing
-attachment behavior. Supplying a source profile enables
+`IccProfile`. With `SourceIccProfile` empty, the encoder attaches the profile
+without converting samples. Supplying a source profile enables
 [source ICC color conversion](encoding.md#source-icc-color-management) into the
 destination profile, or an automatically attached sRGB/grayscale/XYB destination.
 Do not change its backing memory or dispose its owner until encoding returns.
@@ -281,7 +281,7 @@ byte[] profile = JpegliIccProfiles.CreateSrgbProfile(IccRenderingIntent.Relative
 byte[] gammaProfile = JpegliIccProfiles.CreateGammaGrayscaleProfile(2.2, IccRenderingIntent.AbsoluteColorimetric);
 ```
 
-Existing overloads retain their perceptual intent and exact bytes. The new
+Overloads without an intent argument use perceptual intent. Explicit-intent
 overloads use upstream's intent-dependent descriptions, header intent and ICC
 MD5 identification. Invalid enum values throw `ArgumentOutOfRangeException`
 for `renderingIntent`. Intent is a preference for the reader's color-management
@@ -737,9 +737,8 @@ in this order: Exif APP1,
 standard XMP APP1, extended XMP APP1 chunks, ICC APP2 chunks, IPTC APP13, COM
 and then `MetadataMarkers` in caller order,
 followed by the coding tables and scans.
-Defaults preserve the previous JPEG bytes. Metadata does not change coefficients
-or coding bytes. Viewers may interpret orientation, profiles and other
-metadata when displaying the image.
+Metadata does not change coefficients or coding bytes. Viewers may interpret
+orientation, profiles and other metadata when displaying the image.
 Invalid metadata options are rejected before writing output. Cancellation is
 checked between metadata segments as well as between MCUs; cancellation or an
 I/O failure during metadata output can leave a partial JPEG and leaves the stream open.

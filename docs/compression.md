@@ -20,8 +20,8 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 float distance = JpegliEncoder.QualityToDistance(85); // 1.45f.
 ```
 
-Null `Distance`, the default, uses the quality mapping and preserves existing
-JPEG bytes. A supplied distance overrides `Quality`, which must still be valid.
+Null `Distance`, the default, uses the quality mapping.
+A supplied distance overrides `Quality`, which must still be valid.
 Using `Distance = JpegliEncoder.QualityToDistance(quality)` produces the same
 JPEG as that quality setting, including with adaptive quantization and
 progressive scans. The helper applies the pinned upstream polynomial to
@@ -62,7 +62,7 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 });
 ```
 
-Zero, the default, keeps `RestartInterval` and its existing JPEG bytes. Positive
+Zero, the default, uses `RestartInterval`. Positive
 values override that fixed interval, which must still be valid; negative row
 counts are rejected. The effective interval is the scan's MCU columns multiplied
 by `RestartRows`, capped at 65,535 with overflow-safe arithmetic. Rows refer to
@@ -100,7 +100,7 @@ The output retains its sequential frame (SOF0 by default, SOF1 for wide quantize
 coefficients and decoded samples. Color encoding needs additional passes but
 retains bounded working storage. JPEG reader support can vary.
 
-The default `true` preserves existing interleaved JPEG bytes. Grayscale bytes
+The default `true` interleaves color components. Grayscale bytes
 are unchanged with either value. False requires sequential output and rejects
 `Progressive = true` before output, except when `ProgressiveLevel = 0` selects
 sequential encoding. Positive progression levels are also rejected. Sampling,
@@ -165,7 +165,7 @@ Bands and DC component groups may change between valid refinement scans.
 `ScanScript` cannot be combined with `ProgressiveLevel`, explicit
 `ProgressiveAcScanEnds` or `ProgressiveAcRefinementBits`, nonzero
 `ProgressiveRefinementBits`, `ProgressiveInterleaveDc = false` or
-`SequentialInterleaveComponents = false`. Null preserves existing bytes.
+`SequentialInterleaveComponents = false`. Null uses the other scan controls.
 The encoder copies the script and every component list before output; do not
 modify them while encoding starts. Optimized grayscale/YCbCr encoding reuses
 quantized coefficients across scans within a 64 MiB pooled-buffer budget, falling
@@ -189,7 +189,7 @@ that many low coefficient bits in later refinement scans. For example,
 writes initial scans with two bits deferred, then two rounds of DC and component
 AC refinement. With `N` refinement bits this produces `2 * (N + 1)` grayscale scans
 or `4 * (N + 1)` color scans, preserving the final quantized coefficients and pixels.
-The default, zero, keeps the original full-precision initial scans. More refinement
+The default, zero, uses full-precision initial scans. More refinement
 rounds require more encoding passes and CPU time. This scan script does not reproduce
 upstream Jpegli's default script or promise smaller files.
 
@@ -212,8 +212,8 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 | `2` or greater | Full precision | Positions 1..2 at full precision; 3..63, then two refinement rounds |
 
 The level overrides `Progressive`, so setting it alone selects the corresponding
-encoding mode. Null, the default, keeps the existing progressive controls and
-JPEG bytes. Negative levels are rejected; all values at least two use the same
+encoding mode. Null, the default, uses the other progressive controls.
+Negative levels are rejected; all values at least two use the same
 script, as in upstream's setter.
 
 Progressive presets interleave DC only when both maximum **output** sampling
@@ -248,8 +248,8 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 The inclusive end positions use JPEG zigzag order. This example sends positions
 1..2 for each component before positions 3..63. Ends must be strictly increasing
 in 1..63, and the final end must be 63, so every AC coefficient is delivered.
-An empty list is invalid; null, the default, uses `[63]` and retains existing JPEG
-bytes. A non-null list requires `Progressive = true`. The encoder copies and
+An empty list is invalid; null, the default, uses `[63]`.
+A non-null list requires `Progressive = true`. The encoder copies and
 validates the list before writing output; do not modify it while encoding starts.
 
 Each round sends DC first, then every component in the first band, then every
@@ -279,10 +279,10 @@ separate component DC scans when its maximum sampling factors exceed one;
 use `ProgressiveInterleaveDc = false` to select that ordering, as described below.
 These settings do not establish JPEG byte parity.
 
-The new list requires `Progressive = true`, exactly one value per resolved AC
+The list requires `Progressive = true`, exactly one value per resolved AC
 band, and values in 0..10. When `ProgressiveAcScanEnds` is null there is one
 band, so a supplied depth list must have one value. Null depths use
-`ProgressiveRefinementBits` for all bands and preserve existing bytes.
+`ProgressiveRefinementBits` for all bands.
 The scalar setting always controls DC; the list overrides only AC.
 Both lists are copied and validated before output, with the same source-lifetime
 requirements as other progressive settings.
@@ -324,7 +324,7 @@ and DC prediction and RST0..RST7 numbering restart at every scan. Optimized
 Huffman frequency collection uses the same traversal and predictor resets.
 
 False requires `Progressive = true` and is rejected before output otherwise.
-The default `true` preserves existing JPEG bytes, and grayscale bytes are
+The default `true` interleaves color DC; grayscale bytes are
 unchanged with either setting. For `C` components, DC depth `D` and band
 depths `A[b]`, separate DC produces `C * (D + 1 + sum(A[b] + 1))` scans.
 Final coefficients and decoded pixels are preserved. Color output needs
@@ -339,8 +339,8 @@ component DC histograms and per-scan/component AC histograms merge when combined
 entropy and table-definition cost is lower. Baseline output uses at most two
 tables of each class; progressive coding can replace four AC slots between scans.
 Definitions share DHT markers, and each scan selects its actual active tables.
-This changes optimized JPEG bytes while preserving quantized coefficients and
-decoded pixels. Explicit RGB/XYB output retains shared-table behavior; disabling
+Table choices affect entropy bytes while preserving quantized coefficients and
+decoded pixels. Explicit RGB/XYB output uses shared tables; disabling
 optimization retains the standard tables.
 
 With `OptimizeHuffmanTables = true` (the default), progressive initial and refinement
@@ -366,8 +366,7 @@ Spatial adaptive quantization is enabled by default. It analyzes luma texture,
 brightness and neighboring regions to adjust coefficient zeroing thresholds.
 Set `AdaptiveQuantization = false` to use uniform quantization. Subsampled luma
 also disables adaptive analysis automatically, matching upstream. Upstream sampling
-arithmetic and dummy-block coding apply to both modes; partially filled MCUs can
-produce different JPEG bytes from earlier port versions.
+arithmetic and dummy-block coding apply to both modes, including partially filled MCUs.
 
 Set `SmoothingFactor` to 1..100 to apply upstream's optional 3x3 input filter.
 The default, zero, disables smoothing. For example,
@@ -392,7 +391,7 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 });
 ```
 
-The default, `1`, keeps serial execution and its existing memory use. Zero and
+The default, `1`, uses serial execution. Zero and
 values below `-1` are rejected before output. When the effective limit exceeds
 one, workers convert source samples, smooth/downsample components and compute
 the DCT independently across each MCU row. Adaptive analysis, quantization,
@@ -400,10 +399,11 @@ Huffman frequency collection and entropy output remain ordered, producing the
 same JPEG bytes as serial execution with the same settings. The option applies
 to every source precision, output color space, sampling scheme and scan script.
 
-Parallel execution takes one managed copy of the consumed source storage,
-including row padding and ignored alpha but excluding trailing storage, and
-buffers one MCU row of DCT coefficients. Its additional memory is proportional
-to the input storage plus image width, rather than a full image of coefficients.
+Parallel execution shares cached converted samples when available; otherwise
+it copies the consumed source storage once, including row padding and ignored
+alpha but excluding trailing storage. It also buffers one MCU row of DCT
+coefficients. Its additional memory is proportional to image width and, when
+needed, the consumed source storage.
 Keep the supplied pixels unchanged until encoding returns; adaptive analysis
 and float preflight still read them. All workers finish synchronously before
 encoding returns or throws. The destination stream is written only by the
@@ -413,15 +413,30 @@ especially for small images; speed claims require CI performance measurements.
 
 ## Memory and source lifetime
 
-Baseline Huffman optimization makes two passes over the supplied pixels, keeping only
-block buffers, bounded rows of spatial-analysis data and symbol histograms
-rather than a full image of coefficients or an image-sized adaptive map.
-Keep the input unchanged until encoding returns. The byte-array overload also
-holds the encoded JPEG in memory; use the stream overload for larger outputs.
-Progressive encoding recomputes blocks in each scan's traversal order, using
-additional passes and CPU time to retain bounded working memory. Optimized
-progressive output collects frequencies from the initial DC and all AC scans before
-writing them. Histogram storage grows with the bounded scan-context count,
-independently of image area. Neither mode retains an image-sized coefficient buffer.
-Opt-in parallel execution additionally keeps the source copy and row of DCT
-coefficients described above.
+Keep the input unchanged until encoding returns. The encoder retains converted
+samples, optimized grayscale/YCbCr quantized coefficients and entropy tokens
+within three independent 64 MiB budgets. Pooled allocation sizes count toward
+the limits; token storage shares its budget across scans. Larger images and
+exhausted token budgets use coefficient replay or row/block recomputation.
+These budgets exclude caller pixels, output, metadata, histograms and ordinary
+row/block scratch.
+
+A single-worker optimized interleaved sequential color scan records entropy
+tokens while transforming and quantizing blocks, avoiding the image-wide
+coefficient cache and its subsequent traversal. If tokens exceed their budget,
+emission recomputes blocks with the same prepared quantizers. Progressive and
+other scan layouts reuse quantized coefficients when that cache fits, and
+otherwise recompute blocks in scan order. Optimized progressive output collects
+frequencies from the initial DC and all AC scans before writing them. Histogram
+storage grows with the bounded scan-context count, independently of image area;
+spatial analysis uses bounded neighboring rows.
+
+Single-worker optimized, unsmoothed RGB8-to-YCbCr 4:2:0 encoding without source
+ICC conversion retains full-resolution Y and compact chroma planes. Two rows of
+full-resolution chroma scratch share the converted-sample budget. Source edges
+are replicated before the ordered 2×2 averages. Other input/mode combinations
+use full converted planes or streaming recomputation.
+
+The byte-array overload also holds the encoded JPEG in memory; use the stream
+overload for larger outputs. Opt-in parallel execution additionally keeps the
+row of DCT coefficients and, when needed, source copy described above.
