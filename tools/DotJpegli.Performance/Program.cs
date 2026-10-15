@@ -298,6 +298,11 @@ internal static class Program
     {
         string cpu = Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ?? "not supplied";
         string? corelibInformationalVersion = typeof(object).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        const bool explicitNet11Simd = true;
+#else
+        const bool explicitNet11Simd = false;
+#endif
         string? affinity = null;
         if (OperatingSystem.IsLinux())
         {
@@ -307,6 +312,7 @@ internal static class Program
         return new { cpu, affinity, os = RuntimeInformation.OSDescription, RuntimeInformation.OSArchitecture, RuntimeInformation.ProcessArchitecture,
             runtime = RuntimeInformation.FrameworkDescription, runtimeVersion = Environment.Version.ToString(),
             corelibInformationalVersion, runtimeProductVersion = RuntimeProductVersion(corelibInformationalVersion),
+            explicitNet11Simd,
             logicalProcessors = Environment.ProcessorCount,
             Stopwatch.Frequency, Stopwatch.IsHighResolution, Vector.IsHardwareAccelerated, vectorFloatWidth = Vector<float>.Count,
             vector128 = Vector128.IsHardwareAccelerated, vector256 = Vector256.IsHardwareAccelerated, vector512 = Vector512.IsHardwareAccelerated,

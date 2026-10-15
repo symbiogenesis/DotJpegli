@@ -89,8 +89,14 @@ on .NET 10.0.13 and .NET 11.0.0-rc.2.26504.105, serially on the same CPU. A main
 commit containing `[compare-net11]` requests the same diagnostic in its automatic
 run. It uses the identical net10.0 assembly and checks matching JPEG hashes;
 the SDK pin and library target remain unchanged. This isolates runtime/JIT changes
-and does not measure rewrites using new .NET 11 APIs. Evidence is retained separately
-as `runtime-comparison-<revision>`.
+and isolates runtime/JIT changes. The same optional job also builds two isolated
+net11.0 variants with SDK `11.0.100-rc.2.26504.105`: the existing SIMD code and an
+explicit `Zip`/`Concat` DCT transpose. Both run on the identical .NET 11 runtime
+and CPU, with matching JPEG hashes and focused DCT regression tests. This second
+pair measures the additional effect of that particular API rewrite; it cannot
+predict gains from other rewrites or architectures. The experiment is gated by
+`DOTJPEGLI_NET11_SIMD`; normal builds retain the existing code. Evidence is retained
+separately as `runtime-comparison-<revision>`, including exact runtime product builds.
 
 ## Full acceptance scope and policy
 

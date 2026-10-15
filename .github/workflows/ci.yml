@@ -251,6 +251,26 @@ jobs:
           chmod +x "${{ runner.temp }}/parity-native/jpegli-parity-native"
           dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
           dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-restore
+      - name: Build isolated .NET 11 baseline and explicit SIMD experiment
+        run: |
+          lane="${{ runner.temp }}/net11-simd-source"
+          mkdir -p "$lane"
+          git archive HEAD | tar -x -C "$lane"
+          python3 - "$lane" <<'PY'
+          import json, sys
+          from pathlib import Path
+          lane = Path(sys.argv[1])
+          sdk = json.loads((lane / 'global.json').read_text())
+          sdk['sdk'].update(version='11.0.100-rc.2.26504.105', rollForward='disable', allowPrerelease=True)
+          (lane / 'global.json').write_text(json.dumps(sdk, indent=2))
+          for project in lane.rglob('*.csproj'):
+              project.write_text(project.read_text().replace('<TargetFramework>net10.0</TargetFramework>', '<TargetFramework>net11.0</TargetFramework>'))
+          PY
+          cd "$lane"
+          dotnet publish tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-self-contained -p:RestoreLockedMode=false -o "${{ runner.temp }}/net11-baseline"
+          dotnet publish tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-self-contained -p:RestoreLockedMode=false -p:DotJpegliNet11Simd=true -o "${{ runner.temp }}/net11-simd"
+          dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release -p:RestoreLockedMode=false -p:DotJpegliNet11Simd=true
+          dotnet tests/DotJpegli.Tests/bin/Release/net11.0/DotJpegli.Tests.dll -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.PlaneDctTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.Net11DctTransposeTests
       - name: Compare one case on both runtimes on the same CPU (CI only)
         working-directory: ${{ runner.temp }}
         env:
@@ -266,13 +286,20 @@ jobs:
             set -e
             if [[ "$verdict" -gt 1 ]]; then exit "$verdict"; fi
           done
-      - name: Report runtime-only comparison
+          for variant in net11-baseline net11-simd; do
+            set +e
+            taskset -c "$cpu" dotnet --fx-version 11.0.0-rc.2.26504.105 --roll-forward Disable "${{ runner.temp }}/$variant/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/runtime-$variant" --diagnostic --images kodim01 --distances 1 --samplings 444 --progressions 0 --blocks 7 --iterations 20 --warmups 5
+            verdict=$?
+            set -e
+            if [[ "$verdict" -gt 1 ]]; then exit "$verdict"; fi
+          done
+      - name: Report runtime and explicit SIMD comparisons
         run: |
           python3 - <<'PY'
           import json, os
           from pathlib import Path
           root = Path(os.environ['RUNNER_TEMP'])
-          versions = ['10.0.13', '11.0.0-rc.2.26504.105']
+          versions = ['10.0.13', '11.0.0-rc.2.26504.105', 'net11-baseline', 'net11-simd']
           data = []
           for version in versions:
               path = root / ('runtime-' + version)
@@ -280,23 +307,31 @@ jobs:
               summary = json.loads((path / 'summary.json').read_text())
               cases = json.loads((path / 'cases.json').read_text())
               assert summary['valid'] and len(cases) == 1, 'Runtime comparison needs stable matched evidence'
-              assert run['environment']['runtimeVersion'] == version.split('-')[0], 'Unexpected runtime version'
-              assert run['environment']['runtimeProductVersion'] == version, 'Unexpected runtime build'
+              expected = '10.0.13' if version == '10.0.13' else '11.0.0-rc.2.26504.105'
+              assert run['environment']['runtimeVersion'] == expected.split('-')[0], 'Unexpected runtime version'
+              product = run['environment']['runtimeProductVersion']
+              assert product == expected or (expected == '10.0.13' and product.startswith(expected + '-servicing.')), 'Unexpected runtime build'
+              assert run['environment']['explicitNet11Simd'] == (version == 'net11-simd'), 'Unexpected SIMD experiment build'
               data.append((run, cases[0]))
-          left, right = data
+          left, right, baseline, simd = data
           for field in ['testedRevision', 'managedEncoderSha256', 'managedRunnerSha256', 'nativeExecutableSha256']:
               assert left[0][field] == right[0][field], 'Comparison binary/revision mismatch'
-          for field in ['cpu', 'affinity', 'vectorFloatWidth']:
-              assert left[0]['environment'][field] == right[0]['environment'][field], 'Comparison host mismatch'
-          assert left[1]['managedJpegSha256'] == right[1]['managedJpegSha256'], 'Runtime changed JPEG bytes'
+          for run, case in data:
+              for field in ['cpu', 'affinity', 'vectorFloatWidth']:
+                  assert left[0]['environment'][field] == run['environment'][field], 'Comparison host mismatch'
+              assert left[0]['testedRevision'] == run['testedRevision'], 'Comparison source revision mismatch'
+              assert left[0]['nativeExecutableSha256'] == run['nativeExecutableSha256'], 'Comparison native mismatch'
+              assert left[1]['managedJpegSha256'] == case['managedJpegSha256'], 'Experiment changed JPEG bytes'
           ratio = right[1]['managed']['median'] / left[1]['managed']['median']
-          report = '# One-case .NET runtime comparison\n\nSame net10.0 binary, Kodak01 4:4:4 sequential distance 1, same CPU, 7 blocks/20 iterations/5 warmups. This isolates runtime changes; new .NET 11 APIs are not used. No whole-corpus or migration verdict.\n\n'
-          report += '| Runtime | Managed median (ms) | Native median (ms) |\n| --- | ---: | ---: |\n'
+          simd_ratio = simd[1]['managed']['median'] / baseline[1]['managed']['median']
+          report = '# One-case .NET runtime and explicit SIMD comparison\n\nKodak01 4:4:4 sequential distance 1, same CPU, 7 blocks/20 iterations/5 warmups. The first pair uses identical net10.0 binaries to isolate runtime changes. The second pair uses the pinned .NET 11 SDK and runtime, with an explicit Zip/Concat DCT transpose enabled only in the SIMD variant. All four JPEG hashes must match. No whole-corpus or migration verdict.\n\n'
+          report += '| Build/runtime | Managed median (ms) | Native median (ms) |\n| --- | ---: | ---: |\n'
           for version, (_, case) in zip(versions, data):
               report += f"| {version} | {case['managed']['median']/1e6:.3f} | {case['native']['median']/1e6:.3f} |\n"
           report += f'\n.NET 11/.NET 10 managed latency ratio: **{ratio:.6f}** (lower is better). JPEG hashes match.\n'
+          report += f'\nExplicit .NET 11 SIMD/baseline latency ratio on .NET 11: **{simd_ratio:.6f}** (lower is better). This measures this rewrite only, not all possible new API uses.\n'
           (root / 'runtime-comparison.md').write_text(report)
-          (root / 'runtime-comparison.json').write_text(json.dumps({'versions': versions, 'net11OverNet10': ratio, 'scope': 'one case, same IL and CPU; runtime-only diagnostic'}, indent=2))
+          (root / 'runtime-comparison.json').write_text(json.dumps({'versions': versions, 'net11OverNet10': ratio, 'explicitSimdOverNet11Baseline': simd_ratio, 'scope': 'one case, same CPU; separate runtime-only and explicit SIMD diagnostics'}, indent=2))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
               output.write(report)
           print(report)
@@ -309,6 +344,8 @@ jobs:
           path: |
             ${{ runner.temp }}/runtime-10.0.13/
             ${{ runner.temp }}/runtime-11.0.0-rc.2.26504.105/
+            ${{ runner.temp }}/runtime-net11-baseline/
+            ${{ runner.temp }}/runtime-net11-simd/
             ${{ runner.temp }}/runtime-comparison.*
           retention-days: 30
           if-no-files-found: error
