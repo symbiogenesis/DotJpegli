@@ -169,8 +169,13 @@ internal sealed class AdaptiveQuantization
                 float value = fuzzy[preStride + x] + fuzzy[preStride + x + 1]
                     + fuzzy[x] + fuzzy[x + 1];
                 value = ComputeMask(value);
-                value = HfModulation(blockX * 8, 5 + blockY * 8, value, useVector);
-                value = GammaModulation(blockX * 8, 5 + blockY * 8, value, useVector);
+                if (useVector && Vector<float>.Count is 4 or 8)
+                    value = ModulateVector(blockX * 8, 5 + blockY * 8, value);
+                else
+                {
+                    value = HfModulationScalar(blockX * 8, 5 + blockY * 8, value);
+                    value = GammaModulationScalar(blockX * 8, 5 + blockY * 8, value);
+                }
                 float field = FastPow2(value * 1.442695041f) * mul + add;
                 strengths[blockY * BlocksWide + blockX] = MathF.Max(0f, 0.6f / field - 1f);
             }
@@ -287,61 +292,82 @@ internal sealed class AdaptiveQuantization
             + (12.906028311180409f * v2 + 5.0220313103171232f * v3));
     }
 
-    private float HfModulation(int x, int y, float value, bool useVector)
+    private float ModulateVector(int x, int y, float value)
     {
         float sum = 0;
-        if (useVector && Vector<float>.Count == 8)
+        float ratio = 0;
+        int row = y * lumaStride + x + 1;
+        var gammaOffset = new Vector<float>(0.16f / InputScaling);
+        if (Vector<float>.Count == 8)
         {
+            Vector<float> samples = new(luma, row);
             for (int dy = 0; dy < 8; dy++)
             {
-                int row = (y + dy) * lumaStride + x + 1;
-                int next = dy == 7 ? row : row + lumaStride;
-                Vector<float> samples = new(luma, row);
+                // Carry the next row forward and share the current samples
+                // between both modulations, halving their luma vector loads.
+                Vector<float> next = dy == 7 ? samples : new(luma, row + lumaStride);
                 Vector<float> horizontal = Vector.Abs(samples - new Vector<float>(luma, row + 1));
-                Vector<float> vertical = Vector.Abs(samples - new Vector<float>(luma, next));
+                Vector<float> vertical = Vector.Abs(samples - next);
                 sum = AddHfDifferences(sum, horizontal, vertical);
-            }
-        }
-        else if (useVector && Vector<float>.Count <= 8)
-        {
-            Span<float> horizontal = stackalloc float[8];
-            Span<float> vertical = stackalloc float[8];
-            int lanes = Vector<float>.Count;
-            for (int dy = 0; dy < 8; dy++)
-            {
-                int row = (y + dy) * lumaStride + x + 1;
-                int next = dy == 7 ? row : row + lumaStride;
-                for (int dx = 0; dx < 8; dx += lanes)
-                {
-                    Vector<float> samples = new(luma, row + dx);
-                    Vector.Abs(samples - new Vector<float>(luma, row + dx + 1)).CopyTo(horizontal[dx..]);
-                    Vector.Abs(samples - new Vector<float>(luma, next + dx)).CopyTo(vertical[dx..]);
-                }
-                // SIMD computes independent differences. Keep the original
-                // horizontal/vertical interleaving and left-to-right additions.
-                for (int dx = 0; dx < 7; dx++)
-                {
-                    sum += horizontal[dx];
-                    sum += vertical[dx];
-                }
-                sum += vertical[7];
+                ratio = AddGammaDerivatives(ratio, DerivativeRatio(samples + gammaOffset, invert: true));
+                samples = next;
+                row += lumaStride;
             }
         }
         else
         {
+            Vector<float> left = new(luma, row);
+            Vector<float> right = new(luma, row + 4);
             for (int dy = 0; dy < 8; dy++)
             {
-                int row = (y + dy) * lumaStride + x + 1;
-                int next = dy == 7 ? row : row + lumaStride;
-                for (int dx = 0; dx < 8; dx++)
-                {
-                    if (dx != 7) sum += MathF.Abs(luma[row + dx] - luma[row + dx + 1]);
-                    sum += MathF.Abs(luma[row + dx] - luma[next + dx]);
-                }
+                Vector<float> nextLeft = dy == 7 ? left : new(luma, row + lumaStride);
+                Vector<float> nextRight = dy == 7 ? right : new(luma, row + lumaStride + 4);
+                Vector<float> horizontalLeft = Vector.Abs(left - new Vector<float>(luma, row + 1));
+                Vector<float> horizontalRight = Vector.Abs(right - new Vector<float>(luma, row + 5));
+                sum = AddHfFourDifferences(sum, horizontalLeft, Vector.Abs(left - nextLeft), includeLastHorizontal: true);
+                sum = AddHfFourDifferences(sum, horizontalRight, Vector.Abs(right - nextRight), includeLastHorizontal: false);
+                ratio = AddGammaFourDerivatives(ratio, DerivativeRatio(left + gammaOffset, invert: true));
+                ratio = AddGammaFourDerivatives(ratio, DerivativeRatio(right + gammaOffset, invert: true));
+                left = nextLeft;
+                right = nextRight;
+                row += lumaStride;
+            }
+        }
+
+        // The reductions remain independent and strictly left to right.
+        // Apply HF first, then gamma, matching the original two traversals.
+        const float sumCoeff = (float)(-2.0052193233688884f * InputScaling / 112.0);
+        value = sum * sumCoeff + value;
+        ratio *= InputScaling / 64f;
+        return (-0.15526878023684174f * InvLog2E) * FastLog2(ratio) + value;
+    }
+
+    private float HfModulationScalar(int x, int y, float value)
+    {
+        float sum = 0;
+        for (int dy = 0; dy < 8; dy++)
+        {
+            int row = (y + dy) * lumaStride + x + 1;
+            int next = dy == 7 ? row : row + lumaStride;
+            for (int dx = 0; dx < 8; dx++)
+            {
+                if (dx != 7) sum += MathF.Abs(luma[row + dx] - luma[row + dx + 1]);
+                sum += MathF.Abs(luma[row + dx] - luma[next + dx]);
             }
         }
         const float sumCoeff = (float)(-2.0052193233688884f * InputScaling / 112.0);
         return sum * sumCoeff + value;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float AddHfFourDifferences(float sum, Vector<float> horizontal, Vector<float> vertical,
+        bool includeLastHorizontal)
+    {
+        sum += horizontal[0]; sum += vertical[0];
+        sum += horizontal[1]; sum += vertical[1];
+        sum += horizontal[2]; sum += vertical[2];
+        if (includeLastHorizontal) sum += horizontal[3];
+        return sum + vertical[3];
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -359,37 +385,24 @@ internal sealed class AdaptiveQuantization
         return sum + vertical[7];
     }
 
-    private float GammaModulation(int x, int y, float value, bool useVector)
+    private float GammaModulationScalar(int x, int y, float value)
     {
         float ratio = 0;
-        Span<float> derivatives = stackalloc float[8];
         for (int dy = 0; dy < 8; dy++)
         {
             int row = (y + dy) * lumaStride + x + 1;
-            int dx = 0;
-            if (useVector && Vector<float>.Count == 8)
-            {
-                Vector<float> samples = new Vector<float>(luma, row) + new Vector<float>(0.16f / InputScaling);
-                Vector<float> values = DerivativeRatio(samples, invert: true);
-                ratio = AddGammaDerivatives(ratio, values);
-                continue;
-            }
-            if (useVector && Vector<float>.Count <= 8)
-                for (; dx <= 8 - Vector<float>.Count; dx += Vector<float>.Count)
-                {
-                    Vector<float> samples = new Vector<float>(luma, row + dx)
-                        + new Vector<float>(0.16f / InputScaling);
-                    DerivativeRatio(samples, invert: true).CopyTo(derivatives[dx..]);
-                }
-            for (int column = 0; column < dx; column++)
-                ratio += derivatives[column];
-            // Retain the scalar reduction order: a parallel sum can change
-            // the final quantized coefficients at a rounding boundary.
-            for (; dx < 8; dx++)
+            for (int dx = 0; dx < 8; dx++)
                 ratio += DerivativeRatio(luma[row + dx] + 0.16f / InputScaling, invert: true);
         }
         ratio *= InputScaling / 64f;
         return (-0.15526878023684174f * InvLog2E) * FastLog2(ratio) + value;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float AddGammaFourDerivatives(float ratio, Vector<float> values)
+    {
+        ratio += values[0]; ratio += values[1];
+        ratio += values[2]; return ratio + values[3];
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
