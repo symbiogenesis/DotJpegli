@@ -56,13 +56,7 @@ internal static class ForwardDct
 
         if (Vector.IsHardwareAccelerated && Vector<float>.Count == 8)
         {
-            Span<Vector<float>> rows = stackalloc Vector<float>[8];
-            var center = new Vector<float>(128f);
-            // Consume the entire source before writing output, even when the
-            // coefficient span overlaps any of these strided input rows.
-            for (int row = 0; row < 8; row++)
-                rows[row] = new Vector<float>(plane.Slice((top + row) * stride + left, 8)) - center;
-            TransformEightLaneRows(rows, coefficients);
+            TransformEightLane(plane[(top * stride + left)..], stride, centerInput: true, coefficients);
         }
         else if (Vector.IsHardwareAccelerated && Vector<float>.Count == 4)
         {
@@ -150,7 +144,7 @@ internal static class ForwardDct
     {
         if (Vector<float>.Count == 8)
         {
-            TransformEightLane(samples, coefficients);
+            TransformEightLane(samples, 8, centerInput: false, coefficients);
             return;
         }
         TransformFourLane(samples, 8, centerInput: false, coefficients);
@@ -159,64 +153,141 @@ internal static class ForwardDct
     private static void TransformFourLane(ReadOnlySpan<float> samples, int stride, bool centerInput,
         Span<float> coefficients)
     {
-        Span<Vector<float>> intermediate = stackalloc Vector<float>[16];
-        Span<Vector<float>> lanes = stackalloc Vector<float>[8];
+        // Keep both four-column panels in locals. Stack-allocated vector spans
+        // require zeroing and force intermediate rows through memory per block.
+        Vector<float> a0 = new(samples.Slice(0, 4));
+        Vector<float> a1 = new(samples.Slice(stride, 4));
+        Vector<float> a2 = new(samples.Slice(2 * stride, 4));
+        Vector<float> a3 = new(samples.Slice(3 * stride, 4));
+        Vector<float> a4 = new(samples.Slice(4 * stride, 4));
+        Vector<float> a5 = new(samples.Slice(5 * stride, 4));
+        Vector<float> a6 = new(samples.Slice(6 * stride, 4));
+        Vector<float> a7 = new(samples.Slice(7 * stride, 4));
+        Vector<float> b0 = new(samples.Slice(4, 4));
+        Vector<float> b1 = new(samples.Slice(stride + 4, 4));
+        Vector<float> b2 = new(samples.Slice(2 * stride + 4, 4));
+        Vector<float> b3 = new(samples.Slice(3 * stride + 4, 4));
+        Vector<float> b4 = new(samples.Slice(4 * stride + 4, 4));
+        Vector<float> b5 = new(samples.Slice(5 * stride + 4, 4));
+        Vector<float> b6 = new(samples.Slice(6 * stride + 4, 4));
+        Vector<float> b7 = new(samples.Slice(7 * stride + 4, 4));
+        if (centerInput)
+        {
+            var center = new Vector<float>(128f);
+            a0 -= center; b0 -= center;
+            a1 -= center; b1 -= center;
+            a2 -= center; b2 -= center;
+            a3 -= center; b3 -= center;
+            a4 -= center; b4 -= center;
+            a5 -= center; b5 -= center;
+            a6 -= center; b6 -= center;
+            a7 -= center; b7 -= center;
+        }
+        TransformRecursiveVector(ref a0, ref a1, ref a2, ref a3, ref a4, ref a5, ref a6, ref a7);
+        TransformRecursiveVector(ref b0, ref b1, ref b2, ref b3, ref b4, ref b5, ref b6, ref b7);
         var scale = new Vector<float>(0.125f);
-        var center = new Vector<float>(128f);
-        // Two four-column panels consume all source pixels before output.
-        for (int panel = 0; panel < 2; panel++)
-        {
-            if (centerInput)
-                for (int row = 0; row < 8; row++)
-                    lanes[row] = new Vector<float>(samples.Slice(row * stride + panel * 4, 4)) - center;
-            else
-                for (int row = 0; row < 8; row++)
-                    lanes[row] = new Vector<float>(samples.Slice(row * stride + panel * 4, 4));
-            TransformRecursiveVector(lanes);
-            for (int v = 0; v < 8; v++)
-                intermediate[v * 2 + panel] = lanes[v] * scale;
-        }
-        // Four 4x4 quadrant transposes replace every scalar lane gather and
-        // extraction. The .NET 10 and .NET 11 paths share this dataflow.
-        for (int v = 0; v < 8; v += 4)
-        {
-            for (int row = 0; row < 4; row++)
-            {
-                lanes[row] = intermediate[(v + row) * 2];
-                lanes[row + 4] = intermediate[(v + row) * 2 + 1];
-            }
-            TransposeFourRows(lanes, 0);
-            TransposeFourRows(lanes, 4);
-            TransformRecursiveVector(lanes);
-            TransposeFourRows(lanes, 0);
-            TransposeFourRows(lanes, 4);
-            for (int row = 0; row < 4; row++)
-            {
-                lanes[row].CopyTo(coefficients.Slice((v + row) * 8, 4));
-                lanes[row + 4].CopyTo(coefficients.Slice((v + row) * 8 + 4, 4));
-            }
-        }
-    }
-
-    private static void TransformEightLane(ReadOnlySpan<float> samples, Span<float> coefficients)
-    {
-        Span<Vector<float>> rows = stackalloc Vector<float>[8];
-        for (int row = 0; row < 8; row++)
-            rows[row] = new Vector<float>(samples.Slice(row * 8, 8));
-        TransformEightLaneRows(rows, coefficients);
+        a0 *= scale; b0 *= scale;
+        a1 *= scale; b1 *= scale;
+        a2 *= scale; b2 *= scale;
+        a3 *= scale; b3 *= scale;
+        a4 *= scale; b4 *= scale;
+        a5 *= scale; b5 *= scale;
+        a6 *= scale; b6 *= scale;
+        a7 *= scale; b7 *= scale;
+        // Four quadrant transposes turn the column panels into horizontal DCTs.
+        TransformFourRows(ref a0, ref a1, ref a2, ref a3, ref b0, ref b1, ref b2, ref b3, coefficients[..32]);
+        TransformFourRows(ref a4, ref a5, ref a6, ref a7, ref b4, ref b5, ref b6, ref b7, coefficients.Slice(32, 32));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void TransformEightLaneRows(Span<Vector<float>> rows, Span<float> coefficients)
+    private static void TransformFourRows(ref Vector<float> a0, ref Vector<float> a1,
+        ref Vector<float> a2, ref Vector<float> a3, ref Vector<float> b0, ref Vector<float> b1,
+        ref Vector<float> b2, ref Vector<float> b3, Span<float> coefficients)
     {
-        TransformRecursiveVector(rows);
-        for (int row = 0; row < 8; row++)
-            rows[row] *= new Vector<float>(0.125f);
-        TransposePortable(System.Runtime.InteropServices.MemoryMarshal.Cast<Vector<float>, Vector256<float>>(rows));
-        TransformRecursiveVector(rows);
-        TransposePortable(System.Runtime.InteropServices.MemoryMarshal.Cast<Vector<float>, Vector256<float>>(rows));
-        for (int row = 0; row < 8; row++)
-            rows[row].CopyTo(coefficients.Slice(row * 8, 8));
+        TransposeFourRows(ref a0, ref a1, ref a2, ref a3);
+        TransposeFourRows(ref b0, ref b1, ref b2, ref b3);
+        TransformRecursiveVector(ref a0, ref a1, ref a2, ref a3, ref b0, ref b1, ref b2, ref b3);
+        TransposeFourRows(ref a0, ref a1, ref a2, ref a3);
+        TransposeFourRows(ref b0, ref b1, ref b2, ref b3);
+        a0.CopyTo(coefficients.Slice(0, 4));
+        b0.CopyTo(coefficients.Slice(4, 4));
+        a1.CopyTo(coefficients.Slice(8, 4));
+        b1.CopyTo(coefficients.Slice(12, 4));
+        a2.CopyTo(coefficients.Slice(16, 4));
+        b2.CopyTo(coefficients.Slice(20, 4));
+        a3.CopyTo(coefficients.Slice(24, 4));
+        b3.CopyTo(coefficients.Slice(28, 4));
+    }
+
+    private static void TransformEightLane(ReadOnlySpan<float> samples, int stride, bool centerInput,
+        Span<float> coefficients)
+    {
+        // Read every row before storing output, preserving overlapping spans.
+        Vector<float> r0 = new(samples.Slice(0, 8));
+        Vector<float> r1 = new(samples.Slice(stride, 8));
+        Vector<float> r2 = new(samples.Slice(2 * stride, 8));
+        Vector<float> r3 = new(samples.Slice(3 * stride, 8));
+        Vector<float> r4 = new(samples.Slice(4 * stride, 8));
+        Vector<float> r5 = new(samples.Slice(5 * stride, 8));
+        Vector<float> r6 = new(samples.Slice(6 * stride, 8));
+        Vector<float> r7 = new(samples.Slice(7 * stride, 8));
+        if (centerInput)
+        {
+            var center = new Vector<float>(128f);
+            r0 -= center;
+            r1 -= center;
+            r2 -= center;
+            r3 -= center;
+            r4 -= center;
+            r5 -= center;
+            r6 -= center;
+            r7 -= center;
+        }
+        TransformRecursiveVector(ref r0, ref r1, ref r2, ref r3, ref r4, ref r5, ref r6, ref r7);
+        var scale = new Vector<float>(0.125f);
+        r0 *= scale;
+        r1 *= scale;
+        r2 *= scale;
+        r3 *= scale;
+        r4 *= scale;
+        r5 *= scale;
+        r6 *= scale;
+        r7 *= scale;
+        TransposeEightRows(ref r0, ref r1, ref r2, ref r3, ref r4, ref r5, ref r6, ref r7);
+        TransformRecursiveVector(ref r0, ref r1, ref r2, ref r3, ref r4, ref r5, ref r6, ref r7);
+        TransposeEightRows(ref r0, ref r1, ref r2, ref r3, ref r4, ref r5, ref r6, ref r7);
+        r0.CopyTo(coefficients.Slice(0, 8));
+        r1.CopyTo(coefficients.Slice(8, 8));
+        r2.CopyTo(coefficients.Slice(16, 8));
+        r3.CopyTo(coefficients.Slice(24, 8));
+        r4.CopyTo(coefficients.Slice(32, 8));
+        r5.CopyTo(coefficients.Slice(40, 8));
+        r6.CopyTo(coefficients.Slice(48, 8));
+        r7.CopyTo(coefficients.Slice(56, 8));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TransposeEightRows(ref Vector<float> r0, ref Vector<float> r1,
+        ref Vector<float> r2, ref Vector<float> r3, ref Vector<float> r4, ref Vector<float> r5,
+        ref Vector<float> r6, ref Vector<float> r7)
+    {
+        Vector256<float> v0 = r0.AsVector256();
+        Vector256<float> v1 = r1.AsVector256();
+        Vector256<float> v2 = r2.AsVector256();
+        Vector256<float> v3 = r3.AsVector256();
+        Vector256<float> v4 = r4.AsVector256();
+        Vector256<float> v5 = r5.AsVector256();
+        Vector256<float> v6 = r6.AsVector256();
+        Vector256<float> v7 = r7.AsVector256();
+        TransposeEightRows(ref v0, ref v1, ref v2, ref v3, ref v4, ref v5, ref v6, ref v7);
+        r0 = v0.AsVector();
+        r1 = v1.AsVector();
+        r2 = v2.AsVector();
+        r3 = v3.AsVector();
+        r4 = v4.AsVector();
+        r5 = v5.AsVector();
+        r6 = v6.AsVector();
+        r7 = v7.AsVector();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -224,10 +295,19 @@ internal static class ForwardDct
     {
         if (rows.Length < 8)
             throw new ArgumentException("An 8 by 8 transpose requires eight vector rows.", nameof(rows));
-        Vector128<float> a0 = rows[0].GetLower(), a1 = rows[1].GetLower(), a2 = rows[2].GetLower(), a3 = rows[3].GetLower();
-        Vector128<float> b0 = rows[0].GetUpper(), b1 = rows[1].GetUpper(), b2 = rows[2].GetUpper(), b3 = rows[3].GetUpper();
-        Vector128<float> c0 = rows[4].GetLower(), c1 = rows[5].GetLower(), c2 = rows[6].GetLower(), c3 = rows[7].GetLower();
-        Vector128<float> d0 = rows[4].GetUpper(), d1 = rows[5].GetUpper(), d2 = rows[6].GetUpper(), d3 = rows[7].GetUpper();
+        TransposeEightRows(ref rows[0], ref rows[1], ref rows[2], ref rows[3],
+            ref rows[4], ref rows[5], ref rows[6], ref rows[7]);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TransposeEightRows(ref Vector256<float> r0, ref Vector256<float> r1,
+        ref Vector256<float> r2, ref Vector256<float> r3, ref Vector256<float> r4, ref Vector256<float> r5,
+        ref Vector256<float> r6, ref Vector256<float> r7)
+    {
+        Vector128<float> a0 = r0.GetLower(), a1 = r1.GetLower(), a2 = r2.GetLower(), a3 = r3.GetLower();
+        Vector128<float> b0 = r0.GetUpper(), b1 = r1.GetUpper(), b2 = r2.GetUpper(), b3 = r3.GetUpper();
+        Vector128<float> c0 = r4.GetLower(), c1 = r5.GetLower(), c2 = r6.GetLower(), c3 = r7.GetLower();
+        Vector128<float> d0 = r4.GetUpper(), d1 = r5.GetUpper(), d2 = r6.GetUpper(), d3 = r7.GetUpper();
         Transpose4x4(ref a0, ref a1, ref a2, ref a3);
         Transpose4x4(ref b0, ref b1, ref b2, ref b3);
         Transpose4x4(ref c0, ref c1, ref c2, ref c3);
@@ -236,26 +316,27 @@ internal static class ForwardDct
         Vector256<float> ac2 = Vector256.Create(c0, c1), ac3 = Vector256.Create(c2, c3);
         Vector256<float> bd0 = Vector256.Create(b0, b1), bd1 = Vector256.Create(b2, b3);
         Vector256<float> bd2 = Vector256.Create(d0, d1), bd3 = Vector256.Create(d2, d3);
-        rows[0] = ConcatLowerLower(ac0, ac2);
-        rows[1] = ConcatUpperUpper(ac0, ac2);
-        rows[2] = ConcatLowerLower(ac1, ac3);
-        rows[3] = ConcatUpperUpper(ac1, ac3);
-        rows[4] = ConcatLowerLower(bd0, bd2);
-        rows[5] = ConcatUpperUpper(bd0, bd2);
-        rows[6] = ConcatLowerLower(bd1, bd3);
-        rows[7] = ConcatUpperUpper(bd1, bd3);
+        r0 = ConcatLowerLower(ac0, ac2);
+        r1 = ConcatUpperUpper(ac0, ac2);
+        r2 = ConcatLowerLower(ac1, ac3);
+        r3 = ConcatUpperUpper(ac1, ac3);
+        r4 = ConcatLowerLower(bd0, bd2);
+        r5 = ConcatUpperUpper(bd0, bd2);
+        r6 = ConcatLowerLower(bd1, bd3);
+        r7 = ConcatUpperUpper(bd1, bd3);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void TransposeFourRows(Span<Vector<float>> rows, int start)
+    private static void TransposeFourRows(ref Vector<float> r0, ref Vector<float> r1,
+        ref Vector<float> r2, ref Vector<float> r3)
     {
-        Vector128<float> r0 = rows[start].AsVector128(), r1 = rows[start + 1].AsVector128();
-        Vector128<float> r2 = rows[start + 2].AsVector128(), r3 = rows[start + 3].AsVector128();
-        Transpose4x4(ref r0, ref r1, ref r2, ref r3);
-        rows[start] = r0.AsVector();
-        rows[start + 1] = r1.AsVector();
-        rows[start + 2] = r2.AsVector();
-        rows[start + 3] = r3.AsVector();
+        Vector128<float> v0 = r0.AsVector128(), v1 = r1.AsVector128();
+        Vector128<float> v2 = r2.AsVector128(), v3 = r3.AsVector128();
+        Transpose4x4(ref v0, ref v1, ref v2, ref v3);
+        r0 = v0.AsVector();
+        r1 = v1.AsVector();
+        r2 = v2.AsVector();
+        r3 = v3.AsVector();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -327,31 +408,33 @@ internal static class ForwardDct
 #endif
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void TransformRecursiveVector(Span<Vector<float>> values)
+    private static void TransformRecursiveVector(ref Vector<float> v0, ref Vector<float> v1,
+        ref Vector<float> v2, ref Vector<float> v3, ref Vector<float> v4, ref Vector<float> v5,
+        ref Vector<float> v6, ref Vector<float> v7)
     {
         // Specialize the fixed eight-point recursion. This keeps each stage in
-        // registers instead of recursively allocating and slicing vector scratch.
-        Vector<float> e0 = values[0] + values[7];
-        Vector<float> e1 = values[1] + values[6];
-        Vector<float> e2 = values[2] + values[5];
-        Vector<float> e3 = values[3] + values[4];
+        // registers across both passes without a vector scratch span.
+        Vector<float> e0 = v0 + v7;
+        Vector<float> e1 = v1 + v6;
+        Vector<float> e2 = v2 + v5;
+        Vector<float> e3 = v3 + v4;
         Transform4Vector(ref e0, ref e1, ref e2, ref e3);
-        Vector<float> o0 = (values[0] - values[7]) * new Vector<float>(0.5097955791041592f);
-        Vector<float> o1 = (values[1] - values[6]) * new Vector<float>(0.6013448869350453f);
-        Vector<float> o2 = (values[2] - values[5]) * new Vector<float>(0.8999762231364156f);
-        Vector<float> o3 = (values[3] - values[4]) * new Vector<float>(2.5629154477415055f);
+        Vector<float> o0 = (v0 - v7) * new Vector<float>(0.5097955791041592f);
+        Vector<float> o1 = (v1 - v6) * new Vector<float>(0.6013448869350453f);
+        Vector<float> o2 = (v2 - v5) * new Vector<float>(0.8999762231364156f);
+        Vector<float> o3 = (v3 - v4) * new Vector<float>(2.5629154477415055f);
         Transform4Vector(ref o0, ref o1, ref o2, ref o3);
         o0 = Vector.FusedMultiplyAdd(o0, new Vector<float>(Sqrt2), o1);
         o1 += o2;
         o2 += o3;
-        values[0] = e0;
-        values[1] = o0;
-        values[2] = e1;
-        values[3] = o1;
-        values[4] = e2;
-        values[5] = o2;
-        values[6] = e3;
-        values[7] = o3;
+        v0 = e0;
+        v1 = o0;
+        v2 = e1;
+        v3 = o1;
+        v4 = e2;
+        v5 = o2;
+        v6 = e3;
+        v7 = o3;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
