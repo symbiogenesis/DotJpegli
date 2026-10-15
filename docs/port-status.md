@@ -132,7 +132,12 @@ Managed vectors also accelerate RGB-to-YCbCr conversion, unsmoothed integer-rati
 downsampling and AC quantization. Conversion preserves source normalization,
 scalar evaluation order and chroma FMA rounding; downsampling preserves pairwise
 and composed averaging; quantization preserves coefficient division, adaptive
-thresholds and rounding rules. The .NET 11 target uses portable Zip/Unzip/Concat
+thresholds and rounding rules. Eight-lane SIMD batches AQ modulation across
+eight neighboring blocks while retaining each block's original addition order.
+For complete converted-plane blocks, it also combines DCT, prepared quantization,
+AC validation and zigzag ordering without the final float transpose or intermediate
+coefficient buffer. Other vector widths retain the separate operations.
+The .NET 11 target uses portable Zip/Unzip/Concat
 for DCT transposes and adjacent-pair downsampling; the .NET 10 target retains
 portable lane assembly. No CPU-specific intrinsic paths are used. Smoothing and
 nonlinear RGB-to-XYB conversion retain scalar paths. Measured improvements remain

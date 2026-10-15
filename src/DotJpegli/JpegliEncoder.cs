@@ -1,3 +1,4 @@
+using System.Numerics;
 using DotJpegli.Internal;
 
 namespace DotJpegli;
@@ -636,7 +637,15 @@ public static class JpegliEncoder
             ? component == 0 ? source.Plane0 : component == 1 ? source.Plane1 : source.Plane2 : default;
         Span<float> coefficients = floatScratch.Slice(64, 64);
         if (!plane.IsEmpty && componentX * 8 + 8 <= info.PlaneWidth && componentY * 8 + 8 <= info.PlaneHeight)
+        {
+            if (Vector.IsHardwareAccelerated && Vector<float>.Count == 8)
+            {
+                ForwardDct.TransformQuantizePlane(plane, info.PlaneWidth, componentX * 8, componentY * 8,
+                    info.Quantizer, shortScratch.Slice(64, 64), strength);
+                return;
+            }
             ForwardDct.TransformPlane(plane, info.PlaneWidth, componentX * 8, componentY * 8, coefficients);
+        }
         else
         {
             Span<float> samples = floatScratch[..64];

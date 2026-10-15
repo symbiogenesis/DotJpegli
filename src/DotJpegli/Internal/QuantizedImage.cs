@@ -82,21 +82,29 @@ internal sealed class QuantizedImage : IDisposable
                         {
                             cancellationToken.ThrowIfCancellationRequested();
                             int y = firstRow + row;
+                            float strength = adaptive is null ? 0f : strengths![row * adaptive.BlocksWide
+                                + x * horizontal / factor.Horizontal];
+                            Span<short> quantized = image.Block(component, x, y);
                             if (pixels.ParallelRows is { } parallelRows)
                                 parallelRows.CopyBlock(component, x, y, transformed);
                             else if (!plane.IsEmpty && x * 8 + 8 <= planeWidth && y * 8 + 8 <= planeHeight)
+                            {
+                                if (zigZagOrdered && Vector.IsHardwareAccelerated && Vector<float>.Count == 8)
+                                {
+                                    ForwardDct.TransformQuantizePlane(plane, planeWidth, x * 8, y * 8,
+                                        quantizers[component], quantized, strength);
+                                    continue;
+                                }
                                 ForwardDct.TransformPlane(plane, planeWidth, x * 8, y * 8, transformed);
+                            }
                             else
                             {
                                 Downsampling.FillBlock(pixels, width, height, stride, component, x, y,
                                     horizontal, vertical, factor.Horizontal, factor.Vertical, samples, smoothingFactor);
                                 ForwardDct.Transform(samples, transformed);
                             }
-                            float strength = adaptive is null ? 0f : strengths![row * adaptive.BlocksWide
-                                + x * horizontal / factor.Horizontal];
                             // Built-in DC zero-bias multipliers are zero, so the full DC
                             // coefficient does not depend on scan order or restart predictors.
-                            Span<short> quantized = image.Block(component, x, y);
                             Span<short> natural = zigZagOrdered ? naturalOrder : quantized;
                             Quantization.QuantizePrepared(transformed, quantizers[component], natural,
                                 adaptiveStrength: strength);
