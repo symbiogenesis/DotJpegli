@@ -104,7 +104,7 @@ internal static class EntropyEncoder
         }
 
         ValidateBlock(naturalCoefficients, previousDc, coefficientsValidated);
-        if (zigZagOrdered && tokens is not null && tokens.TryReserveBlock(out Span<ulong> destination))
+        if (zigZagOrdered && tokens is not null && tokens.TryReserveBlock(out Span<uint> destination))
         {
             AccumulateOrderedBlock(naturalCoefficients, ref previousDc, dc, ac, tokens, component, destination);
             return;
@@ -180,7 +180,7 @@ internal static class EntropyEncoder
     }
 
     private static void AccumulateOrderedBlock(ReadOnlySpan<short> coefficients, ref int previousDc,
-        long[] dc, long[] ac, EntropyTokens tokens, int component, Span<ulong> destination)
+        long[] dc, long[] ac, EntropyTokens tokens, int component, Span<uint> destination)
     {
         int count = 0;
         int dcContext = component << 1;

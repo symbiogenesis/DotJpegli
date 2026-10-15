@@ -8,18 +8,21 @@ namespace DotJpegli.Internal;
 /// <summary>Bounded pooled entropy decisions retained between histogram collection and emission.</summary>
 internal sealed class EntropyTokens : IDisposable
 {
-    private const int DefaultSegmentLength = 4096;
-    private const int MaximumSegmentLength = 65536;
-    private const int CountShift = 32;
-    private const int SymbolShift = 38;
-    private const int ContextShift = 46;
-    private const int KindShift = 49;
-    private const ulong RawBitsKind = 1UL << KindShift;
-    private const ulong RestartKind = 2UL << KindShift;
-    private readonly List<ulong[]> segments = [];
+    // Preserve the original 32KB initial and 512KB maximum rental sizes.
+    private const int DefaultSegmentLength = 8192;
+    private const int MaximumSegmentLength = 131072;
+    // Pinned jpegli's Token stores a 16-bit suffix and 8-bit symbol in four
+    // bytes (encode_internal.h). Three context bits leave five explicit count
+    // bits for our noncanonical-suffix fallback. Contexts 6/7 encode raw/restart.
+    private const int CountShift = 27;
+    private const int SymbolShift = 16;
+    private const int ContextShift = 24;
+    private const uint RawBitsContext = 6U << ContextShift;
+    private const uint RestartContext = 7U << ContextShift;
+    private readonly List<uint[]> segments = [];
     private readonly long maximumBytes;
     private int nextSegmentLength;
-    private ulong[]? current;
+    private uint[]? current;
     private int currentCount;
     private long rentedBytes;
 
@@ -27,7 +30,7 @@ internal sealed class EntropyTokens : IDisposable
     {
         ArgumentOutOfRangeException.ThrowIfNegative(maximumBytes);
         this.maximumBytes = Math.Min(maximumBytes, 64L * 1024 * 1024);
-        uint available = (uint)Math.Min(DefaultSegmentLength, this.maximumBytes / sizeof(ulong));
+        uint available = (uint)Math.Min(DefaultSegmentLength, this.maximumBytes / sizeof(uint));
         // Shared-pool buckets start at sixteen elements. Smaller budgets simply
         // abandon on the first add; no allocation is needed for empty scans.
         nextSegmentLength = available < 16 ? 0 : 1 << BitOperations.Log2(available);
@@ -45,15 +48,15 @@ internal sealed class EntropyTokens : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static ulong PackHuffman(int context, int symbol, uint suffix, int count)
-        => suffix | ((ulong)(uint)count << CountShift) | ((ulong)(uint)symbol << SymbolShift)
-            | ((ulong)(uint)context << ContextShift);
+    internal static uint PackHuffman(int context, int symbol, uint suffix, int count)
+        => suffix | ((uint)count << CountShift) | ((uint)symbol << SymbolShift)
+            | ((uint)context << ContextShift);
 
     // A sequential block emits at most 64 tokens. Borrow only existing space;
     // ordinary Add handles allocation, segment boundaries and small budgets.
-    internal bool TryReserveBlock(out Span<ulong> destination)
+    internal bool TryReserveBlock(out Span<uint> destination)
     {
-        ulong[]? segment = current;
+        uint[]? segment = current;
         if (IsComplete && segment is not null && segment.Length - currentCount >= 64)
         {
             destination = segment.AsSpan(currentCount, 64);
@@ -72,21 +75,30 @@ internal sealed class EntropyTokens : IDisposable
     internal void AddBits(uint bits, int count)
     {
         Debug.Assert((uint)count <= 32 && (count == 32 || (bits >> count) == 0));
-        Add(RawBitsKind | bits | ((ulong)(uint)count << CountShift));
+        if (count > 24)
+        {
+            // Raw payloads have 24 available bits. Keep stream order, including
+            // when these two records cross a segment or abandon the budget.
+            int remaining = count - 24;
+            Add(RawBitsContext | (24U << CountShift) | (bits >> remaining));
+            Add(RawBitsContext | ((uint)remaining << CountShift) | (bits & ((1U << remaining) - 1)));
+        }
+        else
+            Add(RawBitsContext | bits | ((uint)count << CountShift));
     }
 
     internal void AddRestart(int index)
     {
         Debug.Assert((uint)index < 8);
-        Add(RestartKind | (uint)index);
+        Add(RestartContext | (uint)index);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void Add(ulong token)
+    private void Add(uint token)
     {
         if (!IsComplete)
             return;
-        ulong[]? segment = current;
+        uint[]? segment = current;
         int index = currentCount;
         if (segment is not null && (uint)index < (uint)segment.Length)
         {
@@ -98,9 +110,9 @@ internal sealed class EntropyTokens : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void AddSegment(ulong token)
+    private void AddSegment(uint token)
     {
-        uint available = (uint)Math.Min(MaximumSegmentLength, (maximumBytes - rentedBytes) / sizeof(ulong));
+        uint available = (uint)Math.Min(MaximumSegmentLength, (maximumBytes - rentedBytes) / sizeof(uint));
         if (nextSegmentLength == 0 || available < 16)
         {
             Dispose();
@@ -110,15 +122,15 @@ internal sealed class EntropyTokens : IDisposable
         // Growing segments use fewer rentals for larger scans, while the final
         // power-of-two request still fits the remaining actual-storage budget.
         int segmentLength = Math.Min(nextSegmentLength, 1 << BitOperations.Log2(available));
-        ulong[] next = ArrayPool<ulong>.Shared.Rent(segmentLength);
-        if (rentedBytes + (long)next.Length * sizeof(ulong) > maximumBytes)
+        uint[] next = ArrayPool<uint>.Shared.Rent(segmentLength);
+        if (rentedBytes + (long)next.Length * sizeof(uint) > maximumBytes)
         {
-            ArrayPool<ulong>.Shared.Return(next);
+            ArrayPool<uint>.Shared.Return(next);
             Dispose();
             return;
         }
         segments.Add(next);
-        rentedBytes += (long)next.Length * sizeof(ulong);
+        rentedBytes += (long)next.Length * sizeof(uint);
         nextSegmentLength = Math.Min(MaximumSegmentLength, next.Length * 2);
         current = next;
         next[0] = token;
@@ -141,7 +153,7 @@ internal sealed class EntropyTokens : IDisposable
             coding.AcTables[component].GetPrebiasedCodes().CopyTo(lookups.Slice(component * 512 + 256, 256));
         for (int segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
         {
-            ulong[] segment = segments[segmentIndex];
+            uint[] segment = segments[segmentIndex];
             int length = segmentIndex == segments.Count - 1 ? currentCount : segment.Length;
             for (int chunk = 0; chunk < length; chunk += 256)
             {
@@ -149,26 +161,25 @@ internal sealed class EntropyTokens : IDisposable
                 int end = Math.Min(chunk + 256, length);
                 for (int index = chunk; index < end; index++)
                 {
-                    ulong token = segment[index];
-                    int kind = (int)(token >> KindShift);
-                    int count = (int)(token >> CountShift) & 63;
-                    if (kind == 0)
+                    uint token = segment[index];
+                    int context = (int)(token >> ContextShift) & 7;
+                    int count = (int)(token >> CountShift);
+                    if (context < 6)
                     {
                         // Context and symbol occupy adjacent bits in the token.
                         // One index avoids the jagged table lookup per symbol.
                         int lookupIndex = (int)(token >> SymbolShift) & 2047;
                         ulong prepared = lookups[lookupIndex];
                         if ((int)(prepared >> 38) == count + 1)
-                            writer.WriteBitsPrevalidated((uint)prepared | (uint)token, (int)(prepared >> 32) & 63);
+                            writer.WriteBitsPrevalidated((uint)prepared | (token & 0xffffU), (int)(prepared >> 32) & 63);
                         else
                         {
-                            int context = lookupIndex >> 8;
                             HuffmanTable table = (context & 1) == 0 ? coding.DcTables[context >> 1] : coding.AcTables[context >> 1];
-                            table.WriteSymbolWithBits(writer, lookupIndex & 255, (uint)token, count);
+                            table.WriteSymbolWithBits(writer, lookupIndex & 255, token & 0xffffU, count);
                         }
                     }
-                    else if (kind == 1)
-                        writer.WriteBitsPrevalidated((uint)token, count);
+                    else if (context == 6)
+                        writer.WriteBitsPrevalidated(token & 0xffffffU, count);
                     else
                         writer.WriteRestartMarker((int)token & 7);
                 }
@@ -183,8 +194,8 @@ internal sealed class EntropyTokens : IDisposable
         current = null;
         currentCount = 0;
         rentedBytes = 0;
-        foreach (ulong[] segment in segments)
-            ArrayPool<ulong>.Shared.Return(segment);
+        foreach (uint[] segment in segments)
+            ArrayPool<uint>.Shared.Return(segment);
         segments.Clear();
     }
 }

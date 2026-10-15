@@ -181,8 +181,9 @@ public sealed class EntropyTokensTests
     [Fact]
     public void ReplayPreservesEveryTokenAcrossGrowingAndCappedSegmentBoundaries()
     {
-        int[] checkpoints = [4095, 4096, 4097, 12287, 12288, 12289, 28671, 28672, 28673,
-            61439, 61440, 61441, 126975, 126976, 126977, 192513];
+        // The initial/growth/capped rentals remain 32/64/128/256/512KB.
+        int[] checkpoints = [8191, 8192, 8193, 24575, 24576, 24577, 57343, 57344, 57345,
+            122879, 122880, 122881, 253951, 253952, 253953, 385025];
         using var tokens = new EntropyTokens();
         using var expected = new MemoryStream();
         var expectedWriter = new BitWriter(expected, buffered: true);
@@ -197,9 +198,9 @@ public sealed class EntropyTokensTests
             }
             else
             {
-                uint value = unchecked((uint)index * 0x9e3779b9U);
-                tokens.AddBits(value, 32);
-                expectedWriter.WriteBits(value, 32);
+                uint value = unchecked((uint)index * 0x9e3779b9U) & 0xffffU;
+                tokens.AddBits(value, 16);
+                expectedWriter.WriteBits(value, 16);
             }
             if (index + 1 == checkpoints[checkpoint])
             {
@@ -218,8 +219,8 @@ public sealed class EntropyTokensTests
     [Fact]
     public void IrregularBudgetUsesSmallerFinalSegmentsBeforeAbandoningAndCannotReplayStaleData()
     {
-        const int capacity = 4096 + 8192 + 512 + 128 + 16;
-        using var tokens = new EntropyTokens(capacity * sizeof(ulong) + 7);
+        const int capacity = 8192 + 16384 + 512 + 128 + 16;
+        using var tokens = new EntropyTokens(capacity * sizeof(uint) + 3);
         using var expected = new MemoryStream();
         var expectedWriter = new BitWriter(expected, buffered: true);
         for (int index = 0; index < capacity; index++)
@@ -244,6 +245,93 @@ public sealed class EntropyTokensTests
         using var rejected = new MemoryStream();
         Assert.Throws<InvalidOperationException>(() =>
             tokens.Replay(new BitWriter(rejected), coding, TestContext.Current.CancellationToken));
+        Assert.Empty(rejected.ToArray());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void EveryRawWidthPreservesBitOrderAcrossAlignmentsAndRestartMarkers(bool buffered)
+    {
+        var coding = new HuffmanCodingPlan.ScanCoding([], [], [], []);
+        for (int prefix = 0; prefix < 64; prefix++)
+        {
+            using var tokens = new EntropyTokens();
+            using var expected = new MemoryStream();
+            var expectedWriter = new BitWriter(expected, buffered);
+            for (int index = 0; index < prefix; index++)
+            {
+                tokens.AddBits((uint)(index & 1), 1);
+                expectedWriter.WriteBits((uint)(index & 1), 1);
+            }
+            for (int width = 0; width <= 32; width++)
+            {
+                uint bits = unchecked((uint)width * 0x9e3779b9U);
+                if (width != 32)
+                    bits &= (1U << width) - 1;
+                tokens.AddBits(bits, width);
+                expectedWriter.WriteBits(bits, width);
+                if (width % 7 == 6)
+                {
+                    tokens.AddRestart(width % 8);
+                    expectedWriter.WriteRestartMarker(width % 8);
+                }
+            }
+            expectedWriter.Flush();
+            using var actual = new MemoryStream();
+            var actualWriter = new BitWriter(actual, buffered);
+            tokens.Replay(actualWriter, coding, TestContext.Current.CancellationToken);
+            actualWriter.Flush();
+            Assert.Equal(expected.ToArray(), actual.ToArray());
+        }
+    }
+
+    [Fact]
+    public void SplitRawWriteCrossesAFullSegmentAndSmallerFinalRentalWithoutReordering()
+    {
+        const int initialTokens = 32 * 1024 / sizeof(uint);
+        using var tokens = new EntropyTokens((initialTokens + 16) * sizeof(uint));
+        using var expected = new MemoryStream();
+        var expectedWriter = new BitWriter(expected, buffered: true);
+        for (int index = 0; index < initialTokens - 1; index++)
+        {
+            tokens.AddBits((uint)index, 16);
+            expectedWriter.WriteBits((uint)index, 16);
+        }
+        tokens.AddBits(uint.MaxValue, 32);
+        expectedWriter.WriteBits(uint.MaxValue, 32);
+        tokens.AddRestart(7);
+        expectedWriter.WriteRestartMarker(7);
+        expectedWriter.Flush();
+        Assert.True(tokens.IsComplete);
+        using var actual = new MemoryStream();
+        var actualWriter = new BitWriter(actual, buffered: true);
+        tokens.Replay(actualWriter, new HuffmanCodingPlan.ScanCoding([], [], [], []), TestContext.Current.CancellationToken);
+        actualWriter.Flush();
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+    }
+
+    [Fact]
+    public void ZeroWidthRecordsConsumeStorageAndExhaustionDuringARawSplitAbandonsEverything()
+    {
+        using var complete = new EntropyTokens(16 * sizeof(uint));
+        for (int index = 0; index < 16; index++)
+            complete.AddBits(0, 0);
+        Assert.True(complete.IsComplete);
+        using var empty = new MemoryStream();
+        complete.Replay(new BitWriter(empty), new HuffmanCodingPlan.ScanCoding([], [], [], []), TestContext.Current.CancellationToken);
+        Assert.Empty(empty.ToArray());
+        complete.AddBits(0, 0);
+        Assert.False(complete.IsComplete);
+
+        using var partial = new EntropyTokens(16 * sizeof(uint));
+        for (int index = 0; index < 15; index++)
+            partial.AddBits(0, 0);
+        partial.AddBits(uint.MaxValue, 32);
+        Assert.False(partial.IsComplete);
+        using var rejected = new MemoryStream();
+        Assert.Throws<InvalidOperationException>(() => partial.Replay(new BitWriter(rejected),
+            new HuffmanCodingPlan.ScanCoding([], [], [], []), TestContext.Current.CancellationToken));
         Assert.Empty(rejected.ToArray());
     }
 }
