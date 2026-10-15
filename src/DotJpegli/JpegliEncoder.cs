@@ -557,11 +557,16 @@ public static class JpegliEncoder
                 continue;
             int interval = scan.Components.Count == 1
                 ? componentRestartIntervals[scan.Components[0]] : interleavedRestartInterval;
-            ProcessScan(pixels, width, height, stride, sampling, tables, distance,
-                options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
-                emptyTables, emptyTables, null, dcFrequencies, acFrequencies[scanIndex], cancellationToken,
-                scan, options.Progressive, aggregateEobRuns: true, contextByComponent: true,
-                quantizedImage: quantizedImage, entropyTokens: scanTokens, streamSequential: streamSequential);
+            if (streamSequential)
+                ProcessSequentialInterleaved(pixels, width, height, stride, sampling, tables, distance,
+                    options.SmoothingFactor, interval, adaptive, adaptiveMultipliers, cancellationToken,
+                    scanTokens, dcFrequencies, acFrequencies[scanIndex]);
+            else
+                ProcessScan(pixels, width, height, stride, sampling, tables, distance,
+                    options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
+                    emptyTables, emptyTables, null, dcFrequencies, acFrequencies[scanIndex], cancellationToken,
+                    scan, options.Progressive, aggregateEobRuns: true, contextByComponent: true,
+                    quantizedImage: quantizedImage, entropyTokens: scanTokens);
         }
         HuffmanCodingPlan plan = HuffmanCodingPlan.Create(scans, dcFrequencies, acFrequencies,
             options.Progressive, options.ForceBaseline);
@@ -587,17 +592,179 @@ public static class JpegliEncoder
             JpegMarkerWriter.WriteScanHeader(output, scan, options.Progressive, pixels.IsRgb, coding.Selectors);
             if (tokenScans?[scanIndex] is { IsComplete: true } scanTokens)
                 scanTokens.Replay(bits, coding, cancellationToken);
+            else if (streamSequential)
+                ProcessSequentialInterleaved(pixels, width, height, stride, sampling, tables, distance,
+                    options.SmoothingFactor, interval, adaptive, adaptiveMultipliers, cancellationToken,
+                    null, null, null, bits, coding);
             else
                 ProcessScan(pixels, width, height, stride, sampling, tables, distance,
                     options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
                     coding.DcTables, coding.AcTables, bits, null, null, cancellationToken,
                     scan, options.Progressive, aggregateEobRuns: true, contextByComponent: true,
-                    quantizedImage: quantizedImage, streamSequential: streamSequential);
+                    quantizedImage: quantizedImage);
             bits.Flush();
         }
         cancellationToken.ThrowIfCancellationRequested();
         output.WriteByte(0xff);
         output.WriteByte(0xd9);
+    }
+
+    private readonly record struct SequentialComponent(
+        int Horizontal, int Vertical, int BlocksWide, int BlocksHigh,
+        int PlaneWidth, int PlaneHeight, bool UsePlane, Quantization.PreparedTable Quantizer);
+
+    private readonly ref struct SequentialBlockSource(
+        PixelSource pixels, int width, int height, int stride, int horizontal, int vertical, int smoothingFactor,
+        SequentialComponent[] components, ReadOnlySpan<float> plane0, ReadOnlySpan<float> plane1, ReadOnlySpan<float> plane2)
+    {
+        internal readonly PixelSource Pixels = pixels;
+        internal readonly int Width = width, Height = height, Stride = stride;
+        internal readonly int Horizontal = horizontal, Vertical = vertical, SmoothingFactor = smoothingFactor;
+        internal readonly SequentialComponent[] Components = components;
+        internal readonly ReadOnlySpan<float> Plane0 = plane0, Plane1 = plane1, Plane2 = plane2;
+    }
+
+    // Keep the coordinator's MCU counters, predictors and histogram references
+    // out of the DCT/quantizer's live register set. Scratch stays shared across
+    // blocks, and the source context is borrowed without copying its spans.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void PrepareSequentialBlock(in SequentialBlockSource source, int component,
+        int componentX, int componentY, float strength, Span<float> floatScratch, Span<short> shortScratch)
+    {
+        ref readonly SequentialComponent info = ref source.Components[component];
+        ReadOnlySpan<float> plane = info.UsePlane
+            ? component == 0 ? source.Plane0 : component == 1 ? source.Plane1 : source.Plane2 : default;
+        Span<float> coefficients = floatScratch.Slice(64, 64);
+        if (!plane.IsEmpty && componentX * 8 + 8 <= info.PlaneWidth && componentY * 8 + 8 <= info.PlaneHeight)
+            ForwardDct.TransformPlane(plane, info.PlaneWidth, componentX * 8, componentY * 8, coefficients);
+        else
+        {
+            Span<float> samples = floatScratch[..64];
+            Downsampling.FillBlock(source.Pixels, source.Width, source.Height, source.Stride, component,
+                componentX, componentY, source.Horizontal, source.Vertical, info.Horizontal, info.Vertical,
+                samples, source.SmoothingFactor);
+            ForwardDct.Transform(samples, coefficients);
+        }
+        Span<short> quantized = shortScratch[..64];
+        Quantization.QuantizePrepared(coefficients, info.Quantizer, quantized, adaptiveStrength: strength);
+        EntropyEncoder.ValidateAc(quantized);
+        ZigZagOrdering.Reorder(quantized, shortScratch.Slice(64, 64));
+    }
+
+    private static void ProcessSequentialInterleaved(PixelSource pixels, int width, int height, int stride,
+        JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor, int restartInterval,
+        AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, CancellationToken cancellationToken,
+        EntropyTokens? tokens, long[][]? dcFrequencies, long[][]? acFrequencies,
+        BitWriter? writer = null, HuffmanCodingPlan.ScanCoding? coding = null)
+    {
+        // This path is entered only for a validated full three-component scan,
+        // whose component order is 0,1,2. Hoist immutable component state out of
+        // the MCU loops rather than sharing the generic scan processor's state.
+        int horizontal = sampling.MaxHorizontal, vertical = sampling.MaxVertical;
+        int mcuWidth = horizontal * 8, mcuHeight = vertical * 8;
+        int mcusWide = (width + mcuWidth - 1) / mcuWidth;
+        int mcusHigh = (height + mcuHeight - 1) / mcuHeight;
+        ReadOnlySpan<float> plane0 = smoothingFactor == 0 ? pixels.GetConvertedPlane(0) : default;
+        ReadOnlySpan<float> plane1 = smoothingFactor == 0 ? pixels.GetConvertedPlane(1) : default;
+        ReadOnlySpan<float> plane2 = smoothingFactor == 0 ? pixels.GetConvertedPlane(2) : default;
+        int width1 = width, height1 = height, width2 = width, height2 = height;
+        bool compact420 = smoothingFactor == 0 && sampling.Is420;
+        if (compact420)
+        {
+            plane1 = pixels.GetConverted420ChromaPlane(1, out width1, out height1);
+            plane2 = pixels.GetConverted420ChromaPlane(2, out width2, out height2);
+        }
+        var components = new SequentialComponent[3];
+        for (int component = 0; component < components.Length; component++)
+        {
+            JpegComponentSampling factor = sampling[component];
+            var quantizer = Quantization.PreparedTable.Create(tables[component], component, distance,
+                adaptiveQuantization: adaptive is not null,
+                adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component]);
+            components[component] = new(factor.Horizontal, factor.Vertical,
+                (width * factor.Horizontal + mcuWidth - 1) / mcuWidth,
+                (height * factor.Vertical + mcuHeight - 1) / mcuHeight,
+                component == 0 ? width : component == 1 ? width1 : width2,
+                component == 0 ? height : component == 1 ? height1 : height2,
+                smoothingFactor == 0 && ((factor.Horizontal == horizontal && factor.Vertical == vertical)
+                    || (compact420 && component != 0)), quantizer);
+        }
+
+        var source = new SequentialBlockSource(pixels, width, height, stride, horizontal, vertical, smoothingFactor,
+            components, plane0, plane1, plane2);
+        Span<float> floatScratch = stackalloc float[128];
+        Span<short> shortScratch = stackalloc short[128];
+        Span<short> quantized = shortScratch[..64], ordered = shortScratch.Slice(64, 64);
+        Span<int> previousDc = stackalloc int[3];
+        previousDc.Clear();
+        float[]? strengths = adaptive is null ? null : new float[adaptive.BlocksWide * vertical];
+        int mcusRemaining = restartInterval, restartIndex = 0;
+        for (int mcuY = 0; mcuY < mcusHigh; mcuY++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (adaptive is not null)
+                adaptive.ComputeRow(pixels, stride, mcuY * mcuHeight,
+                    tables[pixels.AnalysisComponent][1], strengths!, cancellationToken);
+            for (int mcuX = 0; mcuX < mcusWide; mcuX++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (restartInterval != 0 && mcusRemaining == 0)
+                {
+                    if (writer is null)
+                        tokens?.AddRestart(restartIndex);
+                    else
+                        writer.WriteRestartMarker(restartIndex);
+                    previousDc.Clear();
+                    restartIndex = (restartIndex + 1) & 7;
+                    mcusRemaining = restartInterval;
+                }
+                for (int component = 0; component < 3; component++)
+                {
+                    ref readonly SequentialComponent info = ref components[component];
+                    int firstX = mcuX * info.Horizontal, firstY = mcuY * info.Vertical;
+                    for (int blockY = 0; blockY < info.Vertical; blockY++)
+                    {
+                        int componentY = firstY + blockY;
+                        int strengthRow = adaptive is null ? 0 : blockY * adaptive.BlocksWide;
+                        for (int blockX = 0; blockX < info.Horizontal; blockX++)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            int componentX = firstX + blockX;
+                            scoped ReadOnlySpan<short> encoded;
+                            if (componentX >= info.BlocksWide || componentY >= info.BlocksHigh)
+                            {
+                                quantized.Clear();
+                                quantized[0] = checked((short)previousDc[component]);
+                                encoded = quantized;
+                            }
+                            else
+                            {
+                                float strength = 0;
+                                if (adaptive is not null)
+                                {
+                                    int column = info.Horizontal == horizontal ? componentX
+                                        : info.Horizontal == 1 ? componentX * horizontal
+                                        : componentX * horizontal / info.Horizontal;
+                                    strength = strengths![strengthRow + column];
+                                }
+                                PrepareSequentialBlock(in source, component, componentX, componentY, strength, floatScratch, shortScratch);
+                                encoded = ordered;
+                            }
+                            if (writer is null)
+                                EntropyEncoder.AccumulateFrequencies(encoded, ref previousDc[component],
+                                    dcFrequencies![component], acFrequencies![component], coefficientsValidated: true,
+                                    tokens: tokens, component: component, zigZagOrdered: true);
+                            else
+                                EntropyEncoder.WriteBlock(writer, encoded, ref previousDc[component],
+                                    coding!.DcTables[component], coding.AcTables[component], coefficientsValidated: true,
+                                    zigZagOrdered: true);
+                        }
+                    }
+                }
+                if (restartInterval != 0)
+                    mcusRemaining--;
+            }
+        }
     }
 
     private static void ProcessScan(PixelSource pixels, int width, int height, int stride,
@@ -606,7 +773,7 @@ public static class JpegliEncoder
         HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
         JpegScan scan, bool progressive, bool aggregateEobRuns, bool contextByComponent = false,
-        QuantizedImage? quantizedImage = null, EntropyTokens? entropyTokens = null, bool streamSequential = false)
+        QuantizedImage? quantizedImage = null, EntropyTokens? entropyTokens = null)
     {
         bool dcOnly = progressive && scan.SpectralStart == 0;
         bool refine = scan.SuccessiveHigh != 0;
@@ -622,8 +789,7 @@ public static class JpegliEncoder
                 smoothingFactor, restartInterval, adaptive, adaptiveMultipliers,
                 dcTables, acTables, writer, dcFrequencies, acFrequencies, cancellationToken,
                 dcOnly, scan.SuccessiveLow, refine, scanComponents: (int[])scan.Components,
-                contextByComponent: contextByComponent, quantizedImage: quantizedImage, entropyTokens: entropyTokens,
-                streamSequential: streamSequential);
+                contextByComponent: contextByComponent, quantizedImage: quantizedImage, entropyTokens: entropyTokens);
     }
 
     private static void ProcessBlocks(PixelSource pixels, int width, int height, int stride,
@@ -633,22 +799,11 @@ public static class JpegliEncoder
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
         bool dcOnly = false, int successiveLow = 0, bool refine = false, bool requireEightBitCoefficients = false,
         ReadOnlySpan<int> scanComponents = default, bool contextByComponent = false,
-        QuantizedImage? quantizedImage = null, EntropyTokens? entropyTokens = null, bool streamSequential = false)
+        QuantizedImage? quantizedImage = null, EntropyTokens? entropyTokens = null)
     {
         Span<float> samples = stackalloc float[64];
         Span<float> coefficients = stackalloc float[64];
         Span<short> quantized = stackalloc short[64];
-        Span<short> ordered = streamSequential ? stackalloc short[64] : default;
-        Quantization.PreparedTable[]? quantizers = null;
-        if (streamSequential)
-        {
-            quantizers = new Quantization.PreparedTable[tables.Length];
-            for (int component = 0; component < tables.Length; component++)
-                quantizers[component] = Quantization.PreparedTable.Create(tables[component], component, distance,
-                    grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
-                    adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                    rgb: pixels.IsRgb);
-        }
         Span<int> previousDc = stackalloc int[3];
         previousDc.Clear();
         Span<int> previousScanDc = stackalloc int[3];
@@ -690,11 +845,6 @@ public static class JpegliEncoder
                     int blocksHigh = factor.Vertical;
                     int realBlocksWide = (width * blocksWide + mcuWidth - 1) / mcuWidth;
                     int realBlocksHigh = (height * blocksHigh + mcuHeight - 1) / mcuHeight;
-                    ReadOnlySpan<float> plane = streamSequential && smoothingFactor == 0
-                        && blocksWide == horizontal && blocksHigh == vertical ? pixels.GetConvertedPlane(component) : default;
-                    int planeWidth = width, planeHeight = height;
-                    if (streamSequential && smoothingFactor == 0 && sampling.Is420 && component != 0)
-                        plane = pixels.GetConverted420ChromaPlane(component, out planeWidth, out planeHeight);
                     for (int blockY = 0; blockY < blocksHigh; blockY++)
                     {
                         for (int blockX = 0; blockX < blocksWide; blockX++)
@@ -717,8 +867,6 @@ public static class JpegliEncoder
                             {
                                 if (pixels.ParallelRows is { } parallelRows)
                                     parallelRows.CopyBlock(component, componentX, componentY, coefficients);
-                                else if (!plane.IsEmpty && componentX * 8 + 8 <= planeWidth && componentY * 8 + 8 <= planeHeight)
-                                    ForwardDct.TransformPlane(plane, planeWidth, componentX * 8, componentY * 8, coefficients);
                                 else
                                 {
                                     Downsampling.FillBlock(pixels, width, height, stride, component,
@@ -730,24 +878,13 @@ public static class JpegliEncoder
                                 // component-local block row and full-resolution column.
                                 float strength = adaptive is null ? 0f : strengths![
                                     blockY * adaptive.BlocksWide + componentX * horizontal / blocksWide];
-                                if (streamSequential)
-                                {
-                                    Quantization.QuantizePrepared(coefficients, quantizers![component], quantized,
-                                        adaptiveStrength: strength);
-                                    EntropyEncoder.ValidateAc(quantized);
-                                    ZigZagOrdering.Reorder(quantized, ordered);
-                                    encoded = ordered;
-                                }
-                                else
-                                {
-                                    Quantization.Quantize(coefficients, tables[component], quantized, component, distance,
-                                        grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
-                                        adaptiveStrength: strength,
-                                        adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                                        previousDc: previousDc[component], requireEightBitCoefficients: requireEightBitCoefficients,
-                                        rgb: pixels.IsRgb);
-                                    encoded = quantized;
-                                }
+                                Quantization.Quantize(coefficients, tables[component], quantized, component, distance,
+                                    grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
+                                    adaptiveStrength: strength,
+                                    adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
+                                    previousDc: previousDc[component], requireEightBitCoefficients: requireEightBitCoefficients,
+                                    rgb: pixels.IsRgb);
+                                encoded = quantized;
                             }
                             int tableIndex = contextByComponent ? component : pixels.IsRgb || component == 0 ? 0 : 1;
                             if (dcOnly)
@@ -773,14 +910,14 @@ public static class JpegliEncoder
                             else if (writer is null)
                                 EntropyEncoder.AccumulateFrequencies(encoded, ref previousDc[component],
                                     dcFrequencies![tableIndex], acFrequencies![tableIndex],
-                                    coefficientsValidated: streamSequential || quantizedImage is not null,
+                                    coefficientsValidated: quantizedImage is not null,
                                     tokens: entropyTokens, component: component,
-                                    zigZagOrdered: streamSequential || quantizedImage?.IsZigZagOrdered == true);
+                                    zigZagOrdered: quantizedImage?.IsZigZagOrdered == true);
                             else
                                 EntropyEncoder.WriteBlock(writer, encoded, ref previousDc[component],
                                     dcTables[tableIndex], acTables[tableIndex],
-                                    coefficientsValidated: streamSequential || quantizedImage is not null,
-                                    zigZagOrdered: streamSequential || quantizedImage?.IsZigZagOrdered == true);
+                                    coefficientsValidated: quantizedImage is not null,
+                                    zigZagOrdered: quantizedImage?.IsZigZagOrdered == true);
                         }
                     }
                 }
