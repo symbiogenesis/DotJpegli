@@ -5,6 +5,82 @@ namespace DotJpegli.Tests;
 
 public sealed class EncoderParallelTests
 {
+    public static TheoryData<int, ChromaSubsampling> SequentialSamplingModes
+    {
+        get
+        {
+            var modes = new TheoryData<int, ChromaSubsampling>();
+            foreach (int precision in new[] { 0, 1, 2 })
+                foreach (ChromaSubsampling sampling in Enum.GetValues<ChromaSubsampling>())
+                    modes.Add(precision, sampling);
+            return modes;
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(SequentialSamplingModes))]
+    public void StreamingSequentialMatchesCachedPreparationAcrossSamplingAndEdges(int precision, ChromaSubsampling sampling)
+    {
+        // A forced worker keeps the coefficient-image path as an independent
+        // traversal. Single-worker sequential encoding records tokens directly.
+        foreach (var (width, height, smoothing, interval, rows, adaptive) in new[]
+        {
+            (1, 1, 0, 0, 0, true), (1, 33, 0, 1, 0, true),
+            (35, 1, 37, 2, 0, false), (37, 35, 0, 2, 0, true),
+            (48, 40, 37, 0, 1, true), (19, 33, 100, 3, 0, false)
+        })
+        {
+            int stride = width * 4 + 11;
+            Array pixels = Pattern(precision, width, height, PixelComponentLayout.Bgra, stride, trailing: 7);
+            Array original = (Array)pixels.Clone();
+            var options = new JpegliEncoderOptions
+            {
+                Subsampling = sampling, SmoothingFactor = smoothing, RestartInterval = interval,
+                RestartRows = rows, AdaptiveQuantization = adaptive, Progressive = false,
+                OptimizeHuffmanTables = true, MaxDegreeOfParallelism = 1
+            };
+            byte[] expected = Encode(pixels, width, height, PixelComponentLayout.Bgra,
+                options with { MaxDegreeOfParallelism = 2 }, stride);
+            Assert.Equal(expected, Encode(pixels, width, height, PixelComponentLayout.Bgra, options, stride));
+            PixelAssert.Equal(original, pixels);
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void StreamingSequentialCustomSamplingTablesAndGrayscalePreserveCachedBytes(int precision)
+    {
+        const int width = 37, height = 35;
+        foreach (JpegSamplingFactors sampling in new JpegSamplingFactors[]
+        {
+            new(new(3, 1), new(2, 1), new(1, 1)),
+            new(new(1, 2), new(2, 1), new(1, 1)),
+            new(new(1, 1), new(2, 2), new(1, 1))
+        })
+            foreach (PixelComponentLayout layout in new[] { PixelComponentLayout.Rgb, PixelComponentLayout.YCbCr, PixelComponentLayout.Gray })
+            {
+                int stride = width * Components(layout) + 7;
+                Array pixels = Pattern(precision, width, height, layout, stride);
+                var options = new JpegliEncoderOptions
+                {
+                    SamplingFactors = sampling, RestartInterval = 3, SmoothingFactor = 37,
+                    ForceBaseline = false, Progressive = false, OptimizeHuffmanTables = true,
+                    QuantizationTables = new ReadOnlyMemory<ushort>[]
+                    {
+                        Enumerable.Range(0, 64).Select(index => (ushort)(index == 0 ? 7 : 1 + index * 11)).ToArray(),
+                        Enumerable.Range(0, 64).Select(index => (ushort)(index == 0 ? 13 : 1 + index * 7)).ToArray()
+                    }
+                };
+                if (layout == PixelComponentLayout.Gray)
+                    options = options with { QuantizationTables = [options.QuantizationTables[0]] };
+                byte[] expected = Encode(pixels, width, height, layout,
+                    options with { MaxDegreeOfParallelism = 2 }, stride);
+                Assert.Equal(expected, Encode(pixels, width, height, layout, options, stride));
+            }
+    }
+
     public static TheoryData<int, int> EncodingModes
     {
         get
@@ -15,6 +91,45 @@ public sealed class EncoderParallelTests
                     modes.Add(precision, mode);
             return modes;
         }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void StreamingSequentialOutputCancellationAndFailuresPreserveOrderedPrefix(int precision)
+    {
+        const int width = 37, height = 35;
+        Array pixels = Pattern(precision, width, height, PixelComponentLayout.Rgb);
+        var options = new JpegliEncoderOptions { Progressive = false, MaxDegreeOfParallelism = 1, RestartInterval = 2 };
+        byte[] complete = Encode(pixels, width, height, PixelComponentLayout.Rgb, options);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        using var canceledDestination = new MemoryStream();
+        using var canceledOutput = new ObservedStream(canceledDestination, () =>
+        {
+            if (canceledDestination.Length >= complete.Length / 2)
+                cancellation.Cancel();
+        });
+        var error = Assert.Throws<OperationCanceledException>(() =>
+            Encode(canceledOutput, pixels, width, height, PixelComponentLayout.Rgb, options,
+                cancellationToken: cancellation.Token));
+        Assert.Equal(cancellation.Token, error.CancellationToken);
+        Assert.True(canceledOutput.CanWrite);
+        Assert.InRange(canceledDestination.Length, complete.Length / 2, complete.Length - 1);
+        Assert.Equal(complete[..(int)canceledDestination.Length], canceledDestination.ToArray());
+
+        var failure = new IOException("Injected streaming sequential failure.");
+        using var failedDestination = new MemoryStream();
+        using var failedOutput = new ObservedStream(failedDestination, () =>
+        {
+            if (failedDestination.Length >= complete.Length / 2)
+                throw failure;
+        });
+        Assert.Same(failure, Assert.Throws<IOException>(() =>
+            Encode(failedOutput, pixels, width, height, PixelComponentLayout.Rgb, options)));
+        Assert.True(failedOutput.CanWrite);
+        Assert.InRange(failedDestination.Length, complete.Length / 2, complete.Length - 1);
+        Assert.Equal(complete[..(int)failedDestination.Length], failedDestination.ToArray());
     }
 
     [Theory]
