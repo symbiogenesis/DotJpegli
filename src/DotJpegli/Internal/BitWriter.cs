@@ -3,6 +3,8 @@
 // THIRD-PARTY-NOTICES.md.
 
 using System.Buffers.Binary;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace DotJpegli.Internal;
 
@@ -43,18 +45,22 @@ internal sealed class BitWriter
             throw new ArgumentOutOfRangeException(nameof(bits), "The value must fit in the requested bit count.");
         }
 
+        WriteBitsPrevalidated(bits, count);
+    }
+
+    // Entropy replay has already checked each code/suffix when constructing
+    // the token and table. Keep its common accumulator update small enough to
+    // inline; output discharge and eager stream writes stay out of that loop.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal void WriteBitsPrevalidated(uint bits, int count)
+    {
+        Debug.Assert((uint)count <= 32 && (count == 32 || (bits >> count) == 0));
         if (outputBuffer is not null)
         {
             int totalBits = bufferedBits + count;
             if (totalBits >= 64)
             {
-                // Complete the oldest word before retaining the low spill bits.
-                // The previous word has at most 63 bits, so the spill is 0..31;
-                // no C# shift can wrap a count of 64 back to zero.
-                int spillBits = totalBits - 64;
-                WriteWord((buffer << (count - spillBits)) | (bits >> spillBits));
-                buffer = bits & ((1UL << spillBits) - 1);
-                bufferedBits = spillBits;
+                WriteSpilledBits(bits, count, totalBits - 64);
             }
             else
             {
@@ -64,6 +70,23 @@ internal sealed class BitWriter
             return;
         }
 
+        WriteEagerBits(bits, count);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void WriteSpilledBits(uint bits, int count, int spillBits)
+    {
+        // Complete the oldest word before retaining the low spill bits.
+        // The previous word has at most 63 bits, so the spill is 0..31;
+        // no C# shift can wrap a count of 64 back to zero.
+        WriteWord((buffer << (count - spillBits)) | (bits >> spillBits));
+        buffer = bits & ((1UL << spillBits) - 1);
+        bufferedBits = spillBits;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void WriteEagerBits(uint bits, int count)
+    {
         // Eager mode preserves the observable complete-byte writes used by
         // callers that do not opt in to batching.
         buffer = (buffer << count) | bits;
