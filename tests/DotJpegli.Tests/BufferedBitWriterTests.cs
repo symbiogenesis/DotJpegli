@@ -115,6 +115,50 @@ public sealed class BufferedBitWriterTests
         Assert.Equal(0x7f, output.ToArray()[^1]);
     }
 
+    [Fact]
+    public void FullWordsAndEverySpillAlignmentMatchTheEagerBitStream()
+    {
+        for (int prefixBits = 0; prefixBits < 64; prefixBits++)
+        {
+            using var expected = new MemoryStream();
+            using var actual = new MemoryStream();
+            var eager = new BitWriter(expected);
+            var buffered = new BitWriter(actual, buffered: true);
+            for (int index = 0; index < prefixBits; index++)
+            {
+                eager.WriteBits((uint)(index & 1), 1);
+                buffered.WriteBits((uint)(index & 1), 1);
+            }
+            foreach (uint word in new uint[] { 0, 0xffffffff, 0x12fffe00, 0xfeff0102, 0x89abcdef })
+            {
+                eager.WriteBits(word, 32);
+                buffered.WriteBits(word, 32);
+            }
+            eager.WriteBits(0, 0);
+            buffered.WriteBits(0, 0);
+            eager.Flush();
+            buffered.Flush();
+            Assert.Equal(expected.ToArray(), actual.ToArray());
+        }
+    }
+
+    [Fact]
+    public void CompleteWordStuffingChecksEveryByteAndAlignedFlushEmitsNoPaddingByte()
+    {
+        for (int stuffedByte = -1; stuffedByte < 8; stuffedByte++)
+        {
+            byte[] bytes = [0xfe, 0, 0x7f, 0x80, 1, 0xfe, 0, 0x42];
+            if (stuffedByte >= 0)
+                bytes[stuffedByte] = 0xff;
+            using var actual = new MemoryStream();
+            var writer = new BitWriter(actual, buffered: true);
+            foreach (byte value in bytes)
+                writer.WriteBits(value, 8);
+            writer.Flush();
+            Assert.Equal(bytes.SelectMany(value => value == 0xff ? new byte[] { 0xff, 0 } : [value]).ToArray(), actual.ToArray());
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

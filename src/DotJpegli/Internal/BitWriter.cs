@@ -2,12 +2,15 @@
 // Use of this source code is governed by the BSD-3-Clause license in
 // THIRD-PARTY-NOTICES.md.
 
+using System.Buffers.Binary;
+
 namespace DotJpegli.Internal;
 
 // Managed scalar adaptation of google/jpegli lib/jpegli/bit_writer.h
-// (WriteBits and EmitByte) and bit_writer.cc (JumpToByteBoundary), revision
-// 031a0077f5799a6041004267fc12b956c1f52a20. Optional output batching avoids
-// one virtual stream call per entropy byte; the default remains eager.
+// (WriteBits, DischargeBitBuffer, HasZeroByte and EmitByte) and bit_writer.cc
+// (JumpToByteBoundary), revision 031a0077f5799a6041004267fc12b956c1f52a20.
+// Buffered output accumulates complete 64-bit words and stores eight bytes at
+// once unless JPEG byte stuffing is needed. The default remains byte-eager.
 internal sealed class BitWriter
 {
     private readonly Stream output;
@@ -40,8 +43,29 @@ internal sealed class BitWriter
             throw new ArgumentOutOfRangeException(nameof(bits), "The value must fit in the requested bit count.");
         }
 
-        // At most seven bits remain after each write, so 32 added bits fit
-        // comfortably in this managed 64-bit accumulator.
+        if (outputBuffer is not null)
+        {
+            int totalBits = bufferedBits + count;
+            if (totalBits >= 64)
+            {
+                // Complete the oldest word before retaining the low spill bits.
+                // The previous word has at most 63 bits, so the spill is 0..31;
+                // no C# shift can wrap a count of 64 back to zero.
+                int spillBits = totalBits - 64;
+                WriteWord((buffer << (count - spillBits)) | (bits >> spillBits));
+                buffer = bits & ((1UL << spillBits) - 1);
+                bufferedBits = spillBits;
+            }
+            else
+            {
+                buffer = (buffer << count) | bits;
+                bufferedBits = totalBits;
+            }
+            return;
+        }
+
+        // Eager mode preserves the observable complete-byte writes used by
+        // callers that do not opt in to batching.
         buffer = (buffer << count) | bits;
         bufferedBits += count;
         while (bufferedBits >= 8)
@@ -57,8 +81,14 @@ internal sealed class BitWriter
     {
         if (bufferedBits != 0)
         {
-            int padding = 8 - bufferedBits;
-            WriteBits((1U << padding) - 1, padding);
+            int padding = (8 - (bufferedBits & 7)) & 7;
+            if (padding != 0)
+                WriteBits((1U << padding) - 1, padding);
+            while (bufferedBits >= 8)
+            {
+                bufferedBits -= 8;
+                WriteByte((byte)(buffer >> bufferedBits));
+            }
         }
 
         buffer = 0;
@@ -98,6 +128,33 @@ internal sealed class BitWriter
             outputBuffer[outputCount++] = 0;
         if (outputCount == outputBuffer.Length)
             DrainOutput();
+    }
+
+    private void WriteWord(ulong word)
+    {
+        // Upstream DischargeBitBuffer tests for FF once per word. Most words
+        // need no stuffing and can use a single big-endian store.
+        ulong inverted = ~word;
+        if ((unchecked(inverted - 0x0101010101010101UL) & word & 0x8080808080808080UL) == 0)
+        {
+            if (outputCount > outputBuffer!.Length - 8)
+                DrainOutput();
+            BinaryPrimitives.WriteUInt64BigEndian(outputBuffer.AsSpan(outputCount), word);
+            outputCount += 8;
+            if (outputCount == outputBuffer.Length)
+                DrainOutput();
+            return;
+        }
+
+        // The rare stuffing path retains the existing capacity and pair rules.
+        WriteByte((byte)(word >> 56));
+        WriteByte((byte)(word >> 48));
+        WriteByte((byte)(word >> 40));
+        WriteByte((byte)(word >> 32));
+        WriteByte((byte)(word >> 24));
+        WriteByte((byte)(word >> 16));
+        WriteByte((byte)(word >> 8));
+        WriteByte((byte)word);
     }
 
     private void DrainOutput()
