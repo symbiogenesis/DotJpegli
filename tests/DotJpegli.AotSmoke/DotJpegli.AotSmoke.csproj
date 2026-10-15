@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+    <!-- RID/mode-specific SDK packs vary between trimmed and NativeAOT publishes. -->
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <ILLinkTreatWarningsAsErrors>true</ILLinkTreatWarningsAsErrors>
+    <IlcTreatWarningsAsErrors>true</IlcTreatWarningsAsErrors>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/DotJpegli/DotJpegli.csproj" />
+    <!-- Analyze the entire library, including APIs the runtime smoke does not call. -->
+    <TrimmerRootAssembly Include="DotJpegli" />
+  </ItemGroup>
+</Project>
+

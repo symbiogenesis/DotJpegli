@@ -5,6 +5,7 @@ No native binaries, unsafe code or runtime NuGet dependencies.
 
 Encode RGB or grayscale pixels as baseline or progressive JPEG, with configurable
 quality, sampling and metadata.
+Both target frameworks support trimming and NativeAOT publishing.
 
 **Experimental:** This is an encoder-only port. Output is lossy eight-bit JPEG;
 full Jpegli output, compression and performance parity has not been established.
@@ -35,6 +36,21 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width: 1, height: 1, options: new(
 });
 File.WriteAllBytes("output.jpg", jpeg);
 ```
+
+To publish an application that references DotJpegli, select its target framework
+and runtime identifier, for example:
+
+```sh
+dotnet publish path/to/YourApp.csproj -c Release -f net10.0 -r linux-x64 --self-contained true -p:PublishTrimmed=true
+dotnet publish path/to/YourApp.csproj -c Release -f net10.0 -r linux-x64 -p:PublishAot=true
+```
+
+Use `net11.0` for a .NET 11 application and the RID for your deployment platform.
+NativeAOT requires the platform's
+[native build tools](https://learn.microsoft.com/dotnet/core/deploying/native-aot/#prerequisites).
+DotJpegli requires no additional linker descriptors or preservation attributes.
+See [deployment validation](docs/development.md#trimming-and-nativeaot) for the
+library's smoke checks.
 
 ## Documentation
 

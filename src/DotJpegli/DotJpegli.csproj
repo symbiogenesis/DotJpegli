@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
     <Description>Fully managed JPEG encoder: an encoder-only incremental port of Google's Jpegli.</Description>
     <Version>0.1.0-alpha.1</Version>
     <PackageLicenseExpression>BSD-3-Clause</PackageLicenseExpression>

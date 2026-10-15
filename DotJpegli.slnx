@@ -1,6 +1,7 @@
 <Solution>
     <Project Path="src/DotJpegli/DotJpegli.csproj" />
     <Project Path="tests/DotJpegli.Tests/DotJpegli.Tests.csproj" />
+    <Project Path="tests/DotJpegli.AotSmoke/DotJpegli.AotSmoke.csproj" />
     <Project Path="tools/DotJpegli.Parity/DotJpegli.Parity.csproj" />
     <Project Path="tools/DotJpegli.Performance/DotJpegli.Performance.csproj" />
 </Solution>

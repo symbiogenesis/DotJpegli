@@ -69,6 +69,48 @@ it. CI runs this comparison independently on Windows and Linux in the existing
 validation workflow; it does not compare the two operating systems' outputs.
 This is a build check and does not run tests or benchmarks.
 
+## Trimming and NativeAOT
+
+The library declares `IsAotCompatible=true` for both target frameworks. This
+also marks its assemblies as trimmable and enables the SDK's trimming,
+single-file and AOT compatibility analyzers. Analyzer warnings fail the build.
+The SDK-selected ILLink package is a build-time dependency; it adds no runtime
+NuGet dependency to the encoder package.
+
+`tests/DotJpegli.AotSmoke` is a dependency-free consumer apart from the library
+and build tooling. It roots the entire DotJpegli assembly with
+`TrimmerRootAssembly`, so publishing analyzes methods that its runtime checks
+do not call. This follows Microsoft's
+[library trimming guidance](https://learn.microsoft.com/dotnet/core/deploying/trimming/prepare-libraries-for-trimming).
+Both linker and native compiler warnings fail publishing, without suppressions.
+Its focused runtime checks inspect JPEG framing, dimensions and scan markers,
+compare array and stream output, and exercise progressive/parallel encoding,
+high-precision pixels, source ICC conversion and Exif/XMP/IPTC roundtrips.
+
+To run the same deployment checks locally, select a supported host RID (for
+example, `win-arm64`, `win-x64` or `linux-x64`) and an absolute temporary output
+directory:
+
+```text
+dotnet publish tests/DotJpegli.AotSmoke/DotJpegli.AotSmoke.csproj -c Release -f net10.0 -r <RID> --self-contained true -p:PublishAot=false -o <TEMP>/trimmed-smoke
+<TEMP>/trimmed-smoke/DotJpegli.AotSmoke
+dotnet publish tests/DotJpegli.AotSmoke/DotJpegli.AotSmoke.csproj -c Release -f net10.0 -r <RID> --self-contained true -p:PublishAot=true -o <TEMP>/aot-smoke
+<TEMP>/aot-smoke/DotJpegli.AotSmoke
+```
+
+On Windows, run the published `.exe`. Repeat with `-f net11.0` to check its
+separate SIMD implementation. NativeAOT needs the platform's
+[native toolchain](https://learn.microsoft.com/dotnet/core/deploying/native-aot/#prerequisites).
+These are focused correctness checks, not benchmarks or the full test suite.
+The deployment CI job publishes and runs both modes on Windows and Linux for
+both frameworks. It first verifies the library's committed dependency lock,
+then lets each publish restore the SDK-selected runtime and compiler packs for
+its RID and mode. The smoke project opts out of lock-file generation because
+its SDK-only deployment tooling varies by RID and publish mode; the library,
+unit tests and other tools retain their portable locks. After local publishing,
+restore the solution without RID or publish overrides before committing
+lock-file changes.
+
 ## Focused tests and CI
 
 ```text
