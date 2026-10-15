@@ -6,6 +6,43 @@ namespace DotJpegli.Tests;
 public sealed class OrderedEntropyTests
 {
     [Fact]
+    public void ReservedAmplitudePreparationPreservesEveryBaselineDcAndShortAcValue()
+    {
+        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        using var expected = new MemoryStream();
+        var expectedWriter = new BitWriter(expected, buffered: true);
+        using var tokens = new EntropyTokens();
+        tokens.AddBits(0, 0);
+        long[] dc = new long[256], ac = new long[256];
+        short[] block = new short[64];
+        for (int value = -2047; value <= 2047; value++)
+            Record(value, value / 2);
+        // Callers supplying already-validated blocks previously allowed wider
+        // short amplitudes. Exercise the arithmetic fallback as well as every
+        // cached value without changing that internal caller behavior.
+        for (int value = short.MinValue; value <= short.MaxValue; value++)
+            Record(0, value);
+        expectedWriter.Flush();
+        using var actual = new MemoryStream();
+        var actualWriter = new BitWriter(actual, buffered: true);
+        tokens.Replay(actualWriter, new HuffmanCodingPlan.ScanCoding([table], [table], [], []),
+            TestContext.Current.CancellationToken);
+        actualWriter.Flush();
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+
+        void Record(int dcValue, int acValue)
+        {
+            block[0] = (short)dcValue;
+            block[1] = (short)acValue;
+            int expectedPrevious = 0, actualPrevious = 0;
+            EntropyEncoder.WriteBlock(expectedWriter, block, ref expectedPrevious, table, table,
+                coefficientsValidated: true);
+            EntropyEncoder.AccumulateFrequencies(block, ref actualPrevious, dc, ac,
+                coefficientsValidated: true, tokens: tokens, zigZagOrdered: true);
+        }
+    }
+
+    [Fact]
     public void NonzeroMasksPreserveEveryPositionAndIgnoreDc()
     {
         short[] block = new short[64];

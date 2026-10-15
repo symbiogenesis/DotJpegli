@@ -186,10 +186,12 @@ internal static class EntropyEncoder
         int count = 0;
         int dcContext = component << 1;
         int acContext = dcContext | 1;
+        ReadOnlySpan<uint> amplitudes = PreparedAmplitudes.Values.AsSpan(0, 4096);
         int difference = coefficients[0] - previousDc;
-        int category = Category(difference);
+        uint amplitude = PrepareAmplitude(difference, amplitudes);
+        int category = (int)(amplitude >> 27);
         IncrementReservedFrequency(dc, category, tokens, count);
-        destination[count++] = EntropyTokens.PackHuffman(dcContext, category, AdditionalBits(difference, category), category);
+        destination[count++] = amplitude | ((uint)dcContext << 24);
         previousDc = coefficients[0];
         ulong nonzero = NonzeroAcMask(coefficients);
         int previousPosition = 0;
@@ -204,10 +206,11 @@ internal static class EntropyEncoder
                 run -= 16;
             }
             int value = coefficients[position];
-            category = Category(value);
+            amplitude = PrepareAmplitude(value, amplitudes);
+            category = (int)(amplitude >> 27);
             int symbol = (run << 4) | category;
             IncrementReservedFrequency(ac, symbol, tokens, count);
-            destination[count++] = EntropyTokens.PackHuffman(acContext, symbol, AdditionalBits(value, category), category);
+            destination[count++] = amplitude | ((uint)run << 20) | ((uint)acContext << 24);
             previousPosition = position;
             nonzero &= nonzero - 1;
         }
@@ -217,6 +220,36 @@ internal static class EntropyEncoder
             destination[count++] = EntropyTokens.PackHuffman(acContext, 0, 0, 0);
         }
         tokens.CommitBlock(count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static uint PrepareAmplitude(int value, ReadOnlySpan<uint> amplitudes)
+    {
+        int index = value + 2048;
+        if ((uint)index < 4096)
+            return amplitudes[index];
+        int category = Category(value);
+        return EntropyTokens.PackHuffman(0, category, AdditionalBits(value, category), category);
+    }
+
+    private static class PreparedAmplitudes
+    {
+        // A 16 KiB table covers every validated baseline DC difference and AC
+        // coefficient. Generic already-validated callers retain the arithmetic
+        // fallback for wider short amplitudes. Allocate only on token recording.
+        internal static readonly uint[] Values = Create();
+
+        private static uint[] Create()
+        {
+            var values = new uint[4096];
+            for (int index = 0; index < values.Length; index++)
+            {
+                int value = index - 2048;
+                int category = Category(value);
+                values[index] = EntropyTokens.PackHuffman(0, category, AdditionalBits(value, category), category);
+            }
+            return values;
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
