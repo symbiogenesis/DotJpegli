@@ -6,6 +6,7 @@
 
 [![CI](https://github.com/symbiogenesis/DotJpegli/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/symbiogenesis/DotJpegli/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/DotJpegli.svg?logo=nuget)](https://www.nuget.org/packages/DotJpegli)
+[![.NET Standard 2.1 · .NET 10 · .NET 11](https://img.shields.io/badge/.NET-Standard_2.1_%7C_10_%7C_11-512BD4)](https://github.com/symbiogenesis/DotJpegli/blob/main/src/DotJpegli/DotJpegli.csproj)
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE)
 
 [Quick start](#quick-start) · [Features](#features) · [Documentation](#documentation)
