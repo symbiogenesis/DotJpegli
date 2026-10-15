@@ -3,6 +3,7 @@
 // THIRD-PARTY-NOTICES.md.
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 
 namespace DotJpegli.Internal;
@@ -185,50 +186,60 @@ internal static class EntropyEncoder
         int count = 0;
         int dcContext = component << 1;
         int acContext = dcContext | 1;
-        try
+        int difference = coefficients[0] - previousDc;
+        int category = Category(difference);
+        IncrementReservedFrequency(dc, category, tokens, count);
+        destination[count++] = EntropyTokens.PackHuffman(dcContext, category, AdditionalBits(difference, category), category);
+        previousDc = coefficients[0];
+        ulong nonzero = NonzeroAcMask(coefficients);
+        int previousPosition = 0;
+        while (nonzero != 0)
         {
-            int difference = coefficients[0] - previousDc;
-            int category = Category(difference);
-            checked { dc[category]++; }
-            destination[count++] = EntropyTokens.PackHuffman(dcContext, category, AdditionalBits(difference, category), category);
-            previousDc = coefficients[0];
-            ulong nonzero = NonzeroAcMask(coefficients);
-            int previousPosition = 0;
-            while (nonzero != 0)
+            int position = BitOperations.TrailingZeroCount(nonzero);
+            int run = position - previousPosition - 1;
+            while (run >= 16)
             {
-                int position = BitOperations.TrailingZeroCount(nonzero);
-                int run = position - previousPosition - 1;
-                while (run >= 16)
-                {
-                    checked { ac[0xf0]++; }
-                    destination[count++] = EntropyTokens.PackHuffman(acContext, 0xf0, 0, 0);
-                    run -= 16;
-                }
-                int value = coefficients[position];
-                category = Category(value);
-                int symbol = (run << 4) | category;
-                checked { ac[symbol]++; }
-                destination[count++] = EntropyTokens.PackHuffman(acContext, symbol, AdditionalBits(value, category), category);
-                previousPosition = position;
-                nonzero &= nonzero - 1;
+                IncrementReservedFrequency(ac, 0xf0, tokens, count);
+                destination[count++] = EntropyTokens.PackHuffman(acContext, 0xf0, 0, 0);
+                run -= 16;
             }
-            if (previousPosition != 63)
-            {
-                checked { ac[0]++; }
-                destination[count++] = EntropyTokens.PackHuffman(acContext, 0, 0, 0);
-            }
+            int value = coefficients[position];
+            category = Category(value);
+            int symbol = (run << 4) | category;
+            IncrementReservedFrequency(ac, symbol, tokens, count);
+            destination[count++] = EntropyTokens.PackHuffman(acContext, symbol, AdditionalBits(value, category), category);
+            previousPosition = position;
+            nonzero &= nonzero - 1;
         }
-        finally
+        if (previousPosition != 63)
         {
-            // A checked histogram overflow retains exactly the earlier tokens,
-            // just as the individual AddHuffman calls do on the strict path.
+            IncrementReservedFrequency(ac, 0, tokens, count);
+            destination[count++] = EntropyTokens.PackHuffman(acContext, 0, 0, 0);
+        }
+        tokens.CommitBlock(count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void IncrementReservedFrequency(long[] frequencies, int symbol, EntropyTokens tokens, int count)
+    {
+        ref long frequency = ref frequencies[symbol];
+        // The reservation guarantees room for every block token, and the
+        // caller validated coefficient/table lengths before entering this path.
+        // Histogram overflow is its only exceptional exit. Commit the same
+        // earlier prefix without an EH region spilling count for every token.
+        long next = unchecked(frequency + 1);
+        if (next < frequency)
+        {
             tokens.CommitBlock(count);
+            throw new OverflowException();
         }
+        frequency = next;
     }
 
     // Signed amplitudes are unpredictable in image data. Derive magnitude and
     // the negative-value suffix adjustment without a branch for each symbol;
     // leading-zero count also handles the zero DC difference directly.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int Category(int value)
     {
         int sign = value >> 31;

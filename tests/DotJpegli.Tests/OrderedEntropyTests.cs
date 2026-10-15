@@ -148,6 +148,42 @@ public sealed class OrderedEntropyTests
         Assert.Equal(expected.ToArray(), actual.ToArray());
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(31)]
+    [InlineData(62)]
+    public void RepeatedSymbolsCommitExactlyThePrefixBeforeHistogramOverflow(int headroom)
+    {
+        short[] block = Enumerable.Repeat((short)1, 64).ToArray();
+        block[0] = 5;
+        long[] expectedDc = new long[256], actualDc = new long[256];
+        long[] expectedAc = new long[256], actualAc = new long[256];
+        expectedAc[1] = actualAc[1] = long.MaxValue - headroom;
+        using var expectedTokens = new EntropyTokens();
+        using var actualTokens = new EntropyTokens();
+        expectedTokens.AddBits(0x42, 8);
+        actualTokens.AddBits(0x42, 8);
+        int expectedPrevious = 0, actualPrevious = 0;
+        Assert.Throws<OverflowException>(() => EntropyEncoder.AccumulateFrequencies(block, ref expectedPrevious,
+            expectedDc, expectedAc, tokens: expectedTokens));
+        Assert.Throws<OverflowException>(() => EntropyEncoder.AccumulateFrequencies(block, ref actualPrevious,
+            actualDc, actualAc, tokens: actualTokens, zigZagOrdered: true));
+        Assert.Equal(expectedDc, actualDc);
+        Assert.Equal(expectedAc, actualAc);
+        Assert.Equal(expectedPrevious, actualPrevious);
+        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        var coding = new HuffmanCodingPlan.ScanCoding([table], [table], [], []);
+        using var expected = new MemoryStream();
+        using var actual = new MemoryStream();
+        var expectedWriter = new BitWriter(expected, buffered: true);
+        var actualWriter = new BitWriter(actual, buffered: true);
+        expectedTokens.Replay(expectedWriter, coding, TestContext.Current.CancellationToken);
+        actualTokens.Replay(actualWriter, coding, TestContext.Current.CancellationToken);
+        expectedWriter.Flush();
+        actualWriter.Flush();
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+    }
+
     private static short[] Order(short[] natural)
         => JpegConstants.ZigZag.ToArray().Select(index => natural[index]).ToArray();
 }
