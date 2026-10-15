@@ -12,15 +12,19 @@ internal sealed class QuantizedImage : IDisposable
     private readonly short[][] components;
     private readonly int[] widths;
 
-    private QuantizedImage(short[][] components, int[] widths)
+    private QuantizedImage(short[][] components, int[] widths, bool zigZagOrdered)
     {
         this.components = components;
         this.widths = widths;
+        IsZigZagOrdered = zigZagOrdered;
     }
+
+    internal bool IsZigZagOrdered { get; }
 
     internal static QuantizedImage? Create(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor,
-        AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, CancellationToken cancellationToken)
+        AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, CancellationToken cancellationToken,
+        bool zigZagOrdered = false)
     {
         var widths = new int[tables.Length];
         var heights = new int[tables.Length];
@@ -40,13 +44,21 @@ internal sealed class QuantizedImage : IDisposable
         if (rentedBytes > MaximumBytes)
             return null;
 
-        var image = new QuantizedImage(new short[tables.Length][], widths);
+        var image = new QuantizedImage(new short[tables.Length][], widths, zigZagOrdered);
         try
         {
+            var quantizers = new Quantization.PreparedTable[tables.Length];
             for (int component = 0; component < tables.Length; component++)
+            {
                 image.components[component] = ArrayPool<short>.Shared.Rent(widths[component] * heights[component] * 64);
+                quantizers[component] = Quantization.PreparedTable.Create(tables[component], component, distance,
+                    grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
+                    adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
+                    rgb: pixels.IsRgb);
+            }
             Span<float> samples = stackalloc float[64];
             Span<float> transformed = stackalloc float[64];
+            Span<short> naturalOrder = stackalloc short[64];
             int horizontal = sampling.MaxHorizontal;
             int vertical = sampling.MaxVertical;
             float[]? strengths = adaptive is null ? null : new float[adaptive.BlocksWide * vertical];
@@ -82,12 +94,16 @@ internal sealed class QuantizedImage : IDisposable
                             // Built-in DC zero-bias multipliers are zero, so the full DC
                             // coefficient does not depend on scan order or restart predictors.
                             Span<short> quantized = image.Block(component, x, y);
-                            Quantization.Quantize(transformed, tables[component], quantized,
-                                component, distance, grayscale: pixels.IsGrayscale,
-                                adaptiveQuantization: adaptive is not null, adaptiveStrength: strength,
-                                adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                                rgb: pixels.IsRgb);
+                            Quantization.QuantizePrepared(transformed, quantizers[component], quantized,
+                                adaptiveStrength: strength);
                             EntropyEncoder.ValidateAc(quantized);
+                            if (zigZagOrdered)
+                            {
+                                quantized.CopyTo(naturalOrder);
+                                ReadOnlySpan<int> order = JpegConstants.ZigZag;
+                                for (int position = 0; position < 64; position++)
+                                    quantized[position] = naturalOrder[order[position]];
+                            }
                         }
                 }
             }

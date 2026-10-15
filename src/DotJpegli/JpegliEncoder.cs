@@ -527,7 +527,8 @@ public static class JpegliEncoder
     {
         int componentCount = tables.Length;
         using QuantizedImage? quantizedImage = QuantizedImage.Create(pixels, width, height, stride,
-            sampling, tables, distance, options.SmoothingFactor, adaptive, adaptiveMultipliers, cancellationToken);
+            sampling, tables, distance, options.SmoothingFactor, adaptive, adaptiveMultipliers, cancellationToken,
+            zigZagOrdered: true);
         using EntropyTokenScans? tokenScans = quantizedImage is not null ? new(scans.Length) : null;
         var dcFrequencies = new long[componentCount][];
         for (int component = 0; component < componentCount; component++)
@@ -735,11 +736,13 @@ public static class JpegliEncoder
                                 EntropyEncoder.AccumulateFrequencies(encoded, ref previousDc[component],
                                     dcFrequencies![tableIndex], acFrequencies![tableIndex],
                                     coefficientsValidated: quantizedImage is not null,
-                                    tokens: entropyTokens, component: component);
+                                    tokens: entropyTokens, component: component,
+                                    zigZagOrdered: quantizedImage?.IsZigZagOrdered == true);
                             else
                                 EntropyEncoder.WriteBlock(writer, encoded, ref previousDc[component],
                                     dcTables[tableIndex], acTables[tableIndex],
-                                    coefficientsValidated: quantizedImage is not null);
+                                    coefficientsValidated: quantizedImage is not null,
+                                    zigZagOrdered: quantizedImage?.IsZigZagOrdered == true);
                         }
                     }
                 }
@@ -857,11 +860,13 @@ public static class JpegliEncoder
                         EntropyEncoder.AccumulateFrequencies(encoded, ref previousScanDc,
                             dcFrequencies![tableIndex], acFrequencies![tableIndex],
                             coefficientsValidated: quantizedImage is not null,
-                            tokens: entropyTokens, component: component);
+                            tokens: entropyTokens, component: component,
+                            zigZagOrdered: quantizedImage?.IsZigZagOrdered == true);
                     else
                         EntropyEncoder.WriteBlock(writer, encoded, ref previousScanDc,
                             dcTables![tableIndex], acTables[tableIndex],
-                            coefficientsValidated: quantizedImage is not null);
+                            coefficientsValidated: quantizedImage is not null,
+                            zigZagOrdered: quantizedImage?.IsZigZagOrdered == true);
                 }
                 else if (dcOnly)
                 {
@@ -885,20 +890,24 @@ public static class JpegliEncoder
                     if (writer is null)
                         ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(encoded,
                             acFrequencies![tableIndex], refinementState!, successiveLow, spectralStart, spectralEnd,
-                            coefficientsValidated: quantizedImage is not null, tokens: entropyTokens, component: component);
+                            coefficientsValidated: quantizedImage is not null, tokens: entropyTokens, component: component,
+                            zigZagOrdered: quantizedImage?.IsZigZagOrdered == true);
                     else
                         ProgressiveEntropyEncoder.WriteAcRefinement(writer, encoded, acTables[tableIndex],
                             refinementState!, successiveLow, spectralStart, spectralEnd,
-                            coefficientsValidated: quantizedImage is not null);
+                            coefficientsValidated: quantizedImage is not null,
+                            zigZagOrdered: quantizedImage?.IsZigZagOrdered == true);
                 }
                 else if (writer is null)
                     ProgressiveEntropyEncoder.AccumulateAcFrequencies(encoded, acFrequencies![tableIndex],
                         ref pendingEobRun, successiveLow, spectralStart, spectralEnd,
-                        coefficientsValidated: quantizedImage is not null, tokens: entropyTokens, component: component);
+                        coefficientsValidated: quantizedImage is not null, tokens: entropyTokens, component: component,
+                        zigZagOrdered: quantizedImage?.IsZigZagOrdered == true);
                 else
                     ProgressiveEntropyEncoder.WriteAc(writer, encoded, acTables[tableIndex], ref pendingEobRun,
                         successiveLow, spectralStart, spectralEnd,
-                        coefficientsValidated: quantizedImage is not null);
+                        coefficientsValidated: quantizedImage is not null,
+                        zigZagOrdered: quantizedImage?.IsZigZagOrdered == true);
                 // Annex K default AC tables only contain the one-block EOB
                 // symbol. Aggregated runs use the collected, optimized tables.
                 if (!aggregateEobRuns)
