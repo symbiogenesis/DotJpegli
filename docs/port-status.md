@@ -80,7 +80,7 @@ work below remains outstanding.
 | --- | --- |
 | Encoder functionality and output compatibility | Focused regressions check coefficients, marker framing, independent decoding, stream behavior and validation. Optional modes retain the reader requirements in the API guides. |
 | Quality and compression parity | Established within the [documented RGB8 YCbCr scope and fixed tolerances](quality-compression-parity.md): 1,280 matched pairs passed on the pinned upstream corpus comparison, with complete matched-rate/quality coverage. Worst size overhead was 0.087051%; worst matched-size losses were 0.013825 dB PSNR and 0.000136338 SSIM. [Hosted proof](https://github.com/symbiogenesis/DotJpegli/actions/runs/38517910693), tested revision `b30697e`. |
-| Performance parity | Not established. The [latest retained targeted .NET 11 comparison](performance-evidence/2026-10-14-b8c8058/targeted/report.md) measured 1.06–1.51× native latency across four selected cases. Three exceed the fixed 1.10 bound; 4:2:0 progressive level 2 meets it. Normal pushes run these targeted cases; optional one-case .NET 10/11 API comparisons cover x64 and ARM64. Full acceptance coverage remains outstanding. |
+| Performance parity | Not established. The [latest retained targeted .NET 11 comparison](performance-evidence/2026-10-14-2c78be9/targeted/report.md) measured 1.21–1.46× native latency across four selected cases. All exceed the fixed 1.10 bound. Normal pushes run these targeted cases; optional one-case .NET 10/11 API comparisons cover x64 and ARM64. Full acceptance coverage remains outstanding. |
 
 Output remains **lossy eight-bit JPEG**, including at quality 100. Jpegli's quality
 scale is not interchangeable with libjpeg's. Quality/compression parity is
@@ -89,23 +89,25 @@ Byte-identical upstream output and speed parity are not claimed. Google's
 [comparison study](https://arxiv.org/abs/2403.18589) describes results in its tested
 conditions and does not establish a universal smallest-encoder ranking.
 
-The retained four-case performance measurements tested revision `b8c8058` in
-[run 38682272963](https://github.com/symbiogenesis/DotJpegli/actions/runs/38682272963),
-on an AMD EPYC 9V45 x64 host with .NET 11 RC2 (`11.0.0-rc.2.26504.105`).
+The retained four-case performance measurements tested revision `2c78be9` in
+[run 38683739549](https://github.com/symbiogenesis/DotJpegli/actions/runs/38683739549),
+on an AMD EPYC 7763 x64 host with .NET 11 RC2 (`11.0.0-rc.2.26504.105`).
 The four-case comparison uses Kodak01, RGB8 to YCbCr, distance 1, AQ,
 optimized Huffman coding and one worker. Ratios are managed median latency
 divided by native median latency; lower is better.
 
 | Sampling | Sequential | Progressive level 2 |
 | --- | ---: | ---: |
-| 4:4:4 | 1.515× | 1.178× |
-| 4:2:0 | 1.352× | 1.060× |
+| 4:4:4 | 1.462× | 1.262× |
+| 4:2:0 | 1.293× | 1.206× |
 
-All four cases passed timing stability and matched JPEG settings. Three still
+All four cases passed timing stability and matched JPEG settings. All still
 exceed the individual 1.10 latency bound. The
-[retained evidence](performance-evidence/2026-10-14-b8c8058/README.md) includes raw
+[retained evidence](performance-evidence/2026-10-14-2c78be9/README.md) includes raw
 samples, host identity, settings and native build provenance. These selected
-cases do not establish whole-corpus performance parity.
+cases do not establish whole-corpus performance parity. The preceding retained
+run used an EPYC 9V45; these measurements do not form a same-host before/after
+speed comparison. Managed JPEG hashes match that preceding run.
 
 Separate 4:2:0 sequential API comparisons at revision `0633ebc` measured essentially no extra gain from
 Zip/Unzip/Concat on the Intel x64 host and 2.9% lower latency on ARM64, beyond
