@@ -161,7 +161,7 @@ internal sealed class EntropyTokens : IDisposable
                 int index = chunk;
                 while (index < end)
                 {
-                    index += writer.WriteHuffmanTokens(segment.AsSpan(index, end - index), lookups);
+                    index += writer.WriteEntropyTokens(segment.AsSpan(index, end - index), lookups);
                     if (index == end)
                         break;
                     uint token = segment[index++];

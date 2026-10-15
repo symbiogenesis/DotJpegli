@@ -76,9 +76,10 @@ internal sealed class BitWriter
     // Token replay normally emits a long run of prebiased Huffman codes. Keep
     // its accumulator in locals until a word is discharged instead of loading
     // and storing the writer fields, and testing its mode, for every symbol.
-    // Special records and noncanonical suffix widths stop at an exact prefix
-    // so the caller can preserve the strict generic write behavior.
-    internal int WriteHuffmanTokens(ReadOnlySpan<uint> tokens, ReadOnlySpan<ulong> lookups)
+    // Raw correction bits share that accumulator. Restart records and
+    // noncanonical suffix widths stop at an exact prefix so the caller can
+    // preserve the strict generic write behavior.
+    internal int WriteEntropyTokens(ReadOnlySpan<uint> tokens, ReadOnlySpan<ulong> lookups)
     {
         if (outputBuffer is null)
             return 0;
@@ -92,14 +93,25 @@ internal sealed class BitWriter
         {
             uint token = tokens[index];
             int lookupIndex = (int)(token >> 16) & 2047;
-            if (lookupIndex >= 6 * 256)
+            uint bits;
+            int count;
+            if (lookupIndex < 6 * 256)
+            {
+                ulong prepared = lookups[lookupIndex];
+                if ((int)(prepared >> 38) != (int)(token >> 27) + 1)
+                    break;
+                bits = (uint)prepared | (token & 0xffffU);
+                count = (int)(prepared >> 32) & 63;
+            }
+            else if (lookupIndex < 7 * 256)
+            {
+                // AddBits already split wider payloads into at most 24 bits.
+                // Progressive corrections no longer terminate every batch.
+                bits = token & 0xffffffU;
+                count = (int)(token >> 27);
+            }
+            else
                 break;
-            ulong prepared = lookups[lookupIndex];
-            if ((int)(prepared >> 38) != (int)(token >> 27) + 1)
-                break;
-
-            uint bits = (uint)prepared | (token & 0xffffU);
-            int count = (int)(prepared >> 32) & 63;
             int totalBits = pendingBits + count;
             if (totalBits >= 64)
             {
