@@ -5,6 +5,10 @@ namespace DotJpegli.Internal;
 /// <summary>Reorders one complete DCT block using portable vector shuffles.</summary>
 internal static class ZigZagOrdering
 {
+    private static readonly Vector512<ushort> W00 = CreateWideMask(0, 0);
+    private static readonly Vector512<ushort> W01 = CreateWideMask(0, 1);
+    private static readonly Vector512<ushort> W10 = CreateWideMask(1, 0);
+    private static readonly Vector512<ushort> W11 = CreateWideMask(1, 1);
     private static readonly Vector128<byte> M00 = CreateMask(0, 0);
     private static readonly Vector128<byte> M01 = CreateMask(0, 1);
     private static readonly Vector128<byte> M02 = CreateMask(0, 2);
@@ -48,6 +52,11 @@ internal static class ZigZagOrdering
             throw new ArgumentException("A DCT block requires 64 coefficients.", nameof(source));
         if (destination.Length < 64)
             throw new ArgumentException("An ordered block requires 64 coefficients.", nameof(destination));
+        if (Vector512.IsHardwareAccelerated)
+        {
+            ReorderVector512(source, destination);
+            return;
+        }
         if (Vector128.IsHardwareAccelerated)
         {
             ReorderVector(source, destination);
@@ -61,6 +70,32 @@ internal static class ZigZagOrdering
         }
         else
             ReorderScalar(source, destination);
+    }
+
+    // Two complete source vectors reduce the permutation to four shuffles and
+    // two ORs. Consume both before storing to retain arbitrary span overlap.
+    // An explicit entry also lets tests check portable software execution.
+    internal static void ReorderVector512(ReadOnlySpan<short> source, Span<short> destination)
+    {
+        source = source[..64];
+        destination = destination[..64];
+        Vector512<ushort> lower = Vector512.Create(source[..32]).AsUInt16();
+        Vector512<ushort> upper = Vector512.Create(source.Slice(32, 32)).AsUInt16();
+        (Vector512.Shuffle(lower, W00) | Vector512.Shuffle(upper, W01))
+            .AsInt16().CopyTo(destination[..32]);
+        (Vector512.Shuffle(lower, W10) | Vector512.Shuffle(upper, W11))
+            .AsInt16().CopyTo(destination.Slice(32, 32));
+    }
+
+    private static Vector512<ushort> CreateWideMask(int outputGroup, int sourceGroup)
+    {
+        Span<ushort> mask = stackalloc ushort[32];
+        for (int lane = 0; lane < mask.Length; lane++)
+        {
+            int position = JpegConstants.ZigZag[outputGroup * 32 + lane] - sourceGroup * 32;
+            mask[lane] = position is >= 0 and < 32 ? (ushort)position : ushort.MaxValue;
+        }
+        return Vector512.Create(mask);
     }
 
     private static void ReorderVector(ReadOnlySpan<short> source, Span<short> destination)

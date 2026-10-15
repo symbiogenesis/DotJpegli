@@ -8,16 +8,19 @@ public sealed class ZigZagOrderingTests
     [Fact]
     public void EveryShortBitPatternPreservesTheIndependentNaturalOrderMapping()
     {
-        short[] source = new short[64], actual = new short[67];
+        short[] source = new short[64], actual = new short[67], wide = new short[67];
         for (int first = 0; first <= ushort.MaxValue; first += 64)
         {
             for (int index = 0; index < 64; index++)
                 source[index] = unchecked((short)(first + index));
             Array.Fill(actual, (short)-12345);
+            Array.Fill(wide, (short)-12345);
             ZigZagOrdering.Reorder(source, actual);
+            ZigZagOrdering.ReorderVector512(source, wide);
             for (int position = 0; position < 64; position++)
                 Assert.Equal(source[JpegConstants.ZigZag[position]], actual[position]);
             Assert.All(actual[64..], value => Assert.Equal(-12345, value));
+            Assert.Equal(actual, wide);
         }
     }
 
@@ -27,14 +30,20 @@ public sealed class ZigZagOrderingTests
     [InlineData(3, 0)]
     public void OverlappingSpansUseTheOriginalBlockAndLeaveOtherStorageUntouched(int sourceOffset, int outputOffset)
     {
-        short[] storage = Enumerable.Range(0, 96).Select(index => (short)(index * 197 - 9503)).ToArray();
-        short[] original = (short[])storage.Clone();
-        ZigZagOrdering.Reorder(storage.AsSpan(sourceOffset, 64), storage.AsSpan(outputOffset, 64));
-        for (int position = 0; position < storage.Length; position++)
+        foreach (bool wide in new[] { false, true })
         {
-            short expected = position >= outputOffset && position < outputOffset + 64
-                ? original[sourceOffset + JpegConstants.ZigZag[position - outputOffset]] : original[position];
-            Assert.Equal(expected, storage[position]);
+            short[] storage = Enumerable.Range(0, 96).Select(index => (short)(index * 197 - 9503)).ToArray();
+            short[] original = (short[])storage.Clone();
+            if (wide)
+                ZigZagOrdering.ReorderVector512(storage.AsSpan(sourceOffset, 64), storage.AsSpan(outputOffset, 64));
+            else
+                ZigZagOrdering.Reorder(storage.AsSpan(sourceOffset, 64), storage.AsSpan(outputOffset, 64));
+            for (int position = 0; position < storage.Length; position++)
+            {
+                short expected = position >= outputOffset && position < outputOffset + 64
+                    ? original[sourceOffset + JpegConstants.ZigZag[position - outputOffset]] : original[position];
+                Assert.Equal(expected, storage[position]);
+            }
         }
     }
 
