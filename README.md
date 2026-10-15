@@ -139,7 +139,9 @@ are not claimed.
 
 ## License
 
-Licensed under [BSD-3-Clause](https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE).
+Copyright (c) 2026 Edward Miller. Licensed under
+[BSD-3-Clause](https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE), with the
+upstream copyright notice retained for adapted portions.
 See the [upstream license](https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE.jpegli)
 and [third-party notices](https://github.com/symbiogenesis/DotJpegli/blob/main/THIRD-PARTY-NOTICES.md)
 for attribution. The [upstream manifest](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/upstream.json)

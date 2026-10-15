@@ -1,4 +1,12 @@
-# Upstream source and notices
+# Licensing and third-party notices
+
+## DotJpegli
+
+The managed port and original DotJpegli code are copyright (c) 2026 Edward Miller,
+licensed under [BSD-3-Clause](LICENSE). The main license also retains the upstream
+copyright notice for adapted portions.
+
+## Jpegli
 
 DotJpegli adapts selected encoder routines and supporting data directly from Google's Jpegli source,
 distributed under BSD-3-Clause:
@@ -8,6 +16,16 @@ distributed under BSD-3-Clause:
 - Retrieved: October 12, 2026
 - Copyright (c) the JPEG XL Project Authors. All rights reserved.
 - Complete license: [LICENSE.jpegli](LICENSE.jpegli), also included in packages.
+
+The copyright notice above is the wording in the
+[upstream license at the pinned revision](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/LICENSE),
+reproduced unchanged in `LICENSE.jpegli`. The upstream
+[author list](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/AUTHORS)
+includes Google, Cloudinary and individual contributors. Its
+[contribution guide](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/CONTRIBUTING.md)
+uses "the Jpegli Project Authors" for new file headers and describes Google's role
+in receiving contributor license agreements. The repository-wide license at this
+revision retains "the JPEG XL Project Authors"; we preserve that supplied notice.
 
 | Managed file | Authoritative upstream source |
 | --- | --- |

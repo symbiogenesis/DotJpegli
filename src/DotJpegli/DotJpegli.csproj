@@ -9,6 +9,8 @@
     <IsAotCompatible Condition="'$(TargetFramework)' != 'netstandard2.1'">true</IsAotCompatible>
     <Description>Fully managed JPEG encoder: an encoder-only incremental port of Google's Jpegli.</Description>
     <Version>0.1.0-alpha.1</Version>
+    <Authors>Edward Miller</Authors>
+    <Copyright>Copyright (c) 2026 Edward Miller. Copyright (c) the JPEG XL Project Authors.</Copyright>
     <PackageLicenseExpression>BSD-3-Clause</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/symbiogenesis/DotJpegli</RepositoryUrl>
