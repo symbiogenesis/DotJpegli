@@ -1,9 +1,8 @@
 using System.Runtime.Intrinsics;
-using System.Runtime.Intrinsics.X86;
 
 namespace DotJpegli.Internal;
 
-/// <summary>Reorders one complete DCT block without scalar indexed gathers on SSSE3 CPUs.</summary>
+/// <summary>Reorders one complete DCT block using portable vector shuffles.</summary>
 internal static class ZigZagOrdering
 {
     private static readonly Vector128<byte> M00 = CreateMask(0, 0);
@@ -49,7 +48,7 @@ internal static class ZigZagOrdering
             throw new ArgumentException("A DCT block requires 64 coefficients.", nameof(source));
         if (destination.Length < 64)
             throw new ArgumentException("An ordered block requires 64 coefficients.", nameof(destination));
-        if (Ssse3.IsSupported)
+        if (Vector128.IsHardwareAccelerated)
         {
             ReorderVector(source, destination);
             return;
@@ -78,42 +77,42 @@ internal static class ZigZagOrdering
         Vector128<byte> s5 = Vector128.Create(source.Slice(40, 8)).AsByte();
         Vector128<byte> s6 = Vector128.Create(source.Slice(48, 8)).AsByte();
         Vector128<byte> s7 = Vector128.Create(source.Slice(56, 8)).AsByte();
-        (Ssse3.Shuffle(s0, M00)
-            | Ssse3.Shuffle(s1, M01)
-            | Ssse3.Shuffle(s2, M02)).AsInt16().CopyTo(destination.Slice(0, 8));
-        (Ssse3.Shuffle(s0, M10)
-            | Ssse3.Shuffle(s1, M11)
-            | Ssse3.Shuffle(s2, M12)
-            | Ssse3.Shuffle(s3, M13)
-            | Ssse3.Shuffle(s4, M14)).AsInt16().CopyTo(destination.Slice(8, 8));
-        (Ssse3.Shuffle(s1, M21)
-            | Ssse3.Shuffle(s2, M22)
-            | Ssse3.Shuffle(s3, M23)
-            | Ssse3.Shuffle(s4, M24)
-            | Ssse3.Shuffle(s5, M25)
-            | Ssse3.Shuffle(s6, M26)).AsInt16().CopyTo(destination.Slice(16, 8));
-        (Ssse3.Shuffle(s0, M30)
-            | Ssse3.Shuffle(s1, M31)
-            | Ssse3.Shuffle(s2, M32)
-            | Ssse3.Shuffle(s3, M33)).AsInt16().CopyTo(destination.Slice(24, 8));
-        (Ssse3.Shuffle(s4, M44)
-            | Ssse3.Shuffle(s5, M45)
-            | Ssse3.Shuffle(s6, M46)
-            | Ssse3.Shuffle(s7, M47)).AsInt16().CopyTo(destination.Slice(32, 8));
-        (Ssse3.Shuffle(s1, M51)
-            | Ssse3.Shuffle(s2, M52)
-            | Ssse3.Shuffle(s3, M53)
-            | Ssse3.Shuffle(s4, M54)
-            | Ssse3.Shuffle(s5, M55)
-            | Ssse3.Shuffle(s6, M56)).AsInt16().CopyTo(destination.Slice(40, 8));
-        (Ssse3.Shuffle(s3, M63)
-            | Ssse3.Shuffle(s4, M64)
-            | Ssse3.Shuffle(s5, M65)
-            | Ssse3.Shuffle(s6, M66)
-            | Ssse3.Shuffle(s7, M67)).AsInt16().CopyTo(destination.Slice(48, 8));
-        (Ssse3.Shuffle(s5, M75)
-            | Ssse3.Shuffle(s6, M76)
-            | Ssse3.Shuffle(s7, M77)).AsInt16().CopyTo(destination.Slice(56, 8));
+        (Vector128.Shuffle(s0, M00)
+            | Vector128.Shuffle(s1, M01)
+            | Vector128.Shuffle(s2, M02)).AsInt16().CopyTo(destination.Slice(0, 8));
+        (Vector128.Shuffle(s0, M10)
+            | Vector128.Shuffle(s1, M11)
+            | Vector128.Shuffle(s2, M12)
+            | Vector128.Shuffle(s3, M13)
+            | Vector128.Shuffle(s4, M14)).AsInt16().CopyTo(destination.Slice(8, 8));
+        (Vector128.Shuffle(s1, M21)
+            | Vector128.Shuffle(s2, M22)
+            | Vector128.Shuffle(s3, M23)
+            | Vector128.Shuffle(s4, M24)
+            | Vector128.Shuffle(s5, M25)
+            | Vector128.Shuffle(s6, M26)).AsInt16().CopyTo(destination.Slice(16, 8));
+        (Vector128.Shuffle(s0, M30)
+            | Vector128.Shuffle(s1, M31)
+            | Vector128.Shuffle(s2, M32)
+            | Vector128.Shuffle(s3, M33)).AsInt16().CopyTo(destination.Slice(24, 8));
+        (Vector128.Shuffle(s4, M44)
+            | Vector128.Shuffle(s5, M45)
+            | Vector128.Shuffle(s6, M46)
+            | Vector128.Shuffle(s7, M47)).AsInt16().CopyTo(destination.Slice(32, 8));
+        (Vector128.Shuffle(s1, M51)
+            | Vector128.Shuffle(s2, M52)
+            | Vector128.Shuffle(s3, M53)
+            | Vector128.Shuffle(s4, M54)
+            | Vector128.Shuffle(s5, M55)
+            | Vector128.Shuffle(s6, M56)).AsInt16().CopyTo(destination.Slice(40, 8));
+        (Vector128.Shuffle(s3, M63)
+            | Vector128.Shuffle(s4, M64)
+            | Vector128.Shuffle(s5, M65)
+            | Vector128.Shuffle(s6, M66)
+            | Vector128.Shuffle(s7, M67)).AsInt16().CopyTo(destination.Slice(48, 8));
+        (Vector128.Shuffle(s5, M75)
+            | Vector128.Shuffle(s6, M76)
+            | Vector128.Shuffle(s7, M77)).AsInt16().CopyTo(destination.Slice(56, 8));
     }
 
     private static Vector128<byte> CreateMask(int outputGroup, int sourceGroup)
@@ -122,7 +121,7 @@ internal static class ZigZagOrdering
         for (int lane = 0; lane < 8; lane++)
         {
             int position = JpegConstants.ZigZag[outputGroup * 8 + lane] - sourceGroup * 8;
-            // PSHUFB zeros entries with bit seven set. Otherwise select both
+            // Portable Shuffle zeros out-of-range indices. Otherwise select both
             // bytes of the requested short, preserving every signed bit pattern.
             mask[lane * 2] = position is >= 0 and < 8 ? (byte)(position * 2) : byte.MaxValue;
             mask[lane * 2 + 1] = position is >= 0 and < 8 ? (byte)(position * 2 + 1) : byte.MaxValue;
