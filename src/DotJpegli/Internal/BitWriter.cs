@@ -223,7 +223,7 @@ internal sealed class BitWriter
         {
             if (outputCount > outputBuffer!.Length - 8)
                 DrainOutput();
-            BinaryPrimitives.WriteUInt64BigEndian(outputBuffer.AsSpan(outputCount), word);
+            BinaryPrimitives.WriteUInt64BigEndian(outputBuffer.AsSpan(outputCount, sizeof(ulong)), word);
             outputCount += 8;
             if (outputCount == outputBuffer.Length)
                 DrainOutput();

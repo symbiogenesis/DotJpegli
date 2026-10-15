@@ -288,6 +288,7 @@ internal static class EntropyEncoder
 
     // One bit per zigzag position. Masking DC lets its wider signed range use
     // the same full-vector loads as the AC coefficients without a scalar tail.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static ulong NonzeroAcMask(ReadOnlySpan<short> zigZagCoefficients)
     {
         ulong mask = 0;
