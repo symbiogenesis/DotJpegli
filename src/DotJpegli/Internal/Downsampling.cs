@@ -208,7 +208,7 @@ internal static class Downsampling
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Vector256<float> PairwiseSums256(ReadOnlySpan<float> samples)
+    internal static Vector256<float> PairwiseSums256(ReadOnlySpan<float> samples)
     {
         Vector256<float> first = Vector256.Create(samples[..8]);
         Vector256<float> second = Vector256.Create(samples[8..]);
@@ -220,7 +220,7 @@ internal static class Downsampling
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Vector128<float> PairwiseSums128(ReadOnlySpan<float> samples)
+    internal static Vector128<float> PairwiseSums128(ReadOnlySpan<float> samples)
     {
         Vector128<float> first = Vector128.Create(samples[..4]);
         Vector128<float> second = Vector128.Create(samples[4..]);

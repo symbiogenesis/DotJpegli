@@ -62,8 +62,16 @@ internal readonly ref struct PixelSource
     // The encode call owns this lease; worker snapshots only borrow its storage.
     internal IDisposable? ConvertedStorage => convertedPlanes;
     internal ReadOnlySpan<float> GetConvertedPlane(int component)
-        => convertedPlanes is null ? default : convertedPlanes.Samples.AsSpan(
+        => convertedPlanes is null || (convertedPlanes.Is420 && component != 0) ? default : convertedPlanes.Samples.AsSpan(
             component * convertedPlanes.PlaneLength, convertedPlanes.PlaneLength);
+    internal ReadOnlySpan<float> GetConverted420ChromaPlane(int component, out int width, out int height)
+    {
+        width = convertedPlanes?.ChromaWidth ?? 0;
+        height = convertedPlanes?.ChromaHeight ?? 0;
+        return convertedPlanes is not { Is420: true } || component is < 1 or > 2 ? default
+            : convertedPlanes.Samples.AsSpan(convertedPlanes.PlaneLength
+                + (component - 1) * convertedPlanes.ChromaLength, convertedPlanes.ChromaLength);
+    }
     internal bool IsGrayscaleInput => ComponentsPerPixel == 1;
     internal bool CanManageSourceColor => !ycbcr && !xyb;
     internal JpegColorSpace ColorSpace => colorSpace == JpegColorSpace.Automatic
@@ -123,20 +131,10 @@ internal readonly ref struct PixelSource
             for (int y = 0; y < height; y++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                int rowStart = y * stride;
                 int destination = y * width;
-                int converted = vectorRgb ? ConvertByteRow(planes, rowStart, destination, components) : 0;
-                for (int x = converted; x < width; x++)
-                {
-                    ReadConvertedComponents(rowStart + x * ComponentsPerPixel,
-                        out float first, out float second, out float third);
-                    planes.Samples[destination + x] = first;
-                    if (components > 1)
-                    {
-                        planes.Samples[planeLength + destination + x] = second;
-                        planes.Samples[2 * planeLength + destination + x] = third;
-                    }
-                }
+                ConvertRow(y * stride, planes.Samples.AsSpan(destination, width),
+                    components == 1 ? default : planes.Samples.AsSpan(planeLength + destination, width),
+                    components == 1 ? default : planes.Samples.AsSpan(2 * planeLength + destination, width), vectorRgb);
             }
             return new PixelSource(this, colorSpace, convertedPlanes: planes);
         }
@@ -147,7 +145,126 @@ internal readonly ref struct PixelSource
         }
     }
 
-    private int ConvertByteRow(ConvertedPlanes planes, int rowStart, int destination, int components)
+    // Retain full-resolution Y for adaptive analysis, but feed DCT with the
+    // exact ordered 2x2 chroma averages. Only two source rows of chroma scratch
+    // are needed; no full-resolution Cb/Cr image is written or reread.
+    internal PixelSource WithConverted420Planes(int width, int height, int stride,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (convertedPlanes is not null)
+            return this;
+        if (sourceType != SourceType.Byte || IsGrayscaleInput || ycbcr || xyb
+            || colorTransform is not null || ColorSpace != JpegColorSpace.YCbCr)
+            return WithConvertedPlanes(width, height, stride, cancellationToken);
+
+        int chromaWidth = checked((width + 15) / 16 * 8);
+        int chromaHeight = checked((height + 15) / 16 * 8);
+        ulong sampleCount = (ulong)((long)width * height + 2L * chromaWidth * chromaHeight);
+        ulong scratchCount = (ulong)width * 4;
+        // Include both actual shared-pool bucket sizes in the existing 64 MiB
+        // budget, including the transient row scratch (minimum bucket: 16).
+        const ulong maximumSamples = 64 * 1024 * 1024 / sizeof(float);
+        if (Math.Max(16UL, BitOperations.RoundUpToPowerOf2(sampleCount))
+            + Math.Max(16UL, BitOperations.RoundUpToPowerOf2(scratchCount)) > maximumSamples)
+            return WithConvertedPlanes(width, height, stride, cancellationToken);
+
+        var planes = new ConvertedPlanes(width, height, stride, Length, 3, is420: true);
+        float[]? scratch = null;
+        try
+        {
+            scratch = ArrayPool<float>.Shared.Rent(checked(width * 4));
+            Span<float> firstCb = scratch.AsSpan(0, width), firstCr = scratch.AsSpan(width, width);
+            Span<float> secondCb = scratch.AsSpan(2 * width, width), secondCr = scratch.AsSpan(3 * width, width);
+            bool vectorRgb = Vector.IsHardwareAccelerated && BitConverter.IsLittleEndian && Vector<float>.Count is 4 or 8;
+            int chromaRow = 0;
+            for (int y = 0; y < height; y += 2, chromaRow++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ConvertRow(y * stride, planes.Samples.AsSpan(y * width, width), firstCb, firstCr, vectorRgb);
+                if (y + 1 < height)
+                    ConvertRow((y + 1) * stride, planes.Samples.AsSpan((y + 1) * width, width),
+                        secondCb, secondCr, vectorRgb);
+                else
+                {
+                    firstCb.CopyTo(secondCb);
+                    firstCr.CopyTo(secondCr);
+                }
+                DownsampleConvertedRow(firstCb, secondCb,
+                    planes.Samples.AsSpan(planes.PlaneLength + chromaRow * chromaWidth, chromaWidth));
+                DownsampleConvertedRow(firstCr, secondCr,
+                    planes.Samples.AsSpan(planes.PlaneLength + planes.ChromaLength + chromaRow * chromaWidth, chromaWidth));
+            }
+            if (chromaRow < chromaHeight)
+            {
+                // Pad source samples before averaging. For an even source
+                // height the last real average includes two different rows,
+                // whereas every padded row uses the final source row twice.
+                cancellationToken.ThrowIfCancellationRequested();
+                int cbStart = planes.PlaneLength + chromaRow * chromaWidth;
+                int crStart = cbStart + planes.ChromaLength;
+                DownsampleConvertedRow(secondCb, secondCb, planes.Samples.AsSpan(cbStart, chromaWidth));
+                DownsampleConvertedRow(secondCr, secondCr, planes.Samples.AsSpan(crStart, chromaWidth));
+                for (int row = chromaRow + 1; row < chromaHeight; row++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    planes.Samples.AsSpan(cbStart, chromaWidth)
+                        .CopyTo(planes.Samples.AsSpan(planes.PlaneLength + row * chromaWidth, chromaWidth));
+                    planes.Samples.AsSpan(crStart, chromaWidth)
+                        .CopyTo(planes.Samples.AsSpan(planes.PlaneLength + planes.ChromaLength + row * chromaWidth, chromaWidth));
+                }
+            }
+            return new PixelSource(this, colorSpace, convertedPlanes: planes);
+        }
+        catch
+        {
+            planes.Dispose();
+            throw;
+        }
+        finally
+        {
+            if (scratch is not null)
+                ArrayPool<float>.Shared.Return(scratch);
+        }
+    }
+
+    private static void DownsampleConvertedRow(ReadOnlySpan<float> first, ReadOnlySpan<float> second, Span<float> output)
+    {
+        int width = first.Length;
+        int x = 0;
+        if (Vector256.IsHardwareAccelerated)
+            for (; x * 2 <= width - 16; x += 8)
+                ((Downsampling.PairwiseSums256(first.Slice(x * 2, 16))
+                    + Downsampling.PairwiseSums256(second.Slice(x * 2, 16))) * Vector256.Create(0.25f)).CopyTo(output[x..]);
+        else if (Vector128.IsHardwareAccelerated)
+            for (; x * 2 <= width - 8; x += 4)
+                ((Downsampling.PairwiseSums128(first.Slice(x * 2, 8))
+                    + Downsampling.PairwiseSums128(second.Slice(x * 2, 8))) * Vector128.Create(0.25f)).CopyTo(output[x..]);
+        for (; x < (width + 1) / 2; x++)
+        {
+            int left = x * 2, right = Math.Min(left + 1, width - 1);
+            output[x] = ((first[left] + first[right]) + (second[left] + second[right])) * 0.25f;
+        }
+        float padding = ((first[^1] + first[^1]) + (second[^1] + second[^1])) * 0.25f;
+        output[x..].Fill(padding);
+    }
+
+    private void ConvertRow(int rowStart, Span<float> luma, Span<float> cb, Span<float> cr, bool vectorRgb)
+    {
+        int converted = vectorRgb ? ConvertByteRow(rowStart, luma, cb, cr) : 0;
+        for (int x = converted; x < luma.Length; x++)
+        {
+            ReadConvertedComponents(rowStart + x * ComponentsPerPixel, out float first, out float second, out float third);
+            luma[x] = first;
+            if (!cb.IsEmpty)
+            {
+                cb[x] = second;
+                cr[x] = third;
+            }
+        }
+    }
+
+    private int ConvertByteRow(int rowStart, Span<float> lumaSamples, Span<float> cbSamples, Span<float> crSamples)
     {
         int lanes = Vector<float>.Count;
         int step = ComponentsPerPixel;
@@ -158,7 +275,7 @@ internal readonly ref struct PixelSource
         Vector128<byte> upperRedIndices = ComponentIndices((bgr ? 2 : 0) + upperBackstep, step);
         Vector128<byte> upperGreenIndices = ComponentIndices(1 + upperBackstep, step);
         Vector128<byte> upperBlueIndices = ComponentIndices((bgr ? 0 : 2) + upperBackstep, step);
-        int width = planes.Width;
+        int width = lumaSamples.Length;
         int x = 0;
         // Overlap the two RGB loads so an eight-pixel group consumes exactly
         // 24 bytes. Bound every load by the active row, including the final
@@ -186,11 +303,11 @@ internal readonly ref struct PixelSource
             }
             ColorConversion.RgbToYCbCr(red, green, blue,
                 out Vector<float> luma, out Vector<float> cb, out Vector<float> cr);
-            luma.CopyTo(planes.Samples.AsSpan(destination + x, lanes));
-            if (components > 1)
+            luma.CopyTo(lumaSamples.Slice(x, lanes));
+            if (!cbSamples.IsEmpty)
             {
-                cb.CopyTo(planes.Samples.AsSpan(planes.PlaneLength + destination + x, lanes));
-                cr.CopyTo(planes.Samples.AsSpan(2 * planes.PlaneLength + destination + x, lanes));
+                cb.CopyTo(cbSamples.Slice(x, lanes));
+                cr.CopyTo(crSamples.Slice(x, lanes));
             }
         }
         return x;
@@ -200,13 +317,19 @@ internal readonly ref struct PixelSource
         => Vector128.Create(0xffffff00U | (uint)component, 0xffffff00U | (uint)(component + step),
             0xffffff00U | (uint)(component + 2 * step), 0xffffff00U | (uint)(component + 3 * step)).AsByte();
 
-    private sealed class ConvertedPlanes(int width, int height, int sourceStride, int sourceLength, int components) : IDisposable
+    private sealed class ConvertedPlanes(int width, int height, int sourceStride, int sourceLength, int components,
+        bool is420 = false) : IDisposable
     {
         internal readonly int Width = width;
         internal readonly int SourceStride = sourceStride;
         internal readonly int SourceLength = sourceLength;
         internal readonly int PlaneLength = checked(width * height);
-        internal float[] Samples { get; private set; } = ArrayPool<float>.Shared.Rent(checked(width * height * components));
+        internal readonly bool Is420 = is420;
+        internal readonly int ChromaWidth = is420 ? checked((width + 15) / 16 * 8) : width;
+        internal readonly int ChromaHeight = is420 ? checked((height + 15) / 16 * 8) : height;
+        internal readonly int ChromaLength = is420 ? checked((width + 15) / 16 * 8 * ((height + 15) / 16 * 8)) : checked(width * height);
+        internal float[] Samples { get; private set; } = ArrayPool<float>.Shared.Rent(is420
+            ? checked(width * height + 2 * ((width + 15) / 16 * 8) * ((height + 15) / 16 * 8)) : checked(width * height * components));
 
         public void Dispose()
         {
@@ -236,7 +359,10 @@ internal readonly ref struct PixelSource
         {
             cancellationToken.ThrowIfCancellationRequested();
             convertedPlanes = source.convertedPlanes;
-            bytes = convertedPlanes is null && source.sourceType == SourceType.Byte ? Copy(source.bytes, length, cancellationToken) : [];
+            // Compact chroma planes do not retain arbitrary full-resolution
+            // chroma samples. Preserve raw source bytes for fallback readers.
+            bytes = (convertedPlanes is null || convertedPlanes.Is420) && source.sourceType == SourceType.Byte
+                ? Copy(source.bytes, length, cancellationToken) : [];
             words = convertedPlanes is null && source.sourceType == SourceType.UInt16 ? Copy(source.words, length, cancellationToken) : [];
             floats = convertedPlanes is null && source.sourceType == SourceType.Float ? Copy(source.floats, length, cancellationToken) : [];
             sourceType = source.sourceType;
@@ -346,7 +472,7 @@ internal readonly ref struct PixelSource
 
     internal float ReadSample(int offset, int component)
     {
-        if (convertedPlanes is not null)
+        if (convertedPlanes is not null && (!convertedPlanes.Is420 || component == 0))
         {
             int row = offset / convertedPlanes.SourceStride;
             int column = (offset - row * convertedPlanes.SourceStride) / ComponentsPerPixel;
@@ -400,7 +526,8 @@ internal readonly ref struct PixelSource
 
     // The coordinate path avoids dividing an interleaved source offset for cached samples.
     internal float ReadSampleAt(int x, int y, int stride, int component)
-        => convertedPlanes is null ? ReadSample(y * stride + x * ComponentsPerPixel, component)
+        => convertedPlanes is null || (convertedPlanes.Is420 && component != 0)
+            ? ReadSample(y * stride + x * ComponentsPerPixel, component)
             : convertedPlanes.Samples[component * convertedPlanes.PlaneLength + y * convertedPlanes.Width + x];
 
     private void ReadConvertedComponents(int offset, out float first, out float second, out float third)
@@ -456,7 +583,7 @@ internal readonly ref struct PixelSource
     internal void ReadRowScalar(int width, int height, int stride, int component,
         int x, int y, Span<float> samples)
     {
-        if (convertedPlanes is not null)
+        if (convertedPlanes is not null && (!convertedPlanes.Is420 || component == 0))
         {
             ReadConvertedRow(width, height, component, x, y, samples);
             return;
@@ -472,7 +599,7 @@ internal readonly ref struct PixelSource
     internal void ReadRowVector(int width, int height, int stride, int component,
         int x, int y, Span<float> samples)
     {
-        if (convertedPlanes is not null)
+        if (convertedPlanes is not null && (!convertedPlanes.Is420 || component == 0))
         {
             ReadConvertedRow(width, height, component, x, y, samples);
             return;

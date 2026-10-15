@@ -73,6 +73,9 @@ internal sealed class QuantizedImage : IDisposable
                     JpegComponentSampling factor = sampling[component];
                     ReadOnlySpan<float> plane = smoothingFactor == 0 && factor.Horizontal == horizontal
                         && factor.Vertical == vertical ? pixels.GetConvertedPlane(component) : default;
+                    int planeWidth = width, planeHeight = height;
+                    if (smoothingFactor == 0 && sampling.Is420 && component != 0)
+                        plane = pixels.GetConverted420ChromaPlane(component, out planeWidth, out planeHeight);
                     int firstRow = top / (vertical * 8) * factor.Vertical;
                     for (int row = 0; row < factor.Vertical && firstRow + row < heights[component]; row++)
                         for (int x = 0; x < widths[component]; x++)
@@ -81,8 +84,8 @@ internal sealed class QuantizedImage : IDisposable
                             int y = firstRow + row;
                             if (pixels.ParallelRows is { } parallelRows)
                                 parallelRows.CopyBlock(component, x, y, transformed);
-                            else if (!plane.IsEmpty && x * 8 + 8 <= width && y * 8 + 8 <= height)
-                                ForwardDct.TransformPlane(plane, width, x * 8, y * 8, transformed);
+                            else if (!plane.IsEmpty && x * 8 + 8 <= planeWidth && y * 8 + 8 <= planeHeight)
+                                ForwardDct.TransformPlane(plane, planeWidth, x * 8, y * 8, transformed);
                             else
                             {
                                 Downsampling.FillBlock(pixels, width, height, stride, component, x, y,

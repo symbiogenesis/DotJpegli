@@ -264,10 +264,12 @@ public static class JpegliEncoder
                     nameof(pixels), error);
             }
         }
-        pixels = pixels.WithConvertedPlanes(width, height, stride, cancellationToken);
-        using IDisposable? convertedStorage = pixels.ConvertedStorage;
         int workerLimit = options.MaxDegreeOfParallelism == -1
             ? Environment.ProcessorCount : options.MaxDegreeOfParallelism;
+        pixels = workerLimit == 1 && sampling.Is420 && options.SmoothingFactor == 0 && options.OptimizeHuffmanTables
+            ? pixels.WithConverted420Planes(width, height, stride, cancellationToken)
+            : pixels.WithConvertedPlanes(width, height, stride, cancellationToken);
+        using IDisposable? convertedStorage = pixels.ConvertedStorage;
         if (workerLimit > 1)
             pixels = pixels.WithParallelRows(new ParallelDctRows(pixels, width, height, stride,
                 sampling, options.SmoothingFactor, workerLimit, cancellationToken));
