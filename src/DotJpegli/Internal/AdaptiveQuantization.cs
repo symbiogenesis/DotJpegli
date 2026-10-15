@@ -3,6 +3,7 @@
 // found in LICENSE.jpegli or at https://developers.google.com/open-source/licenses/bsd.
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace DotJpegli.Internal;
 
@@ -269,7 +270,19 @@ internal sealed class AdaptiveQuantization
     private float HfModulation(int x, int y, float value, bool useVector)
     {
         float sum = 0;
-        if (useVector && Vector<float>.Count <= 8)
+        if (useVector && Vector<float>.Count == 8)
+        {
+            for (int dy = 0; dy < 8; dy++)
+            {
+                int row = (y + dy) * lumaStride + x + 1;
+                int next = dy == 7 ? row : row + lumaStride;
+                Vector<float> samples = new(luma, row);
+                Vector<float> horizontal = Vector.Abs(samples - new Vector<float>(luma, row + 1));
+                Vector<float> vertical = Vector.Abs(samples - new Vector<float>(luma, next));
+                sum = AddHfDifferences(sum, horizontal, vertical);
+            }
+        }
+        else if (useVector && Vector<float>.Count <= 8)
         {
             Span<float> horizontal = stackalloc float[8];
             Span<float> vertical = stackalloc float[8];
@@ -311,6 +324,21 @@ internal sealed class AdaptiveQuantization
         return sum * sumCoeff + value;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float AddHfDifferences(float sum, Vector<float> horizontal, Vector<float> vertical)
+    {
+        // Constant lanes avoid spilling two vectors to stack scratch just to
+        // reload them in a scalar loop. Preserve every original addition.
+        sum += horizontal[0]; sum += vertical[0];
+        sum += horizontal[1]; sum += vertical[1];
+        sum += horizontal[2]; sum += vertical[2];
+        sum += horizontal[3]; sum += vertical[3];
+        sum += horizontal[4]; sum += vertical[4];
+        sum += horizontal[5]; sum += vertical[5];
+        sum += horizontal[6]; sum += vertical[6];
+        return sum + vertical[7];
+    }
+
     private float GammaModulation(int x, int y, float value, bool useVector)
     {
         float ratio = 0;
@@ -319,6 +347,13 @@ internal sealed class AdaptiveQuantization
         {
             int row = (y + dy) * lumaStride + x + 1;
             int dx = 0;
+            if (useVector && Vector<float>.Count == 8)
+            {
+                Vector<float> samples = new Vector<float>(luma, row) + new Vector<float>(0.16f / InputScaling);
+                Vector<float> values = DerivativeRatio(samples, invert: true);
+                ratio = AddGammaDerivatives(ratio, values);
+                continue;
+            }
             if (useVector && Vector<float>.Count <= 8)
                 for (; dx <= 8 - Vector<float>.Count; dx += Vector<float>.Count)
                 {
@@ -335,6 +370,15 @@ internal sealed class AdaptiveQuantization
         }
         ratio *= InputScaling / 64f;
         return (-0.15526878023684174f * InvLog2E) * FastLog2(ratio) + value;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float AddGammaDerivatives(float ratio, Vector<float> values)
+    {
+        ratio += values[0]; ratio += values[1];
+        ratio += values[2]; ratio += values[3];
+        ratio += values[4]; ratio += values[5];
+        ratio += values[6]; return ratio + values[7];
     }
 
     private static float DerivativeRatio(float value, bool invert)
