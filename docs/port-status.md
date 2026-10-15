@@ -140,6 +140,10 @@ limit exceeds one. Parallel execution shares cached converted samples or copies
 the consumed source storage once, and retains one MCU row of DCT coefficients.
 Converted samples and optimized grayscale/YCbCr quantized coefficients each
 have a separate 64 MiB cache budget; larger images use streaming recomputation.
+For single-worker, optimized, unsmoothed RGB8-to-YCbCr 4:2:0, conversion retains
+full-resolution Y and compact chroma planes, with only two rows of full-resolution
+chroma scratch. Source edges are replicated before the ordered 2×2 averages;
+all other input/mode combinations retain the full-plane or streaming path.
 Retained entropy tokens share another 64 MiB budget across scans, with coefficient
 replay when a token sequence exceeds its allocation budget.
 All workers finish before encoding returns. Adaptive analysis,
