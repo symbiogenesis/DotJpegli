@@ -40,13 +40,18 @@ internal static class ProgressiveEntropyEncoder
         ReadOnlySpan<short> naturalCoefficients,
         ref int previousDc,
         long[] dc,
-        int successiveLow = 0)
+        int successiveLow = 0,
+        EntropyTokens? tokens = null,
+        int component = 0)
     {
         ValidateFrequencies(dc);
         ValidateSuccessiveLow(successiveLow, refinement: false);
         ValidateDc(naturalCoefficients, previousDc, successiveLow);
         int currentDc = naturalCoefficients[0] >> successiveLow;
-        checked { dc[Category(currentDc - previousDc)]++; }
+        int difference = currentDc - previousDc;
+        int category = Category(difference);
+        checked { dc[category]++; }
+        tokens?.AddHuffman(component, false, category, AdditionalBits(difference, category), category);
         previousDc = currentDc;
     }
 
@@ -142,12 +147,14 @@ internal static class ProgressiveEntropyEncoder
         int successiveLow = 0,
         int spectralStart = 1,
         int spectralEnd = 63,
-        bool coefficientsValidated = false)
+        bool coefficientsValidated = false,
+        EntropyTokens? tokens = null,
+        int component = 0)
     {
         int pendingEobRun = 0;
         AccumulateAcFrequencies(naturalCoefficients, ac, ref pendingEobRun, successiveLow, spectralStart, spectralEnd,
-            coefficientsValidated);
-        FlushAcFrequencies(ac, ref pendingEobRun);
+            coefficientsValidated, tokens, component);
+        FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
     }
 
     public static void AccumulateAcFrequencies(
@@ -157,7 +164,9 @@ internal static class ProgressiveEntropyEncoder
         int successiveLow = 0,
         int spectralStart = 1,
         int spectralEnd = 63,
-        bool coefficientsValidated = false)
+        bool coefficientsValidated = false,
+        EntropyTokens? tokens = null,
+        int component = 0)
     {
         ValidateFrequencies(ac);
         ValidateSuccessiveLow(successiveLow, refinement: false);
@@ -166,7 +175,7 @@ internal static class ProgressiveEntropyEncoder
         ValidateEobRun(pendingEobRun);
         if (pendingEobRun == MaximumEobRun)
         {
-            FlushAcFrequencies(ac, ref pendingEobRun);
+            FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
         }
 
         int run = 0;
@@ -182,16 +191,20 @@ internal static class ProgressiveEntropyEncoder
 
             if (pendingEobRun != 0)
             {
-                FlushAcFrequencies(ac, ref pendingEobRun);
+                FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
             }
 
             while (run >= 16)
             {
                 checked { ac[0xf0]++; }
+                tokens?.AddHuffman(component, true, 0xf0, 0, 0);
                 run -= 16;
             }
 
-            checked { ac[(run << 4) | Category(value)]++; }
+            int category = Category(value);
+            int symbol = (run << 4) | category;
+            checked { ac[symbol]++; }
+            tokens?.AddHuffman(component, true, symbol, AdditionalBits(value, category), category);
             run = 0;
         }
 
@@ -200,7 +213,7 @@ internal static class ProgressiveEntropyEncoder
             pendingEobRun++;
             if (pendingEobRun == MaximumEobRun)
             {
-                FlushAcFrequencies(ac, ref pendingEobRun);
+                FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
             }
         }
     }
@@ -246,12 +259,14 @@ internal static class ProgressiveEntropyEncoder
         int successiveLow,
         int spectralStart = 1,
         int spectralEnd = 63,
-        bool coefficientsValidated = false)
+        bool coefficientsValidated = false,
+        EntropyTokens? tokens = null,
+        int component = 0)
     {
         var state = new ProgressiveAcRefinementState();
         AccumulateAcRefinementFrequencies(naturalCoefficients, ac, state, successiveLow, spectralStart, spectralEnd,
-            coefficientsValidated);
-        FlushAcRefinementFrequencies(ac, state);
+            coefficientsValidated, tokens, component);
+        FlushAcRefinementFrequencies(ac, state, tokens, component);
     }
 
     public static void AccumulateAcRefinementFrequencies(
@@ -261,14 +276,17 @@ internal static class ProgressiveEntropyEncoder
         int successiveLow,
         int spectralStart = 1,
         int spectralEnd = 63,
-        bool coefficientsValidated = false)
+        bool coefficientsValidated = false,
+        EntropyTokens? tokens = null,
+        int component = 0)
     {
         ValidateFrequencies(ac);
         ArgumentNullException.ThrowIfNull(state);
         ValidateSuccessiveLow(successiveLow, refinement: true);
         ValidateSpectralRange(spectralStart, spectralEnd);
         ValidateAc(naturalCoefficients, coefficientsValidated);
-        ProcessAcRefinement(naturalCoefficients, state, successiveLow, spectralStart, spectralEnd, null, null, ac);
+        ProcessAcRefinement(naturalCoefficients, state, successiveLow, spectralStart, spectralEnd, null, null, ac,
+            tokens, component);
     }
 
     // Keep frequency decisions and emitted tokens on the same traversal, since
@@ -281,7 +299,9 @@ internal static class ProgressiveEntropyEncoder
         int spectralEnd,
         BitWriter? writer,
         HuffmanTable? ac,
-        long[]? frequencies)
+        long[]? frequencies,
+        EntropyTokens? tokens = null,
+        int component = 0)
     {
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
         int lastNew = spectralStart - 1;
@@ -304,7 +324,7 @@ internal static class ProgressiveEntropyEncoder
         // and the run must split before that block if they would exceed capacity.
         if (lastNew >= spectralStart || state.CorrectionBitCount + oldCount > ProgressiveAcRefinementState.MaximumCorrectionBits)
         {
-            FlushAcRefinementCore(state, writer, ac, frequencies);
+            FlushAcRefinementCore(state, writer, ac, frequencies, tokens, component);
         }
 
         // Annex G.1.2.3 appends correction bits after a symbol and its sign.
@@ -320,11 +340,8 @@ internal static class ProgressiveEntropyEncoder
                 run++;
                 if (run == 16 && position < lastNew)
                 {
-                    WriteRefinementSymbol(0xf0, writer, ac, frequencies);
-                    if (writer is not null)
-                    {
-                        WriteCorrectionBits(writer, corrections[..correctionCount]);
-                    }
+                    WriteRefinementSymbol(0xf0, writer, ac, frequencies, tokens: tokens, component: component);
+                    WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
                     correctionCount = 0;
                     run = 0;
                 }
@@ -336,11 +353,9 @@ internal static class ProgressiveEntropyEncoder
             }
             else
             {
-                WriteRefinementSymbol((run << 4) | 1, writer, ac, frequencies, value > 0 ? 1U : 0U, 1);
-                if (writer is not null)
-                {
-                    WriteCorrectionBits(writer, corrections[..correctionCount]);
-                }
+                WriteRefinementSymbol((run << 4) | 1, writer, ac, frequencies, value > 0 ? 1U : 0U, 1,
+                    tokens, component);
+                WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
                 correctionCount = 0;
                 run = 0;
             }
@@ -351,7 +366,7 @@ internal static class ProgressiveEntropyEncoder
             state.AppendBlock(corrections[..correctionCount]);
             if (state.PendingEobRun == MaximumEobRun)
             {
-                FlushAcRefinementCore(state, writer, ac, frequencies);
+                FlushAcRefinementCore(state, writer, ac, frequencies, tokens, component);
             }
         }
     }
@@ -364,18 +379,21 @@ internal static class ProgressiveEntropyEncoder
         FlushAcRefinementCore(state, writer, ac, null);
     }
 
-    public static void FlushAcRefinementFrequencies(long[] ac, ProgressiveAcRefinementState state)
+    public static void FlushAcRefinementFrequencies(long[] ac, ProgressiveAcRefinementState state,
+        EntropyTokens? tokens = null, int component = 0)
     {
         ValidateFrequencies(ac);
         ArgumentNullException.ThrowIfNull(state);
-        FlushAcRefinementCore(state, null, null, ac);
+        FlushAcRefinementCore(state, null, null, ac, tokens, component);
     }
 
     private static void FlushAcRefinementCore(
         ProgressiveAcRefinementState state,
         BitWriter? writer,
         HuffmanTable? ac,
-        long[]? frequencies)
+        long[]? frequencies,
+        EntropyTokens? tokens = null,
+        int component = 0)
     {
         if (state.PendingEobRun == 0)
         {
@@ -384,20 +402,18 @@ internal static class ProgressiveEntropyEncoder
 
         int bits = BitOperations.Log2((uint)state.PendingEobRun);
         WriteRefinementSymbol(bits << 4, writer, ac, frequencies,
-            (uint)(state.PendingEobRun - (1 << bits)), bits);
-        if (writer is not null)
-        {
-            WriteCorrectionBits(writer, state.Corrections);
-        }
+            (uint)(state.PendingEobRun - (1 << bits)), bits, tokens, component);
+        WriteCorrectionBits(writer, state.Corrections, tokens);
         state.Clear();
     }
 
     private static void WriteRefinementSymbol(int symbol, BitWriter? writer, HuffmanTable? ac, long[]? frequencies,
-        uint additionalBits = 0, int bitCount = 0)
+        uint additionalBits = 0, int bitCount = 0, EntropyTokens? tokens = null, int component = 0)
     {
         if (frequencies is not null)
         {
             checked { frequencies[symbol]++; }
+            tokens?.AddHuffman(component, true, symbol, additionalBits, bitCount);
         }
         else
         {
@@ -405,8 +421,10 @@ internal static class ProgressiveEntropyEncoder
         }
     }
 
-    private static void WriteCorrectionBits(BitWriter writer, ReadOnlySpan<byte> corrections)
+    private static void WriteCorrectionBits(BitWriter? writer, ReadOnlySpan<byte> corrections, EntropyTokens? tokens = null)
     {
+        if (writer is null && tokens?.IsComplete != true)
+            return;
         // Eight bytes containing one bit each can be gathered with a multiply.
         // Big-endian loading places the first correction in the highest bit;
         // four such groups supply one complete 32-bit write.
@@ -416,12 +434,12 @@ internal static class ProgressiveEntropyEncoder
                 | PackCorrectionByte(corrections[8..]) << 16
                 | PackCorrectionByte(corrections[16..]) << 8
                 | PackCorrectionByte(corrections[24..]);
-            writer.WriteBits(packed, 32);
+            WriteRawBits(writer, tokens, packed, 32);
             corrections = corrections[32..];
         }
         while (corrections.Length >= 8)
         {
-            writer.WriteBits(PackCorrectionByte(corrections), 8);
+            WriteRawBits(writer, tokens, PackCorrectionByte(corrections), 8);
             corrections = corrections[8..];
         }
         if (corrections.IsEmpty)
@@ -431,7 +449,15 @@ internal static class ProgressiveEntropyEncoder
         {
             remainder = (remainder << 1) | correction;
         }
-        writer.WriteBits(remainder, corrections.Length);
+        WriteRawBits(writer, tokens, remainder, corrections.Length);
+    }
+
+    private static void WriteRawBits(BitWriter? writer, EntropyTokens? tokens, uint bits, int count)
+    {
+        if (writer is not null)
+            writer.WriteBits(bits, count);
+        else
+            tokens!.AddBits(bits, count);
     }
 
     private static uint PackCorrectionByte(ReadOnlySpan<byte> corrections)
@@ -455,7 +481,7 @@ internal static class ProgressiveEntropyEncoder
         pendingEobRun = 0;
     }
 
-    public static void FlushAcFrequencies(long[] ac, ref int pendingEobRun)
+    public static void FlushAcFrequencies(long[] ac, ref int pendingEobRun, EntropyTokens? tokens = null, int component = 0)
     {
         ValidateFrequencies(ac);
         ValidateEobRun(pendingEobRun);
@@ -466,6 +492,7 @@ internal static class ProgressiveEntropyEncoder
 
         int bits = BitOperations.Log2((uint)pendingEobRun);
         checked { ac[bits << 4]++; }
+        tokens?.AddHuffman(component, true, bits << 4, (uint)(pendingEobRun - (1 << bits)), bits);
         pendingEobRun = 0;
     }
 
