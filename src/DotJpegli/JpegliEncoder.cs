@@ -265,6 +265,7 @@ public static class JpegliEncoder
             }
         }
         pixels = pixels.WithConvertedPlanes(width, height, stride, cancellationToken);
+        using IDisposable? convertedStorage = pixels.ConvertedStorage;
         int workerLimit = options.MaxDegreeOfParallelism == -1
             ? Environment.ProcessorCount : options.MaxDegreeOfParallelism;
         if (workerLimit > 1)
