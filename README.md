@@ -1,13 +1,20 @@
 # DotJpegli
 
-A fully managed C# JPEG encoder for .NET 10 and .NET 11, based on [Google Jpegli](https://github.com/google/jpegli).
-No native binaries, unsafe code or runtime NuGet dependencies.
+A C# JPEG encoder for .NET 10 and .NET 11, based on [Google Jpegli](https://github.com/google/jpegli).
+Implemented in pure, safe, portable managed .NET, with no native dependencies,
+P/Invoke, unsafe code or runtime NuGet dependencies. SIMD acceleration uses
+portable .NET APIs with scalar fallbacks.
 
 Encode RGB or grayscale pixels as baseline or progressive JPEG, with configurable
 quality, sampling and metadata.
-Both target frameworks support trimming and NativeAOT publishing.
+Both target frameworks are compatible with trimming and NativeAOT publishing.
+CI publishes and runs trimmed and NativeAOT consumers on Windows and Linux x64;
+linker and AOT analyzer warnings fail validation. See
+[deployment validation](docs/development.md#trimming-and-nativeaot) for coverage.
 
-**Experimental:** Output is lossy eight-bit JPEG, including at quality 100.
+**Experimental:** The package is currently version `0.1.0-alpha.1`.
+
+Output is lossy eight-bit JPEG, including at quality 100.
 Decoding is outside the project's scope. Quality/compression parity is established
 within a [documented RGB8 YCbCr scope](docs/quality-compression-parity.md);
 byte-identical upstream output and full [performance parity](docs/performance-parity.md)
