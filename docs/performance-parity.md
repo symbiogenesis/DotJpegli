@@ -54,12 +54,43 @@ their individual bounds. The diagnostic records `passed: null` and
 bounds or a passing performance parity verdict.
 
 When a targeted comparison fails, the same CI job collects one bounded CPU
-profile of `kodim01` at 444, progression 0 and distance 1 using pinned
+profile of the selected case with the highest managed/native ratio using pinned
 `dotnet-trace 10.0.750501`. Its trace, Speedscope file, logs and marked
 instrumented evidence are retained separately as `performance-profile-<revision>`.
 These profiling timings cannot establish latency acceptance; the original
 unprofiled comparison remains the job's result. Manual dispatch can disable this
 follow-up with `profile=false`.
+
+## Upstream implementation review
+
+The investigation compares the managed port with the same pinned upstream code,
+including its optimized-Huffman path:
+
+- [Native token histograms](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/entropy_coding.cc#L525-L545)
+  and [token replay](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/bitstream.cc#L318-L349)
+  avoid a second coefficient walk. The original port repeated coefficient decisions.
+- [Native bit output](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/bit_writer.h#L57-L100)
+  discharges complete 64-bit words, checking stuffing once for the common case.
+  The original port drained individual bytes after every symbol.
+- [Native DCT input](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/dct-inl.h#L138-L208)
+  reads strided converted planes directly. The original port repeatedly converted
+  pixels and copied centered blocks into scratch storage.
+- [Native adaptive analysis](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/adaptive_quantization.cc#L539-L550)
+  retains neighboring pre-erosion rows. The original port recomputed them for each MCU row.
+
+These are identified implementation gaps, not speedup estimates. Targeted hosted
+measurements determine the effect of each settled batch. Exact arithmetic ordering
+and existing JPEG regression hashes remain checked.
+
+## Optional .NET 11 runtime comparison
+
+The workflow's `compare_net11=true` input runs one Kodak01 4:4:4 sequential case
+on .NET 10.0.13 and .NET 11.0.0-rc.2.26504.105, serially on the same CPU. A main
+commit containing `[compare-net11]` requests the same diagnostic in its automatic
+run. It uses the identical net10.0 assembly and checks matching JPEG hashes;
+the SDK pin and library target remain unchanged. This isolates runtime/JIT changes
+and does not measure rewrites using new .NET 11 APIs. Evidence is retained separately
+as `runtime-comparison-<revision>`.
 
 ## Full acceptance scope and policy
 

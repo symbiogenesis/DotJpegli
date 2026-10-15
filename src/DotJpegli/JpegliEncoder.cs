@@ -528,6 +528,7 @@ public static class JpegliEncoder
         int componentCount = tables.Length;
         using QuantizedImage? quantizedImage = QuantizedImage.Create(pixels, width, height, stride,
             sampling, tables, distance, options.SmoothingFactor, adaptive, adaptiveMultipliers, cancellationToken);
+        using EntropyTokenScans? tokenScans = quantizedImage is not null ? new(scans.Length) : null;
         var dcFrequencies = new long[componentCount][];
         for (int component = 0; component < componentCount; component++)
             dcFrequencies[component] = new long[256];
@@ -541,8 +542,9 @@ public static class JpegliEncoder
             for (int component = 0; component < componentCount; component++)
                 acFrequencies[scanIndex][component] = new long[256];
             JpegScan scan = scans[scanIndex];
-            // DC refinement emits raw bits and has no Huffman histogram.
-            if (scan.SpectralEnd == 0 && scan.SuccessiveHigh != 0)
+            EntropyTokens? scanTokens = tokenScans?[scanIndex];
+            // DC refinement has no histogram, but its raw bits can be replayed.
+            if (scan.SpectralEnd == 0 && scan.SuccessiveHigh != 0 && scanTokens is not { IsComplete: true })
                 continue;
             int interval = scan.Components.Count == 1
                 ? componentRestartIntervals[scan.Components[0]] : interleavedRestartInterval;
@@ -550,7 +552,7 @@ public static class JpegliEncoder
                 options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
                 emptyTables, emptyTables, null, dcFrequencies, acFrequencies[scanIndex], cancellationToken,
                 scan, options.Progressive, aggregateEobRuns: true, contextByComponent: true,
-                quantizedImage: quantizedImage);
+                quantizedImage: quantizedImage, entropyTokens: scanTokens);
         }
         HuffmanCodingPlan plan = HuffmanCodingPlan.Create(scans, dcFrequencies, acFrequencies,
             options.Progressive, options.ForceBaseline);
@@ -574,11 +576,14 @@ public static class JpegliEncoder
                 lastRestartInterval = interval;
             }
             JpegMarkerWriter.WriteScanHeader(output, scan, options.Progressive, pixels.IsRgb, coding.Selectors);
-            ProcessScan(pixels, width, height, stride, sampling, tables, distance,
-                options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
-                coding.DcTables, coding.AcTables, bits, null, null, cancellationToken,
-                scan, options.Progressive, aggregateEobRuns: true, contextByComponent: true,
-                quantizedImage: quantizedImage);
+            if (tokenScans?[scanIndex] is { IsComplete: true } scanTokens)
+                scanTokens.Replay(bits, coding, cancellationToken);
+            else
+                ProcessScan(pixels, width, height, stride, sampling, tables, distance,
+                    options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
+                    coding.DcTables, coding.AcTables, bits, null, null, cancellationToken,
+                    scan, options.Progressive, aggregateEobRuns: true, contextByComponent: true,
+                    quantizedImage: quantizedImage);
             bits.Flush();
         }
         cancellationToken.ThrowIfCancellationRequested();
@@ -592,7 +597,7 @@ public static class JpegliEncoder
         HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
         JpegScan scan, bool progressive, bool aggregateEobRuns, bool contextByComponent = false,
-        QuantizedImage? quantizedImage = null)
+        QuantizedImage? quantizedImage = null, EntropyTokens? entropyTokens = null)
     {
         bool dcOnly = progressive && scan.SpectralStart == 0;
         bool refine = scan.SuccessiveHigh != 0;
@@ -602,13 +607,13 @@ public static class JpegliEncoder
                 scan.Components[0], acTables, writer, acFrequencies, cancellationToken,
                 aggregateEobRuns, scan.SuccessiveLow, refine, scan.SpectralStart, scan.SpectralEnd,
                 dcOnly, dcTables, dcFrequencies, sequential: !progressive, contextByComponent: contextByComponent,
-                quantizedImage: quantizedImage);
+                quantizedImage: quantizedImage, entropyTokens: entropyTokens);
         else
             ProcessBlocks(pixels, width, height, stride, sampling, tables, distance,
                 smoothingFactor, restartInterval, adaptive, adaptiveMultipliers,
                 dcTables, acTables, writer, dcFrequencies, acFrequencies, cancellationToken,
                 dcOnly, scan.SuccessiveLow, refine, scanComponents: (int[])scan.Components,
-                contextByComponent: contextByComponent, quantizedImage: quantizedImage);
+                contextByComponent: contextByComponent, quantizedImage: quantizedImage, entropyTokens: entropyTokens);
     }
 
     private static void ProcessBlocks(PixelSource pixels, int width, int height, int stride,
@@ -618,7 +623,7 @@ public static class JpegliEncoder
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
         bool dcOnly = false, int successiveLow = 0, bool refine = false, bool requireEightBitCoefficients = false,
         ReadOnlySpan<int> scanComponents = default, bool contextByComponent = false,
-        QuantizedImage? quantizedImage = null)
+        QuantizedImage? quantizedImage = null, EntropyTokens? entropyTokens = null)
     {
         Span<float> samples = stackalloc float[64];
         Span<float> coefficients = stackalloc float[64];
@@ -648,6 +653,8 @@ public static class JpegliEncoder
                     // Reset in both passes so the optimized tables include the
                     // same DC categories used after each emitted restart marker.
                     writer?.WriteRestartMarker(restartIndex);
+                    if (writer is null)
+                        entropyTokens?.AddRestart(restartIndex);
                     previousDc.Clear();
                     previousScanDc.Clear();
                     restartIndex = (restartIndex + 1) & 7;
@@ -707,10 +714,16 @@ public static class JpegliEncoder
                             if (dcOnly)
                             {
                                 if (refine)
-                                    ProgressiveEntropyEncoder.WriteDcRefinement(writer!, encoded, successiveLow);
+                                {
+                                    if (writer is null)
+                                        entropyTokens?.AddBits((uint)((encoded[0] >> successiveLow) & 1), 1);
+                                    else
+                                        ProgressiveEntropyEncoder.WriteDcRefinement(writer, encoded, successiveLow);
+                                }
                                 else if (writer is null)
                                     ProgressiveEntropyEncoder.AccumulateDcFrequencies(encoded,
-                                        ref previousScanDc[component], dcFrequencies![tableIndex], successiveLow);
+                                        ref previousScanDc[component], dcFrequencies![tableIndex], successiveLow,
+                                        tokens: entropyTokens, component: component);
                                 else
                                     ProgressiveEntropyEncoder.WriteDc(writer, encoded,
                                         ref previousScanDc[component], dcTables[tableIndex], successiveLow);
@@ -721,7 +734,8 @@ public static class JpegliEncoder
                             else if (writer is null)
                                 EntropyEncoder.AccumulateFrequencies(encoded, ref previousDc[component],
                                     dcFrequencies![tableIndex], acFrequencies![tableIndex],
-                                    coefficientsValidated: quantizedImage is not null);
+                                    coefficientsValidated: quantizedImage is not null,
+                                    tokens: entropyTokens, component: component);
                             else
                                 EntropyEncoder.WriteBlock(writer, encoded, ref previousDc[component],
                                     dcTables[tableIndex], acTables[tableIndex],
@@ -742,7 +756,7 @@ public static class JpegliEncoder
         CancellationToken cancellationToken, bool aggregateEobRuns, int successiveLow = 0, bool refine = false,
         int spectralStart = 1, int spectralEnd = 63, bool dcOnly = false,
         HuffmanTable[]? dcTables = null, long[][]? dcFrequencies = null, bool sequential = false,
-        bool contextByComponent = false, QuantizedImage? quantizedImage = null)
+        bool contextByComponent = false, QuantizedImage? quantizedImage = null, EntropyTokens? entropyTokens = null)
     {
         // A noninterleaved scan visits only real component blocks in raster order.
         // In particular, 4:2:0 luma must finish one block row before the next,
@@ -771,12 +785,14 @@ public static class JpegliEncoder
             if (refine)
             {
                 if (writer is null)
-                    ProgressiveEntropyEncoder.FlushAcRefinementFrequencies(acFrequencies![tableIndex], refinementState!);
+                    ProgressiveEntropyEncoder.FlushAcRefinementFrequencies(acFrequencies![tableIndex], refinementState!,
+                        tokens: entropyTokens, component: component);
                 else
                     ProgressiveEntropyEncoder.FlushAcRefinement(writer, acTables[tableIndex], refinementState!);
             }
             else if (writer is null)
-                ProgressiveEntropyEncoder.FlushAcFrequencies(acFrequencies![tableIndex], ref pendingEobRun);
+                ProgressiveEntropyEncoder.FlushAcFrequencies(acFrequencies![tableIndex], ref pendingEobRun,
+                    tokens: entropyTokens, component: component);
             else
                 ProgressiveEntropyEncoder.FlushAc(writer, acTables[tableIndex], ref pendingEobRun);
         }
@@ -801,6 +817,8 @@ public static class JpegliEncoder
                     // pass must terminate runs at the same boundaries as output.
                     FlushEobRun();
                     writer?.WriteRestartMarker(restartIndex);
+                    if (writer is null)
+                        entropyTokens?.AddRestart(restartIndex);
                     previousScanDc = 0;
                     restartIndex = (restartIndex + 1) & 7;
                     mcusRemaining = restartInterval;
@@ -838,7 +856,8 @@ public static class JpegliEncoder
                     if (writer is null)
                         EntropyEncoder.AccumulateFrequencies(encoded, ref previousScanDc,
                             dcFrequencies![tableIndex], acFrequencies![tableIndex],
-                            coefficientsValidated: quantizedImage is not null);
+                            coefficientsValidated: quantizedImage is not null,
+                            tokens: entropyTokens, component: component);
                     else
                         EntropyEncoder.WriteBlock(writer, encoded, ref previousScanDc,
                             dcTables![tableIndex], acTables[tableIndex],
@@ -847,10 +866,16 @@ public static class JpegliEncoder
                 else if (dcOnly)
                 {
                     if (refine)
-                        ProgressiveEntropyEncoder.WriteDcRefinement(writer!, encoded, successiveLow);
+                    {
+                        if (writer is null)
+                            entropyTokens?.AddBits((uint)((encoded[0] >> successiveLow) & 1), 1);
+                        else
+                            ProgressiveEntropyEncoder.WriteDcRefinement(writer, encoded, successiveLow);
+                    }
                     else if (writer is null)
                         ProgressiveEntropyEncoder.AccumulateDcFrequencies(encoded,
-                            ref previousScanDc, dcFrequencies![tableIndex], successiveLow);
+                            ref previousScanDc, dcFrequencies![tableIndex], successiveLow,
+                            tokens: entropyTokens, component: component);
                     else
                         ProgressiveEntropyEncoder.WriteDc(writer, encoded,
                             ref previousScanDc, dcTables![tableIndex], successiveLow);
@@ -860,7 +885,7 @@ public static class JpegliEncoder
                     if (writer is null)
                         ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(encoded,
                             acFrequencies![tableIndex], refinementState!, successiveLow, spectralStart, spectralEnd,
-                            coefficientsValidated: quantizedImage is not null);
+                            coefficientsValidated: quantizedImage is not null, tokens: entropyTokens, component: component);
                     else
                         ProgressiveEntropyEncoder.WriteAcRefinement(writer, encoded, acTables[tableIndex],
                             refinementState!, successiveLow, spectralStart, spectralEnd,
@@ -869,7 +894,7 @@ public static class JpegliEncoder
                 else if (writer is null)
                     ProgressiveEntropyEncoder.AccumulateAcFrequencies(encoded, acFrequencies![tableIndex],
                         ref pendingEobRun, successiveLow, spectralStart, spectralEnd,
-                        coefficientsValidated: quantizedImage is not null);
+                        coefficientsValidated: quantizedImage is not null, tokens: entropyTokens, component: component);
                 else
                     ProgressiveEntropyEncoder.WriteAc(writer, encoded, acTables[tableIndex], ref pendingEobRun,
                         successiveLow, spectralStart, spectralEnd,

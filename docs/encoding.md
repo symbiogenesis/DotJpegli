@@ -130,6 +130,9 @@ The encoder caches converted samples when they fit within 64 MiB, avoiding
 repeated color conversion during analysis and scan preparation. Optimized
 grayscale/YCbCr encoding also reuses pooled quantized coefficients within a
 separate 64 MiB budget. Larger images retain the row/block streaming paths.
+Optimized encoding may retain entropy tokens within another 64 MiB budget,
+divided across its scans, avoiding another coefficient traversal when emitting
+the JPEG. A scan exceeding its token budget falls back to retained coefficients.
 These budgets exclude the source, output, metadata, and ordinary row scratch.
 
 ## Higher-precision input
