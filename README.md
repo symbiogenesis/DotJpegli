@@ -128,7 +128,7 @@ for coverage.
 ## Scope and validation
 
 DotJpegli produces **lossy, eight-bit JPEG**, including from higher-precision
-sources and at quality 100. Jpegli's quality scale is not interchangeable with
+sources and even at quality 100. Jpegli's quality scale is not interchangeable with
 libjpeg's. Decoding is outside the project's scope.
 
 Quality and compression parity with upstream is established within a
