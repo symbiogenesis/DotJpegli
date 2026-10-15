@@ -36,7 +36,7 @@ on:
         type: boolean
         default: true
       compare_net11:
-        description: 'Compare one identical net10.0 encoder binary on .NET 10 and .NET 11 RC2'
+        description: 'Compare one case for .NET 10/11 runtime changes and explicit .NET 11 SIMD'
         type: boolean
         default: false
 
@@ -314,6 +314,7 @@ jobs:
               assert run['environment']['explicitNet11Simd'] == (version == 'net11-simd'), 'Unexpected SIMD experiment build'
               data.append((run, cases[0]))
           left, right, baseline, simd = data
+          assert baseline[0]['managedEncoderSha256'] != simd[0]['managedEncoderSha256'], 'SIMD variant must change the encoder binary'
           for field in ['testedRevision', 'managedEncoderSha256', 'managedRunnerSha256', 'nativeExecutableSha256']:
               assert left[0][field] == right[0][field], 'Comparison binary/revision mismatch'
           for run, case in data:
