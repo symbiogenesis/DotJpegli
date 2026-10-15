@@ -284,22 +284,26 @@ internal readonly ref struct PixelSource
         for (; x <= width - lanes && x * step <= width * step - bytesNeeded; x += lanes)
         {
             Vector128<byte> lower = Vector128.Create(bytes.Slice(rowStart + x * step, 16));
-            Vector128<float> r0 = Vector128.ConvertToSingle(Vector128.Shuffle(lower, redIndices).AsUInt32());
-            Vector128<float> g0 = Vector128.ConvertToSingle(Vector128.Shuffle(lower, greenIndices).AsUInt32());
-            Vector128<float> b0 = Vector128.ConvertToSingle(Vector128.Shuffle(lower, blueIndices).AsUInt32());
+            // Each mask selects one byte and zeros the other three bytes in
+            // each lane. Values are 0..255, so signed conversion is exact too.
+            Vector128<int> r0 = Vector128.Shuffle(lower, redIndices).AsInt32();
+            Vector128<int> g0 = Vector128.Shuffle(lower, greenIndices).AsInt32();
+            Vector128<int> b0 = Vector128.Shuffle(lower, blueIndices).AsInt32();
             Vector<float> red, green, blue;
             if (lanes == 8)
             {
                 Vector128<byte> upper = Vector128.Create(bytes.Slice(rowStart + (x + 4) * step - upperBackstep, 16));
-                red = Vector256.Create(r0, Vector128.ConvertToSingle(Vector128.Shuffle(upper, upperRedIndices).AsUInt32())).AsVector();
-                green = Vector256.Create(g0, Vector128.ConvertToSingle(Vector128.Shuffle(upper, upperGreenIndices).AsUInt32())).AsVector();
-                blue = Vector256.Create(b0, Vector128.ConvertToSingle(Vector128.Shuffle(upper, upperBlueIndices).AsUInt32())).AsVector();
+                // Assemble integer lanes before conversion, so each channel
+                // needs one full-width conversion rather than two half-width ones.
+                red = Vector256.ConvertToSingle(Vector256.Create(r0, Vector128.Shuffle(upper, upperRedIndices).AsInt32())).AsVector();
+                green = Vector256.ConvertToSingle(Vector256.Create(g0, Vector128.Shuffle(upper, upperGreenIndices).AsInt32())).AsVector();
+                blue = Vector256.ConvertToSingle(Vector256.Create(b0, Vector128.Shuffle(upper, upperBlueIndices).AsInt32())).AsVector();
             }
             else
             {
-                red = r0.AsVector();
-                green = g0.AsVector();
-                blue = b0.AsVector();
+                red = Vector128.ConvertToSingle(r0).AsVector();
+                green = Vector128.ConvertToSingle(g0).AsVector();
+                blue = Vector128.ConvertToSingle(b0).AsVector();
             }
             ColorConversion.RgbToYCbCr(red, green, blue,
                 out Vector<float> luma, out Vector<float> cb, out Vector<float> cr);
