@@ -131,7 +131,7 @@ are allowed; they do not establish corpus parity:
 
 ```text
 dotnet build tools/DotJpegli.Parity/DotJpegli.Parity.csproj -c Release
-dotnet run --project tools/DotJpegli.Parity -c Release --no-build -- --self-test
+dotnet run --project tools/DotJpegli.Parity -c Release -f net11.0 --no-build -- --self-test
 ```
 
 The tested scope excludes grayscale and alternate source precisions, additional
