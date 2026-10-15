@@ -11,7 +11,8 @@ internal sealed class AdaptiveQuantization
 {
     // Derived from google/jpegli lib/jpegli/adaptive_quantization.cc at
     // 031a0077f5799a6041004267fc12b956c1f52a20. Unlike upstream's rolling
-    // image buffers, each invocation independently loads its bounded neighborhood.
+    // image buffers, each invocation loads its bounded luma neighborhood.
+    // Consecutive immutable plane rows retain their shared pre-erosion cells.
     private const float InputScaling = 1f / 255f;
     private const float InvLog2E = 0.6931471805599453f;
     private const float SgMul = 226.0480446705883f;
@@ -33,6 +34,10 @@ internal sealed class AdaptiveQuantization
     private readonly float[] preErosion;
     private readonly float[] difference;
     private readonly float[] fuzzy;
+    private IDisposable? previousStorage;
+    private int previousTop;
+    private int previousStride;
+    private bool previousUseVector;
 
     internal AdaptiveQuantization(int width, int height, int verticalSampling)
     {
@@ -79,8 +84,15 @@ internal sealed class AdaptiveQuantization
     private void ComputeRowCore(PixelSource pixels, int stride, int top, int lumaAcQuant,
         Span<float> strengths, CancellationToken cancellationToken, bool useVector)
     {
-        cancellationToken.ThrowIfCancellationRequested();
         int mcuHeight = verticalSampling * 8;
+        IDisposable? storage = pixels.ConvertedStorage;
+        bool reusePreErosion = storage is not null && ReferenceEquals(storage, previousStorage)
+            && top == previousTop + mcuHeight && stride == previousStride && useVector == previousUseVector;
+        // A failed or canceled invocation must never expose partially updated
+        // neighborhoods to the next call. Only immutable converted planes may
+        // reuse rows; caller-owned source spans can change between invocations.
+        previousStorage = null;
+        cancellationToken.ThrowIfCancellationRequested();
         if (top < 0 || top >= height || top % mcuHeight != 0)
             throw new ArgumentOutOfRangeException(nameof(top));
         if (strengths.Length < BlocksWide * verticalSampling)
@@ -106,7 +118,15 @@ internal sealed class AdaptiveQuantization
 
         int firstPreY = top / 4 - 1;
         int preHeight = paddedHeight / 4;
-        for (int row = 0; row < verticalSampling * 2 + 2; row++)
+        int firstPreRow = 0;
+        if (reusePreErosion)
+        {
+            // The two final four-pixel rows are the next MCU's upper
+            // neighborhood. Retain their exact already-rounded values.
+            preErosion.AsSpan(verticalSampling * 2 * preStride, 2 * preStride).CopyTo(preErosion);
+            firstPreRow = 2;
+        }
+        for (int row = firstPreRow; row < verticalSampling * 2 + 2; row++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             int sourceY = Math.Clamp(firstPreY + row, 0, preHeight - 1) * 4;
@@ -134,6 +154,10 @@ internal sealed class AdaptiveQuantization
                 strengths[blockY * BlocksWide + blockX] = MathF.Max(0f, 0.6f / field - 1f);
             }
         }
+        previousStorage = storage;
+        previousTop = top;
+        previousStride = stride;
+        previousUseVector = useVector;
     }
 
     private void ComputePreErosion(int firstRow, int outputRow, bool useVector)
