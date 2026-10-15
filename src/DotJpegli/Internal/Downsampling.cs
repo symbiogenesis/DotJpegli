@@ -4,7 +4,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
-using System.Runtime.Intrinsics.X86;
 
 namespace DotJpegli.Internal;
 
@@ -95,7 +94,7 @@ internal static class Downsampling
 
         bool direct = sampleWidth == 1 && sampleHeight == 1;
         bool directQuarter = sampleWidth == 2 && sampleHeight == 2
-            && Vector<float>.Count == 8 && Avx.IsSupported;
+            && (Vector256.IsHardwareAccelerated || Vector128.IsHardwareAccelerated);
         if ((direct || directQuarter) && left >= 0 && top >= 0
             && left <= width - 8 * sampleWidth && top <= height - 8 * sampleHeight)
         {
@@ -180,25 +179,89 @@ internal static class Downsampling
     private static void FillConvertedQuarterBlock(ReadOnlySpan<float> plane, int width, int left, int top,
         Span<float> samples)
     {
-        var scale = Vector256.Create(0.25f);
-        var center = Vector256.Create(128f);
-        for (int row = 0; row < 8; row++)
+        if (Vector256.IsHardwareAccelerated)
         {
-            int source = (top + row * 2) * width + left;
-            Vector256<float> first = PairwiseSums(plane.Slice(source, 16));
-            Vector256<float> second = PairwiseSums(plane.Slice(source + width, 16));
-            // Downsample2x2 adds each row's pairs before the single scale.
-            ((first + second) * scale - center).CopyTo(samples.Slice(row * 8, 8));
+            var scale = Vector256.Create(0.25f);
+            var center = Vector256.Create(128f);
+            for (int row = 0; row < 8; row++)
+            {
+                int source = (top + row * 2) * width + left;
+                Vector256<float> first = PairwiseSums256(plane.Slice(source, 16));
+                Vector256<float> second = PairwiseSums256(plane.Slice(source + width, 16));
+                // Downsample2x2 adds each row's pairs before the single scale.
+                ((first + second) * scale - center).CopyTo(samples.Slice(row * 8, 8));
+            }
+        }
+        else
+        {
+            var scale = Vector128.Create(0.25f);
+            var center = Vector128.Create(128f);
+            for (int row = 0; row < 8; row++)
+                for (int column = 0; column < 8; column += 4)
+                {
+                    int source = (top + row * 2) * width + left + column * 2;
+                    Vector128<float> first = PairwiseSums128(plane.Slice(source, 8));
+                    Vector128<float> second = PairwiseSums128(plane.Slice(source + width, 8));
+                    ((first + second) * scale - center).CopyTo(samples.Slice(row * 8 + column, 4));
+                }
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Vector256<float> PairwiseSums(ReadOnlySpan<float> samples)
+    private static Vector256<float> PairwiseSums256(ReadOnlySpan<float> samples)
     {
-        Vector256<float> pairs = Avx.HorizontalAdd(Vector256.Create(samples[..8]), Vector256.Create(samples[8..]));
-        // HorizontalAdd works independently in each 128-bit half.
-        return Vector256.Shuffle(pairs, Vector256.Create(0, 1, 4, 5, 2, 3, 6, 7));
+        Vector256<float> first = Vector256.Create(samples[..8]);
+        Vector256<float> second = Vector256.Create(samples[8..]);
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        return PairwiseSumsNet11(first, second);
+#else
+        return PairwiseSumsPortable(first, second);
+#endif
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector128<float> PairwiseSums128(ReadOnlySpan<float> samples)
+    {
+        Vector128<float> first = Vector128.Create(samples[..4]);
+        Vector128<float> second = Vector128.Create(samples[4..]);
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        return PairwiseSumsNet11(first, second);
+#else
+        return PairwiseSumsPortable(first, second);
+#endif
+    }
+
+    // Keep both lane-composition variants portable. Only data movement changes;
+    // each even sample is still added to its adjacent odd sample exactly once.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Vector256<float> PairwiseSumsPortable(Vector256<float> first, Vector256<float> second)
+    {
+        var even = Vector256.Create(0, 2, 4, 6, 0, 2, 4, 6);
+        var odd = Vector256.Create(1, 3, 5, 7, 1, 3, 5, 7);
+        Vector256<float> evenSamples = Vector256.Create(Vector256.Shuffle(first, even).GetLower(), Vector256.Shuffle(second, even).GetLower());
+        Vector256<float> oddSamples = Vector256.Create(Vector256.Shuffle(first, odd).GetLower(), Vector256.Shuffle(second, odd).GetLower());
+        return evenSamples + oddSamples;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Vector128<float> PairwiseSumsPortable(Vector128<float> first, Vector128<float> second)
+    {
+        var even = Vector128.Create(0, 2, 0, 2);
+        var odd = Vector128.Create(1, 3, 1, 3);
+        Vector128<float> evenSamples = Vector128.Create(Vector128.Shuffle(first, even).GetLower(), Vector128.Shuffle(second, even).GetLower());
+        Vector128<float> oddSamples = Vector128.Create(Vector128.Shuffle(first, odd).GetLower(), Vector128.Shuffle(second, odd).GetLower());
+        return evenSamples + oddSamples;
+    }
+
+#if NET11_0_OR_GREATER
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Vector256<float> PairwiseSumsNet11(Vector256<float> first, Vector256<float> second)
+        => Vector256.UnzipEven(first, second) + Vector256.UnzipOdd(first, second);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Vector128<float> PairwiseSumsNet11(Vector128<float> first, Vector128<float> second)
+        => Vector128.UnzipEven(first, second) + Vector128.UnzipOdd(first, second);
+#endif
 
     private static Vector<float> AverageRowVector(ReadOnlySpan<float> terms, int row, int column,
         int sampleWidth, bool quarter)
