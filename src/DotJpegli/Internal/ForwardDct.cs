@@ -3,6 +3,7 @@
 // found in LICENSE.jpegli or at https://developers.google.com/open-source/licenses/bsd.
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace DotJpegli.Internal;
 
@@ -143,41 +144,45 @@ internal static class ForwardDct
 
     private static void TransformRecursiveVector(Span<Vector<float>> values)
     {
-        int size = values.Length;
-        if (size == 2)
-        {
-            Vector<float> first = values[0];
-            Vector<float> second = values[1];
-            values[0] = first + second;
-            values[1] = first - second;
-            return;
-        }
+        // Specialize the fixed eight-point recursion. This keeps each stage in
+        // registers instead of recursively allocating and slicing vector scratch.
+        Vector<float> e0 = values[0] + values[7];
+        Vector<float> e1 = values[1] + values[6];
+        Vector<float> e2 = values[2] + values[5];
+        Vector<float> e3 = values[3] + values[4];
+        Transform4Vector(ref e0, ref e1, ref e2, ref e3);
+        Vector<float> o0 = (values[0] - values[7]) * new Vector<float>(0.5097955791041592f);
+        Vector<float> o1 = (values[1] - values[6]) * new Vector<float>(0.6013448869350453f);
+        Vector<float> o2 = (values[2] - values[5]) * new Vector<float>(0.8999762231364156f);
+        Vector<float> o3 = (values[3] - values[4]) * new Vector<float>(2.5629154477415055f);
+        Transform4Vector(ref o0, ref o1, ref o2, ref o3);
+        o0 = Vector.FusedMultiplyAdd(o0, new Vector<float>(Sqrt2), o1);
+        o1 += o2;
+        o2 += o3;
+        values[0] = e0;
+        values[1] = o0;
+        values[2] = e1;
+        values[3] = o1;
+        values[4] = e2;
+        values[5] = o2;
+        values[6] = e3;
+        values[7] = o3;
+    }
 
-        int half = size / 2;
-        Span<Vector<float>> temporary = stackalloc Vector<float>[8];
-        Span<Vector<float>> even = temporary[..half];
-        Span<Vector<float>> odd = temporary.Slice(half, half);
-        for (int i = 0; i < half; i++)
-            even[i] = values[i] + values[size - 1 - i];
-        TransformRecursiveVector(even);
-        for (int i = 0; i < half; i++)
-            odd[i] = values[i] - values[size - 1 - i];
-
-        ReadOnlySpan<float> multipliers = size == 4 ? Wc4 : Wc8;
-        for (int i = 0; i < half; i++)
-            odd[i] *= new Vector<float>(multipliers[i]);
-        TransformRecursiveVector(odd);
-
-        // Use single-round FMA just as the scalar port does. An estimated
-        // multiply-add could change quantized coefficients near boundaries.
-        odd[0] = Vector.FusedMultiplyAdd(odd[0], new Vector<float>(Sqrt2), odd[1]);
-        for (int i = 1; i + 1 < half; i++)
-            odd[i] += odd[i + 1];
-        for (int i = 0; i < half; i++)
-        {
-            values[2 * i] = even[i];
-            values[2 * i + 1] = odd[i];
-        }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void Transform4Vector(ref Vector<float> v0, ref Vector<float> v1,
+        ref Vector<float> v2, ref Vector<float> v3)
+    {
+        Vector<float> e0 = v0 + v3;
+        Vector<float> e1 = v1 + v2;
+        Vector<float> o0 = (v0 - v3) * new Vector<float>(0.541196100146197f);
+        Vector<float> o1 = (v1 - v2) * new Vector<float>(1.3065629648763764f);
+        Vector<float> first = o0 + o1;
+        Vector<float> second = o0 - o1;
+        v0 = e0 + e1;
+        v1 = Vector.FusedMultiplyAdd(first, new Vector<float>(Sqrt2), second);
+        v2 = e0 - e1;
+        v3 = second;
     }
 
     private static void TransformRecursive(Span<float> values)

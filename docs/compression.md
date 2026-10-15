@@ -167,8 +167,9 @@ Bands and DC component groups may change between valid refinement scans.
 `ProgressiveRefinementBits`, `ProgressiveInterleaveDc = false` or
 `SequentialInterleaveComponents = false`. Null preserves existing bytes.
 The encoder copies the script and every component list before output; do not
-modify them while encoding starts. It recomputes full coefficients per scan,
-retaining bounded working storage and the existing input, quantization,
+modify them while encoding starts. Optimized grayscale/YCbCr encoding reuses
+quantized coefficients across scans within a 64 MiB pooled-buffer budget, falling
+back to row/block recomputation for larger images. It retains the existing input, quantization,
 metadata and stream contracts. Single-component scans visit real blocks in
 raster order; scans selecting two or three components use frame MCUs with
 dummy blocks. Histograms and output share that traversal and restart interval.

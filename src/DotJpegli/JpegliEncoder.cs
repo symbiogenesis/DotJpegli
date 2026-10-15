@@ -523,6 +523,8 @@ public static class JpegliEncoder
         CancellationToken cancellationToken)
     {
         int componentCount = tables.Length;
+        using QuantizedImage? quantizedImage = QuantizedImage.Create(pixels, width, height, stride,
+            sampling, tables, distance, options.SmoothingFactor, adaptive, adaptiveMultipliers, cancellationToken);
         var dcFrequencies = new long[componentCount][];
         for (int component = 0; component < componentCount; component++)
             dcFrequencies[component] = new long[256];
@@ -544,7 +546,8 @@ public static class JpegliEncoder
             ProcessScan(pixels, width, height, stride, sampling, tables, distance,
                 options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
                 emptyTables, emptyTables, null, dcFrequencies, acFrequencies[scanIndex], cancellationToken,
-                scan, options.Progressive, aggregateEobRuns: true, contextByComponent: true);
+                scan, options.Progressive, aggregateEobRuns: true, contextByComponent: true,
+                quantizedImage: quantizedImage);
         }
         HuffmanCodingPlan plan = HuffmanCodingPlan.Create(scans, dcFrequencies, acFrequencies,
             options.Progressive, options.ForceBaseline);
@@ -571,7 +574,8 @@ public static class JpegliEncoder
             ProcessScan(pixels, width, height, stride, sampling, tables, distance,
                 options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
                 coding.DcTables, coding.AcTables, bits, null, null, cancellationToken,
-                scan, options.Progressive, aggregateEobRuns: true, contextByComponent: true);
+                scan, options.Progressive, aggregateEobRuns: true, contextByComponent: true,
+                quantizedImage: quantizedImage);
             bits.Flush();
         }
         cancellationToken.ThrowIfCancellationRequested();
@@ -584,7 +588,8 @@ public static class JpegliEncoder
         int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
-        JpegScan scan, bool progressive, bool aggregateEobRuns, bool contextByComponent = false)
+        JpegScan scan, bool progressive, bool aggregateEobRuns, bool contextByComponent = false,
+        QuantizedImage? quantizedImage = null)
     {
         bool dcOnly = progressive && scan.SpectralStart == 0;
         bool refine = scan.SuccessiveHigh != 0;
@@ -593,13 +598,14 @@ public static class JpegliEncoder
                 smoothingFactor, restartInterval, adaptive, adaptiveMultipliers,
                 scan.Components[0], acTables, writer, acFrequencies, cancellationToken,
                 aggregateEobRuns, scan.SuccessiveLow, refine, scan.SpectralStart, scan.SpectralEnd,
-                dcOnly, dcTables, dcFrequencies, sequential: !progressive, contextByComponent: contextByComponent);
+                dcOnly, dcTables, dcFrequencies, sequential: !progressive, contextByComponent: contextByComponent,
+                quantizedImage: quantizedImage);
         else
             ProcessBlocks(pixels, width, height, stride, sampling, tables, distance,
                 smoothingFactor, restartInterval, adaptive, adaptiveMultipliers,
                 dcTables, acTables, writer, dcFrequencies, acFrequencies, cancellationToken,
                 dcOnly, scan.SuccessiveLow, refine, scanComponents: (int[])scan.Components,
-                contextByComponent: contextByComponent);
+                contextByComponent: contextByComponent, quantizedImage: quantizedImage);
     }
 
     private static void ProcessBlocks(PixelSource pixels, int width, int height, int stride,
@@ -608,7 +614,8 @@ public static class JpegliEncoder
         HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
         long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
         bool dcOnly = false, int successiveLow = 0, bool refine = false, bool requireEightBitCoefficients = false,
-        ReadOnlySpan<int> scanComponents = default, bool contextByComponent = false)
+        ReadOnlySpan<int> scanComponents = default, bool contextByComponent = false,
+        QuantizedImage? quantizedImage = null)
     {
         Span<float> samples = stackalloc float[64];
         Span<float> coefficients = stackalloc float[64];
@@ -626,8 +633,9 @@ public static class JpegliEncoder
         float[]? strengths = adaptive is null ? null : new float[adaptive.BlocksWide * vertical];
         for (int top = 0; top < height; top += mcuHeight)
         {
-            pixels.ParallelRows?.PrepareRow(top, cancellationToken);
-            if (adaptive is not null)
+            if (quantizedImage is null)
+                pixels.ParallelRows?.PrepareRow(top, cancellationToken);
+            if (adaptive is not null && quantizedImage is null)
                 adaptive.ComputeRow(pixels, stride, top, tables[pixels.AnalysisComponent][1], strengths!, cancellationToken);
             for (int left = 0; left < width; left += mcuWidth)
             {
@@ -665,6 +673,8 @@ public static class JpegliEncoder
                                 quantized.Clear();
                                 quantized[0] = checked((short)previousDc[component]);
                             }
+                            else if (quantizedImage is not null)
+                                quantizedImage.CopyBlock(component, componentX, componentY, quantized);
                             else
                             {
                                 if (pixels.ParallelRows is { } parallelRows)
@@ -724,7 +734,7 @@ public static class JpegliEncoder
         CancellationToken cancellationToken, bool aggregateEobRuns, int successiveLow = 0, bool refine = false,
         int spectralStart = 1, int spectralEnd = 63, bool dcOnly = false,
         HuffmanTable[]? dcTables = null, long[][]? dcFrequencies = null, bool sequential = false,
-        bool contextByComponent = false)
+        bool contextByComponent = false, QuantizedImage? quantizedImage = null)
     {
         // A noninterleaved scan visits only real component blocks in raster order.
         // In particular, 4:2:0 luma must finish one block row before the next,
@@ -766,8 +776,9 @@ public static class JpegliEncoder
         for (int blockY = 0; blockY < blocksHigh; blockY++)
         {
             int analysisTop = blockY / factor.Vertical * (8 * vertical);
-            pixels.ParallelRows?.PrepareRow(analysisTop, cancellationToken, component);
-            if (adaptive is not null && analysisTop != lastAnalysisTop)
+            if (quantizedImage is null)
+                pixels.ParallelRows?.PrepareRow(analysisTop, cancellationToken, component);
+            if (adaptive is not null && quantizedImage is null && analysisTop != lastAnalysisTop)
             {
                 adaptive.ComputeRow(pixels, stride, analysisTop,
                     tables[pixels.AnalysisComponent][1], strengths!, cancellationToken);
@@ -786,27 +797,32 @@ public static class JpegliEncoder
                     restartIndex = (restartIndex + 1) & 7;
                     mcusRemaining = restartInterval;
                 }
-                if (pixels.ParallelRows is { } parallelRows)
-                    parallelRows.CopyBlock(component, blockX, blockY, coefficients);
+                if (quantizedImage is not null)
+                    quantizedImage.CopyBlock(component, blockX, blockY, quantized);
                 else
                 {
-                    Downsampling.FillBlock(pixels, width, height, stride, component,
-                        blockX, blockY, horizontal, vertical, factor.Horizontal, factor.Vertical,
-                        samples, smoothingFactor);
-                    ForwardDct.Transform(samples, coefficients);
+                    if (pixels.ParallelRows is { } parallelRows)
+                        parallelRows.CopyBlock(component, blockX, blockY, coefficients);
+                    else
+                    {
+                        Downsampling.FillBlock(pixels, width, height, stride, component,
+                            blockX, blockY, horizontal, vertical, factor.Horizontal, factor.Vertical,
+                            samples, smoothingFactor);
+                        ForwardDct.Transform(samples, coefficients);
+                    }
+                    // Reproduce the interleaved pass's component-local row index,
+                    // including chroma components with multiple blocks per MCU.
+                    int strengthRow = blockY % factor.Vertical;
+                    float strength = adaptive is null ? 0f : strengths![strengthRow * adaptive.BlocksWide
+                        + blockX * horizontal / factor.Horizontal];
+                    // AC thresholds and the zero DC threshold are independent of
+                    // scan ordering. Each scan uses the same full coefficients.
+                    Quantization.Quantize(coefficients, tables[component], quantized, component, distance,
+                        grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
+                        adaptiveStrength: strength,
+                        adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
+                        rgb: pixels.IsRgb);
                 }
-                // Reproduce the interleaved pass's component-local row index,
-                // including chroma components with multiple blocks per MCU.
-                int strengthRow = blockY % factor.Vertical;
-                float strength = adaptive is null ? 0f : strengths![strengthRow * adaptive.BlocksWide
-                    + blockX * horizontal / factor.Horizontal];
-                // AC thresholds and the zero DC threshold are independent of
-                // scan ordering. Each scan uses the same full coefficients.
-                Quantization.Quantize(coefficients, tables[component], quantized, component, distance,
-                    grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
-                    adaptiveStrength: strength,
-                    adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                    rgb: pixels.IsRgb);
                 if (sequential)
                 {
                     if (writer is null)

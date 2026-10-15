@@ -7,7 +7,8 @@ namespace DotJpegli.Internal;
 // Port of HistogramCost, ClusterJpegHistograms and OptimizeHuffmanCodes in
 // google/jpegli lib/jpegli/entropy_coding.cc at revision
 // 031a0077f5799a6041004267fc12b956c1f52a20. Histograms, rather than image-sized
-// coefficient/token storage, are retained between the encoder's two passes.
+// token storage, determine coding tables. The encoder may separately retain a
+// budget-limited quantized image to avoid rebuilding coefficients for every scan.
 internal sealed class HuffmanCodingPlan
 {
     internal readonly record struct Definition(HuffmanTable Table, int Selector);

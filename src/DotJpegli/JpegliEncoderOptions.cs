@@ -351,7 +351,8 @@ public sealed record JpegliEncoderOptions
     /// Write a progressive JPEG with a DC preview followed by an AC scan
     /// per component and optional refinement scans. False (the default) writes sequential JPEG,
     /// using SOF0 or SOF1 according to the emitted quantizers.
-    /// Coefficients are recomputed for each scan to keep working memory bounded.
+    /// Optimized grayscale/YCbCr encoding reuses up to 64 MiB of pooled
+    /// coefficients across scans; larger images retain bounded row/block recomputation.
     /// </summary>
     public bool Progressive { get; init; }
 
@@ -371,8 +372,8 @@ public sealed record JpegliEncoderOptions
     /// ProgressiveRefinementBits, ProgressiveInterleaveDc=false or
     /// SequentialInterleaveComponents=false. Progressive itself is ignored.
     /// The script and all component lists are copied and validated before output;
-    /// do not modify them while encoding starts. Each scan recomputes coefficients
-    /// using bounded storage, resets entropy/restart state, and uses its own MCU
+    /// do not modify them while encoding starts. Each scan reuses or recomputes
+    /// coefficients within a fixed storage budget, resets entropy/restart state, and uses its own MCU
     /// geometry for RestartRows. Final real coefficients are unchanged.
     /// </summary>
     public IReadOnlyList<JpegScan>? ScanScript { get; init; }
@@ -386,7 +387,7 @@ public sealed record JpegliEncoderOptions
     /// Requires sequential output: Progressive must be false unless ProgressiveLevel
     /// is zero. Positive ProgressiveLevel presets cannot be combined with false.
     /// Final coefficients are unchanged; color output requires more encoding passes.
-    /// No full-image coefficient buffer is allocated. Reader support can vary.
+    /// Coefficient reuse has the same fixed budget as progressive output. Reader support can vary.
     /// </summary>
     public bool SequentialInterleaveComponents { get; init; } = true;
 
