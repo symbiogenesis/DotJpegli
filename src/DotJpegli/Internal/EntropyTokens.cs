@@ -101,6 +101,11 @@ internal sealed class EntropyTokens : IDisposable
         if (!IsComplete)
             throw new InvalidOperationException("An abandoned entropy token sequence cannot be replayed.");
         cancellationToken.ThrowIfCancellationRequested();
+        var lookups = new ulong[Math.Max(coding.DcTables.Length, coding.AcTables.Length) * 2][];
+        for (int component = 0; component < coding.DcTables.Length; component++)
+            lookups[component * 2] = coding.DcTables[component].GetPrebiasedCodes();
+        for (int component = 0; component < coding.AcTables.Length; component++)
+            lookups[component * 2 + 1] = coding.AcTables[component].GetPrebiasedCodes();
         for (int segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
         {
             ulong[] segment = segments[segmentIndex];
@@ -115,8 +120,15 @@ internal sealed class EntropyTokens : IDisposable
                 if (kind == 0)
                 {
                     int context = (int)(token >> ContextShift) & 7;
-                    HuffmanTable table = (context & 1) == 0 ? coding.DcTables[context >> 1] : coding.AcTables[context >> 1];
-                    table.WriteSymbolWithBits(writer, (int)(token >> SymbolShift) & 255, (uint)token, count);
+                    int symbol = (int)(token >> SymbolShift) & 255;
+                    ulong prepared = lookups[context][symbol];
+                    if ((int)(prepared >> 38) == count + 1)
+                        writer.WriteBits((uint)prepared | (uint)token, (int)(prepared >> 32) & 63);
+                    else
+                    {
+                        HuffmanTable table = (context & 1) == 0 ? coding.DcTables[context >> 1] : coding.AcTables[context >> 1];
+                        table.WriteSymbolWithBits(writer, symbol, (uint)token, count);
+                    }
                 }
                 else if (kind == 1)
                     writer.WriteBits((uint)token, count);

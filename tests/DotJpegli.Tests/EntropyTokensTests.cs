@@ -8,6 +8,53 @@ public sealed class EntropyTokensTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void PrebiasedCodesPreserveEverySymbolAndArbitrarySuffixWidths(bool buffered)
+    {
+        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        var coding = new HuffmanCodingPlan.ScanCoding([table], [table], [], []);
+        using var tokens = new EntropyTokens();
+        using var expected = new MemoryStream();
+        var writer = new BitWriter(expected, buffered);
+        var random = new Random(95179);
+        for (int symbol = 0; symbol < 256; symbol++)
+        {
+            int canonical = symbol == 0xf0 ? 0 : (symbol & 15) == 0 ? symbol >> 4 : symbol & 15;
+            foreach (int count in new[] { canonical, (canonical + 3) % 17 })
+            {
+                uint suffix = (uint)random.Next(1 << count);
+                table.WriteSymbolWithBits(writer, symbol, suffix, count);
+                tokens.AddHuffman(0, true, symbol, suffix, count);
+            }
+        }
+        writer.Flush();
+        using var actual = new MemoryStream();
+        var replay = new BitWriter(actual, buffered);
+        tokens.Replay(replay, coding, TestContext.Current.CancellationToken);
+        replay.Flush();
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Same(table.GetPrebiasedCodes(), table.GetPrebiasedCodes());
+    }
+
+    [Fact]
+    public void MissingSymbolsStillThrowAtTheSameOutputPrefix()
+    {
+        long[] frequencies = new long[256];
+        frequencies[5] = 1;
+        HuffmanTable table = HuffmanTable.CreateOptimized(frequencies);
+        using var tokens = new EntropyTokens();
+        tokens.AddBits(0x42, 8);
+        tokens.AddHuffman(0, true, 0, 0, 0);
+        using var output = new MemoryStream();
+        var writer = new BitWriter(output);
+        var error = Assert.Throws<InvalidOperationException>(() => tokens.Replay(writer,
+            new HuffmanCodingPlan.ScanCoding([table], [table], [], []), TestContext.Current.CancellationToken));
+        Assert.Equal("The Huffman table has no code for symbol 0.", error.Message);
+        Assert.Equal(new byte[] { 0x42 }, output.ToArray());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void RecordedFrequencyTokensPreserveComponentTablesStuffingAndRestarts(bool buffered)
     {
         var random = new Random(43931);

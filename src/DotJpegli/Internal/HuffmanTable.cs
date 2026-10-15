@@ -12,6 +12,7 @@ internal sealed class HuffmanTable
 {
     private readonly uint[] codes = new uint[256];
     private readonly byte[] lengths = new byte[256];
+    private ulong[]? prebiasedCodes;
 
     public byte[] Counts { get; }
 
@@ -197,6 +198,29 @@ internal sealed class HuffmanTable
         if ((uint)symbol >= 256 || lengths[symbol] == 0)
             throw new InvalidOperationException($"The Huffman table has no code for symbol {symbol}.");
         writer.WriteBits((codes[symbol] << count) | bits, lengths[symbol] + count);
+    }
+
+    // WriteTokens in upstream entropy_coding.cc pre-shifts each code by the
+    // symbol's JPEG suffix width. Preserve a count tag so generic/internal
+    // callers with another suffix width still use the strict write method.
+    internal ulong[] GetPrebiasedCodes()
+    {
+        if (Volatile.Read(ref prebiasedCodes) is { } existing)
+            return existing;
+        var prepared = new ulong[256];
+        for (int symbol = 0; symbol < prepared.Length; symbol++)
+        {
+            int length = lengths[symbol];
+            if (length == 0)
+                continue;
+            int count = symbol == 0xf0 ? 0 : (symbol & 15) == 0 ? symbol >> 4 : symbol & 15;
+            // Low 32 bits are the shifted prefix; the next six are the total
+            // length. Count+1 distinguishes valid zero-suffix symbols from
+            // missing table entries, whose entire prepared value remains zero.
+            prepared[symbol] = (codes[symbol] << count) | ((ulong)(uint)(length + count) << 32)
+                | ((ulong)(uint)(count + 1) << 38);
+        }
+        return Interlocked.CompareExchange(ref prebiasedCodes, prepared, null) ?? prepared;
     }
 
     // HistogramCost in upstream includes the selector, 16 length counts and
