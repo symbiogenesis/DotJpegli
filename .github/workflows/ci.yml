@@ -79,7 +79,7 @@ jobs:
       - name: Managed SIMD fallback and software vector parity
         env:
           DOTNET_EnableHWIntrinsic: '0'
-        run: dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.PlaneDctTests -class DotJpegli.Tests.AdaptiveQuantizationReuseTests -class DotJpegli.Tests.SimdColorConversionTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.SimdQuantizationTests -class DotJpegli.Tests.SimdAdaptiveQuantizationTests -class DotJpegli.Tests.PlanarPixelSourceTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.EncoderParallelTests -class DotJpegli.Tests.SourceIccColorManagementTests -class DotJpegli.Tests.NumericalTests -class DotJpegli.Tests.EncoderSmokeTests
+        run: dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.PlaneDctTests -class DotJpegli.Tests.AdaptiveQuantizationReuseTests -class DotJpegli.Tests.SimdColorConversionTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.SimdQuantizationTests -class DotJpegli.Tests.PreparedQuantizationTests -class DotJpegli.Tests.OrderedEntropyTests -class DotJpegli.Tests.OrderedProgressiveEntropyTests -class DotJpegli.Tests.SimdAdaptiveQuantizationTests -class DotJpegli.Tests.PlanarPixelSourceTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.EncoderParallelTests -class DotJpegli.Tests.SourceIccColorManagementTests -class DotJpegli.Tests.NumericalTests -class DotJpegli.Tests.EncoderSmokeTests
       - name: Verify reproducible Release assembly and package
         shell: pwsh
         run: ./tools/verify-reproducibility.ps1
@@ -261,7 +261,7 @@ jobs:
           cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
           for runtime in 10.0.13 11.0.0-rc.2.26504.105; do
             set +e
-            taskset -c "$cpu" dotnet --fx-version "$runtime" "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/net10.0/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/runtime-$runtime" --diagnostic --images kodim01 --distances 1 --samplings 444 --progressions 0 --blocks 7 --iterations 20 --warmups 5
+            taskset -c "$cpu" dotnet --fx-version "$runtime" --roll-forward Disable "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/net10.0/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/runtime-$runtime" --diagnostic --images kodim01 --distances 1 --samplings 444 --progressions 0 --blocks 7 --iterations 20 --warmups 5
             verdict=$?
             set -e
             if [[ "$verdict" -gt 1 ]]; then exit "$verdict"; fi
@@ -280,7 +280,8 @@ jobs:
               summary = json.loads((path / 'summary.json').read_text())
               cases = json.loads((path / 'cases.json').read_text())
               assert summary['valid'] and len(cases) == 1, 'Runtime comparison needs stable matched evidence'
-              assert run['environment']['runtimeVersion'] == version, 'Unexpected runtime'
+              assert run['environment']['runtimeVersion'] == version.split('-')[0], 'Unexpected runtime version'
+              assert run['environment']['runtimeProductVersion'] == version, 'Unexpected runtime build'
               data.append((run, cases[0]))
           left, right = data
           for field in ['testedRevision', 'managedEncoderSha256', 'managedRunnerSha256', 'nativeExecutableSha256']:
