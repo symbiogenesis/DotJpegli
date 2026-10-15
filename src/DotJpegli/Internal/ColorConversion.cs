@@ -3,6 +3,7 @@
 // found in LICENSE.jpegli or at https://developers.google.com/open-source/licenses/bsd.
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace DotJpegli.Internal;
 
@@ -42,6 +43,7 @@ internal static class ColorConversion
 
     // Lanes are independent pixels. Preserve the scalar multiplication,
     // addition and single-round FMA operations exactly.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void RgbToYCbCr(Vector<float> r, Vector<float> g, Vector<float> b,
         out Vector<float> y, out Vector<float> cb, out Vector<float> cr)
     {
