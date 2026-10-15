@@ -80,7 +80,7 @@ work below remains outstanding.
 | --- | --- |
 | Encoder functionality and output compatibility | Focused regressions check coefficients, marker framing, independent decoding, stream behavior and validation. Optional modes retain the reader requirements in the API guides. |
 | Quality and compression parity | Established within the [documented RGB8 YCbCr scope and fixed tolerances](quality-compression-parity.md): 1,280 matched pairs passed on the pinned upstream corpus comparison, with complete matched-rate/quality coverage. Worst size overhead was 0.087051%; worst matched-size losses were 0.013825 dB PSNR and 0.000136338 SSIM. [Hosted proof](https://github.com/symbiogenesis/DotJpegli/actions/runs/38517910693), tested revision `b30697e`. |
-| Performance parity | Not established. The [latest retained targeted .NET 11 comparison](performance-evidence/2026-10-14-2c78be9/targeted/report.md) measured 1.21–1.46× native latency across four selected cases. All exceed the fixed 1.10 bound. Normal pushes run these targeted cases; optional one-case .NET 10/11 API comparisons cover x64 and ARM64. Full acceptance coverage remains outstanding. |
+| Performance parity | Not established. The [latest retained targeted .NET 11 comparison](performance-evidence/2026-10-15-60835e6/targeted/report.md) measured 1.04–1.20× native latency across four selected cases. Three exceed the fixed 1.10 bound; 4:2:0 sequential meets it. Normal pushes run these targeted cases; optional one-case .NET 10/11 API comparisons cover x64 and ARM64. Full acceptance coverage remains outstanding. |
 
 Output remains **lossy eight-bit JPEG**, including at quality 100. Jpegli's quality
 scale is not interchangeable with libjpeg's. Quality/compression parity is
@@ -89,24 +89,24 @@ Byte-identical upstream output and speed parity are not claimed. Google's
 [comparison study](https://arxiv.org/abs/2403.18589) describes results in its tested
 conditions and does not establish a universal smallest-encoder ranking.
 
-The retained four-case performance measurements tested revision `2c78be9` in
-[run 38683739549](https://github.com/symbiogenesis/DotJpegli/actions/runs/38683739549),
-on an AMD EPYC 7763 x64 host with .NET 11 RC2 (`11.0.0-rc.2.26504.105`).
+The retained four-case performance measurements tested revision `60835e6` in
+[run 38684730647](https://github.com/symbiogenesis/DotJpegli/actions/runs/38684730647),
+on an Intel Xeon Platinum 8573C x64 host with .NET 11 RC2 (`11.0.0-rc.2.26504.105`).
 The four-case comparison uses Kodak01, RGB8 to YCbCr, distance 1, AQ,
 optimized Huffman coding and one worker. Ratios are managed median latency
 divided by native median latency; lower is better.
 
 | Sampling | Sequential | Progressive level 2 |
 | --- | ---: | ---: |
-| 4:4:4 | 1.462× | 1.262× |
-| 4:2:0 | 1.293× | 1.206× |
+| 4:4:4 | 1.151× | 1.202× |
+| 4:2:0 | 1.041× | 1.106× |
 
-All four cases passed timing stability and matched JPEG settings. All still
+All four cases passed timing stability and matched JPEG settings. Three still
 exceed the individual 1.10 latency bound. The
-[retained evidence](performance-evidence/2026-10-14-2c78be9/README.md) includes raw
+[retained evidence](performance-evidence/2026-10-15-60835e6/README.md) includes raw
 samples, host identity, settings and native build provenance. These selected
 cases do not establish whole-corpus performance parity. The preceding retained
-run used an EPYC 9V45; these measurements do not form a same-host before/after
+run used an EPYC 7763; these measurements do not form a same-host before/after
 speed comparison. Managed JPEG hashes match that preceding run.
 
 Separate 4:2:0 sequential API comparisons at revision `0633ebc` measured essentially no extra gain from
@@ -146,6 +146,11 @@ chroma scratch. Source edges are replicated before the ordered 2×2 averages;
 all other input/mode combinations retain the full-plane or streaming path.
 Retained entropy tokens share another 64 MiB budget across scans, with coefficient
 replay when a token sequence exceeds its allocation budget.
+Single-worker optimized interleaved sequential scans record tokens while each
+block is transformed and quantized, avoiding the image-wide coefficient cache
+and its subsequent traversal. If tokens exceed their budget, emission recomputes
+blocks with the same prepared quantizers; progressive and other scan layouts
+retain coefficient reuse when it fits the cache budget.
 All workers finish before encoding returns. Adaptive analysis,
 quantization and stream writes remain ordered. This execution option extends
 the managed port and does not establish a measured speed improvement.
