@@ -94,16 +94,12 @@ internal sealed class QuantizedImage : IDisposable
                             // Built-in DC zero-bias multipliers are zero, so the full DC
                             // coefficient does not depend on scan order or restart predictors.
                             Span<short> quantized = image.Block(component, x, y);
-                            Quantization.QuantizePrepared(transformed, quantizers[component], quantized,
+                            Span<short> natural = zigZagOrdered ? naturalOrder : quantized;
+                            Quantization.QuantizePrepared(transformed, quantizers[component], natural,
                                 adaptiveStrength: strength);
-                            EntropyEncoder.ValidateAc(quantized);
+                            EntropyEncoder.ValidateAc(natural);
                             if (zigZagOrdered)
-                            {
-                                quantized.CopyTo(naturalOrder);
-                                ReadOnlySpan<int> order = JpegConstants.ZigZag;
-                                for (int position = 0; position < 64; position++)
-                                    quantized[position] = naturalOrder[order[position]];
-                            }
+                                ZigZagOrdering.Reorder(natural, quantized);
                         }
                 }
             }
