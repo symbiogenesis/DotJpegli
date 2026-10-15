@@ -25,7 +25,7 @@ public static class JpegliEncoder
         PixelLayout layout = PixelLayout.Rgb24, JpegliEncoderOptions? options = null,
         int stride = 0, CancellationToken cancellationToken = default)
     {
-        using var output = new MemoryStream();
+        using var output = new PooledOutputStream();
         Encode(output, pixels, width, height, layout, options, stride, cancellationToken);
         return output.ToArray();
     }
@@ -53,7 +53,7 @@ public static class JpegliEncoder
         PixelComponentLayout layout = PixelComponentLayout.Rgb, JpegliEncoderOptions? options = null,
         int stride = 0, CancellationToken cancellationToken = default)
     {
-        using var output = new MemoryStream();
+        using var output = new PooledOutputStream();
         Encode(output, pixels, width, height, layout, options, stride, cancellationToken);
         return output.ToArray();
     }
@@ -83,7 +83,7 @@ public static class JpegliEncoder
         PixelComponentLayout layout = PixelComponentLayout.Rgb, JpegliEncoderOptions? options = null,
         int stride = 0, CancellationToken cancellationToken = default)
     {
-        using var output = new MemoryStream();
+        using var output = new PooledOutputStream();
         Encode(output, pixels, width, height, layout, options, stride, cancellationToken);
         return output.ToArray();
     }
