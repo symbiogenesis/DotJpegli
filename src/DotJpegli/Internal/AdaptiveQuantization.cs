@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in LICENSE.jpegli or at https://developers.google.com/open-source/licenses/bsd.
 
+using System.Numerics;
+
 namespace DotJpegli.Internal;
 
-/// <summary>Scalar spatial adaptive quantization, with storage bounded to one MCU neighborhood.</summary>
+/// <summary>Spatial adaptive quantization, with storage bounded to one MCU neighborhood.</summary>
 internal sealed class AdaptiveQuantization
 {
     // Derived from google/jpegli lib/jpegli/adaptive_quantization.cc at
@@ -63,6 +65,19 @@ internal sealed class AdaptiveQuantization
 
     internal void ComputeRow(PixelSource pixels, int stride, int top, int lumaAcQuant,
         Span<float> strengths, CancellationToken cancellationToken)
+        => ComputeRowCore(pixels, stride, top, lumaAcQuant, strengths, cancellationToken,
+            Vector.IsHardwareAccelerated);
+
+    internal void ComputeRowScalar(PixelSource pixels, int stride, int top, int lumaAcQuant,
+        Span<float> strengths, CancellationToken cancellationToken)
+        => ComputeRowCore(pixels, stride, top, lumaAcQuant, strengths, cancellationToken, false);
+
+    internal void ComputeRowVector(PixelSource pixels, int stride, int top, int lumaAcQuant,
+        Span<float> strengths, CancellationToken cancellationToken)
+        => ComputeRowCore(pixels, stride, top, lumaAcQuant, strengths, cancellationToken, true);
+
+    private void ComputeRowCore(PixelSource pixels, int stride, int top, int lumaAcQuant,
+        Span<float> strengths, CancellationToken cancellationToken, bool useVector)
     {
         cancellationToken.ThrowIfCancellationRequested();
         int mcuHeight = verticalSampling * 8;
@@ -79,11 +94,12 @@ internal sealed class AdaptiveQuantization
             cancellationToken.ThrowIfCancellationRequested();
             int sourceY = Math.Clamp(firstLumaY + row, 0, height - 1);
             int destination = row * lumaStride + 1;
-            for (int x = 0; x < width; x++)
-            {
-                int offset = sourceY * stride + x * pixels.ComponentsPerPixel;
-                luma[destination + x] = pixels.ReadSample(offset, pixels.AnalysisComponent);
-            }
+            if (useVector)
+                pixels.ReadRowVector(width, height, stride, pixels.AnalysisComponent, 0, sourceY,
+                    luma.AsSpan(destination, width));
+            else
+                pixels.ReadRowScalar(width, height, stride, pixels.AnalysisComponent, 0, sourceY,
+                    luma.AsSpan(destination, width));
             luma[destination - 1] = luma[destination];
             luma.AsSpan(destination + width, paddedWidth - width + 1).Fill(luma[destination + width - 1]);
         }
@@ -94,7 +110,7 @@ internal sealed class AdaptiveQuantization
         {
             cancellationToken.ThrowIfCancellationRequested();
             int sourceY = Math.Clamp(firstPreY + row, 0, preHeight - 1) * 4;
-            ComputePreErosion(sourceY - firstLumaY, row);
+            ComputePreErosion(sourceY - firstLumaY, row, useVector);
         }
 
         const float acQuant = 0.841f;
@@ -104,8 +120,8 @@ internal sealed class AdaptiveQuantization
         for (int blockY = 0; blockY < verticalSampling; blockY++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            ComputeFuzzyErosion(blockY * 2 + 1, 0);
-            ComputeFuzzyErosion(blockY * 2 + 2, preStride);
+            ComputeFuzzyErosion(blockY * 2 + 1, 0, useVector);
+            ComputeFuzzyErosion(blockY * 2 + 2, preStride, useVector);
             for (int blockX = 0; blockX < BlocksWide; blockX++)
             {
                 int x = blockX * 2;
@@ -113,21 +129,38 @@ internal sealed class AdaptiveQuantization
                     + fuzzy[x] + fuzzy[x + 1];
                 value = ComputeMask(value);
                 value = HfModulation(blockX * 8, 5 + blockY * 8, value);
-                value = GammaModulation(blockX * 8, 5 + blockY * 8, value);
+                value = GammaModulation(blockX * 8, 5 + blockY * 8, value, useVector);
                 float field = FastPow2(value * 1.442695041f) * mul + add;
                 strengths[blockY * BlocksWide + blockX] = MathF.Max(0f, 0.6f / field - 1f);
             }
         }
     }
 
-    private void ComputePreErosion(int firstRow, int outputRow)
+    private void ComputePreErosion(int firstRow, int outputRow, bool useVector)
     {
         const float gammaOffset = (float)(0.019 / InputScaling);
         float maskingScale = MathF.Sqrt((float)(211.50759899638012f * 1e8));
         for (int dy = 0; dy < 4; dy++)
         {
             int middle = (firstRow + dy) * lumaStride + 1;
-            for (int x = 0; x < paddedWidth; x++)
+            int x = 0;
+            if (useVector)
+                for (; x <= paddedWidth - Vector<float>.Count; x += Vector<float>.Count)
+                {
+                    int index = middle + x;
+                    Vector<float> value = new(luma, index);
+                    Vector<float> baseValue = new Vector<float>(0.25f)
+                        * ((new Vector<float>(luma, index + 1) + new Vector<float>(luma, index - 1))
+                        + (new Vector<float>(luma, index - lumaStride) + new Vector<float>(luma, index + lumaStride)));
+                    Vector<float> diff = DerivativeRatio(value + new Vector<float>(gammaOffset), invert: false)
+                        * (value - baseValue);
+                    diff = Vector.Min(diff * diff, new Vector<float>(0.2f));
+                    diff = new Vector<float>(0.25f) * Vector.SquareRoot(diff * new Vector<float>(maskingScale) + new Vector<float>(28f));
+                    if (dy != 0)
+                        diff = new Vector<float>(difference, x) + diff;
+                    diff.CopyTo(difference, x);
+                }
+            for (; x < paddedWidth; x++)
             {
                 int index = middle + x;
                 float value = luma[index];
@@ -148,26 +181,55 @@ internal sealed class AdaptiveQuantization
         }
     }
 
-    private void ComputeFuzzyErosion(int row, int output)
+    private void ComputeFuzzyErosion(int row, int output, bool useVector)
     {
-        for (int x = 0; x < preStride; x++)
+        int x = 0;
+        // The boundary cells replicate their nearest neighbor; interior cells
+        // can load all nine neighbors without gathering or clamping lanes.
+        if (useVector && preStride > Vector<float>.Count + 1)
         {
-            // Keep the four lowest values from the replicated 3x3 neighborhood.
-            float min0 = float.PositiveInfinity, min1 = min0, min2 = min0, min3 = min0;
-            for (int dy = -1; dy <= 1; dy++)
-                for (int dx = -1; dx <= 1; dx++)
-                {
-                    float value = preErosion[(row + dy) * preStride + Math.Clamp(x + dx, 0, preStride - 1)];
-                    float next0 = MathF.Max(min0, value);
-                    float next1 = MathF.Max(min1, next0);
-                    float next2 = MathF.Max(min2, next1);
-                    min0 = MathF.Min(min0, value);
-                    min1 = MathF.Min(min1, next0);
-                    min2 = MathF.Min(min2, next1);
-                    min3 = MathF.Min(min3, next2);
-                }
-            fuzzy[output + x] = (0.125f * min0 + 0.075f * min1) + (0.06f * min2 + 0.05f * min3);
+            ComputeFuzzyErosionScalar(row, output, x++);
+            for (; x < preStride - Vector<float>.Count; x += Vector<float>.Count)
+            {
+                Vector<float> min0 = new(float.PositiveInfinity), min1 = min0, min2 = min0, min3 = min0;
+                for (int dy = -1; dy <= 1; dy++)
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        Vector<float> value = new(preErosion, (row + dy) * preStride + x + dx);
+                        Vector<float> next0 = Vector.Max(min0, value);
+                        Vector<float> next1 = Vector.Max(min1, next0);
+                        Vector<float> next2 = Vector.Max(min2, next1);
+                        min0 = Vector.Min(min0, value);
+                        min1 = Vector.Min(min1, next0);
+                        min2 = Vector.Min(min2, next1);
+                        min3 = Vector.Min(min3, next2);
+                    }
+                Vector<float> valueSum = (new Vector<float>(0.125f) * min0 + new Vector<float>(0.075f) * min1)
+                    + (new Vector<float>(0.06f) * min2 + new Vector<float>(0.05f) * min3);
+                valueSum.CopyTo(fuzzy, output + x);
+            }
         }
+        for (; x < preStride; x++)
+            ComputeFuzzyErosionScalar(row, output, x);
+    }
+
+    private void ComputeFuzzyErosionScalar(int row, int output, int x)
+    {
+        // Keep the four lowest values from the replicated 3x3 neighborhood.
+        float min0 = float.PositiveInfinity, min1 = min0, min2 = min0, min3 = min0;
+        for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                float value = preErosion[(row + dy) * preStride + Math.Clamp(x + dx, 0, preStride - 1)];
+                float next0 = MathF.Max(min0, value);
+                float next1 = MathF.Max(min1, next0);
+                float next2 = MathF.Max(min2, next1);
+                min0 = MathF.Min(min0, value);
+                min1 = MathF.Min(min1, next0);
+                min2 = MathF.Min(min2, next1);
+                min3 = MathF.Min(min3, next2);
+            }
+        fuzzy[output + x] = (0.125f * min0 + 0.075f * min1) + (0.06f * min2 + 0.05f * min3);
     }
 
     private static float ComputeMask(float value)
@@ -197,13 +259,28 @@ internal sealed class AdaptiveQuantization
         return sum * sumCoeff + value;
     }
 
-    private float GammaModulation(int x, int y, float value)
+    private float GammaModulation(int x, int y, float value, bool useVector)
     {
         float ratio = 0;
+        Span<float> derivatives = stackalloc float[8];
         for (int dy = 0; dy < 8; dy++)
-            for (int dx = 0; dx < 8; dx++)
-                ratio += DerivativeRatio(luma[(y + dy) * lumaStride + x + dx + 1]
-                    + 0.16f / InputScaling, invert: true);
+        {
+            int row = (y + dy) * lumaStride + x + 1;
+            int dx = 0;
+            if (useVector && Vector<float>.Count <= 8)
+                for (; dx <= 8 - Vector<float>.Count; dx += Vector<float>.Count)
+                {
+                    Vector<float> samples = new Vector<float>(luma, row + dx)
+                        + new Vector<float>(0.16f / InputScaling);
+                    DerivativeRatio(samples, invert: true).CopyTo(derivatives[dx..]);
+                }
+            for (int column = 0; column < dx; column++)
+                ratio += derivatives[column];
+            // Retain the scalar reduction order: a parallel sum can change
+            // the final quantized coefficients at a rounding boundary.
+            for (; dx < 8; dx++)
+                ratio += DerivativeRatio(luma[row + dx] + 0.16f / InputScaling, invert: true);
+        }
         ratio *= InputScaling / 64f;
         return (-0.15526878023684174f * InvLog2E) * FastLog2(ratio) + value;
     }
@@ -214,6 +291,15 @@ internal sealed class AdaptiveQuantization
         float squared = value * value;
         float numerator = NumMul * squared + NumOffset;
         float denominator = (DenMul * value) * squared + VOffset;
+        return invert ? numerator / denominator : denominator / numerator;
+    }
+
+    private static Vector<float> DerivativeRatio(Vector<float> value, bool invert)
+    {
+        value = Vector.Max(value, Vector<float>.Zero);
+        Vector<float> squared = value * value;
+        Vector<float> numerator = new Vector<float>(NumMul) * squared + new Vector<float>(NumOffset);
+        Vector<float> denominator = (new Vector<float>(DenMul) * value) * squared + new Vector<float>(VOffset);
         return invert ? numerator / denominator : denominator / numerator;
     }
 
