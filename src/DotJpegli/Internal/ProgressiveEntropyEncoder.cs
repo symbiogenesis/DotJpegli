@@ -4,6 +4,7 @@
 
 using System.Buffers.Binary;
 using System.Numerics;
+using System.Runtime.Intrinsics;
 
 namespace DotJpegli.Internal;
 
@@ -74,12 +75,13 @@ internal static class ProgressiveEntropyEncoder
         int successiveLow = 0,
         int spectralStart = 1,
         int spectralEnd = 63,
-        bool coefficientsValidated = false)
+        bool coefficientsValidated = false,
+        bool zigZagOrdered = false)
     {
         // The standard AC tables only define the one-block EOB symbol.
         int pendingEobRun = 0;
         WriteAc(writer, naturalCoefficients, ac, ref pendingEobRun, successiveLow, spectralStart, spectralEnd,
-            coefficientsValidated);
+            coefficientsValidated, zigZagOrdered);
         FlushAc(writer, ac, ref pendingEobRun);
     }
 
@@ -91,7 +93,8 @@ internal static class ProgressiveEntropyEncoder
         int successiveLow = 0,
         int spectralStart = 1,
         int spectralEnd = 63,
-        bool coefficientsValidated = false)
+        bool coefficientsValidated = false,
+        bool zigZagOrdered = false)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(ac);
@@ -108,7 +111,7 @@ internal static class ProgressiveEntropyEncoder
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
         for (int position = spectralStart; position <= spectralEnd; position++)
         {
-            int value = ShiftAc(naturalCoefficients[order[position]], successiveLow);
+            int value = ShiftAc(naturalCoefficients[zigZagOrdered ? position : order[position]], successiveLow);
             if (value == 0)
             {
                 run++;
@@ -149,11 +152,12 @@ internal static class ProgressiveEntropyEncoder
         int spectralEnd = 63,
         bool coefficientsValidated = false,
         EntropyTokens? tokens = null,
-        int component = 0)
+        int component = 0,
+        bool zigZagOrdered = false)
     {
         int pendingEobRun = 0;
         AccumulateAcFrequencies(naturalCoefficients, ac, ref pendingEobRun, successiveLow, spectralStart, spectralEnd,
-            coefficientsValidated, tokens, component);
+            coefficientsValidated, tokens, component, zigZagOrdered);
         FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
     }
 
@@ -166,7 +170,8 @@ internal static class ProgressiveEntropyEncoder
         int spectralEnd = 63,
         bool coefficientsValidated = false,
         EntropyTokens? tokens = null,
-        int component = 0)
+        int component = 0,
+        bool zigZagOrdered = false)
     {
         ValidateFrequencies(ac);
         ValidateSuccessiveLow(successiveLow, refinement: false);
@@ -182,7 +187,7 @@ internal static class ProgressiveEntropyEncoder
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
         for (int position = spectralStart; position <= spectralEnd; position++)
         {
-            int value = ShiftAc(naturalCoefficients[order[position]], successiveLow);
+            int value = ShiftAc(naturalCoefficients[zigZagOrdered ? position : order[position]], successiveLow);
             if (value == 0)
             {
                 run++;
@@ -225,12 +230,13 @@ internal static class ProgressiveEntropyEncoder
         int successiveLow,
         int spectralStart = 1,
         int spectralEnd = 63,
-        bool coefficientsValidated = false)
+        bool coefficientsValidated = false,
+        bool zigZagOrdered = false)
     {
         // Standard tables only define the one-block EOB symbol.
         var state = new ProgressiveAcRefinementState();
         WriteAcRefinement(writer, naturalCoefficients, ac, state, successiveLow, spectralStart, spectralEnd,
-            coefficientsValidated);
+            coefficientsValidated, zigZagOrdered);
         FlushAcRefinement(writer, ac, state);
     }
 
@@ -242,7 +248,8 @@ internal static class ProgressiveEntropyEncoder
         int successiveLow,
         int spectralStart = 1,
         int spectralEnd = 63,
-        bool coefficientsValidated = false)
+        bool coefficientsValidated = false,
+        bool zigZagOrdered = false)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(ac);
@@ -250,7 +257,8 @@ internal static class ProgressiveEntropyEncoder
         ValidateSuccessiveLow(successiveLow, refinement: true);
         ValidateSpectralRange(spectralStart, spectralEnd);
         ValidateAc(naturalCoefficients, coefficientsValidated);
-        ProcessAcRefinement(naturalCoefficients, state, successiveLow, spectralStart, spectralEnd, writer, ac, null);
+        ProcessAcRefinement(naturalCoefficients, state, successiveLow, spectralStart, spectralEnd, writer, ac, null,
+            zigZagOrdered: zigZagOrdered);
     }
 
     public static void AccumulateAcRefinementFrequencies(
@@ -261,11 +269,12 @@ internal static class ProgressiveEntropyEncoder
         int spectralEnd = 63,
         bool coefficientsValidated = false,
         EntropyTokens? tokens = null,
-        int component = 0)
+        int component = 0,
+        bool zigZagOrdered = false)
     {
         var state = new ProgressiveAcRefinementState();
         AccumulateAcRefinementFrequencies(naturalCoefficients, ac, state, successiveLow, spectralStart, spectralEnd,
-            coefficientsValidated, tokens, component);
+            coefficientsValidated, tokens, component, zigZagOrdered);
         FlushAcRefinementFrequencies(ac, state, tokens, component);
     }
 
@@ -278,7 +287,8 @@ internal static class ProgressiveEntropyEncoder
         int spectralEnd = 63,
         bool coefficientsValidated = false,
         EntropyTokens? tokens = null,
-        int component = 0)
+        int component = 0,
+        bool zigZagOrdered = false)
     {
         ValidateFrequencies(ac);
         ArgumentNullException.ThrowIfNull(state);
@@ -286,7 +296,7 @@ internal static class ProgressiveEntropyEncoder
         ValidateSpectralRange(spectralStart, spectralEnd);
         ValidateAc(naturalCoefficients, coefficientsValidated);
         ProcessAcRefinement(naturalCoefficients, state, successiveLow, spectralStart, spectralEnd, null, null, ac,
-            tokens, component);
+            tokens, component, zigZagOrdered);
     }
 
     // Keep frequency decisions and emitted tokens on the same traversal, since
@@ -301,8 +311,15 @@ internal static class ProgressiveEntropyEncoder
         HuffmanTable? ac,
         long[]? frequencies,
         EntropyTokens? tokens = null,
-        int component = 0)
+        int component = 0,
+        bool zigZagOrdered = false)
     {
+        if (zigZagOrdered)
+        {
+            ProcessOrderedAcRefinement(naturalCoefficients, state, successiveLow, spectralStart, spectralEnd,
+                writer, ac, frequencies, tokens, component);
+            return;
+        }
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
         int lastNew = spectralStart - 1;
         int oldCount = 0;
@@ -367,6 +384,99 @@ internal static class ProgressiveEntropyEncoder
             if (state.PendingEobRun == MaximumEobRun)
             {
                 FlushAcRefinementCore(state, writer, ac, frequencies, tokens, component);
+            }
+        }
+    }
+
+    private static void ProcessOrderedAcRefinement(
+        ReadOnlySpan<short> coefficients, ProgressiveAcRefinementState state,
+        int successiveLow, int spectralStart, int spectralEnd,
+        BitWriter? writer, HuffmanTable? ac, long[]? frequencies,
+        EntropyTokens? tokens, int component)
+    {
+        ClassifyOrderedCoefficients(coefficients, successiveLow, out ulong newlySignificant, out ulong previouslySignificant);
+        ulong band = (ulong.MaxValue << spectralStart) & (ulong.MaxValue >> (63 - spectralEnd));
+        newlySignificant &= band;
+        previouslySignificant &= band;
+        int lastNew = newlySignificant == 0 ? spectralStart - 1 : BitOperations.Log2(newlySignificant);
+        int oldCount = BitOperations.PopCount(previouslySignificant);
+        if (lastNew >= spectralStart || state.CorrectionBitCount + oldCount > ProgressiveAcRefinementState.MaximumCorrectionBits)
+            FlushAcRefinementCore(state, writer, ac, frequencies, tokens, component);
+
+        Span<byte> corrections = stackalloc byte[63];
+        int correctionCount = 0;
+        int run = 0;
+        int previousPosition = spectralStart - 1;
+        ulong occupied = newlySignificant | previouslySignificant;
+        while (occupied != 0)
+        {
+            int position = BitOperations.TrailingZeroCount(occupied);
+            occupied &= occupied - 1;
+            run += position - previousPosition - 1;
+            // Old coefficients do not count as zeros. Discharge a ZRL before
+            // the next occupied position, so a correction after the sixteenth
+            // zero belongs to the following symbol's correction field.
+            while (run >= 16 && position <= lastNew)
+            {
+                WriteRefinementSymbol(0xf0, writer, ac, frequencies, tokens: tokens, component: component);
+                WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
+                correctionCount = 0;
+                run -= 16;
+            }
+            int value = coefficients[position];
+            if ((previouslySignificant & (1UL << position)) != 0)
+                corrections[correctionCount++] = (byte)((Math.Abs(value) >> successiveLow) & 1);
+            else
+            {
+                WriteRefinementSymbol((run << 4) | 1, writer, ac, frequencies, value > 0 ? 1U : 0U, 1,
+                    tokens, component);
+                WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
+                correctionCount = 0;
+                run = 0;
+            }
+            previousPosition = position;
+        }
+        if (lastNew < spectralEnd)
+        {
+            state.AppendBlock(corrections[..correctionCount]);
+            if (state.PendingEobRun == MaximumEobRun)
+                FlushAcRefinementCore(state, writer, ac, frequencies, tokens, component);
+        }
+    }
+
+    private static void ClassifyOrderedCoefficients(ReadOnlySpan<short> coefficients, int successiveLow,
+        out ulong newlySignificant, out ulong previouslySignificant)
+    {
+        newlySignificant = previouslySignificant = 0;
+        if (Vector256.IsHardwareAccelerated)
+        {
+            var one = Vector256.Create((short)1);
+            for (int offset = 0; offset < 64; offset += Vector256<short>.Count)
+            {
+                var magnitude = Vector256.ShiftRightLogical(Vector256.Abs(Vector256.Create(coefficients[offset..])), successiveLow);
+                newlySignificant |= (ulong)Vector256.Equals(magnitude, one).ExtractMostSignificantBits() << offset;
+                previouslySignificant |= (ulong)Vector256.GreaterThan(magnitude, one).ExtractMostSignificantBits() << offset;
+            }
+        }
+        else if (Vector128.IsHardwareAccelerated)
+        {
+            var one = Vector128.Create((short)1);
+            for (int offset = 0; offset < 64; offset += Vector128<short>.Count)
+            {
+                var magnitude = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients[offset..])), successiveLow);
+                newlySignificant |= (ulong)Vector128.Equals(magnitude, one).ExtractMostSignificantBits() << offset;
+                previouslySignificant |= (ulong)Vector128.GreaterThan(magnitude, one).ExtractMostSignificantBits() << offset;
+            }
+        }
+        else
+        {
+            for (int position = 1; position < 64; position++)
+            {
+                int magnitude = Math.Abs((int)coefficients[position]) >> successiveLow;
+                if (magnitude == 1)
+                    newlySignificant |= 1UL << position;
+                else if (magnitude > 1)
+                    previouslySignificant |= 1UL << position;
             }
         }
     }
