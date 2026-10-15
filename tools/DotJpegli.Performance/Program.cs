@@ -318,6 +318,7 @@ internal static class Program
         return new { cpu, affinity, os = RuntimeInformation.OSDescription, RuntimeInformation.OSArchitecture, RuntimeInformation.ProcessArchitecture,
             runtime = RuntimeInformation.FrameworkDescription, runtimeVersion = Environment.Version.ToString(),
             corelibInformationalVersion, runtimeProductVersion = RuntimeProductVersion(corelibInformationalVersion),
+            encoderTargetFramework = typeof(JpegliEncoder).Assembly.GetCustomAttribute<System.Runtime.Versioning.TargetFrameworkAttribute>()?.FrameworkName,
             explicitNet11Simd,
             logicalProcessors = Environment.ProcessorCount,
             Stopwatch.Frequency, Stopwatch.IsHighResolution, Vector.IsHardwareAccelerated, vectorFloatWidth = Vector<float>.Count,

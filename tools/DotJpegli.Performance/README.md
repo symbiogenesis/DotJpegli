@@ -90,7 +90,7 @@ is saved after every completed case so interrupted runs retain useful evidence.
 The measured run requires a Release build and GitHub Actions:
 
 ```sh
-dotnet tools/DotJpegli.Performance/bin/Release/net10.0/DotJpegli.Performance.dll \
+dotnet tools/DotJpegli.Performance/bin/Release/net11.0/DotJpegli.Performance.dll \
   --native /absolute/path/jpegli-parity \
   --corpus /absolute/path/kodak-ppm \
   --output /absolute/path/empty-evidence-directory
@@ -101,8 +101,12 @@ Local validation is deliberately limited to build and synthetic self-test:
 ```sh
 dotnet restore tools/DotJpegli.Performance --locked-mode
 dotnet build tools/DotJpegli.Performance -c Release --no-restore
-dotnet tools/DotJpegli.Performance/bin/Release/net10.0/DotJpegli.Performance.dll --self-test
+dotnet tools/DotJpegli.Performance/bin/Release/net11.0/DotJpegli.Performance.dll --self-test
 ```
 
 The self-test exercises only policy, coverage and statistics using fabricated
 samples. It does not encode images or read clocks and is not a benchmark.
+
+Both net10.0 and net11.0 are built. The workflow defaults to net11.0; its
+`framework=net10.0` input selects the compatible build for a targeted diagnostic.
+The net11.0 build uses portable Zip/Unzip/Concat APIs automatically.

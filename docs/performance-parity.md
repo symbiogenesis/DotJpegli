@@ -23,7 +23,8 @@ all selected cases. Positive parity still requires all 256 cases.
 ## Targeted development comparisons
 
 A normal push to `main` runs four cases directly: `kodim01` at distance 1,
-444/420 and progression 0/2. It does not wait for the full quality/compression
+444/420 and progression 0/2 on .NET 11. Select `framework=net10.0` in a targeted
+dispatch to inspect the compatible .NET 10 build. It does not wait for the full quality/compression
 matrix. The default measurement counts remain seven blocks, five warmups and
 native-calibrated shared iteration counts. The native executable and corpus are
 cached by their source/toolchain and manifest identities; native provenance,
@@ -36,7 +37,7 @@ and configuration with three blocks of three encodes:
 
 ```sh
 gh workflow run ci.yml --ref main -f mode=targeted \
-  -f images=kodim03 -f distances=4 -f samplings=420 -f progressions=2 \
+  -f framework=net11.0 -f images=kodim03 -f distances=4 -f samplings=420 -f progressions=2 \
   -f blocks=3 -f iterations=3 -f warmups=5
 ```
 
@@ -88,8 +89,9 @@ The workflow's `compare_net11=true` input runs one Kodak01 4:2:0 sequential case
 on .NET 10.0.13 and .NET 11.0.0-rc.2.26504.105, serially on the same CPU,
 separately on x64 and ARM64 runners. A main
 commit containing `[compare-net11]` requests the same diagnostic in its automatic
-run. It uses the identical net10.0 assembly and checks matching JPEG hashes;
-the SDK pin and library target remain unchanged. This isolates runtime/JIT changes.
+run. Its first pair uses the identical net10.0 assembly and checks matching JPEG
+hashes to isolate runtime/JIT changes. The library, tests and comparison tools
+target both net10.0 and net11.0, built with the pinned .NET 11 SDK.
 The same optional job also builds two isolated net11.0 variants with SDK
 `11.0.100-rc.2.26504.105`: portable `Shuffle`/`Create` lane assembly and portable
 `Zip`/`Unzip`/`Concat` equivalents in DCT transposes and 2x2 downsampling. Neither
@@ -97,8 +99,9 @@ implementation uses CPU-specific intrinsics. The 4:2:0 case exercises both kerne
 Both variants run on the identical .NET 11 runtime and CPU, with matching JPEG
 hashes and focused kernel regression tests. This second pair measures the extra
 effect of these API rewrites; it cannot predict gains for other operations or CPUs.
-The experiment is gated by `DotJpegliNet11Simd=true`, which defines
-`DOTJPEGLI_NET11_SIMD`; normal builds retain the portable .NET 10 implementation.
+Normal net11.0 builds use the new APIs automatically; net10.0 retains the compatible
+portable implementation. `DotJpegliNet11Simd=false` disables the new APIs for the
+comparison baseline only. The default `true` defines `DOTJPEGLI_NET11_SIMD`.
 Evidence is retained separately as `runtime-comparison-X64-<revision>` and
 `runtime-comparison-ARM64-<revision>`, including exact runtime product builds.
 The reference executable is built natively and cached separately per architecture.
@@ -191,7 +194,7 @@ Local builds and the focused synthetic-statistics check are allowed:
 
 ```text
 dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release
-dotnet run --project tools/DotJpegli.Performance -c Release --no-build -- --self-test
+dotnet run --project tools/DotJpegli.Performance -c Release -f net11.0 --no-build -- --self-test
 ```
 
 This scope measures single-image steady-state encoding latency. It excludes

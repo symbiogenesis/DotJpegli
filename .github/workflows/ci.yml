@@ -10,6 +10,11 @@ on:
         type: choice
         options: [targeted, full]
         default: targeted
+      framework:
+        description: 'Framework for selected cases; .NET 11 uses portable Zip/Unzip/Concat'
+        type: choice
+        options: [net11.0, net10.0]
+        default: net11.0
       images:
         description: 'Targeted image IDs, comma separated (kodim01..kodim24 or fixed control names)'
         default: kodim01
@@ -53,17 +58,19 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        framework: [net10.0, net11.0]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
+          dotnet-version: 10.0.402
       - name: Restore locked dependencies
         run: dotnet restore DotJpegli.slnx --locked-mode
-      - run: dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release --no-restore
+      - run: dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release -f ${{ matrix.framework }} --no-restore
       - name: Full test suite (CI only)
-        run: dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -result-xml "${{ runner.temp }}/dotjpegli-full-tests.xml"
+        run: dotnet run --project tests/DotJpegli.Tests -c Release -f ${{ matrix.framework }} --no-build -- -result-xml "${{ runner.temp }}/dotjpegli-full-tests.xml"
       - name: Slowest test cases
         if: always()
         shell: pwsh
@@ -79,8 +86,9 @@ jobs:
       - name: Managed SIMD fallback and software vector parity
         env:
           DOTNET_EnableHWIntrinsic: '0'
-        run: dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.PlaneDctTests -class DotJpegli.Tests.AdaptiveQuantizationReuseTests -class DotJpegli.Tests.SimdColorConversionTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.SimdQuantizationTests -class DotJpegli.Tests.PreparedQuantizationTests -class DotJpegli.Tests.OrderedEntropyTests -class DotJpegli.Tests.OrderedProgressiveEntropyTests -class DotJpegli.Tests.SimdAdaptiveQuantizationTests -class DotJpegli.Tests.PlanarPixelSourceTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.EncoderParallelTests -class DotJpegli.Tests.SourceIccColorManagementTests -class DotJpegli.Tests.NumericalTests -class DotJpegli.Tests.EncoderSmokeTests
+        run: dotnet run --project tests/DotJpegli.Tests -c Release -f ${{ matrix.framework }} --no-build -- -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.PlaneDctTests -class DotJpegli.Tests.Net11DctTransposeTests -class DotJpegli.Tests.Net11DownsamplingTests -class DotJpegli.Tests.AdaptiveQuantizationReuseTests -class DotJpegli.Tests.SimdColorConversionTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.SimdQuantizationTests -class DotJpegli.Tests.PreparedQuantizationTests -class DotJpegli.Tests.OrderedEntropyTests -class DotJpegli.Tests.OrderedProgressiveEntropyTests -class DotJpegli.Tests.SimdAdaptiveQuantizationTests -class DotJpegli.Tests.PlanarPixelSourceTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.EncoderParallelTests -class DotJpegli.Tests.SourceIccColorManagementTests -class DotJpegli.Tests.NumericalTests -class DotJpegli.Tests.EncoderSmokeTests
       - name: Verify reproducible Release assembly and package
+        if: matrix.framework == 'net11.0'
         shell: pwsh
         run: ./tools/verify-reproducibility.ps1
 
@@ -152,6 +160,7 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
+          dotnet-version: 10.0.402
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           name: parity-reference-X64-${{ github.sha }}
@@ -162,7 +171,7 @@ jobs:
           dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
           dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-restore
       - name: Verify performance evidence policy using synthetic samples
-        run: dotnet run --project tools/DotJpegli.Performance -c Release --no-build -- --self-test
+        run: dotnet run --project tools/DotJpegli.Performance -c Release -f ${{ inputs.framework || 'net11.0' }} --no-build -- --self-test
       - name: Compare selected encoding cases (CI only; no full parity verdict)
         id: targeted
         env:
@@ -179,7 +188,7 @@ jobs:
           cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
           args=(--diagnostic --images "$TARGET_IMAGES" --distances "$TARGET_DISTANCES" --samplings "$TARGET_SAMPLINGS" --progressions "$TARGET_PROGRESSIONS" --blocks "$TARGET_BLOCKS" --warmups "$TARGET_WARMUPS")
           if [[ -n "$TARGET_ITERATIONS" ]]; then args+=(--iterations "$TARGET_ITERATIONS"); fi
-          taskset -c "$cpu" dotnet run --project tools/DotJpegli.Performance -c Release --no-build -- --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/performance-evidence" "${args[@]}"
+          taskset -c "$cpu" dotnet run --project tools/DotJpegli.Performance -c Release -f ${{ inputs.framework || 'net11.0' }} --no-build -- --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/performance-evidence" "${args[@]}"
       - name: Install pinned CPU diagnostic tool after selected-case failure
         id: profiler
         if: failure() && steps.targeted.outcome == 'failure' && (github.event_name == 'push' || inputs.profile)
@@ -207,7 +216,7 @@ jobs:
           print(case['id'], case['sampling'], case['progressiveLevel'], case['distance'])
           PY
           )
-          taskset -c "$cpu" "${{ runner.temp }}/diagnostic-tools/dotnet-trace" collect --profile dotnet-sampled-thread-time --format Speedscope --show-child-io --output "${{ runner.temp }}/performance-profile.nettrace" -- dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/net10.0/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/profile-evidence" --diagnostic --images "$image" --distances "$distance" --samplings "$sampling" --progressions "$progression" --blocks 3 --iterations 20 --warmups 5 2>&1 | tee "${{ runner.temp }}/performance-profile.log"
+          taskset -c "$cpu" "${{ runner.temp }}/diagnostic-tools/dotnet-trace" collect --profile dotnet-sampled-thread-time --format Speedscope --show-child-io --output "${{ runner.temp }}/performance-profile.nettrace" -- dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ inputs.framework || 'net11.0' }}/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/profile-evidence" --diagnostic --images "$image" --distances "$distance" --samplings "$sampling" --progressions "$progression" --blocks 3 --iterations 20 --warmups 5 2>&1 | tee "${{ runner.temp }}/performance-profile.log"
       - name: Retain separate instrumented CPU diagnostics
         if: always() && steps.profiler.outcome != 'skipped'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -254,30 +263,22 @@ jobs:
         with:
           name: parity-reference-${{ runner.arch }}-${{ github.sha }}
           path: ${{ runner.temp }}
-      - name: Build one encoder binary with the pinned .NET 10 SDK
+      - name: Build one net10.0 encoder binary with the pinned SDK
         run: |
           chmod +x "${{ runner.temp }}/parity-native/jpegli-parity-native"
           dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
-          dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-restore
+          dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release -f net10.0 --no-restore
       - name: Build isolated .NET 11 baseline and explicit SIMD experiment
         run: |
           lane="${{ runner.temp }}/net11-simd-source"
           mkdir -p "$lane"
           git archive HEAD | tar -x -C "$lane"
-          python3 - "$lane" <<'PY'
-          import json, sys
-          from pathlib import Path
-          lane = Path(sys.argv[1])
-          sdk = json.loads((lane / 'global.json').read_text())
-          sdk['sdk'].update(version='11.0.100-rc.2.26504.105', rollForward='disable', allowPrerelease=True)
-          (lane / 'global.json').write_text(json.dumps(sdk, indent=2))
-          for project in lane.rglob('*.csproj'):
-              project.write_text(project.read_text().replace('<TargetFramework>net10.0</TargetFramework>', '<TargetFramework>net11.0</TargetFramework>'))
-          PY
           cd "$lane"
-          dotnet publish tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-self-contained -p:RestoreLockedMode=false -o "${{ runner.temp }}/net11-baseline"
-          dotnet publish tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-self-contained -p:RestoreLockedMode=false -p:DotJpegliNet11Simd=true -o "${{ runner.temp }}/net11-simd"
-          dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release -p:RestoreLockedMode=false -p:DotJpegliNet11Simd=true
+          dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
+          dotnet publish tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release -f net11.0 --no-restore --no-self-contained -p:DotJpegliNet11Simd=false -o "${{ runner.temp }}/net11-baseline"
+          dotnet publish tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release -f net11.0 --no-restore --no-self-contained -p:DotJpegliNet11Simd=true -o "${{ runner.temp }}/net11-simd"
+          dotnet restore tests/DotJpegli.Tests/DotJpegli.Tests.csproj --locked-mode
+          dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release -f net11.0 --no-restore -p:DotJpegliNet11Simd=true
           dotnet tests/DotJpegli.Tests/bin/Release/net11.0/DotJpegli.Tests.dll -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.PlaneDctTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.Net11DctTransposeTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.Net11DownsamplingTests
       - name: Compare one case on both runtimes on the same CPU (CI only)
         working-directory: ${{ runner.temp }}
@@ -381,11 +382,11 @@ jobs:
           dotnet restore tools/DotJpegli.Parity/DotJpegli.Parity.csproj --locked-mode
           dotnet build tools/DotJpegli.Parity/DotJpegli.Parity.csproj -c Release --no-restore
       - name: Verify comparison metrics and rate interpolation
-        run: dotnet run --project tools/DotJpegli.Parity -c Release --no-build -- --self-test
+        run: dotnet run --project tools/DotJpegli.Parity -c Release -f net11.0 --no-build -- --self-test
       - name: Compare matched quality and compression (CI only)
         env:
           DOTJPEGLI_PARITY_REVISION: ${{ github.sha }}
-        run: dotnet run --project tools/DotJpegli.Parity -c Release --no-build -- --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/parity-evidence"
+        run: dotnet run --project tools/DotJpegli.Parity -c Release -f net11.0 --no-build -- --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/parity-evidence"
       - name: Retain parity evidence and native build provenance
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -402,14 +403,14 @@ jobs:
           dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
           dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-restore
       - name: Verify performance statistics and acceptance policy
-        run: dotnet run --project tools/DotJpegli.Performance -c Release --no-build -- --self-test
+        run: dotnet run --project tools/DotJpegli.Performance -c Release -f net11.0 --no-build -- --self-test
       - name: Compare steady-state encoding latency (CI only)
         env:
           DOTJPEGLI_PERFORMANCE_REVISION: ${{ github.sha }}
           DOTNET_TieredCompilation: '0'
         run: |
           cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
-          taskset -c "$cpu" dotnet run --project tools/DotJpegli.Performance -c Release --no-build -- --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/performance-evidence"
+          taskset -c "$cpu" dotnet run --project tools/DotJpegli.Performance -c Release -f net11.0 --no-build -- --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/performance-evidence"
       - name: Retain performance evidence and native build provenance
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
