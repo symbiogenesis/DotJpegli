@@ -4,6 +4,8 @@
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 
 namespace DotJpegli.Internal;
 
@@ -109,6 +111,11 @@ internal static class ForwardDct
 
     private static void TransformVectorCore(ReadOnlySpan<float> samples, Span<float> coefficients)
     {
+        if (Vector<float>.Count == 8 && Avx.IsSupported)
+        {
+            TransformAvx(samples, coefficients);
+            return;
+        }
         Span<float> intermediate = stackalloc float[64];
         Span<Vector<float>> lanes = stackalloc Vector<float>[8];
         int width = Vector<float>.Count;
@@ -140,6 +147,51 @@ internal static class ForwardDct
                 for (int lane = 0; lane < width; lane++)
                     coefficients[(v + lane) * 8 + u] = lanes[u][lane];
         }
+    }
+
+    private static void TransformAvx(ReadOnlySpan<float> samples, Span<float> coefficients)
+    {
+        Span<Vector<float>> rows = stackalloc Vector<float>[8];
+        for (int row = 0; row < 8; row++)
+            rows[row] = new Vector<float>(samples.Slice(row * 8, 8));
+        TransformRecursiveVector(rows);
+        for (int row = 0; row < 8; row++)
+            rows[row] *= new Vector<float>(0.125f);
+        TransposeAvx(rows);
+        TransformRecursiveVector(rows);
+        TransposeAvx(rows);
+        for (int row = 0; row < 8; row++)
+            rows[row].CopyTo(coefficients.Slice(row * 8, 8));
+    }
+
+    // Two in-register transposes replace the scalar lane extraction/gathers
+    // between the column and row transforms. Only data movement changes.
+    private static void TransposeAvx(Span<Vector<float>> rows)
+    {
+        Vector256<float> t0 = Avx.UnpackLow(rows[0].AsVector256(), rows[1].AsVector256());
+        Vector256<float> t1 = Avx.UnpackHigh(rows[0].AsVector256(), rows[1].AsVector256());
+        Vector256<float> t2 = Avx.UnpackLow(rows[2].AsVector256(), rows[3].AsVector256());
+        Vector256<float> t3 = Avx.UnpackHigh(rows[2].AsVector256(), rows[3].AsVector256());
+        Vector256<float> t4 = Avx.UnpackLow(rows[4].AsVector256(), rows[5].AsVector256());
+        Vector256<float> t5 = Avx.UnpackHigh(rows[4].AsVector256(), rows[5].AsVector256());
+        Vector256<float> t6 = Avx.UnpackLow(rows[6].AsVector256(), rows[7].AsVector256());
+        Vector256<float> t7 = Avx.UnpackHigh(rows[6].AsVector256(), rows[7].AsVector256());
+        Vector256<float> s0 = Avx.Shuffle(t0, t2, 0x44);
+        Vector256<float> s1 = Avx.Shuffle(t0, t2, 0xee);
+        Vector256<float> s2 = Avx.Shuffle(t1, t3, 0x44);
+        Vector256<float> s3 = Avx.Shuffle(t1, t3, 0xee);
+        Vector256<float> s4 = Avx.Shuffle(t4, t6, 0x44);
+        Vector256<float> s5 = Avx.Shuffle(t4, t6, 0xee);
+        Vector256<float> s6 = Avx.Shuffle(t5, t7, 0x44);
+        Vector256<float> s7 = Avx.Shuffle(t5, t7, 0xee);
+        rows[0] = Avx.Permute2x128(s0, s4, 0x20).AsVector();
+        rows[1] = Avx.Permute2x128(s1, s5, 0x20).AsVector();
+        rows[2] = Avx.Permute2x128(s2, s6, 0x20).AsVector();
+        rows[3] = Avx.Permute2x128(s3, s7, 0x20).AsVector();
+        rows[4] = Avx.Permute2x128(s0, s4, 0x31).AsVector();
+        rows[5] = Avx.Permute2x128(s1, s5, 0x31).AsVector();
+        rows[6] = Avx.Permute2x128(s2, s6, 0x31).AsVector();
+        rows[7] = Avx.Permute2x128(s3, s7, 0x31).AsVector();
     }
 
     private static void TransformRecursiveVector(Span<Vector<float>> values)

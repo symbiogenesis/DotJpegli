@@ -116,8 +116,10 @@ table selectors may differ.
 ## Reproduction and evidence
 
 Corpus measurements run only on CI, as required by [agent instructions](../AGENTS.md).
-A push to `main` runs the comparison alongside the existing full-suite and
-reproducible-build jobs; do not dispatch a duplicate run for that revision.
+Dispatch the workflow on `main` with `mode=full` to run this comparison and the
+full performance acceptance matrix. Routine pushes run four targeted performance
+cases alongside full-suite and reproducible-build jobs. Reuse an existing run
+for the intended mode and revision instead of dispatching a duplicate.
 The workflow uploads `quality-compression-parity-<commit>` even when a comparison
 fails. Its report includes source and JPEG hashes, settings, native provenance,
 raw measurements, matched-rate and matched-quality results, exclusions and
