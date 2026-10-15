@@ -82,21 +82,26 @@ These are identified implementation gaps, not speedup estimates. Targeted hosted
 measurements determine the effect of each settled batch. Exact arithmetic ordering
 and existing JPEG regression hashes remain checked.
 
-## Optional .NET 11 runtime comparison
+## Optional .NET 11 runtime and portable SIMD API comparison
 
-The workflow's `compare_net11=true` input runs one Kodak01 4:4:4 sequential case
-on .NET 10.0.13 and .NET 11.0.0-rc.2.26504.105, serially on the same CPU. A main
+The workflow's `compare_net11=true` input runs one Kodak01 4:2:0 sequential case
+on .NET 10.0.13 and .NET 11.0.0-rc.2.26504.105, serially on the same CPU,
+separately on x64 and ARM64 runners. A main
 commit containing `[compare-net11]` requests the same diagnostic in its automatic
 run. It uses the identical net10.0 assembly and checks matching JPEG hashes;
-the SDK pin and library target remain unchanged. This isolates runtime/JIT changes
-and isolates runtime/JIT changes. The same optional job also builds two isolated
-net11.0 variants with SDK `11.0.100-rc.2.26504.105`: the existing SIMD code and an
-explicit `Zip`/`Concat` DCT transpose. Both run on the identical .NET 11 runtime
-and CPU, with matching JPEG hashes and focused DCT regression tests. This second
-pair measures the additional effect of that particular API rewrite; it cannot
-predict gains from other rewrites or architectures. The experiment is gated by
-`DOTJPEGLI_NET11_SIMD`; normal builds retain the existing code. Evidence is retained
-separately as `runtime-comparison-<revision>`, including exact runtime product builds.
+the SDK pin and library target remain unchanged. This isolates runtime/JIT changes.
+The same optional job also builds two isolated net11.0 variants with SDK
+`11.0.100-rc.2.26504.105`: portable `Shuffle`/`Create` lane assembly and portable
+`Zip`/`Unzip`/`Concat` equivalents in DCT transposes and 2x2 downsampling. Neither
+implementation uses CPU-specific intrinsics. The 4:2:0 case exercises both kernels.
+Both variants run on the identical .NET 11 runtime and CPU, with matching JPEG
+hashes and focused kernel regression tests. This second pair measures the extra
+effect of these API rewrites; it cannot predict gains for other operations or CPUs.
+The experiment is gated by `DotJpegliNet11Simd=true`, which defines
+`DOTJPEGLI_NET11_SIMD`; normal builds retain the portable .NET 10 implementation.
+Evidence is retained separately as `runtime-comparison-X64-<revision>` and
+`runtime-comparison-ARM64-<revision>`, including exact runtime product builds.
+The reference executable is built natively and cached separately per architecture.
 
 ## Full acceptance scope and policy
 

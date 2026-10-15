@@ -85,7 +85,11 @@ jobs:
         run: ./tools/verify-reproducibility.ps1
 
   native-reference:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ fromJSON((inputs.compare_net11 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[compare-net11]'))) && '["ubuntu-latest","ubuntu-24.04-arm"]' || '["ubuntu-latest"]') }}
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -130,7 +134,7 @@ jobs:
       - name: Share reference and corpus with comparison job
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: parity-reference-${{ github.sha }}
+          name: parity-reference-${{ runner.arch }}-${{ github.sha }}
           path: |
             ${{ runner.temp }}/parity-native/jpegli-parity-native
             ${{ runner.temp }}/parity-native/provenance.json
@@ -150,7 +154,7 @@ jobs:
           global-json-file: global.json
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
-          name: parity-reference-${{ github.sha }}
+          name: parity-reference-X64-${{ github.sha }}
           path: ${{ runner.temp }}
       - name: Restore and build performance comparison
         run: |
@@ -233,7 +237,11 @@ jobs:
   runtime-comparison:
     if: inputs.compare_net11 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[compare-net11]'))
     needs: native-reference
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -244,7 +252,7 @@ jobs:
             11.0.100-rc.2.26504.105
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
-          name: parity-reference-${{ github.sha }}
+          name: parity-reference-${{ runner.arch }}-${{ github.sha }}
           path: ${{ runner.temp }}
       - name: Build one encoder binary with the pinned .NET 10 SDK
         run: |
@@ -270,7 +278,7 @@ jobs:
           dotnet publish tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-self-contained -p:RestoreLockedMode=false -o "${{ runner.temp }}/net11-baseline"
           dotnet publish tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-self-contained -p:RestoreLockedMode=false -p:DotJpegliNet11Simd=true -o "${{ runner.temp }}/net11-simd"
           dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release -p:RestoreLockedMode=false -p:DotJpegliNet11Simd=true
-          dotnet tests/DotJpegli.Tests/bin/Release/net11.0/DotJpegli.Tests.dll -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.PlaneDctTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.Net11DctTransposeTests
+          dotnet tests/DotJpegli.Tests/bin/Release/net11.0/DotJpegli.Tests.dll -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.PlaneDctTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.Net11DctTransposeTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.Net11DownsamplingTests
       - name: Compare one case on both runtimes on the same CPU (CI only)
         working-directory: ${{ runner.temp }}
         env:
@@ -281,14 +289,14 @@ jobs:
           cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
           for runtime in 10.0.13 11.0.0-rc.2.26504.105; do
             set +e
-            taskset -c "$cpu" dotnet --fx-version "$runtime" --roll-forward Disable "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/net10.0/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/runtime-$runtime" --diagnostic --images kodim01 --distances 1 --samplings 444 --progressions 0 --blocks 7 --iterations 20 --warmups 5
+            taskset -c "$cpu" dotnet --fx-version "$runtime" --roll-forward Disable "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/net10.0/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/runtime-$runtime" --diagnostic --images kodim01 --distances 1 --samplings 420 --progressions 0 --blocks 7 --iterations 20 --warmups 5
             verdict=$?
             set -e
             if [[ "$verdict" -gt 1 ]]; then exit "$verdict"; fi
           done
           for variant in net11-baseline net11-simd; do
             set +e
-            taskset -c "$cpu" dotnet --fx-version 11.0.0-rc.2.26504.105 --roll-forward Disable "${{ runner.temp }}/$variant/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/runtime-$variant" --diagnostic --images kodim01 --distances 1 --samplings 444 --progressions 0 --blocks 7 --iterations 20 --warmups 5
+            taskset -c "$cpu" dotnet --fx-version 11.0.0-rc.2.26504.105 --roll-forward Disable "${{ runner.temp }}/$variant/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/runtime-$variant" --diagnostic --images kodim01 --distances 1 --samplings 420 --progressions 0 --blocks 7 --iterations 20 --warmups 5
             verdict=$?
             set -e
             if [[ "$verdict" -gt 1 ]]; then exit "$verdict"; fi
@@ -325,7 +333,8 @@ jobs:
               assert left[1]['managedJpegSha256'] == case['managedJpegSha256'], 'Experiment changed JPEG bytes'
           ratio = right[1]['managed']['median'] / left[1]['managed']['median']
           simd_ratio = simd[1]['managed']['median'] / baseline[1]['managed']['median']
-          report = '# One-case .NET runtime and explicit SIMD comparison\n\nKodak01 4:4:4 sequential distance 1, same CPU, 7 blocks/20 iterations/5 warmups. The first pair uses identical net10.0 binaries to isolate runtime changes. The second pair uses the pinned .NET 11 SDK and runtime, with an explicit Zip/Concat DCT transpose enabled only in the SIMD variant. All four JPEG hashes must match. No whole-corpus or migration verdict.\n\n'
+          report = '# One-case .NET runtime and portable SIMD API comparison\n\nKodak01 4:2:0 sequential distance 1, same CPU, 7 blocks/20 iterations/5 warmups. The first pair uses identical net10.0 binaries to isolate runtime changes. The second pair uses the pinned .NET 11 SDK and runtime, comparing portable Shuffle/Create lane assembly with Zip/Unzip/Concat in the DCT transpose and downsampling. Both implementations use portable APIs, with no CPU-specific intrinsic paths. All four JPEG hashes must match. No whole-corpus or migration verdict.\n\n'
+          report += f"Host: {left[0]['environment']['cpu']}; architecture: {os.environ['RUNNER_ARCH']}.\n\n"
           report += '| Build/runtime | Managed median (ms) | Native median (ms) |\n| --- | ---: | ---: |\n'
           for version, (_, case) in zip(versions, data):
               report += f"| {version} | {case['managed']['median']/1e6:.3f} | {case['native']['median']/1e6:.3f} |\n"
@@ -341,7 +350,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: runtime-comparison-${{ github.sha }}
+          name: runtime-comparison-${{ runner.arch }}-${{ github.sha }}
           path: |
             ${{ runner.temp }}/runtime-10.0.13/
             ${{ runner.temp }}/runtime-11.0.0-rc.2.26504.105/
@@ -363,7 +372,7 @@ jobs:
           global-json-file: global.json
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
-          name: parity-reference-${{ github.sha }}
+          name: parity-reference-X64-${{ github.sha }}
           path: ${{ runner.temp }}
       - name: Make downloaded native executable runnable
         run: chmod +x "${{ runner.temp }}/parity-native/jpegli-parity-native"

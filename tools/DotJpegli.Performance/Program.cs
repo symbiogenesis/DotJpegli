@@ -306,7 +306,13 @@ internal static class Program
         string? affinity = null;
         if (OperatingSystem.IsLinux())
         {
-            cpu = File.ReadLines("/proc/cpuinfo").FirstOrDefault(line => line.StartsWith("model name", StringComparison.Ordinal))?.Split(':', 2)[1].Trim() ?? cpu;
+            string[] cpuInfo = File.ReadAllLines("/proc/cpuinfo");
+            cpu = cpuInfo.FirstOrDefault(line => line.StartsWith("model name", StringComparison.Ordinal))?.Split(':', 2)[1].Trim()
+                ?? string.Join("; ", cpuInfo.Where(line => line.StartsWith("CPU implementer", StringComparison.Ordinal)
+                    || line.StartsWith("CPU architecture", StringComparison.Ordinal) || line.StartsWith("CPU part", StringComparison.Ordinal)
+                    || line.StartsWith("CPU variant", StringComparison.Ordinal) || line.StartsWith("CPU revision", StringComparison.Ordinal))
+                    .Select(line => line.Trim()).Distinct(StringComparer.Ordinal));
+            if (string.IsNullOrEmpty(cpu)) cpu = "not supplied";
             affinity = File.ReadLines("/proc/self/status").FirstOrDefault(line => line.StartsWith("Cpus_allowed_list:", StringComparison.Ordinal))?.Split(':', 2)[1].Trim();
         }
         return new { cpu, affinity, os = RuntimeInformation.OSDescription, RuntimeInformation.OSArchitecture, RuntimeInformation.ProcessArchitecture,
