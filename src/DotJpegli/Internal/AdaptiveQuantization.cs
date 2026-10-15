@@ -12,8 +12,8 @@ internal sealed class AdaptiveQuantization
 {
     // Derived from google/jpegli lib/jpegli/adaptive_quantization.cc at
     // 031a0077f5799a6041004267fc12b956c1f52a20. Unlike upstream's rolling
-    // image buffers, each invocation loads its bounded luma neighborhood.
-    // Consecutive immutable plane rows retain their shared pre-erosion cells.
+    // image buffers, each invocation uses a bounded luma neighborhood.
+    // Consecutive immutable plane rows retain their shared luma and pre-erosion cells.
     private const float InputScaling = 1f / 255f;
     private const float InvLog2E = 0.6931471805599453f;
     private const float SgMul = 226.0480446705883f;
@@ -87,7 +87,7 @@ internal sealed class AdaptiveQuantization
     {
         int mcuHeight = verticalSampling * 8;
         IDisposable? storage = pixels.ConvertedStorage;
-        bool reusePreErosion = storage is not null && ReferenceEquals(storage, previousStorage)
+        bool reuseNeighborhood = storage is not null && ReferenceEquals(storage, previousStorage)
             && top == previousTop + mcuHeight && stride == previousStride && useVector == previousUseVector;
         // A failed or canceled invocation must never expose partially updated
         // neighborhoods to the next call. Only immutable converted planes may
@@ -102,11 +102,30 @@ internal sealed class AdaptiveQuantization
         // The outer four-row pre-erosion cells also need their immediate
         // pixel neighbors. Replicate the original image edges into all padding.
         int firstLumaY = top - 5;
-        for (int row = 0; row < mcuHeight + 10; row++)
+        int firstLumaRow = 0;
+        if (reuseNeighborhood)
+        {
+            // The next neighborhood shares ten complete padded rows. Copy
+            // them together instead of rereading and padding each source row.
+            luma.AsSpan(mcuHeight * lumaStride, 10 * lumaStride).CopyTo(luma);
+            firstLumaRow = 10;
+        }
+        int previousSourceY = firstLumaRow == 0 ? -1
+            : Math.Clamp(firstLumaY + firstLumaRow - 1, 0, height - 1);
+        for (int row = firstLumaRow; row < mcuHeight + 10; row++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             int sourceY = Math.Clamp(firstLumaY + row, 0, height - 1);
             int destination = row * lumaStride + 1;
+            if (sourceY == previousSourceY)
+            {
+                // Top/bottom padding often repeats several full rows. Keep
+                // their exact values without reentering the pixel reader.
+                luma.AsSpan((row - 1) * lumaStride, lumaStride)
+                    .CopyTo(luma.AsSpan(row * lumaStride, lumaStride));
+                previousSourceY = sourceY;
+                continue;
+            }
             if (useVector)
                 pixels.ReadRowVector(width, height, stride, pixels.AnalysisComponent, 0, sourceY,
                     luma.AsSpan(destination, width));
@@ -115,12 +134,13 @@ internal sealed class AdaptiveQuantization
                     luma.AsSpan(destination, width));
             luma[destination - 1] = luma[destination];
             luma.AsSpan(destination + width, paddedWidth - width + 1).Fill(luma[destination + width - 1]);
+            previousSourceY = sourceY;
         }
 
         int firstPreY = top / 4 - 1;
         int preHeight = paddedHeight / 4;
         int firstPreRow = 0;
-        if (reusePreErosion)
+        if (reuseNeighborhood)
         {
             // The two final four-pixel rows are the next MCU's upper
             // neighborhood. Retain their exact already-rounded values.

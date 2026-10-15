@@ -10,6 +10,50 @@ public sealed class AdaptiveQuantizationReuseTests
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
+    public void ReplicatedImageEdgesMatchUnpreparedAnalysis(int sampling)
+    {
+        foreach (int width in new[] { 1, 9, 32 })
+            foreach (int height in new[] { 1, 2, sampling * 8 + 1 })
+            {
+                int stride = width + 7;
+                PixelSource original = new(Pattern(width, height, stride, 31), PixelLayout.Gray8);
+                PixelSource prepared = original.WithConvertedPlanes(width, height, stride,
+                    TestContext.Current.CancellationToken);
+                using IDisposable? storage = prepared.ConvertedStorage;
+                foreach (bool vector in new[] { false, true })
+                {
+                    var expectedAnalysis = new AdaptiveQuantization(width, height, sampling);
+                    var actualAnalysis = new AdaptiveQuantization(width, height, sampling);
+                    float[] expected = new float[actualAnalysis.BlocksWide * sampling];
+                    float[] actual = new float[expected.Length];
+                    for (int top = 0; top < height; top += sampling * 8)
+                    {
+                        if (vector)
+                        {
+                            expectedAnalysis.ComputeRowVector(original, stride, top, 4, expected,
+                                TestContext.Current.CancellationToken);
+                            actualAnalysis.ComputeRowVector(prepared, stride, top, 4, actual,
+                                TestContext.Current.CancellationToken);
+                        }
+                        else
+                        {
+                            expectedAnalysis.ComputeRowScalar(original, stride, top, 4, expected,
+                                TestContext.Current.CancellationToken);
+                            actualAnalysis.ComputeRowScalar(prepared, stride, top, 4, actual,
+                                TestContext.Current.CancellationToken);
+                        }
+                        Assert.Equal(expected.Select(BitConverter.SingleToInt32Bits),
+                            actual.Select(BitConverter.SingleToInt32Bits));
+                    }
+                }
+            }
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
     public void PreparedConsecutiveAndReorderedRowsMatchFreshAnalysisBits(int sampling)
     {
         int mcuHeight = sampling * 8;
