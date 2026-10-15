@@ -40,8 +40,32 @@ internal sealed class EntropyTokens : IDisposable
         Debug.Assert((uint)component < 3 && (uint)symbol < 256 && (uint)count <= 16);
         Debug.Assert(count == 32 || (suffix >> count) == 0);
         int context = (component << 1) | (isAc ? 1 : 0);
-        Add(suffix | ((ulong)(uint)count << CountShift) | ((ulong)(uint)symbol << SymbolShift)
-            | ((ulong)(uint)context << ContextShift));
+        Add(PackHuffman(context, symbol, suffix, count));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static ulong PackHuffman(int context, int symbol, uint suffix, int count)
+        => suffix | ((ulong)(uint)count << CountShift) | ((ulong)(uint)symbol << SymbolShift)
+            | ((ulong)(uint)context << ContextShift);
+
+    // A sequential block emits at most 64 tokens. Borrow only existing space;
+    // ordinary Add handles allocation, segment boundaries and small budgets.
+    internal bool TryReserveBlock(out Span<ulong> destination)
+    {
+        ulong[]? segment = current;
+        if (IsComplete && segment is not null && segment.Length - currentCount >= 64)
+        {
+            destination = segment.AsSpan(currentCount, 64);
+            return true;
+        }
+        destination = default;
+        return false;
+    }
+
+    internal void CommitBlock(int count)
+    {
+        Debug.Assert(IsComplete && current is not null && (uint)count <= 64 && currentCount + count <= current.Length);
+        currentCount += count;
     }
 
     internal void AddBits(uint bits, int count)
@@ -101,39 +125,46 @@ internal sealed class EntropyTokens : IDisposable
         if (!IsComplete)
             throw new InvalidOperationException("An abandoned entropy token sequence cannot be replayed.");
         cancellationToken.ThrowIfCancellationRequested();
-        var lookups = new ulong[Math.Max(coding.DcTables.Length, coding.AcTables.Length) * 2][];
+        int contextCount = Math.Max(coding.DcTables.Length, coding.AcTables.Length) * 2;
+        Span<ulong> lookups = contextCount <= 6 ? stackalloc ulong[contextCount * 256] : new ulong[contextCount * 256];
+        lookups.Clear();
         for (int component = 0; component < coding.DcTables.Length; component++)
-            lookups[component * 2] = coding.DcTables[component].GetPrebiasedCodes();
+            coding.DcTables[component].GetPrebiasedCodes().CopyTo(lookups.Slice(component * 512, 256));
         for (int component = 0; component < coding.AcTables.Length; component++)
-            lookups[component * 2 + 1] = coding.AcTables[component].GetPrebiasedCodes();
+            coding.AcTables[component].GetPrebiasedCodes().CopyTo(lookups.Slice(component * 512 + 256, 256));
         for (int segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
         {
             ulong[] segment = segments[segmentIndex];
             int length = segmentIndex == segments.Count - 1 ? currentCount : segment.Length;
-            for (int index = 0; index < length; index++)
+            for (int chunk = 0; chunk < length; chunk += 256)
             {
-                if ((index & 255) == 0)
-                    cancellationToken.ThrowIfCancellationRequested();
-                ulong token = segment[index];
-                int kind = (int)(token >> KindShift);
-                int count = (int)(token >> CountShift) & 63;
-                if (kind == 0)
+                cancellationToken.ThrowIfCancellationRequested();
+                int end = Math.Min(chunk + 256, length);
+                for (int index = chunk; index < end; index++)
                 {
-                    int context = (int)(token >> ContextShift) & 7;
-                    int symbol = (int)(token >> SymbolShift) & 255;
-                    ulong prepared = lookups[context][symbol];
-                    if ((int)(prepared >> 38) == count + 1)
-                        writer.WriteBits((uint)prepared | (uint)token, (int)(prepared >> 32) & 63);
-                    else
+                    ulong token = segment[index];
+                    int kind = (int)(token >> KindShift);
+                    int count = (int)(token >> CountShift) & 63;
+                    if (kind == 0)
                     {
-                        HuffmanTable table = (context & 1) == 0 ? coding.DcTables[context >> 1] : coding.AcTables[context >> 1];
-                        table.WriteSymbolWithBits(writer, symbol, (uint)token, count);
+                        // Context and symbol occupy adjacent bits in the token.
+                        // One index avoids the jagged table lookup per symbol.
+                        int lookupIndex = (int)(token >> SymbolShift) & 2047;
+                        ulong prepared = lookups[lookupIndex];
+                        if ((int)(prepared >> 38) == count + 1)
+                            writer.WriteBitsPrevalidated((uint)prepared | (uint)token, (int)(prepared >> 32) & 63);
+                        else
+                        {
+                            int context = lookupIndex >> 8;
+                            HuffmanTable table = (context & 1) == 0 ? coding.DcTables[context >> 1] : coding.AcTables[context >> 1];
+                            table.WriteSymbolWithBits(writer, lookupIndex & 255, (uint)token, count);
+                        }
                     }
+                    else if (kind == 1)
+                        writer.WriteBitsPrevalidated((uint)token, count);
+                    else
+                        writer.WriteRestartMarker((int)token & 7);
                 }
-                else if (kind == 1)
-                    writer.WriteBits((uint)token, count);
-                else
-                    writer.WriteRestartMarker((int)token & 7);
             }
         }
         cancellationToken.ThrowIfCancellationRequested();

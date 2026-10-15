@@ -104,6 +104,11 @@ internal static class EntropyEncoder
         }
 
         ValidateBlock(naturalCoefficients, previousDc, coefficientsValidated);
+        if (zigZagOrdered && tokens is not null && tokens.TryReserveBlock(out Span<ulong> destination))
+        {
+            AccumulateOrderedBlock(naturalCoefficients, ref previousDc, dc, ac, tokens, component, destination);
+            return;
+        }
         int difference = naturalCoefficients[0] - previousDc;
         int category = Category(difference);
         checked { dc[category]++; }
@@ -171,6 +176,53 @@ internal static class EntropyEncoder
             int symbol = (run << 4) | category;
             checked { ac[symbol]++; }
             tokens?.AddHuffman(component, true, symbol, AdditionalBits(value, category), category);
+        }
+    }
+
+    private static void AccumulateOrderedBlock(ReadOnlySpan<short> coefficients, ref int previousDc,
+        long[] dc, long[] ac, EntropyTokens tokens, int component, Span<ulong> destination)
+    {
+        int count = 0;
+        int dcContext = component << 1;
+        int acContext = dcContext | 1;
+        try
+        {
+            int difference = coefficients[0] - previousDc;
+            int category = Category(difference);
+            checked { dc[category]++; }
+            destination[count++] = EntropyTokens.PackHuffman(dcContext, category, AdditionalBits(difference, category), category);
+            previousDc = coefficients[0];
+            ulong nonzero = NonzeroAcMask(coefficients);
+            int previousPosition = 0;
+            while (nonzero != 0)
+            {
+                int position = BitOperations.TrailingZeroCount(nonzero);
+                int run = position - previousPosition - 1;
+                while (run >= 16)
+                {
+                    checked { ac[0xf0]++; }
+                    destination[count++] = EntropyTokens.PackHuffman(acContext, 0xf0, 0, 0);
+                    run -= 16;
+                }
+                int value = coefficients[position];
+                category = Category(value);
+                int symbol = (run << 4) | category;
+                checked { ac[symbol]++; }
+                destination[count++] = EntropyTokens.PackHuffman(acContext, symbol, AdditionalBits(value, category), category);
+                previousPosition = position;
+                nonzero &= nonzero - 1;
+            }
+            if (previousPosition != 63)
+            {
+                checked { ac[0]++; }
+                destination[count++] = EntropyTokens.PackHuffman(acContext, 0, 0, 0);
+            }
+        }
+        finally
+        {
+            // A checked histogram overflow retains exactly the earlier tokens,
+            // just as the individual AddHuffman calls do on the strict path.
+            tokens.CommitBlock(count);
         }
     }
 

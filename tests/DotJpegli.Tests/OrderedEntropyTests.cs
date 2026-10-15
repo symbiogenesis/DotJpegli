@@ -83,6 +83,10 @@ public sealed class OrderedEntropyTests
         int previousNatural = 0, previousOrdered = 0;
         using var naturalTokens = new EntropyTokens();
         using var orderedTokens = new EntropyTokens();
+        // Prime an existing segment so ordered collection exercises its
+        // whole-block reservation, including partial commits on overflow.
+        naturalTokens.AddBits(0, 0);
+        orderedTokens.AddBits(0, 0);
         Assert.Throws<OverflowException>(() => EntropyEncoder.AccumulateFrequencies(natural, ref previousNatural,
             dcNatural, acNatural, tokens: naturalTokens));
         Assert.Throws<OverflowException>(() => EntropyEncoder.AccumulateFrequencies(ordered, ref previousOrdered,
@@ -90,6 +94,47 @@ public sealed class OrderedEntropyTests
         Assert.Equal(previousNatural, previousOrdered);
         Assert.Equal(dcNatural, dcOrdered);
         Assert.Equal(acNatural, acOrdered);
+        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        var coding = new HuffmanCodingPlan.ScanCoding([table], [table], [], []);
+        using var expected = new MemoryStream();
+        using var actual = new MemoryStream();
+        var naturalWriter = new BitWriter(expected);
+        var orderedWriter = new BitWriter(actual);
+        naturalTokens.Replay(naturalWriter, coding, TestContext.Current.CancellationToken);
+        orderedTokens.Replay(orderedWriter, coding, TestContext.Current.CancellationToken);
+        naturalWriter.Flush();
+        orderedWriter.Flush();
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void ReservedBlockOverflowAtDcZrlOrEobRetainsOnlyEarlierTokens(int failure)
+    {
+        short[] natural = new short[64];
+        natural[0] = 5;
+        if (failure == 1)
+            natural[JpegConstants.ZigZag[63]] = 1;
+        short[] ordered = Order(natural);
+        long[] dcNatural = new long[256], dcOrdered = new long[256], acNatural = new long[256], acOrdered = new long[256];
+        if (failure == 0)
+            dcNatural[3] = dcOrdered[3] = long.MaxValue;
+        else
+            acNatural[failure == 1 ? 0xf0 : 0] = acOrdered[failure == 1 ? 0xf0 : 0] = long.MaxValue;
+        using var naturalTokens = new EntropyTokens();
+        using var orderedTokens = new EntropyTokens();
+        naturalTokens.AddBits(0x42, 8);
+        orderedTokens.AddBits(0x42, 8);
+        int previousNatural = 0, previousOrdered = 0;
+        Assert.Throws<OverflowException>(() => EntropyEncoder.AccumulateFrequencies(natural, ref previousNatural,
+            dcNatural, acNatural, tokens: naturalTokens));
+        Assert.Throws<OverflowException>(() => EntropyEncoder.AccumulateFrequencies(ordered, ref previousOrdered,
+            dcOrdered, acOrdered, tokens: orderedTokens, zigZagOrdered: true));
+        Assert.Equal(dcNatural, dcOrdered);
+        Assert.Equal(acNatural, acOrdered);
+        Assert.Equal(previousNatural, previousOrdered);
         HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
         var coding = new HuffmanCodingPlan.ScanCoding([table], [table], [], []);
         using var expected = new MemoryStream();
