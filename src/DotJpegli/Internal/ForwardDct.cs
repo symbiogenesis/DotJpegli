@@ -41,6 +41,40 @@ internal static class ForwardDct
             TransformScalarCore(samples, coefficients);
     }
 
+    /// <summary>Loads and level-shifts an interior 8 by 8 block directly from an uncentered plane.</summary>
+    internal static void TransformPlane(ReadOnlySpan<float> plane, int stride, int left, int top,
+        Span<float> coefficients)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(stride, 8);
+        ArgumentOutOfRangeException.ThrowIfNegative(left);
+        ArgumentOutOfRangeException.ThrowIfNegative(top);
+        if (left > stride - 8)
+            throw new ArgumentOutOfRangeException(nameof(left));
+        if (((long)top + 7) * stride + left + 8 > plane.Length)
+            throw new ArgumentException("The plane must contain the complete 8 by 8 block.", nameof(plane));
+        if (coefficients.Length < 64)
+            throw new ArgumentException("The coefficient buffer requires at least 64 values.", nameof(coefficients));
+
+        if (Vector<float>.Count == 8 && Avx.IsSupported)
+        {
+            Span<Vector<float>> rows = stackalloc Vector<float>[8];
+            var center = new Vector<float>(128f);
+            // Consume the entire source before writing output, even when the
+            // coefficient span overlaps any of these strided input rows.
+            for (int row = 0; row < 8; row++)
+                rows[row] = new Vector<float>(plane.Slice((top + row) * stride + left, 8)) - center;
+            TransformAvxRows(rows, coefficients);
+        }
+        else
+        {
+            Span<float> samples = stackalloc float[64];
+            for (int row = 0; row < 8; row++)
+                for (int column = 0; column < 8; column++)
+                    samples[row * 8 + column] = plane[(top + row) * stride + left + column] - 128f;
+            Transform(samples, coefficients);
+        }
+    }
+
     // Explicit implementations also allow bitwise regression checks against
     // the scalar port, independently of the runtime's hardware dispatch.
     internal static void TransformScalar(ReadOnlySpan<float> samples, Span<float> coefficients)
@@ -154,6 +188,12 @@ internal static class ForwardDct
         Span<Vector<float>> rows = stackalloc Vector<float>[8];
         for (int row = 0; row < 8; row++)
             rows[row] = new Vector<float>(samples.Slice(row * 8, 8));
+        TransformAvxRows(rows, coefficients);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TransformAvxRows(Span<Vector<float>> rows, Span<float> coefficients)
+    {
         TransformRecursiveVector(rows);
         for (int row = 0; row < 8; row++)
             rows[row] *= new Vector<float>(0.125f);
