@@ -177,4 +177,73 @@ public sealed class EntropyTokensTests
         writer.Flush();
         Assert.Equal(0, output.Length);
     }
+
+    [Fact]
+    public void ReplayPreservesEveryTokenAcrossGrowingAndCappedSegmentBoundaries()
+    {
+        int[] checkpoints = [4095, 4096, 4097, 12287, 12288, 12289, 28671, 28672, 28673,
+            61439, 61440, 61441, 126975, 126976, 126977, 192513];
+        using var tokens = new EntropyTokens();
+        using var expected = new MemoryStream();
+        var expectedWriter = new BitWriter(expected, buffered: true);
+        var coding = new HuffmanCodingPlan.ScanCoding([], [], [], []);
+        int checkpoint = 0;
+        for (int index = 0; index < checkpoints[^1]; index++)
+        {
+            if (index % 257 == 256)
+            {
+                tokens.AddRestart(index % 8);
+                expectedWriter.WriteRestartMarker(index % 8);
+            }
+            else
+            {
+                uint value = unchecked((uint)index * 0x9e3779b9U);
+                tokens.AddBits(value, 32);
+                expectedWriter.WriteBits(value, 32);
+            }
+            if (index + 1 == checkpoints[checkpoint])
+            {
+                expectedWriter.Flush();
+                using var actual = new MemoryStream();
+                var actualWriter = new BitWriter(actual, buffered: true);
+                tokens.Replay(actualWriter, coding, TestContext.Current.CancellationToken);
+                actualWriter.Flush();
+                Assert.True(tokens.IsComplete);
+                Assert.Equal(expected.ToArray(), actual.ToArray());
+                checkpoint++;
+            }
+        }
+    }
+
+    [Fact]
+    public void IrregularBudgetUsesSmallerFinalSegmentsBeforeAbandoningAndCannotReplayStaleData()
+    {
+        const int capacity = 4096 + 8192 + 512 + 128 + 16;
+        using var tokens = new EntropyTokens(capacity * sizeof(ulong) + 7);
+        using var expected = new MemoryStream();
+        var expectedWriter = new BitWriter(expected, buffered: true);
+        for (int index = 0; index < capacity; index++)
+        {
+            tokens.AddBits((uint)index, 16);
+            expectedWriter.WriteBits((uint)index, 16);
+        }
+        Assert.True(tokens.IsComplete);
+        expectedWriter.Flush();
+        using var actual = new MemoryStream();
+        var actualWriter = new BitWriter(actual, buffered: true);
+        var coding = new HuffmanCodingPlan.ScanCoding([], [], [], []);
+        tokens.Replay(actualWriter, coding, TestContext.Current.CancellationToken);
+        actualWriter.Flush();
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+
+        // Fewer than sixteen elements remain, so SharedArrayPool cannot supply
+        // another bucket within the budget. Abandon the entire token sequence.
+        tokens.AddBits(0, 1);
+        Assert.False(tokens.IsComplete);
+        tokens.AddRestart(7);
+        using var rejected = new MemoryStream();
+        Assert.Throws<InvalidOperationException>(() =>
+            tokens.Replay(new BitWriter(rejected), coding, TestContext.Current.CancellationToken));
+        Assert.Empty(rejected.ToArray());
+    }
 }

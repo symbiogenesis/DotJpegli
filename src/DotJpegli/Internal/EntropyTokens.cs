@@ -9,6 +9,7 @@ namespace DotJpegli.Internal;
 internal sealed class EntropyTokens : IDisposable
 {
     private const int DefaultSegmentLength = 4096;
+    private const int MaximumSegmentLength = 65536;
     private const int CountShift = 32;
     private const int SymbolShift = 38;
     private const int ContextShift = 46;
@@ -17,7 +18,7 @@ internal sealed class EntropyTokens : IDisposable
     private const ulong RestartKind = 2UL << KindShift;
     private readonly List<ulong[]> segments = [];
     private readonly long maximumBytes;
-    private readonly int segmentLength;
+    private int nextSegmentLength;
     private ulong[]? current;
     private int currentCount;
     private long rentedBytes;
@@ -29,7 +30,7 @@ internal sealed class EntropyTokens : IDisposable
         uint available = (uint)Math.Min(DefaultSegmentLength, this.maximumBytes / sizeof(ulong));
         // Shared-pool buckets start at sixteen elements. Smaller budgets simply
         // abandon on the first add; no allocation is needed for empty scans.
-        segmentLength = available < 16 ? 0 : 1 << BitOperations.Log2(available);
+        nextSegmentLength = available < 16 ? 0 : 1 << BitOperations.Log2(available);
     }
 
     internal bool IsComplete { get; private set; } = true;
@@ -99,11 +100,16 @@ internal sealed class EntropyTokens : IDisposable
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void AddSegment(ulong token)
     {
-        if (segmentLength == 0 || rentedBytes + (long)segmentLength * sizeof(ulong) > maximumBytes)
+        uint available = (uint)Math.Min(MaximumSegmentLength, (maximumBytes - rentedBytes) / sizeof(ulong));
+        if (nextSegmentLength == 0 || available < 16)
         {
             Dispose();
             return;
         }
+        // A small first segment retains the existing tiny-image behavior.
+        // Growing segments use fewer rentals for larger scans, while the final
+        // power-of-two request still fits the remaining actual-storage budget.
+        int segmentLength = Math.Min(nextSegmentLength, 1 << BitOperations.Log2(available));
         ulong[] next = ArrayPool<ulong>.Shared.Rent(segmentLength);
         if (rentedBytes + (long)next.Length * sizeof(ulong) > maximumBytes)
         {
@@ -113,6 +119,7 @@ internal sealed class EntropyTokens : IDisposable
         }
         segments.Add(next);
         rentedBytes += (long)next.Length * sizeof(ulong);
+        nextSegmentLength = Math.Min(MaximumSegmentLength, next.Length * 2);
         current = next;
         next[0] = token;
         currentCount = 1;
