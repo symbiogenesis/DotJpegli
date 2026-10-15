@@ -19,15 +19,16 @@ internal static class SelfTest
         DiagnosticSelection target = DiagnosticSelection.Parse(new Dictionary<string, string>
         {
             ["--images"] = "kodim03,line-art", ["--samplings"] = "420", ["--progressions"] = "2", ["--distances"] = "4",
-            ["--blocks"] = "3", ["--warmups"] = "1", ["--iterations"] = "4"
+            ["--blocks"] = "3", ["--warmups"] = "5", ["--iterations"] = "4"
         });
-        Assert(target.ExpectedCases == 2 && target.Policy.Blocks == 3 && target.Policy.Warmups == 1 &&
+        Assert(target.ExpectedCases == 2 && target.Policy.Blocks == 3 && target.Policy.Warmups == 5 &&
             target.Policy.MinimumIterations == 4 && target.Policy.MaximumIterations == 4, "Bounded diagnostic overrides were ignored.");
         foreach (var values in new Dictionary<string, string>[]
         {
             new() { ["--images"] = "untrusted" }, new() { ["--images"] = "kodim01,kodim01" }, new() { ["--distances"] = "2" },
             new() { ["--distances"] = "1,1.0" }, new() { ["--blocks"] = "1" }, new() { ["--iterations"] = "1000000" },
-            new() { ["--warmups"] = "0" }, new() { ["--unknown"] = "1" }, new() { ["--samplings"] = "444," },
+            new() { ["--warmups"] = "0" }, new() { ["--warmups"] = "1" }, new() { ["--warmups"] = "4" },
+            new() { ["--warmups"] = "11" }, new() { ["--unknown"] = "1" }, new() { ["--samplings"] = "444," },
             new() { ["--images"] = string.Join(',', Evidence.ImageIds("natural")), ["--distances"] = "1,4" }
         }) Reject(() => DiagnosticSelection.Parse(values));
         const string nativeFixture = """

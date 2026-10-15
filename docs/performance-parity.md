@@ -37,7 +37,7 @@ and configuration with three blocks of three encodes:
 ```sh
 gh workflow run ci.yml --ref main -f mode=targeted \
   -f images=kodim03 -f distances=4 -f samplings=420 -f progressions=2 \
-  -f blocks=3 -f iterations=3 -f warmups=1
+  -f blocks=3 -f iterations=3 -f warmups=5
 ```
 
 Reuse the automatic run for the intended revision when it already covers the

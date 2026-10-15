@@ -9,7 +9,7 @@ appears in the CI job summary and the `performance-targeted-<revision>` artifact
 
 If the selected comparison fails, CI also captures one CPU profile using pinned
 `dotnet-trace 10.0.750501`: `kodim01`, 444, progression 0, distance 1, three
-blocks, 20 iterations and one warmup. This follow-up has a five-minute limit and
+blocks, 20 iterations and five warmups. This follow-up has a five-minute limit and
 retains its trace, Speedscope JSON, logs and marked instrumented evidence in the
 separate `performance-profile-<revision>` artifact. Its instrumented timings do
 not establish latency acceptance and do not replace the original unprofiled
@@ -20,24 +20,25 @@ To focus a later run, use workflow dispatch with `mode=targeted`. For example:
 ```sh
 gh workflow run ci.yml --ref main -f mode=targeted \
   -f images=kodim03 -f distances=4 -f samplings=420 -f progressions=2 \
-  -f blocks=3 -f iterations=3 -f warmups=1
+  -f blocks=3 -f iterations=3 -f warmups=5
 ```
 
 Inspect existing runs for the intended commit first and reuse its automatic run
 when it covers the desired comparison. Do not dispatch a duplicate for the same
 revision unless an additional measurement was requested. A deliberately smaller
-selection uses three blocks of three encodes, plus one warmup per encoder per
+selection uses three blocks of three encodes, plus five warmups per encoder per
 block. The default targeted run retains the full protocol's seven blocks, five
 warmups and calibrated iteration count. All timed benchmarks remain CI-only.
 
 The equivalent runner options are `--diagnostic --images kodim03 --distances 4
---samplings 420 --progressions 2 --blocks 3 --iterations 3 --warmups 1`, in
+--samplings 420 --progressions 2 --blocks 3 --iterations 3 --warmups 5`, in
 addition to the required absolute `--native`, `--corpus` and `--output` paths.
 Images may be `kodim01` through `kodim24` or one of the eight fixed control IDs.
 The four selection flags accept unique comma-separated lists; their Cartesian
 product is limited to 64 cases. Distances select 1/4, samplings 444/420 and
-progressions 0/2. Blocks are bounded to 3..7, warmups to 1..10 and optional fixed
-iterations to 3..100. Omit `--iterations` to retain native calibration.
+progressions 0/2. Blocks are bounded to 3..7, warmups to 5..10 and optional fixed
+iterations to 3..100. The pinned native wrapper requires at least five warmups.
+Omit `--iterations` to retain native calibration.
 
 Diagnostics measure every selected case and return 1 for a stable matched case
 above the 1.10 managed/native latency bound, 2 for invalid or unstable evidence,

@@ -20,7 +20,7 @@ internal sealed record DiagnosticSelection(string[] Images, float[] Distances, i
             progressions.Any(value => !Evidence.Progressions.Contains(value)) || distances.Distinct().Count() != distances.Length ||
             samplings.Distinct().Count() != samplings.Length || progressions.Distinct().Count() != progressions.Length)
             throw new ArgumentException("Diagnostic settings select from distances 1/4, samplings 444/420 and progressions 0/2, without duplicates.");
-        int blocks = Count(values, "--blocks", 7, 3, 7), warmups = Count(values, "--warmups", 5, 1, 10);
+        int blocks = Count(values, "--blocks", 7, 3, 7), warmups = Count(values, "--warmups", 5, 5, 10);
         int? iterations = values.ContainsKey("--iterations") ? Count(values, "--iterations", 3, 3, 100) : null;
         var result = new DiagnosticSelection(images, distances, samplings, progressions, new Policy
         {
