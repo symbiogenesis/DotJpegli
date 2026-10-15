@@ -2,6 +2,7 @@
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
 
 using System.Numerics;
+using System.Runtime.Intrinsics;
 
 namespace DotJpegli.Internal;
 
@@ -106,12 +107,17 @@ internal readonly ref struct PixelSource
             return this;
         var planes = new ConvertedPlanes(width, height, stride, Length, components);
         int planeLength = planes.PlaneLength;
+        bool vectorRgb = Vector.IsHardwareAccelerated && BitConverter.IsLittleEndian
+            && Vector<float>.Count is 4 or 8 && sourceType == SourceType.Byte
+            && !IsGrayscaleInput && !ycbcr && !xyb && colorTransform is null
+            && ColorSpace is JpegColorSpace.YCbCr or JpegColorSpace.Grayscale;
         for (int y = 0; y < height; y++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             int rowStart = y * stride;
             int destination = y * width;
-            for (int x = 0; x < width; x++)
+            int converted = vectorRgb ? ConvertByteRow(planes, rowStart, destination, components) : 0;
+            for (int x = converted; x < width; x++)
             {
                 ReadConvertedComponents(rowStart + x * ComponentsPerPixel,
                     out float first, out float second, out float third);
@@ -125,6 +131,59 @@ internal readonly ref struct PixelSource
         }
         return new PixelSource(this, colorSpace, convertedPlanes: planes);
     }
+
+    private int ConvertByteRow(ConvertedPlanes planes, int rowStart, int destination, int components)
+    {
+        int lanes = Vector<float>.Count;
+        int step = ComponentsPerPixel;
+        Vector128<byte> redIndices = ComponentIndices(bgr ? 2 : 0, step);
+        Vector128<byte> greenIndices = ComponentIndices(1, step);
+        Vector128<byte> blueIndices = ComponentIndices(bgr ? 0 : 2, step);
+        int upperBackstep = step == 3 ? 4 : 0;
+        Vector128<byte> upperRedIndices = ComponentIndices((bgr ? 2 : 0) + upperBackstep, step);
+        Vector128<byte> upperGreenIndices = ComponentIndices(1 + upperBackstep, step);
+        Vector128<byte> upperBlueIndices = ComponentIndices((bgr ? 0 : 2) + upperBackstep, step);
+        int width = planes.Width;
+        int x = 0;
+        // Overlap the two RGB loads so an eight-pixel group consumes exactly
+        // 24 bytes. Bound every load by the active row, including the final
+        // unpadded row; leave remaining pixels to the scalar path.
+        int bytesNeeded = lanes == 8 ? 8 * step : 16;
+        for (; x <= width - lanes && x * step <= width * step - bytesNeeded; x += lanes)
+        {
+            Vector128<byte> lower = Vector128.Create(bytes.Slice(rowStart + x * step, 16));
+            Vector128<float> r0 = Vector128.ConvertToSingle(Vector128.Shuffle(lower, redIndices).AsUInt32());
+            Vector128<float> g0 = Vector128.ConvertToSingle(Vector128.Shuffle(lower, greenIndices).AsUInt32());
+            Vector128<float> b0 = Vector128.ConvertToSingle(Vector128.Shuffle(lower, blueIndices).AsUInt32());
+            Vector<float> red, green, blue;
+            if (lanes == 8)
+            {
+                Vector128<byte> upper = Vector128.Create(bytes.Slice(rowStart + (x + 4) * step - upperBackstep, 16));
+                red = Vector256.Create(r0, Vector128.ConvertToSingle(Vector128.Shuffle(upper, upperRedIndices).AsUInt32())).AsVector();
+                green = Vector256.Create(g0, Vector128.ConvertToSingle(Vector128.Shuffle(upper, upperGreenIndices).AsUInt32())).AsVector();
+                blue = Vector256.Create(b0, Vector128.ConvertToSingle(Vector128.Shuffle(upper, upperBlueIndices).AsUInt32())).AsVector();
+            }
+            else
+            {
+                red = r0.AsVector();
+                green = g0.AsVector();
+                blue = b0.AsVector();
+            }
+            ColorConversion.RgbToYCbCr(red, green, blue,
+                out Vector<float> luma, out Vector<float> cb, out Vector<float> cr);
+            luma.CopyTo(planes.Samples.AsSpan(destination + x, lanes));
+            if (components > 1)
+            {
+                cb.CopyTo(planes.Samples.AsSpan(planes.PlaneLength + destination + x, lanes));
+                cr.CopyTo(planes.Samples.AsSpan(2 * planes.PlaneLength + destination + x, lanes));
+            }
+        }
+        return x;
+    }
+
+    private static Vector128<byte> ComponentIndices(int component, int step)
+        => Vector128.Create(0xffffff00U | (uint)component, 0xffffff00U | (uint)(component + step),
+            0xffffff00U | (uint)(component + 2 * step), 0xffffff00U | (uint)(component + 3 * step)).AsByte();
 
     private sealed class ConvertedPlanes(int width, int height, int sourceStride, int sourceLength, int components)
     {

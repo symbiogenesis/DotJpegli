@@ -5,6 +5,22 @@ namespace DotJpegli.Tests;
 
 public sealed class PlanarPixelSourceTests
 {
+    [Fact]
+    public void ByteDeinterleavingPreservesEveryVectorBoundaryAndCompactFinalRow()
+    {
+        foreach (PixelComponentLayout layout in new[]
+            { PixelComponentLayout.Rgb, PixelComponentLayout.Bgr, PixelComponentLayout.Rgba, PixelComponentLayout.Bgra })
+            for (int width = 1; width <= 35; width++)
+                foreach (int padding in new[] { 0, 7 })
+                {
+                    int stride = width * SimdSampleFixtures.Channels(layout) + padding;
+                    PixelSource pixels = SimdSampleFixtures.Pixels(
+                        SimdSampleFixtures.Source(0, width, 3, stride, layout), layout);
+                    AssertConverted(pixels.WithColorSpace(JpegColorSpace.YCbCr), width, 3, stride);
+                    AssertConverted(pixels.WithColorSpace(JpegColorSpace.Grayscale), width, 3, stride);
+                }
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
