@@ -2,6 +2,7 @@
 // Use of this source code is governed by the BSD-3-Clause license in
 // THIRD-PARTY-NOTICES.md.
 
+using System.Buffers.Binary;
 using System.Numerics;
 
 namespace DotJpegli.Internal;
@@ -31,8 +32,7 @@ internal static class ProgressiveEntropyEncoder
         int currentDc = naturalCoefficients[0] >> successiveLow;
         int difference = currentDc - previousDc;
         int category = Category(difference);
-        dc.WriteSymbol(writer, category);
-        writer.WriteBits(AdditionalBits(difference, category), category);
+        dc.WriteSymbolWithBits(writer, category, AdditionalBits(difference, category), category);
         previousDc = currentDc;
     }
 
@@ -119,8 +119,7 @@ internal static class ProgressiveEntropyEncoder
             }
 
             int category = Category(value);
-            ac.WriteSymbol(writer, (run << 4) | category);
-            writer.WriteBits(AdditionalBits(value, category), category);
+            ac.WriteSymbolWithBits(writer, (run << 4) | category, AdditionalBits(value, category), category);
             run = 0;
         }
 
@@ -325,10 +324,9 @@ internal static class ProgressiveEntropyEncoder
             }
             else
             {
-                WriteRefinementSymbol((run << 4) | 1, writer, ac, frequencies);
+                WriteRefinementSymbol((run << 4) | 1, writer, ac, frequencies, value > 0 ? 1U : 0U, 1);
                 if (writer is not null)
                 {
-                    writer.WriteBits(value > 0 ? 1U : 0U, 1);
                     WriteCorrectionBits(writer, corrections[..correctionCount]);
                 }
                 correctionCount = 0;
@@ -373,16 +371,17 @@ internal static class ProgressiveEntropyEncoder
         }
 
         int bits = BitOperations.Log2((uint)state.PendingEobRun);
-        WriteRefinementSymbol(bits << 4, writer, ac, frequencies);
+        WriteRefinementSymbol(bits << 4, writer, ac, frequencies,
+            (uint)(state.PendingEobRun - (1 << bits)), bits);
         if (writer is not null)
         {
-            writer.WriteBits((uint)(state.PendingEobRun - (1 << bits)), bits);
             WriteCorrectionBits(writer, state.Corrections);
         }
         state.Clear();
     }
 
-    private static void WriteRefinementSymbol(int symbol, BitWriter? writer, HuffmanTable? ac, long[]? frequencies)
+    private static void WriteRefinementSymbol(int symbol, BitWriter? writer, HuffmanTable? ac, long[]? frequencies,
+        uint additionalBits = 0, int bitCount = 0)
     {
         if (frequencies is not null)
         {
@@ -390,17 +389,41 @@ internal static class ProgressiveEntropyEncoder
         }
         else
         {
-            ac!.WriteSymbol(writer!, symbol);
+            ac!.WriteSymbolWithBits(writer!, symbol, additionalBits, bitCount);
         }
     }
 
     private static void WriteCorrectionBits(BitWriter writer, ReadOnlySpan<byte> corrections)
     {
+        // Eight bytes containing one bit each can be gathered with a multiply.
+        // Big-endian loading places the first correction in the highest bit;
+        // four such groups supply one complete 32-bit write.
+        while (corrections.Length >= 32)
+        {
+            uint packed = PackCorrectionByte(corrections) << 24
+                | PackCorrectionByte(corrections[8..]) << 16
+                | PackCorrectionByte(corrections[16..]) << 8
+                | PackCorrectionByte(corrections[24..]);
+            writer.WriteBits(packed, 32);
+            corrections = corrections[32..];
+        }
+        while (corrections.Length >= 8)
+        {
+            writer.WriteBits(PackCorrectionByte(corrections), 8);
+            corrections = corrections[8..];
+        }
+        if (corrections.IsEmpty)
+            return;
+        uint remainder = 0;
         foreach (byte correction in corrections)
         {
-            writer.WriteBits(correction, 1);
+            remainder = (remainder << 1) | correction;
         }
+        writer.WriteBits(remainder, corrections.Length);
     }
+
+    private static uint PackCorrectionByte(ReadOnlySpan<byte> corrections)
+        => (uint)(unchecked(BinaryPrimitives.ReadUInt64BigEndian(corrections) * 0x0102040810204080UL) >> 56);
 
     // Flush before a restart marker or the end of an initial AC scan. Annex G encodes
     // a run as floor(log2(run)) in the symbol's high nibble followed by the
@@ -416,8 +439,7 @@ internal static class ProgressiveEntropyEncoder
         }
 
         int bits = BitOperations.Log2((uint)pendingEobRun);
-        ac.WriteSymbol(writer, bits << 4);
-        writer.WriteBits((uint)(pendingEobRun - (1 << bits)), bits);
+        ac.WriteSymbolWithBits(writer, bits << 4, (uint)(pendingEobRun - (1 << bits)), bits);
         pendingEobRun = 0;
     }
 

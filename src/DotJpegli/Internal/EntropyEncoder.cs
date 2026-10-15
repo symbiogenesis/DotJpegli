@@ -26,8 +26,7 @@ internal static class EntropyEncoder
 
         int difference = naturalCoefficients[0] - previousDc;
         int category = Category(difference);
-        dc.WriteSymbol(writer, category);
-        writer.WriteBits(AdditionalBits(difference, category), category);
+        dc.WriteSymbolWithBits(writer, category, AdditionalBits(difference, category), category);
         previousDc = naturalCoefficients[0];
 
         int nonzeros = CountNonzeroAc(naturalCoefficients);
@@ -56,8 +55,7 @@ internal static class EntropyEncoder
             }
 
             category = Category(value);
-            ac.WriteSymbol(writer, (run << 4) | category);
-            writer.WriteBits(AdditionalBits(value, category), category);
+            ac.WriteSymbolWithBits(writer, (run << 4) | category, AdditionalBits(value, category), category);
         }
     }
 
