@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "mode": "diagnostic",
+  "status": "selected-cases-within-bound",
+  "valid": true,
+  "passed": null,
+  "parityVerdict": "not-evaluated",
+  "selectedCoverageComplete": true,
+  "fullCoverageComplete": false,
+  "scope": "Selected cases only; no full parity verdict or aggregate acceptance claim",
+  "instrumentation": null,
+  "expectedCases": 4,
+  "cases": 4,
+  "testedRevision": "5604d601ceda2b9600aeff153a1ee65a4e9774cf",
+  "policy": {
+    "warmups": 5,
+    "blocks": 7,
+    "minimumIterations": 3,
+    "maximumIterations": 100,
+    "targetBlockMilliseconds": 50,
+    "minimumBlockMilliseconds": 1,
+    "maximumRelativeMad": 0.1,
+    "maximumGroupGeometricMeanRatio": 1.05,
+    "maximumCaseRatio": 1.1,
+    "managedWorkers": 1
+  },
+  "selection": {
+    "images": [
+      "kodim01"
+    ],
+    "distances": [
+      1
+    ],
+    "samplings": [
+      444,
+      420
+    ],
+    "progressions": [
+      0,
+      2
+    ],
+    "policy": {
+      "warmups": 5,
+      "blocks": 7,
+      "minimumIterations": 3,
+      "maximumIterations": 100,
+      "targetBlockMilliseconds": 50,
+      "minimumBlockMilliseconds": 1,
+      "maximumRelativeMad": 0.1,
+      "maximumGroupGeometricMeanRatio": 1.05,
+      "maximumCaseRatio": 1.1,
+      "managedWorkers": 1
+    },
+    "expectedCases": 4
+  },
+  "invalidReasons": [],
+  "failures": [],
+  "runMetadata": "run.json",
+  "rawMeasurements": "cases.json"
+}

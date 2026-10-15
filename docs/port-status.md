@@ -80,7 +80,7 @@ work below remains outstanding.
 | --- | --- |
 | Encoder functionality and output compatibility | Focused regressions check coefficients, marker framing, independent decoding, stream behavior and validation. Optional modes retain the reader requirements in the API guides. |
 | Quality and compression parity | Established within the [documented RGB8 YCbCr scope and fixed tolerances](quality-compression-parity.md): 1,280 matched pairs passed on the pinned upstream corpus comparison, with complete matched-rate/quality coverage. Worst size overhead was 0.087051%; worst matched-size losses were 0.013825 dB PSNR and 0.000136338 SSIM. [Hosted proof](https://github.com/symbiogenesis/DotJpegli/actions/runs/38517910693), tested revision `b30697e`. |
-| Performance parity | Not established. The [latest retained targeted .NET 11 comparison](performance-evidence/2026-10-15-470102a/targeted/report.md) measured 1.02–1.52× native latency across four selected cases. Three exceed the fixed 1.10 bound; 4:2:0 progressive level 2 meets it. Normal pushes run these targeted cases; optional one-case .NET 10/11 API comparisons cover x64 and ARM64. Full acceptance coverage remains outstanding. |
+| Performance parity | Full parity is not established. The [latest retained targeted .NET 11 comparison](performance-evidence/2026-10-15-5604d60/targeted/report.md) measured 0.76–0.85× native latency across four selected cases. All four meet the fixed 1.10 individual bound. Normal pushes run these targeted cases; optional one-case .NET 10/11 API comparisons cover x64 and ARM64. Full acceptance coverage remains outstanding. |
 
 Output remains **lossy eight-bit JPEG**, including at quality 100. Jpegli's quality
 scale is not interchangeable with libjpeg's. Quality/compression parity is
@@ -89,8 +89,8 @@ Byte-identical upstream output and speed parity are not claimed. Google's
 [comparison study](https://arxiv.org/abs/2403.18589) describes results in its tested
 conditions and does not establish a universal smallest-encoder ranking.
 
-The retained four-case performance measurements tested revision `470102a` in
-[run 38686751109](https://github.com/symbiogenesis/DotJpegli/actions/runs/38686751109),
+The retained four-case performance measurements tested revision `5604d60` in
+[run 38688881338](https://github.com/symbiogenesis/DotJpegli/actions/runs/38688881338),
 on an AMD EPYC 9V74 x64 host with .NET 11 RC2 (`11.0.0-rc.2.26504.105`).
 The four-case comparison uses Kodak01, RGB8 to YCbCr, distance 1, AQ,
 optimized Huffman coding and one worker. Ratios are managed median latency
@@ -98,20 +98,20 @@ divided by native median latency; lower is better.
 
 | Sampling | Sequential | Progressive level 2 |
 | --- | ---: | ---: |
-| 4:4:4 | 1.515× | 1.165× |
-| 4:2:0 | 1.358× | 1.020× |
+| 4:4:4 | 0.848× | 0.838× |
+| 4:2:0 | 0.811× | 0.757× |
 
-All four cases passed timing stability and matched JPEG settings. Three still
-exceed the individual 1.10 latency bound. The
-[retained evidence](performance-evidence/2026-10-15-470102a/README.md) includes raw
+All four cases passed timing stability, matched JPEG settings and the individual
+1.10 latency bound. The
+[retained evidence](performance-evidence/2026-10-15-5604d60/README.md) includes raw
 samples, host identity, settings and native build provenance. These selected
-cases do not establish whole-corpus performance parity. The preceding retained
-run used an Intel Xeon Platinum 8573C; results across those runs do not form a
-same-host before/after speed comparison. A separate
-[same-host diagnostic](performance-evidence/2026-10-15-470102a/baseline-comparison.md)
-in this job measured 13–20% lower progressive latency and 1–2% lower sequential
-latency than `60835e6`, with native times changing by less than 1%. Managed JPEG
-hashes matched the baseline in all four cases.
+cases do not establish whole-corpus performance parity. A separate
+[same-host diagnostic](performance-evidence/2026-10-15-5604d60/baseline-comparison.md)
+in this job measured 29–33% lower managed latency than `60835e6` in three cases,
+with native times changing by less than 1%. For 4:4:4 sequential, managed latency
+fell 55%, but native latency also fell 19%; that case cannot isolate the encoder
+change from host variation. Managed JPEG hashes matched the baseline in all four
+cases. Revisions run serially in this diagnostic rather than interleaved.
 
 Separate 4:2:0 sequential API comparisons at revision `0633ebc` measured essentially no extra gain from
 Zip/Unzip/Concat on the Intel x64 host and 2.9% lower latency on ARM64, beyond
