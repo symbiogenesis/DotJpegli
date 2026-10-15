@@ -45,7 +45,7 @@ to center the header on GitHub. Edit the root README rather than the generated c
    such as `1.0.0` or `1.1.0-rc.1`, and commit it with the release changes to
    `main`. Publishing uses that version without rewriting it.
 2. Push the settled batch to `main` once. Reuse its automatic
-   [Managed encoder CI](https://github.com/symbiogenesis/DotJpegli/actions/workflows/ci.yml)
+   [CI](https://github.com/symbiogenesis/DotJpegli/actions/workflows/ci.yml)
    run; do not dispatch duplicate CI. The **Release NuGet package** job builds
    all three targets after tests and deployment checks, verifies package
    contents and repository provenance, and retains `nuget-<commit>` for 30 days.

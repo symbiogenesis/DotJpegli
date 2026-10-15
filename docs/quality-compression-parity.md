@@ -2,7 +2,7 @@
 
 [Documentation](README.md)
 
-The `quality-compression-parity` job in [Managed encoder CI](../.github/workflows/ci.yml)
+The `quality-compression-parity` job in [CI](../.github/workflows/ci.yml)
 compares DotJpegli with unchanged Google Jpegli source at
 `031a0077f5799a6041004267fc12b956c1f52a20`. A passing result establishes practical
 quality/compression parity within the tolerances and scope below. It does not
