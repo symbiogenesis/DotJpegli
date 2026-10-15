@@ -8,8 +8,8 @@ namespace DotJpegli.Internal;
 
 // Managed scalar adaptation of ComputeTokensForBlock<T, false> in
 // google/jpegli lib/jpegli/entropy_coding-inl.h, revision
-// 031a0077f5799a6041004267fc12b956c1f52a20. Writes baseline tokens directly
-// instead of storing them in the native encoder's token arrays.
+// 031a0077f5799a6041004267fc12b956c1f52a20. Histogram collection can retain
+// bounded tokens for emission without a second coefficient traversal.
 internal static class EntropyEncoder
 {
     public static void WriteBlock(
@@ -65,7 +65,9 @@ internal static class EntropyEncoder
         ref int previousDc,
         long[] dc,
         long[] ac,
-        bool coefficientsValidated = false)
+        bool coefficientsValidated = false,
+        EntropyTokens? tokens = null,
+        int component = 0)
     {
         ArgumentNullException.ThrowIfNull(dc);
         ArgumentNullException.ThrowIfNull(ac);
@@ -76,7 +78,9 @@ internal static class EntropyEncoder
 
         ValidateBlock(naturalCoefficients, previousDc, coefficientsValidated);
         int difference = naturalCoefficients[0] - previousDc;
-        checked { dc[Category(difference)]++; }
+        int category = Category(difference);
+        checked { dc[category]++; }
+        tokens?.AddHuffman(component, false, category, AdditionalBits(difference, category), category);
         previousDc = naturalCoefficients[0];
 
         int nonzeros = CountNonzeroAc(naturalCoefficients);
@@ -86,6 +90,7 @@ internal static class EntropyEncoder
             if (nonzeros == 0)
             {
                 checked { ac[0]++; }
+                tokens?.AddHuffman(component, true, 0, 0, 0);
                 break;
             }
 
@@ -101,10 +106,14 @@ internal static class EntropyEncoder
             while (run >= 16)
             {
                 checked { ac[0xf0]++; }
+                tokens?.AddHuffman(component, true, 0xf0, 0, 0);
                 run -= 16;
             }
 
-            checked { ac[(run << 4) | Category(value)]++; }
+            category = Category(value);
+            int symbol = (run << 4) | category;
+            checked { ac[symbol]++; }
+            tokens?.AddHuffman(component, true, symbol, AdditionalBits(value, category), category);
         }
     }
 
