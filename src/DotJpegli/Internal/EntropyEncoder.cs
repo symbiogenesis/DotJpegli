@@ -291,6 +291,8 @@ internal static class EntropyEncoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static ulong NonzeroAcMask(ReadOnlySpan<short> zigZagCoefficients)
     {
+        if (Vector512.IsHardwareAccelerated)
+            return NonzeroAcMaskVector512(zigZagCoefficients);
         ulong mask = 0;
         if (Vector256.IsHardwareAccelerated)
         {
@@ -317,6 +319,16 @@ internal static class EntropyEncoder
                     mask |= 1UL << position;
         }
         return mask & ~1UL;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static ulong NonzeroAcMaskVector512(ReadOnlySpan<short> zigZagCoefficients)
+    {
+        Vector512<short> lower = Vector512.Create(zigZagCoefficients[..32]);
+        Vector512<short> upper = Vector512.Create(zigZagCoefficients.Slice(32, 32));
+        uint lowerZeros = (uint)Vector512.ExtractMostSignificantBits(Vector512.Equals(lower, Vector512<short>.Zero));
+        uint upperZeros = (uint)Vector512.ExtractMostSignificantBits(Vector512.Equals(upper, Vector512<short>.Zero));
+        return ((ulong)~lowerZeros | ((ulong)~upperZeros << 32)) & ~1UL;
     }
 
     private static void ValidateBlock(ReadOnlySpan<short> coefficients, int previousDc, bool coefficientsValidated)

@@ -51,12 +51,15 @@ public sealed class OrderedEntropyTests
             {
                 block[position] = value;
                 Assert.Equal(position == 0 ? 0UL : 1UL << position, EntropyEncoder.NonzeroAcMask(block));
+                Assert.Equal(position == 0 ? 0UL : 1UL << position, EntropyEncoder.NonzeroAcMaskVector512(block));
                 block[position] = 0;
             }
         Array.Fill(block, (short)1);
         Assert.Equal(ulong.MaxValue - 1, EntropyEncoder.NonzeroAcMask(block));
+        Assert.Equal(ulong.MaxValue - 1, EntropyEncoder.NonzeroAcMaskVector512(block));
         Array.Clear(block);
         Assert.Equal(0UL, EntropyEncoder.NonzeroAcMask(block));
+        Assert.Equal(0UL, EntropyEncoder.NonzeroAcMaskVector512(block));
     }
 
     [Theory]
