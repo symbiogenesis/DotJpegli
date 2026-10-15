@@ -34,7 +34,10 @@ try {
             if ($LASTEXITCODE -ne 0) { throw 'Locked restore failed.' }
             dotnet pack src/DotJpegli/DotJpegli.csproj -c Release --no-restore --output $artifacts -p:ContinuousIntegrationBuild=true -p:RepositoryBranch=refs/heads/main
             if ($LASTEXITCODE -ne 0) { throw 'Release pack failed.' }
-            Copy-Item -LiteralPath (Join-Path $checkout 'src/DotJpegli/bin/Release/net10.0/DotJpegli.dll') -Destination $artifacts
+            foreach ($framework in @('net10.0', 'net11.0')) {
+                $assembly = Join-Path $checkout "src/DotJpegli/bin/Release/$framework/DotJpegli.dll"
+                Copy-Item -LiteralPath $assembly -Destination (Join-Path $artifacts "DotJpegli.$framework.dll")
+            }
         }
         finally {
             Pop-Location
@@ -45,8 +48,8 @@ try {
         $outputs += ,@(Get-ChildItem -LiteralPath $artifacts -File | Sort-Object Name)
     }
 
-    if ($outputs[0].Count -ne 2 -or $outputs[1].Count -ne 2) {
-        throw 'Expected an assembly and a package from each checkout.'
+    if ($outputs[0].Count -ne 3 -or $outputs[1].Count -ne 3) {
+        throw 'Expected both target-framework assemblies and one package from each checkout.'
     }
     $hashes = for ($index = 0; $index -lt $outputs[0].Count; $index++) {
         $first = $outputs[0][$index]

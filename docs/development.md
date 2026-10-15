@@ -4,10 +4,13 @@
 
 ## Build
 
-The projects target .NET 10 and use its default C# 14 language version.
-`global.json` pins .NET SDK 10.0.402 with roll-forward disabled. Install that exact
-SDK; CI reads the same file. Update the pin deliberately to receive compiler,
-runtime and analyzer improvements, then validate the new build outputs.
+The library, tests and tools target both `net10.0` and `net11.0`. The .NET 11
+build uses newer portable SIMD APIs, while the .NET 10 build retains compatible
+implementations. `global.json` pins .NET SDK `11.0.100-rc.2.26504.105` with
+roll-forward disabled and `allowPrerelease: true`. Install that exact SDK;
+CI reads the same file. Running the .NET 10 test and tool targets also requires
+the .NET 10 runtime. Update the SDK pin deliberately to receive compiler,
+runtime and analyzer improvements, then validate both target builds.
 
 Prefer framework span APIs for buffer searches, validation and counting, and
 span splitting when substrings do not need to be retained. Use collection
@@ -49,7 +52,7 @@ When updating a package intentionally, update `Directory.Packages.props`, run
 The Isolated SDK version is declared separately in `Directory.Build.props`.
 
 With Git and PowerShell 7 installed, verify the Release library and unsigned
-NuGet package from a committed revision:
+NuGet package containing both target-framework assemblies from a committed revision:
 
 ```powershell
 ./tools/verify-reproducibility.ps1
@@ -57,9 +60,11 @@ NuGet package from a committed revision:
 
 The script builds the same commit in two fresh Git worktrees at different absolute
 paths, using the pinned SDK, locked restore, `ContinuousIntegrationBuild=true` and
-`RepositoryBranch=refs/heads/main`. It compares complete DLL and `.nupkg` SHA-256
-hashes, removes its worktrees and retains artifacts and `hashes.json` in a unique
-temporary directory. It checks committed `HEAD`, so commit changes before running
+`RepositoryBranch=refs/heads/main`. It retains `DotJpegli.net10.0.dll`,
+`DotJpegli.net11.0.dll` and one `.nupkg` from each checkout, and compares all
+three complete-file SHA-256 hashes. It removes its worktrees and retains these
+artifacts and `hashes.json` in a unique temporary directory. It checks committed
+`HEAD`, so commit changes before running
 it. CI runs this comparison independently on Windows and Linux in the existing
 validation workflow; it does not compare the two operating systems' outputs.
 This is a build check and does not run tests or benchmarks.
@@ -68,14 +73,18 @@ This is a build check and does not run tests or benchmarks.
 
 ```text
 dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release
-dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -class DotJpegli.Tests.EncoderSamplingTests
+dotnet run --project tests/DotJpegli.Tests -c Release -f net10.0 --no-build -- -class DotJpegli.Tests.EncoderSamplingTests
+dotnet run --project tests/DotJpegli.Tests -c Release -f net11.0 --no-build -- -class DotJpegli.Tests.EncoderSamplingTests
 ```
 
-The second command is a focused local selection. Full suites run only in the
-GitHub Actions workflow, on Windows and Linux; benchmarks also belong on CI.
-A normal push to `main` also runs four targeted Ubuntu encoding benchmarks:
-`kodim01` at distance 1, sampling 444/420 and progression 0/2. These run directly,
-without the full quality/compression or performance matrices. The native reference
+The run commands select the same focused tests for each target framework;
+`dotnet run` requires an explicit `-f net10.0` or `-f net11.0` for these projects.
+Full suites run only in the GitHub Actions workflow, on Windows and Linux for
+both target frameworks; benchmarks also belong on CI.
+A normal push to `main` runs four targeted Ubuntu encoding benchmarks on .NET 11:
+`kodim01` at distance 1, sampling 444/420 and progression 0/2. Workflow dispatch
+can select the .NET 10 runner with `framework=net10.0`; the default is `net11.0`.
+These run directly, without the full quality/compression or performance matrices. The native reference
 and photographic corpus are cached with pinned identities and retained provenance.
 The [performance guide](performance-parity.md) explains selecting individual images,
 settings and bounded measurement counts through workflow dispatch. A targeted

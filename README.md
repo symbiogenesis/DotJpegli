@@ -1,6 +1,6 @@
 # DotJpegli
 
-A fully managed C# JPEG encoder for .NET 10, based on [Google Jpegli](https://github.com/google/jpegli).
+A fully managed C# JPEG encoder for .NET 10 and .NET 11, based on [Google Jpegli](https://github.com/google/jpegli).
 No native binaries, unsafe code or runtime NuGet dependencies.
 
 Encode RGB or grayscale pixels as baseline or progressive JPEG, with configurable
@@ -13,8 +13,11 @@ Quality/compression parity has been measured within a
 
 ## Getting started
 
-Requires the .NET 10 SDK. From this repository's root, add a project reference to
-your .NET 10 application, replacing `path/to/YourApp.csproj` with its project path:
+Building from source requires .NET SDK `11.0.100-rc.2.26504.105`, pinned in
+`global.json` with prerelease SDKs enabled. The library supports .NET 10 and
+.NET 11 applications; its .NET 11 build uses newer portable SIMD APIs.
+From this repository's root, add a project reference to your application,
+replacing `path/to/YourApp.csproj` with its project path:
 
 ```sh
 dotnet add path/to/YourApp.csproj reference src/DotJpegli/DotJpegli.csproj
