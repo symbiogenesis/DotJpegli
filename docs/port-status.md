@@ -14,7 +14,7 @@ quality, compression and performance validation are tracked separately below.
 
 ## Scope and upstream source
 
-DotJpegli is an experimental, fully managed C# JPEG encoder for .NET 10,
+DotJpegli is an experimental, fully managed C# JPEG encoder for .NET 10 and .NET 11,
 based on [Google Jpegli](https://github.com/google/jpegli). Unsafe compilation
 is disabled, with no native binaries, P/Invoke, pointer code, `Unsafe` APIs
 or runtime NuGet dependencies.
@@ -80,7 +80,7 @@ work below remains outstanding.
 | --- | --- |
 | Encoder functionality and output compatibility | Focused regressions check coefficients, marker framing, independent decoding, stream behavior and validation. Optional modes retain the reader requirements in the API guides. |
 | Quality and compression parity | Established within the [documented RGB8 YCbCr scope and fixed tolerances](quality-compression-parity.md): 1,280 matched pairs passed on the pinned upstream corpus comparison, with complete matched-rate/quality coverage. Worst size overhead was 0.087051%; worst matched-size losses were 0.013825 dB PSNR and 0.000136338 SSIM. [Hosted proof](https://github.com/symbiogenesis/DotJpegli/actions/runs/38517910693), tested revision `b30697e`. |
-| Performance parity | Not established. The [initial hosted measurements](performance-parity.md) retained 138 cases before the CI time limit; managed encoding was 13.36–128.37 times slower, exceeding the fixed case bound in every retained case. Complete corpus coverage remains outstanding. |
+| Performance parity | Not established. Development now uses [targeted CI comparisons](performance-parity.md), with four selected cases on normal pushes and optional one-case .NET 10/11 API comparisons on x64 and ARM64. The latest completed .NET 11 experiment measured 1.57× native latency on x64 and 1.22× on ARM64 for one 4:2:0 sequential case; both exceed the fixed 1.10 case bound. Full acceptance coverage remains outstanding. |
 
 Output remains **lossy eight-bit JPEG**, including at quality 100. Jpegli's quality
 scale is not interchangeable with libjpeg's. Quality/compression parity is
@@ -88,6 +88,18 @@ limited to the measured corpus, settings, metrics and bounds above.
 Byte-identical upstream output and speed parity are not claimed. Google's
 [comparison study](https://arxiv.org/abs/2403.18589) describes results in its tested
 conditions and does not establish a universal smallest-encoder ranking.
+
+The latest completed portable SIMD API experiment tested revision `f7f1e10` in
+[run 38680017502](https://github.com/symbiogenesis/DotJpegli/actions/runs/38680017502):
+Kodak01, RGB8 to YCbCr, distance 1, 4:2:0, sequential coding, AQ and optimized
+Huffman coding, one worker, seven blocks, twenty iterations and five warmups.
+The .NET 11 API variant took 5.530 ms versus native 3.519 ms on x64, and
+7.887 ms versus native 6.456 ms on ARM64. Compared with the portable legacy lane
+operations on the same .NET 11 runtime, Zip/Unzip/Concat reduced managed latency
+by 32.4% and 3.2%, respectively; JPEG hashes matched. These are one-case results
+for that revision, not whole-corpus speedups. Subsequent changes require new
+measurements. The original timed-out comparison is retained as historical
+evidence in the [performance validation guide](performance-parity.md).
 
 The managed DCT uses standard JPEG coefficient units; upstream's output is one
 eighth of those units, with the adaptation accounted for during quantization.
@@ -99,9 +111,11 @@ Managed vectors also accelerate RGB-to-YCbCr conversion, unsmoothed integer-rati
 downsampling and AC quantization. Conversion preserves source normalization,
 scalar evaluation order and chroma FMA rounding; downsampling preserves pairwise
 and composed averaging; quantization preserves coefficient division, adaptive
-thresholds and rounding rules. Smoothing and nonlinear RGB-to-XYB conversion
-retain scalar paths. These changes do not establish a measured speed improvement
-or upstream performance parity.
+thresholds and rounding rules. The .NET 11 target uses portable Zip/Unzip/Concat
+for DCT transposes and adjacent-pair downsampling; the .NET 10 target retains
+portable lane assembly. No CPU-specific intrinsic paths are used. Smoothing and
+nonlinear RGB-to-XYB conversion retain scalar paths. Measured improvements remain
+limited to the explicitly tested revisions and cases above.
 
 `MaxDegreeOfParallelism` defaults to one worker; positive limits or automatic
 selection (`-1`) enable parallel conversion, sampling and DCT when the effective
@@ -109,6 +123,8 @@ limit exceeds one. Parallel execution shares cached converted samples or copies
 the consumed source storage once, and retains one MCU row of DCT coefficients.
 Converted samples and optimized grayscale/YCbCr quantized coefficients each
 have a separate 64 MiB cache budget; larger images use streaming recomputation.
+Retained entropy tokens share another 64 MiB budget across scans, with coefficient
+replay when a token sequence exceeds its allocation budget.
 All workers finish before encoding returns. Adaptive analysis,
 quantization and stream writes remain ordered. This execution option extends
 the managed port and does not establish a measured speed improvement.
