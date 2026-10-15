@@ -43,7 +43,7 @@ public sealed class XmpMetadata
     /// <exception cref="ArgumentException">The packet is malformed or uses unsupported RDF subjects or envelopes.</exception>
     public static XmpMetadata Parse(string packet)
     {
-        ArgumentNullException.ThrowIfNull(packet);
+        Guard.ThrowIfNull(packet);
         const string message = "XMP requires an rdf:RDF or x:xmpmeta envelope containing only " +
             "top-level rdf:Description elements with empty or absent rdf:about, without rdf:ID/nodeID or DTDs.";
         try
@@ -112,7 +112,7 @@ public sealed class XmpMetadata
     /// <remarks>The element name must match the property name. Structured values and qualifiers are supported.</remarks>
     public void SetProperty(XmpPropertyName name, XElement value)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        Guard.ThrowIfNull(value);
         XName xmlName = PropertyName(name);
         if (value.Name != xmlName)
             throw new ArgumentException("The XML element name must match the property name.", nameof(value));
@@ -148,7 +148,7 @@ public sealed class XmpMetadata
     /// <summary>Replaces a property, including all duplicate forms, with a literal string.</summary>
     public void SetSimpleProperty(XmpPropertyName name, string value)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        Guard.ThrowIfNull(value);
         SetProperty(name, new XElement(PropertyName(name), value));
     }
 
@@ -171,7 +171,7 @@ public sealed class XmpMetadata
     public void SetLocalizedText(XmpPropertyName name, string language, string value)
     {
         ValidateLanguage(language);
-        ArgumentNullException.ThrowIfNull(value);
+        Guard.ThrowIfNull(value);
         XElement property = GetProperty(name) ?? new XElement(PropertyName(name), new XElement(Rdf + "Alt"));
         XElement alternative = Alternative(property);
         XElement[] matching = alternative.Elements(Rdf + "li").Where(element =>
@@ -207,11 +207,11 @@ public sealed class XmpMetadata
     /// <summary>Replaces all forms of a property with an RDF bag, or an RDF sequence when ordered is true.</summary>
     public void SetStringArray(XmpPropertyName name, IReadOnlyList<string> values, bool ordered = false)
     {
-        ArgumentNullException.ThrowIfNull(values);
+        Guard.ThrowIfNull(values);
         var container = new XElement(Rdf + (ordered ? "Seq" : "Bag"));
         foreach (string value in values)
         {
-            ArgumentNullException.ThrowIfNull(value);
+            Guard.ThrowIfNull(value);
             container.Add(new XElement(Rdf + "li", value));
         }
         SetProperty(name, new XElement(PropertyName(name), container));
@@ -304,19 +304,25 @@ public sealed class XmpMetadata
 
     private static void ValidateLanguage(string language)
     {
-        ArgumentException.ThrowIfNullOrEmpty(language);
+        Guard.ThrowIfNullOrEmpty(language);
         // Language tags consist of ASCII alphanumeric subtags separated by '-'.
         // This also allows XMP's special x-default language without a culture lookup.
-        ReadOnlySpan<char> tag = language;
-        foreach (Range range in tag.Split('-'))
+        bool hasCharacter = false;
+        foreach (char character in language)
         {
-            ReadOnlySpan<char> part = tag[range];
-            if (part.IsEmpty)
-                throw new ArgumentException("The language must be a hyphen-separated ASCII language tag.", nameof(language));
-            foreach (char character in part)
-                if (!char.IsAsciiLetterOrDigit(character))
+            if (character == '-')
+            {
+                if (!hasCharacter)
                     throw new ArgumentException("The language must be a hyphen-separated ASCII language tag.", nameof(language));
+                hasCharacter = false;
+            }
+            else if (character is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9')
+                hasCharacter = true;
+            else
+                throw new ArgumentException("The language must be a hyphen-separated ASCII language tag.", nameof(language));
         }
+        if (!hasCharacter)
+            throw new ArgumentException("The language must be a hyphen-separated ASCII language tag.", nameof(language));
     }
 
     private static bool HasText(XElement element) =>

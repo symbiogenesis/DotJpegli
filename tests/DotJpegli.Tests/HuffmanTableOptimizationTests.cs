@@ -101,6 +101,23 @@ public sealed class HuffmanTableOptimizationTests
         }
     }
 
+    [Fact]
+    public void WideHistogramCostPreservesUInt128Rounding()
+    {
+        // A cost just above a float midpoint exposes a different conversion path
+        // for BigInteger and UInt128, even though their integer totals agree.
+        // The standard luminance DC table gives symbol 1 a three-bit code and
+        // includes twelve symbols in its DHT definition.
+        UInt128 midpoint = ((UInt128)1 << 64) + ((UInt128)1 << 40);
+        long[] frequencies = new long[256];
+        frequencies[1] = (long)((midpoint + 2 - (17 + 12) * 8) / 3);
+        UInt128 expectedBits = (UInt128)frequencies[1] * 3 + (17 + 12) * 8;
+
+        float actual = HuffmanTable.CreateDefault(isAc: false, chroma: false).EstimateCost(frequencies);
+
+        Assert.Equal(BitConverter.SingleToInt32Bits((float)expectedBits), BitConverter.SingleToInt32Bits(actual));
+    }
+
     private static void AssertMatchesReference(long[] frequencies, ReferenceTable? expected = null)
     {
         expected ??= BuildReference(frequencies);

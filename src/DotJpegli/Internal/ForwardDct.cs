@@ -4,7 +4,9 @@
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
+#if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
+#endif
 
 namespace DotJpegli.Internal;
 
@@ -48,6 +50,7 @@ internal static class ForwardDct
         if (coefficients.Length < 64)
             throw new ArgumentException("The coefficient buffer requires at least 64 values.", nameof(coefficients));
 
+#if !NETSTANDARD2_1
         if (Vector.IsHardwareAccelerated && Vector<float>.Count == 8)
         {
             TransformEightLane(plane[(top * stride + left)..], stride, centerInput: true, coefficients);
@@ -57,6 +60,7 @@ internal static class ForwardDct
             TransformFourLane(plane[(top * stride + left)..], stride, centerInput: true, coefficients);
         }
         else
+#endif
         {
             Span<float> samples = stackalloc float[64];
             for (int row = 0; row < 8; row++)
@@ -73,7 +77,8 @@ internal static class ForwardDct
         ValidatePlane(plane, stride, left, top);
         if (output.Length < 64)
             throw new ArgumentException("A quantized block requires 64 values.", nameof(output));
-        ArgumentNullException.ThrowIfNull(table);
+        Guard.ThrowIfNull(table);
+#if !NETSTANDARD2_1
         if (zigZagOrdered && Vector.IsHardwareAccelerated && Vector<float>.Count == 8
             && (!table.AdaptiveQuantization || (float.IsFinite(adaptiveStrength) && adaptiveStrength >= 0f)))
         {
@@ -85,6 +90,7 @@ internal static class ForwardDct
                 r4.AsVector256(), r5.AsVector256(), r6.AsVector256(), r7.AsVector256(), table, transposed, adaptiveStrength, output))
                 return;
         }
+#endif
         TransformQuantizePlaneFallback(plane, stride, left, top, table, output, adaptiveStrength, zigZagOrdered);
     }
 
@@ -104,9 +110,9 @@ internal static class ForwardDct
 
     private static void ValidatePlane(ReadOnlySpan<float> plane, int stride, int left, int top)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(stride, 8);
-        ArgumentOutOfRangeException.ThrowIfNegative(left);
-        ArgumentOutOfRangeException.ThrowIfNegative(top);
+        Guard.ThrowIfLessThan(stride, 8);
+        Guard.ThrowIfNegative(left);
+        Guard.ThrowIfNegative(top);
         if (left > stride - 8)
             throw new ArgumentOutOfRangeException(nameof(left));
         if (((long)top + 7) * stride + left + 8 > plane.Length)
@@ -181,6 +187,7 @@ internal static class ForwardDct
         }
     }
 
+#if !NETSTANDARD2_1
     private static void TransformVectorCore(ReadOnlySpan<float> samples, Span<float> coefficients)
     {
         if (Vector<float>.Count == 8)
@@ -455,7 +462,7 @@ internal static class ForwardDct
         Vector<float> o2 = (v2 - v5) * new Vector<float>(0.8999762231364156f);
         Vector<float> o3 = (v3 - v4) * new Vector<float>(2.5629154477415055f);
         Transform4Vector(ref o0, ref o1, ref o2, ref o3);
-        o0 = Vector.FusedMultiplyAdd(o0, new Vector<float>(Sqrt2), o1);
+        o0 = FloatingPointMath.FusedMultiplyAdd(o0, new Vector<float>(Sqrt2), o1);
         o1 += o2;
         o2 += o3;
         v0 = e0;
@@ -479,11 +486,16 @@ internal static class ForwardDct
         Vector<float> first = o0 + o1;
         Vector<float> second = o0 - o1;
         v0 = e0 + e1;
-        v1 = Vector.FusedMultiplyAdd(first, new Vector<float>(Sqrt2), second);
+        v1 = FloatingPointMath.FusedMultiplyAdd(first, new Vector<float>(Sqrt2), second);
         v2 = e0 - e1;
         v3 = second;
     }
 
+#else
+    private static void TransformVectorCore(ReadOnlySpan<float> samples, Span<float> coefficients)
+        => TransformScalarCore(samples, coefficients);
+
+#endif
     private static void TransformRecursive(Span<float> values)
     {
         int size = values.Length;
@@ -523,7 +535,7 @@ internal static class ForwardDct
         TransformRecursive(odd);
 
         // B<N/2> uses Highway MulAdd for this first operation.
-        odd[0] = MathF.FusedMultiplyAdd(odd[0], Sqrt2, odd[1]);
+        odd[0] = FloatingPointMath.FusedMultiplyAdd(odd[0], Sqrt2, odd[1]);
         for (int i = 1; i + 1 < half; i++)
         {
             odd[i] += odd[i + 1];

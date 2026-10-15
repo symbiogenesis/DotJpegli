@@ -3,7 +3,9 @@
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
+#if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
+#endif
 
 namespace DotJpegli.Internal;
 
@@ -94,7 +96,7 @@ internal static class Downsampling
 
         bool direct = sampleWidth == 1 && sampleHeight == 1;
         bool directQuarter = sampleWidth == 2 && sampleHeight == 2
-            && (Vector256.IsHardwareAccelerated || Vector128.IsHardwareAccelerated);
+            && CanUseQuarterVector;
         if ((direct || directQuarter) && left >= 0 && top >= 0
             && left <= width - 8 * sampleWidth && top <= height - 8 * sampleHeight)
         {
@@ -123,7 +125,7 @@ internal static class Downsampling
                 Span<float> destination = samples.Slice(row * 8, 8);
                 pixels.ReadRowVector(width, height, stride, component, left, top + row, destination);
                 for (int column = 0; column < 8; column += lanes)
-                    (new Vector<float>(destination.Slice(column, lanes)) - center).CopyTo(destination.Slice(column, lanes));
+                    (PortableVector.Load(destination.Slice(column, lanes)) - center).CopyTo(destination.Slice(column, lanes));
             }
             return;
         }
@@ -161,6 +163,12 @@ internal static class Downsampling
         }
     }
 
+#if NETSTANDARD2_1
+    private static bool CanUseQuarterVector => false;
+#else
+    private static bool CanUseQuarterVector => Vector256.IsHardwareAccelerated || Vector128.IsHardwareAccelerated;
+#endif
+
     private static bool CanUseVector => Vector<float>.Count <= 8 && 8 % Vector<float>.Count == 0;
 
     private static void FillConvertedBlock(ReadOnlySpan<float> plane, int width, int left, int top, Span<float> samples)
@@ -171,11 +179,12 @@ internal static class Downsampling
         {
             int source = (top + row) * width + left;
             for (int column = 0; column < 8; column += lanes)
-                (new Vector<float>(plane.Slice(source + column, lanes)) - center)
+                (PortableVector.Load(plane.Slice(source + column, lanes)) - center)
                     .CopyTo(samples.Slice(row * 8 + column, lanes));
         }
     }
 
+#if !NETSTANDARD2_1
     private static void FillConvertedQuarterBlock(ReadOnlySpan<float> plane, int width, int left, int top,
         Span<float> samples)
     {
@@ -263,21 +272,34 @@ internal static class Downsampling
         => Vector128.UnzipEven(first, second) + Vector128.UnzipOdd(first, second);
 #endif
 
+#else
+    private static void FillConvertedQuarterBlock(ReadOnlySpan<float> plane, int width, int left, int top, Span<float> samples)
+    {
+        for (int row = 0; row < 8; row++)
+            for (int column = 0; column < 8; column++)
+            {
+                int source = (top + row * 2) * width + left + column * 2;
+                samples[row * 8 + column] = ((plane[source] + plane[source + 1])
+                    + (plane[source + width] + plane[source + width + 1])) * 0.25f - 128f;
+            }
+    }
+
+#endif
     private static Vector<float> AverageRowVector(ReadOnlySpan<float> terms, int row, int column,
         int sampleWidth, bool quarter)
     {
         int start = row * sampleWidth * 8 + column;
         int lanes = Vector<float>.Count;
-        Vector<float> first = new(terms.Slice(start, lanes));
+        Vector<float> first = PortableVector.Load(terms.Slice(start, lanes));
         if (sampleWidth == 1)
             return first;
-        Vector<float> second = new(terms.Slice(start + 8, lanes));
+        Vector<float> second = PortableVector.Load(terms.Slice(start + 8, lanes));
         if (sampleWidth == 2)
             return quarter ? first + second : (first + second) * new Vector<float>(0.5f);
-        Vector<float> third = new(terms.Slice(start + 16, lanes));
+        Vector<float> third = PortableVector.Load(terms.Slice(start + 16, lanes));
         if (sampleWidth == 3)
             return ((first + second) + third) * new Vector<float>(1f / 3f);
-        Vector<float> fourth = new(terms.Slice(start + 24, lanes));
+        Vector<float> fourth = PortableVector.Load(terms.Slice(start + 24, lanes));
         return ((first + second) + (third + fourth)) * new Vector<float>(0.25f);
     }
 

@@ -85,7 +85,7 @@ public sealed class IptcMetadata
     /// <remarks>New fields are inserted before higher-numbered records; replacements keep the first old occurrence's position.</remarks>
     public void SetValues(byte record, byte dataset, IReadOnlyList<ReadOnlyMemory<byte>> values)
     {
-        ArgumentNullException.ThrowIfNull(values);
+        Guard.ThrowIfNull(values);
         Dataset[] replacements = values.Select(value => CreateDataset(record, dataset, value.Span)).ToArray();
         int index = datasets.FindIndex(entry => entry.Record == record && entry.Number == dataset);
         if (index < 0)
@@ -120,7 +120,7 @@ public sealed class IptcMetadata
     public void SetTextValues(byte dataset, IReadOnlyList<string> values)
     {
         EnsureTextDataset(dataset);
-        ArgumentNullException.ThrowIfNull(values);
+        Guard.ThrowIfNull(values);
         if (values.Count == 0)
         {
             SetValues(2, dataset, []);
@@ -132,7 +132,7 @@ public sealed class IptcMetadata
         var encoded = new ReadOnlyMemory<byte>[values.Count];
         for (int index = 0; index < values.Count; index++)
         {
-            ArgumentNullException.ThrowIfNull(values[index]);
+            Guard.ThrowIfNull(values[index]);
             try
             {
                 encoded[index] = Utf8.GetBytes(values[index]);

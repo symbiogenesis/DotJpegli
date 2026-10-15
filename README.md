@@ -1,13 +1,13 @@
 # DotJpegli
 
-A C# JPEG encoder for .NET 10 and .NET 11, based on [Google Jpegli](https://github.com/google/jpegli).
+A C# JPEG encoder targeting .NET Standard 2.1, .NET 10 and .NET 11, based on [Google Jpegli](https://github.com/google/jpegli).
 Implemented in pure, safe, portable managed .NET, with no native dependencies,
 P/Invoke, unsafe code or runtime NuGet dependencies. SIMD acceleration uses
 portable .NET APIs with scalar fallbacks.
 
 Encode RGB or grayscale pixels as baseline or progressive JPEG, with configurable
 quality, sampling and metadata.
-Both target frameworks are compatible with trimming and NativeAOT publishing.
+The .NET 10 and .NET 11 targets are compatible with trimming and NativeAOT publishing.
 CI publishes and runs trimmed and NativeAOT consumers on Windows and Linux x64;
 linker and AOT analyzer warnings fail validation. See
 [deployment validation](docs/development.md#trimming-and-nativeaot) for coverage.
@@ -23,8 +23,10 @@ are not claimed. Jpegli's quality scale is not interchangeable with libjpeg's.
 ## Getting started
 
 Building from source requires .NET SDK `11.0.100-rc.2.26504.105`, pinned in
-`global.json` with prerelease SDKs enabled. The library supports .NET 10 and
-.NET 11 applications; its .NET 11 build uses newer portable SIMD APIs.
+`global.json` with prerelease SDKs enabled. The `netstandard2.1` target exposes
+the same encoding and metadata APIs to applications implementing .NET Standard 2.1,
+with no runtime NuGet dependencies. The `net10.0` and `net11.0` targets retain
+their optimized implementations; the .NET 11 build uses newer portable SIMD APIs.
 From this repository's root, add a project reference to your application,
 replacing `path/to/YourApp.csproj` with its project path:
 

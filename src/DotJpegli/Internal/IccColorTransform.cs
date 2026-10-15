@@ -396,7 +396,7 @@ internal sealed class IccColorTransform
             _ = curve.Apply(1);
             if (function >= 3 && values[4] is > 0 and < 1)
             {
-                _ = curve.Apply(Math.BitDecrement(values[4]));
+                _ = curve.Apply(StandardFloatingPoint.BitDecrement(values[4]));
                 _ = curve.Apply(values[4]);
             }
             return curve;
@@ -565,7 +565,7 @@ internal sealed class IccColorTransform
             {
                 double d = values[4];
                 if ((d > 0 && values[3] < 0) || (d > 0 && d <= 1 &&
-                    Apply(Math.BitDecrement(d)) > Apply(d) + 1e-12))
+                    Apply(StandardFloatingPoint.BitDecrement(d)) > Apply(d) + 1e-12))
                     throw new ArgumentException("The destination ICC curve must be monotonically increasing.", parameter);
             }
             if (Apply(1) <= Apply(0))
@@ -630,7 +630,7 @@ internal sealed class IccColorTransform
                     // join. In its gap choose the nearest attainable curve value.
                     // Preserve a lower-side choice through the float output API:
                     // the preceding double would round back to the upper branch.
-                    double preceding = MathF.BitDecrement((float)d);
+                    double preceding = StandardFloatingPoint.BitDecrement((float)d);
                     if (y >= lowerJoin)
                         return y - lowerJoin <= upperJoin - y ? preceding : d;
                     return values[3] > 0 ? Clamp(Math.Min(preceding, (y - f) / values[3])) : preceding;

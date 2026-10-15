@@ -4,7 +4,9 @@
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
+#if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
+#endif
 
 namespace DotJpegli.Internal;
 
@@ -23,9 +25,9 @@ internal static class EntropyEncoder
         bool coefficientsValidated = false,
         bool zigZagOrdered = false)
     {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(dc);
-        ArgumentNullException.ThrowIfNull(ac);
+        Guard.ThrowIfNull(writer);
+        Guard.ThrowIfNull(dc);
+        Guard.ThrowIfNull(ac);
         ValidateBlock(naturalCoefficients, previousDc, coefficientsValidated);
 
         int difference = naturalCoefficients[0] - previousDc;
@@ -97,8 +99,8 @@ internal static class EntropyEncoder
         int component = 0,
         bool zigZagOrdered = false)
     {
-        ArgumentNullException.ThrowIfNull(dc);
-        ArgumentNullException.ThrowIfNull(ac);
+        Guard.ThrowIfNull(dc);
+        Guard.ThrowIfNull(ac);
         if (dc.Length != 256 || ac.Length != 256)
         {
             throw new ArgumentException("Frequency tables must each have 256 entries.");
@@ -291,9 +293,12 @@ internal static class EntropyEncoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static ulong NonzeroAcMask(ReadOnlySpan<short> zigZagCoefficients)
     {
+#if !NETSTANDARD2_1
         if (Vector512.IsHardwareAccelerated)
             return NonzeroAcMaskVector512(zigZagCoefficients);
+#endif
         ulong mask = 0;
+#if !NETSTANDARD2_1
         if (Vector256.IsHardwareAccelerated)
         {
             for (int position = 0; position < 64; position += Vector256<short>.Count)
@@ -313,6 +318,7 @@ internal static class EntropyEncoder
             }
         }
         else
+#endif
         {
             for (int position = 1; position < 64; position++)
                 if (zigZagCoefficients[position] != 0)
@@ -322,6 +328,7 @@ internal static class EntropyEncoder
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#if !NETSTANDARD2_1
     internal static ulong NonzeroAcMaskVector512(ReadOnlySpan<short> zigZagCoefficients)
     {
         Vector512<short> lower = Vector512.Create(zigZagCoefficients[..32]);
@@ -331,6 +338,11 @@ internal static class EntropyEncoder
         return ((ulong)~lowerZeros | ((ulong)~upperZeros << 32)) & ~1UL;
     }
 
+#else
+    internal static ulong NonzeroAcMaskVector512(ReadOnlySpan<short> zigZagCoefficients)
+        => NonzeroAcMask(zigZagCoefficients);
+
+#endif
     private static void ValidateBlock(ReadOnlySpan<short> coefficients, int previousDc, bool coefficientsValidated)
     {
         if (coefficients.Length != 64)
@@ -364,6 +376,7 @@ internal static class EntropyEncoder
             throw new ArgumentException("A DCT block must contain 64 coefficients.", nameof(coefficients));
 
         bool invalid = false;
+#if !NETSTANDARD2_1
         int lanes = Vector<short>.Count;
         if (Vector.IsHardwareAccelerated && lanes <= 64 && 64 % lanes == 0)
         {
@@ -381,6 +394,7 @@ internal static class EntropyEncoder
             invalid = !Vector.EqualsAll(outside, Vector<short>.Zero);
         }
         else
+#endif
         {
             for (int offset = 1; offset < 64; offset++)
                 invalid |= coefficients[offset] is < -1023 or > 1023;

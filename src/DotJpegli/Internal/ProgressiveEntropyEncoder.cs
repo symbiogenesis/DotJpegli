@@ -5,7 +5,9 @@
 using System.Buffers.Binary;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+#if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
+#endif
 
 namespace DotJpegli.Internal;
 
@@ -26,8 +28,8 @@ internal static class ProgressiveEntropyEncoder
         HuffmanTable dc,
         int successiveLow = 0)
     {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(dc);
+        Guard.ThrowIfNull(writer);
+        Guard.ThrowIfNull(dc);
         ValidateSuccessiveLow(successiveLow, refinement: false);
         ValidateDc(naturalCoefficients, previousDc, successiveLow);
 
@@ -62,7 +64,7 @@ internal static class ProgressiveEntropyEncoder
         ReadOnlySpan<short> naturalCoefficients,
         int successiveLow)
     {
-        ArgumentNullException.ThrowIfNull(writer);
+        Guard.ThrowIfNull(writer);
         ValidateSuccessiveLow(successiveLow, refinement: true);
         ValidateLength(naturalCoefficients);
         // Unlike AC magnitudes, DC is refined in its signed representation.
@@ -97,8 +99,8 @@ internal static class ProgressiveEntropyEncoder
         bool coefficientsValidated = false,
         bool zigZagOrdered = false)
     {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(ac);
+        Guard.ThrowIfNull(writer);
+        Guard.ThrowIfNull(ac);
         ValidateSuccessiveLow(successiveLow, refinement: false);
         ValidateSpectralRange(spectralStart, spectralEnd);
         ValidateAc(naturalCoefficients, coefficientsValidated);
@@ -273,6 +275,7 @@ internal static class ProgressiveEntropyEncoder
         ulong mask = 0;
         // Narrow low-frequency bands are cheaper to inspect directly. Larger
         // bands classify independent magnitudes together, then skip every zero.
+#if !NETSTANDARD2_1
         if (spectralEnd - spectralStart >= 8 && Vector256.IsHardwareAccelerated)
         {
             for (int offset = 0; offset < 64; offset += Vector256<short>.Count)
@@ -290,6 +293,7 @@ internal static class ProgressiveEntropyEncoder
             }
         }
         else
+#endif
             for (int position = spectralStart; position <= spectralEnd; position++)
                 if ((Math.Abs((int)coefficients[position]) >> successiveLow) != 0)
                     mask |= 1UL << position;
@@ -351,9 +355,9 @@ internal static class ProgressiveEntropyEncoder
         bool coefficientsValidated = false,
         bool zigZagOrdered = false)
     {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(ac);
-        ArgumentNullException.ThrowIfNull(state);
+        Guard.ThrowIfNull(writer);
+        Guard.ThrowIfNull(ac);
+        Guard.ThrowIfNull(state);
         ValidateSuccessiveLow(successiveLow, refinement: true);
         ValidateSpectralRange(spectralStart, spectralEnd);
         ValidateAc(naturalCoefficients, coefficientsValidated);
@@ -391,7 +395,7 @@ internal static class ProgressiveEntropyEncoder
         bool zigZagOrdered = false)
     {
         ValidateFrequencies(ac);
-        ArgumentNullException.ThrowIfNull(state);
+        Guard.ThrowIfNull(state);
         ValidateSuccessiveLow(successiveLow, refinement: true);
         ValidateSpectralRange(spectralStart, spectralEnd);
         ValidateAc(naturalCoefficients, coefficientsValidated);
@@ -639,6 +643,7 @@ internal static class ProgressiveEntropyEncoder
         newlySignificant = previouslySignificant = 0;
         // Abs(short.MinValue) retains the unsigned 0x8000 magnitude. Keep
         // comparisons unsigned so already-validated wide callers match scalar.
+#if !NETSTANDARD2_1
         if (Vector256.IsHardwareAccelerated)
         {
             var one = Vector256.Create((ushort)1);
@@ -660,6 +665,7 @@ internal static class ProgressiveEntropyEncoder
             }
         }
         else
+#endif
         {
             for (int position = 1; position < 64; position++)
             {
@@ -674,9 +680,9 @@ internal static class ProgressiveEntropyEncoder
 
     public static void FlushAcRefinement(BitWriter writer, HuffmanTable ac, ProgressiveAcRefinementState state)
     {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(ac);
-        ArgumentNullException.ThrowIfNull(state);
+        Guard.ThrowIfNull(writer);
+        Guard.ThrowIfNull(ac);
+        Guard.ThrowIfNull(state);
         FlushAcRefinementCore(state, writer, ac, null);
     }
 
@@ -684,7 +690,7 @@ internal static class ProgressiveEntropyEncoder
         EntropyTokens? tokens = null, int component = 0)
     {
         ValidateFrequencies(ac);
-        ArgumentNullException.ThrowIfNull(state);
+        Guard.ThrowIfNull(state);
         FlushAcRefinementCore(state, null, null, ac, tokens, component);
     }
 
@@ -769,8 +775,8 @@ internal static class ProgressiveEntropyEncoder
     // remaining low bits. 0xf0 is reserved for ZRL, limiting runs to 32767.
     public static void FlushAc(BitWriter writer, HuffmanTable ac, ref int pendingEobRun)
     {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(ac);
+        Guard.ThrowIfNull(writer);
+        Guard.ThrowIfNull(ac);
         ValidateEobRun(pendingEobRun);
         if (pendingEobRun == 0)
         {
@@ -837,7 +843,7 @@ internal static class ProgressiveEntropyEncoder
 
     private static void ValidateFrequencies(long[] frequencies)
     {
-        ArgumentNullException.ThrowIfNull(frequencies);
+        Guard.ThrowIfNull(frequencies);
         if (frequencies.Length != 256)
         {
             throw new ArgumentException("A frequency table must have 256 entries.", nameof(frequencies));

@@ -53,13 +53,13 @@ internal static class XybColorConversion
             : MathF.Pow((magnitude + 0.055f) / 1.055f, 2.4f);
         if (!float.IsFinite(linear))
             throw NonfinitePixels();
-        return MathF.CopySign(linear, value);
+        return StandardFloatingPoint.CopySign(linear, value);
     }
 
     private static float Absorb(float r, float g, float b, float mr, float mg, float mb)
     {
-        float mixed = MathF.FusedMultiplyAdd(mr, r,
-            MathF.FusedMultiplyAdd(mg, g, MathF.FusedMultiplyAdd(mb, b, Bias)));
+        float mixed = FloatingPointMath.FusedMultiplyAdd(mr, r,
+            FloatingPointMath.FusedMultiplyAdd(mg, g, FloatingPointMath.FusedMultiplyAdd(mb, b, Bias)));
         if (!float.IsFinite(mixed))
             throw NonfinitePixels();
         return mixed;

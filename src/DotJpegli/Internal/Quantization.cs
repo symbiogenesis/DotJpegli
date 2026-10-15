@@ -12,7 +12,9 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+#if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
+#endif
 
 namespace DotJpegli.Internal;
 
@@ -262,7 +264,7 @@ internal static class Quantization
         int cicpTransferFunction = 2, bool rgb = false, ReadOnlySpan<int> quantizationSelectors = default,
         bool forceBaseline = true)
     {
-        ArgumentNullException.ThrowIfNull(tables);
+        Guard.ThrowIfNull(tables);
         ValidateSampling(horizontalSampling, verticalSampling);
         if (tables.Length != (grayscale ? 1 : 3))
             throw new ArgumentException("Supply one grayscale table or three color component tables.", nameof(tables));
@@ -311,7 +313,7 @@ internal static class Quantization
     internal static float QuantValuesToDistance(ushort[][] tables, bool sharedChromaTable = false,
         int cicpTransferFunction = 2, ReadOnlySpan<int> quantizationSelectors = default, bool forceBaseline = true)
     {
-        ArgumentNullException.ThrowIfNull(tables);
+        Guard.ThrowIfNull(tables);
         if (tables.Length is not (1 or 3))
             throw new ArgumentException("Supply one grayscale table or three YCbCr tables.", nameof(tables));
         if (!quantizationSelectors.IsEmpty)
@@ -493,6 +495,7 @@ internal static class Quantization
         }
     }
 
+#if !NETSTANDARD2_1
     // The second DCT pass leaves horizontal frequency in the vector number
     // and vertical frequency in its lanes. Quantize that layout directly and
     // combine the ordering with the final short stores. A false result leaves
@@ -503,7 +506,7 @@ internal static class Quantization
         Vector256<float> r6, Vector256<float> r7, PreparedTable table, TransposedTable transposed,
         float adaptiveStrength, Span<short> output)
     {
-        ArgumentNullException.ThrowIfNull(table);
+        Guard.ThrowIfNull(table);
         if (output.Length < 64)
             throw new ArgumentException("A quantized block requires 64 values.", nameof(output));
         if (table.AdaptiveQuantization && (!float.IsFinite(adaptiveStrength) || adaptiveStrength < 0f))
@@ -698,10 +701,11 @@ internal static class Quantization
         }
     }
 
+#endif
     internal static void QuantizePrepared(ReadOnlySpan<float> coefficients, PreparedTable table, Span<short> output,
         float adaptiveStrength = 0f, int previousDc = 0, bool requireEightBitCoefficients = false)
     {
-        ArgumentNullException.ThrowIfNull(table);
+        Guard.ThrowIfNull(table);
         if (coefficients.Length < BlockSize)
             throw new ArgumentException("A DCT block requires 64 coefficients.", nameof(coefficients));
         if (output.Length < BlockSize)
@@ -736,6 +740,7 @@ internal static class Quantization
         }
     }
 
+#if !NETSTANDARD2_1
     private static void QuantizePreparedVectorCore(ReadOnlySpan<float> coefficients, PreparedTable table,
         Span<short> output, float adaptiveStrength, int previousDc, bool requireEightBitCoefficients)
     {
@@ -801,6 +806,12 @@ internal static class Quantization
         QuantizePreparedScalarCore(coefficients, table, output, adaptiveStrength, previousDc, requireEightBitCoefficients, start: i);
     }
 
+#else
+    private static void QuantizePreparedVectorCore(ReadOnlySpan<float> coefficients, PreparedTable table,
+        Span<short> output, float adaptiveStrength, int previousDc, bool requireEightBitCoefficients)
+        => QuantizePreparedScalarCore(coefficients, table, output, adaptiveStrength, previousDc, requireEightBitCoefficients);
+
+#endif
     private static void QuantizeCore(ReadOnlySpan<float> coefficients,
         ReadOnlySpan<ushort> table, Span<short> output, int component, float distance,
         bool grayscale, bool adaptiveQuantization, float adaptiveStrength,
@@ -881,6 +892,7 @@ internal static class Quantization
         }
     }
 
+#if !NETSTANDARD2_1
     private static void QuantizeVectorCore(ReadOnlySpan<float> coefficients,
         ReadOnlySpan<ushort> table, Span<short> output, float acOffset,
         bool adaptiveQuantization, float adaptiveStrength, ReadOnlySpan<float> adaptiveMultipliers,
@@ -970,6 +982,15 @@ internal static class Quantization
             adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients, start: i);
     }
 
+#else
+    private static void QuantizeVectorCore(ReadOnlySpan<float> coefficients,
+        ReadOnlySpan<ushort> table, Span<short> output, float acOffset,
+        bool adaptiveQuantization, float adaptiveStrength, ReadOnlySpan<float> adaptiveMultipliers,
+        int previousDc, bool requireEightBitCoefficients)
+        => QuantizeScalarCore(coefficients, table, output, acOffset, adaptiveQuantization,
+            adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients);
+
+#endif
     private static void StoreQuantizedValue(float value, int index, Span<short> output,
         bool requireEightBitCoefficients)
     {

@@ -25,7 +25,7 @@ internal static class HdrToneMapping
         }
 
         var toneMapper = new Rec2408ToneMapper();
-        float hlgGamma = MathF.Pow(1.111f, MathF.Log2(80f / 300f));
+        float hlgGamma = MathF.Pow(1.111f, StandardFloatingPoint.Log2(80f / 300f));
         float hlgExponent = hlgGamma - 1f;
         Span<float> linear = stackalloc float[3];
         int offset = 0;
@@ -133,7 +133,7 @@ internal static class HdrToneMapping
         double scene = magnitude <= 0.5
             ? magnitude * magnitude * (1.0 / 3)
             : (Math.Exp((magnitude - c) * inverseA) + b) * (1.0 / 12);
-        return MathF.CopySign((float)scene, (float)encoded);
+        return StandardFloatingPoint.CopySign((float)scene, (float)encoded);
     }
 
     private const double PqM1 = 2610.0 / 16384;
@@ -150,7 +150,7 @@ internal static class HdrToneMapping
         double numerator = Math.Max(power - PqC1, 0.0);
         double denominator = PqC2 - PqC3 * power;
         double display = Math.Pow(numerator / denominator, 1.0 / PqM1);
-        return MathF.CopySign((float)(display * (10000f / intensityTarget)), (float)encoded);
+        return StandardFloatingPoint.CopySign((float)(display * (10000f / intensityTarget)), (float)encoded);
     }
 
     private static float PqEncodedFromDisplay(float intensityTarget, double display)
@@ -160,7 +160,7 @@ internal static class HdrToneMapping
         double power = Math.Pow(Math.Abs(display) * (intensityTarget * (1f / 10000f)), PqM1);
         double numerator = PqC1 + power * PqC2;
         double denominator = 1.0 + power * PqC3;
-        return MathF.CopySign((float)Math.Pow(numerator / denominator, PqM2), (float)display);
+        return StandardFloatingPoint.CopySign((float)Math.Pow(numerator / denominator, PqM2), (float)display);
     }
 
     private readonly struct Rec2408ToneMapper

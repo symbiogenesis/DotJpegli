@@ -3,12 +3,22 @@
     <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
+    <!-- Keep compatibility runs separate from the normal runtime-specific build. -->
+    <OutputPath Condition="'$(DotJpegliLibraryTargetFramework)' != ''">bin/$(Configuration)/$(DotJpegliLibraryTargetFramework)/</OutputPath>
+    <IntermediateOutputPath Condition="'$(DotJpegliLibraryTargetFramework)' != ''">obj/$(Configuration)/$(DotJpegliLibraryTargetFramework)/</IntermediateOutputPath>
+    <DefineConstants Condition="'$(DotJpegliLibraryTargetFramework)' == 'netstandard2.1'">$(DefineConstants);DOTJPEGLI_NETSTANDARD_TESTS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/DotJpegli/DotJpegli.csproj" />
+    <ProjectReference Include="../../src/DotJpegli/DotJpegli.csproj">
+      <SetTargetFramework Condition="'$(DotJpegliLibraryTargetFramework)' != ''">TargetFramework=$(DotJpegliLibraryTargetFramework)</SetTargetFramework>
+    </ProjectReference>
     <PackageReference Include="xunit.v3" />
     <!-- Independent decoder used only in tests; the encoder has no package dependencies. -->
     <PackageReference Include="StbImageSharp" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(DotJpegliLibraryTargetFramework)' == 'netstandard2.1'">
+    <!-- Intrinsic-only internal helpers do not exist in the portable assembly. -->
+    <Compile Remove="Net11DctTransposeTests.cs;Net11DownsamplingTests.cs;FusedPlaneQuantizationTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />

@@ -37,8 +37,8 @@ internal static class ColorConversion
         float blueBase = b * BlueWeight;
         float blueDifference = b * BlueDifference;
         y = redBase + (greenBase + blueBase);
-        cb = MathF.FusedMultiplyAdd(blueDifference - y, BlueNormalization, 128f);
-        cr = MathF.FusedMultiplyAdd(redDifference - y, RedNormalization, 128f);
+        cb = FloatingPointMath.FusedMultiplyAdd(blueDifference - y, BlueNormalization, 128f);
+        cr = FloatingPointMath.FusedMultiplyAdd(redDifference - y, RedNormalization, 128f);
     }
 
     // Lanes are independent pixels. Preserve the scalar multiplication,
@@ -53,7 +53,7 @@ internal static class ColorConversion
         Vector<float> blueBase = b * new Vector<float>(BlueWeight);
         Vector<float> blueDifference = b * new Vector<float>(BlueDifference);
         y = redBase + (greenBase + blueBase);
-        cb = Vector.FusedMultiplyAdd(blueDifference - y, new Vector<float>(BlueNormalization), new Vector<float>(128f));
-        cr = Vector.FusedMultiplyAdd(redDifference - y, new Vector<float>(RedNormalization), new Vector<float>(128f));
+        cb = FloatingPointMath.FusedMultiplyAdd(blueDifference - y, new Vector<float>(BlueNormalization), new Vector<float>(128f));
+        cr = FloatingPointMath.FusedMultiplyAdd(redDifference - y, new Vector<float>(RedNormalization), new Vector<float>(128f));
     }
 }

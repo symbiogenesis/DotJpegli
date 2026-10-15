@@ -4,7 +4,9 @@
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
+#if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
+#endif
 
 namespace DotJpegli.Internal;
 
@@ -43,8 +45,8 @@ internal sealed class AdaptiveQuantization
 
     internal AdaptiveQuantization(int width, int height, int verticalSampling)
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+        Guard.ThrowIfNegativeOrZero(width);
+        Guard.ThrowIfNegativeOrZero(height);
         if (verticalSampling is < 1 or > 4)
             throw new ArgumentOutOfRangeException(nameof(verticalSampling));
         this.width = width;
@@ -167,17 +169,20 @@ internal sealed class AdaptiveQuantization
         float dampen = lumaAcQuant < 9 ? 1f : MathF.Max(0f, 1f - (lumaAcQuant - 9f) / 56f);
         float mul = acQuant * dampen;
         float add = (1f - dampen) * (0.48f * acQuant);
+#if !NETSTANDARD2_1
         bool batchModulation = useVector && BlocksWide >= 8
             && ((Vector<float>.Count == 8 && Vector256.IsHardwareAccelerated) || forceBatchedModulation);
         // Allocate once per MCU row and reuse across every eight-block group.
         Span<Vector256<float>> modulationRows = batchModulation ? stackalloc Vector256<float>[16] : default;
         Span<float> modulationValues = batchModulation ? stackalloc float[16] : default;
+#endif
         for (int blockY = 0; blockY < verticalSampling; blockY++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ComputeFuzzyErosion(blockY * 2 + 1, 0, useVector);
             ComputeFuzzyErosion(blockY * 2 + 2, preStride, useVector);
             int blockX = 0;
+#if !NETSTANDARD2_1
             if (batchModulation)
                 for (; blockX <= BlocksWide - 8; blockX += 8)
                 {
@@ -194,6 +199,7 @@ internal sealed class AdaptiveQuantization
                         strengths[blockY * BlocksWide + blockX + block] = MathF.Max(0f, 0.6f / field - 1f);
                     }
                 }
+#endif
             for (; blockX < BlocksWide; blockX++)
             {
                 int x = blockX * 2;
@@ -323,6 +329,7 @@ internal sealed class AdaptiveQuantization
             + (12.906028311180409f * v2 + 5.0220313103171232f * v3));
     }
 
+#if !NETSTANDARD2_1
     private void ModulateEightBlocks(int x, int y, Span<Vector256<float>> rows, Span<float> output)
     {
         Span<Vector256<float>> current = rows[..8], next = rows.Slice(8, 8);
@@ -376,6 +383,7 @@ internal sealed class AdaptiveQuantization
         return numerator / denominator;
     }
 
+#endif
     private float ModulateVector(int x, int y, float value)
     {
         float sum = 0;

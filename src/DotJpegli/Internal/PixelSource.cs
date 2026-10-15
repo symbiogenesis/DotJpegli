@@ -3,7 +3,9 @@
 
 using System.Buffers;
 using System.Numerics;
+#if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
+#endif
 
 namespace DotJpegli.Internal;
 
@@ -232,6 +234,7 @@ internal readonly ref struct PixelSource
     {
         int width = first.Length;
         int x = 0;
+#if !NETSTANDARD2_1
         if (Vector256.IsHardwareAccelerated)
             for (; x * 2 <= width - 16; x += 8)
                 ((Downsampling.PairwiseSums256(first.Slice(x * 2, 16))
@@ -240,6 +243,7 @@ internal readonly ref struct PixelSource
             for (; x * 2 <= width - 8; x += 4)
                 ((Downsampling.PairwiseSums128(first.Slice(x * 2, 8))
                     + Downsampling.PairwiseSums128(second.Slice(x * 2, 8))) * Vector128.Create(0.25f)).CopyTo(output[x..]);
+#endif
         for (; x < (width + 1) / 2; x++)
         {
             int left = x * 2, right = Math.Min(left + 1, width - 1);
@@ -264,6 +268,7 @@ internal readonly ref struct PixelSource
         }
     }
 
+#if !NETSTANDARD2_1
     private int ConvertByteRow(int rowStart, Span<float> lumaSamples, Span<float> cbSamples, Span<float> crSamples)
     {
         int lanes = Vector<float>.Count;
@@ -321,6 +326,10 @@ internal readonly ref struct PixelSource
         => Vector128.Create(0xffffff00U | (uint)component, 0xffffff00U | (uint)(component + step),
             0xffffff00U | (uint)(component + 2 * step), 0xffffff00U | (uint)(component + 3 * step)).AsByte();
 
+#else
+    private int ConvertByteRow(int rowStart, Span<float> lumaSamples, Span<float> cbSamples, Span<float> crSamples) => 0;
+
+#endif
     private sealed class ConvertedPlanes(int width, int height, int sourceStride, int sourceLength, int components,
         bool is420 = false) : IDisposable
     {

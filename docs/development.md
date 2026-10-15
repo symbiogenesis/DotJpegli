@@ -13,7 +13,7 @@ NuGet dependencies. Decoder dependencies are validation-only.
 
 The managed DCT uses standard JPEG coefficient units; upstream's transform emits
 one eighth of those units, accounted for during quantization. Portable
-`System.Numerics.Vector<float>` paths accelerate the DCT, RGB-to-YCbCr conversion,
+`System.Numerics.Vector<float>` paths in the .NET 10 and .NET 11 targets accelerate the DCT, RGB-to-YCbCr conversion,
 unsmoothed integer-ratio downsampling and AC quantization. DCT dispatch requires
 runtime hardware acceleration and four or eight float lanes; unsupported cases
 use scalar fallbacks. Paths preserve scalar evaluation order,
@@ -32,13 +32,18 @@ establish speed parity; see the [performance measurements and protocol](performa
 
 ## Build
 
-The library, tests and tools target both `net10.0` and `net11.0`. The .NET 11
-build uses newer portable SIMD APIs, while the .NET 10 build retains compatible
-implementations. `global.json` pins .NET SDK `11.0.100-rc.2.26504.105` with
+The library targets `netstandard2.1`, `net10.0` and `net11.0`; tests and tools run
+on `net10.0` and `net11.0`. The .NET Standard 2.1 assembly preserves the public
+encoding and metadata APIs without runtime NuGet dependencies, using compatibility
+implementations for APIs introduced in newer runtimes. The .NET 11 build uses newer
+portable SIMD APIs, while the .NET 10 build retains compatible implementations.
+The .NET Standard target uses scalar DCT and quantization paths and preserves
+single-round fused multiply-add behavior in software.
+`global.json` pins .NET SDK `11.0.100-rc.2.26504.105` with
 roll-forward disabled and `allowPrerelease: true`. Install that exact SDK;
 CI reads the same file. Running the .NET 10 test and tool targets also requires
 the .NET 10 runtime. Update the SDK pin deliberately to receive compiler,
-runtime and analyzer improvements, then validate both target builds.
+runtime and analyzer improvements, then validate all three library targets.
 
 Prefer framework span APIs for buffer searches, validation and counting, and
 span splitting when substrings do not need to be retained. Use collection
@@ -52,6 +57,9 @@ The library project and its source are in `src/DotJpegli/`; tests are in
 ```text
 dotnet build src/DotJpegli/DotJpegli.csproj -c Release
 ```
+
+Use `-f netstandard2.1` to build only the portable library target. The pinned
+compiler is still required when building that target from source.
 
 ## Reproducible builds
 
@@ -80,7 +88,7 @@ When updating a package intentionally, update `Directory.Packages.props`, run
 The Isolated SDK version is declared separately in `Directory.Build.props`.
 
 With Git and PowerShell 7 installed, verify the Release library and unsigned
-NuGet package containing both target-framework assemblies from a committed revision:
+NuGet package containing all three target-framework assemblies from a committed revision:
 
 ```powershell
 ./tools/verify-reproducibility.ps1
@@ -88,9 +96,9 @@ NuGet package containing both target-framework assemblies from a committed revis
 
 The script builds the same commit in two fresh Git worktrees at different absolute
 paths, using the pinned SDK, locked restore, `ContinuousIntegrationBuild=true` and
-`RepositoryBranch=refs/heads/main`. It retains `DotJpegli.net10.0.dll`,
-`DotJpegli.net11.0.dll` and one `.nupkg` from each checkout, and compares all
-three complete-file SHA-256 hashes. It removes its worktrees and retains these
+`RepositoryBranch=refs/heads/main`. It retains `DotJpegli.netstandard2.1.dll`,
+`DotJpegli.net10.0.dll`, `DotJpegli.net11.0.dll` and one `.nupkg` from each checkout,
+and compares all four complete-file SHA-256 hashes. It removes its worktrees and retains these
 artifacts and `hashes.json` in a unique temporary directory. It checks committed
 `HEAD`, so commit changes before running
 it. CI runs this comparison independently on Windows and Linux in the existing
@@ -99,7 +107,7 @@ This is a build check and does not run tests or benchmarks.
 
 ## Trimming and NativeAOT
 
-The library declares `IsAotCompatible=true` for both target frameworks. This
+The library declares `IsAotCompatible=true` for its `net10.0` and `net11.0` targets. This
 also marks its assemblies as trimmable and enables the SDK's trimming,
 single-file and AOT compatibility analyzers. Analyzer warnings fail the build.
 The SDK-selected ILLink package is a build-time dependency; it adds no runtime
@@ -149,8 +157,26 @@ dotnet run --project tests/DotJpegli.Tests -c Release -f net11.0 --no-build -- -
 
 The run commands select the same focused tests for each target framework;
 `dotnet run` requires an explicit `-f net10.0` or `-f net11.0` for these projects.
+To run focused regressions against the .NET Standard 2.1 library assembly,
+select it explicitly while keeping the test host on .NET 10:
+
+```text
+dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release -f net10.0 -p:DotJpegliLibraryTargetFramework=netstandard2.1
+dotnet run --project tests/DotJpegli.Tests -c Release -f net10.0 --no-build -p:DotJpegliLibraryTargetFramework=netstandard2.1 -- -class DotJpegli.Tests.ManagedArchitectureTests -class DotJpegli.Tests.EncoderSmokeTests
+```
+
+The property forces the project reference to select `netstandard2.1` and keeps
+test binaries and compiler outputs separate from regular builds. Architecture
+regressions verify the loaded library's target framework and dependency contract.
+The compatibility lane excludes three test classes that directly exercise
+intrinsic-only internal helpers absent from that assembly; the remaining encoder,
+numerical, metadata and scalar/vector fallback regressions run against it.
+Software fused multiply-add regressions compare compatibility results with the
+host runtime over finite adversarial and deterministic random inputs.
+
 Full suites run only in the GitHub Actions workflow, on Windows and Linux for
-both target frameworks; benchmarks also belong on CI.
+the .NET 10 and .NET 11 libraries, plus the .NET Standard 2.1 library on a .NET 10
+test host; benchmarks also belong on CI.
 A normal push to `main` runs four targeted Ubuntu encoding benchmarks on .NET 11:
 `kodim01` at distance 1, sampling 444/420 and progression 0/2. Workflow dispatch
 can select the .NET 10 runner with `framework=net10.0`; the default is `net11.0`.

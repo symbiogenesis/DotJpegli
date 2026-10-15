@@ -53,9 +53,22 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
                 parameter, error);
         }
 
-        Span<byte> digestBytes = stackalloc byte[MD5.HashSizeInBytes];
+        Span<byte> digestBytes = stackalloc byte[16];
+#if NETSTANDARD2_1
+        if (!hash.TryGetHashAndReset(digestBytes, out _))
+            throw new InvalidOperationException("The MD5 destination is too short.");
+        const string hexadecimal = "0123456789ABCDEF";
+        Span<char> digestCharacters = stackalloc char[32];
+        for (int index = 0; index < digestBytes.Length; index++)
+        {
+            digestCharacters[index * 2] = hexadecimal[digestBytes[index] >> 4];
+            digestCharacters[index * 2 + 1] = hexadecimal[digestBytes[index] & 15];
+        }
+        string digest = new(digestCharacters);
+#else
         hash.GetHashAndReset(digestBytes);
         string digest = Convert.ToHexString(digestBytes);
+#endif
         string standard = automatic?.StandardRoot is XElement standardRoot
             ? AutomaticXmpPartitioning.CreateStandardPacket(standardRoot, digest, cancellationToken)
             : automatic is not null || string.IsNullOrEmpty(options.XmpPacket)

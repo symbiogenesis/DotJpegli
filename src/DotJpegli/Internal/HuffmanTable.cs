@@ -2,6 +2,10 @@
 // Use of this source code is governed by the BSD-3-Clause license in
 // THIRD-PARTY-NOTICES.md.
 
+#if NETSTANDARD2_1
+using UInt128 = System.Numerics.BigInteger;
+#endif
+
 namespace DotJpegli.Internal;
 
 // Managed adaptation of google/jpegli lib/jpegli/huffman.cc
@@ -95,7 +99,12 @@ internal sealed class HuffmanTable
 
     public static HuffmanTable CreateOptimized(ReadOnlySpan<long> frequencies)
     {
-        Span<UInt128> counts = stackalloc UInt128[257];
+        Span<UInt128> counts =
+#if NETSTANDARD2_1
+            new UInt128[257];
+#else
+            stackalloc UInt128[257];
+#endif
         InitializeCounts(frequencies, counts);
         Span<int> depth = stackalloc int[257];
         BuildCodeLengths(counts, depth);
@@ -138,7 +147,12 @@ internal sealed class HuffmanTable
     // canonical codes and allocating table arrays for each trial is unnecessary.
     internal static float EstimateOptimizedCost(ReadOnlySpan<long> frequencies)
     {
-        Span<UInt128> counts = stackalloc UInt128[257];
+        Span<UInt128> counts =
+#if NETSTANDARD2_1
+            new UInt128[257];
+#else
+            stackalloc UInt128[257];
+#endif
         InitializeCounts(frequencies, counts);
         Span<int> depth = stackalloc int[257];
         BuildCodeLengths(counts, depth);
@@ -149,7 +163,7 @@ internal sealed class HuffmanTable
             symbolCount += depth[symbol] == 0 ? 0 : 1;
             bits += (UInt128)frequencies[symbol] * (uint)depth[symbol];
         }
-        return (float)(bits + (uint)((17 + symbolCount) * 8));
+        return HistogramCost(bits + (uint)((17 + symbolCount) * 8));
     }
 
     private static void InitializeCounts(ReadOnlySpan<long> frequencies, Span<UInt128> counts)
@@ -236,14 +250,27 @@ internal sealed class HuffmanTable
                 throw new ArgumentException("The histogram must use the table's symbols.", nameof(frequencies));
             bits += (UInt128)frequencies[symbol] * lengths[symbol];
         }
-        return (float)bits;
+        return HistogramCost(bits);
     }
+
+    private static float HistogramCost(UInt128 bits) =>
+#if NETSTANDARD2_1
+        // Match UInt128's float conversion, including its double intermediate.
+        (float)(double)bits;
+#else
+        (float)bits;
+#endif
 
     private static void BuildCodeLengths(ReadOnlySpan<UInt128> frequencies, Span<int> depth)
     {
         // Every retry has at most one leaf per frequency, one internal node per
         // merge, and two sentinels. Reuse this bounded storage across retries.
-        Span<Node> tree = stackalloc Node[2 * 257 + 1];
+        Span<Node> tree =
+#if NETSTANDARD2_1
+            new Node[2 * 257 + 1];
+#else
+            stackalloc Node[2 * 257 + 1];
+#endif
         UInt128 minimumCount = 0;
         while (true)
         {
@@ -261,7 +288,13 @@ internal sealed class HuffmanTable
                 int comparison = left.Count.CompareTo(right.Count);
                 return comparison != 0 ? comparison : right.RightOrSymbol.CompareTo(left.RightOrSymbol);
             });
-            Node sentinel = new(UInt128.MaxValue, -1, -1);
+            Node sentinel = new(
+#if NETSTANDARD2_1
+                (UInt128.One << 128) - 1,
+#else
+                UInt128.MaxValue,
+#endif
+                -1, -1);
             tree[leafCount] = sentinel;
             tree[leafCount + 1] = sentinel;
             int leafIndex = 0;

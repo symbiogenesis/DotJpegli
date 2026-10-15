@@ -603,7 +603,7 @@ public sealed record JpegliEncoderOptions
 
     internal void Validate()
     {
-        if (!Enum.IsDefined(ColorRenderingIntent))
+        if (!StandardEnum.IsDefined(ColorRenderingIntent))
             throw new ArgumentOutOfRangeException(nameof(ColorRenderingIntent));
         if (SourceIccProfile.Length > JpegMarkerWriter.MaxIccProfileBytes)
             throw new ArgumentOutOfRangeException(nameof(SourceIccProfile), "The source ICC profile must not exceed 16,707,345 bytes.");
@@ -625,7 +625,7 @@ public sealed record JpegliEncoderOptions
                 throw new ArgumentException("A progressive level cannot be combined with custom progressive scan settings.",
                     nameof(ProgressiveLevel));
         }
-        if (!Enum.IsDefined(ColorSpace))
+        if (!StandardEnum.IsDefined(ColorSpace))
             throw new ArgumentOutOfRangeException(nameof(ColorSpace));
         if (!float.IsFinite(Quality) || Quality is < 0 or > 100)
             throw new ArgumentOutOfRangeException(nameof(Quality), "Quality must be finite and between 0 and 100.");
@@ -633,7 +633,7 @@ public sealed record JpegliEncoderOptions
             throw new ArgumentOutOfRangeException(nameof(Distance), "Distance must be finite and greater than zero.");
         if (CicpTransferFunction is < 0 or > 255)
             throw new ArgumentOutOfRangeException(nameof(CicpTransferFunction), "The CICP transfer-function code must be between 0 and 255.");
-        if (!Enum.IsDefined(Subsampling))
+        if (!StandardEnum.IsDefined(Subsampling))
             throw new ArgumentOutOfRangeException(nameof(Subsampling));
         SamplingFactors?.Validate();
         if (ExifData.Length > JpegMarkerWriter.MaxExifDataBytes)
@@ -662,7 +662,7 @@ public sealed record JpegliEncoderOptions
         if (Comment is not null && (Comment.Length > JpegMarkerWriter.MaxMarkerPayloadBytes ||
             Encoding.UTF8.GetByteCount(Comment) > JpegMarkerWriter.MaxMarkerPayloadBytes))
             throw new ArgumentOutOfRangeException(nameof(Comment), "The UTF-8 comment must not exceed 65,533 bytes.");
-        if (!Enum.IsDefined(DensityUnit))
+        if (!StandardEnum.IsDefined(DensityUnit))
             throw new ArgumentOutOfRangeException(nameof(DensityUnit));
         if (HorizontalDensity is < 1 or > 65535)
             throw new ArgumentOutOfRangeException(nameof(HorizontalDensity), "Horizontal density must be between 1 and 65535.");

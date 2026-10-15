@@ -74,7 +74,7 @@ public sealed class ExifMetadata
     /// <summary>Creates empty Exif metadata.</summary>
     public ExifMetadata()
     {
-        foreach (ExifDirectory directory in Enum.GetValues<ExifDirectory>())
+        foreach (ExifDirectory directory in StandardEnum.GetValues<ExifDirectory>())
             _directories.Add(directory, []);
     }
 
@@ -255,7 +255,7 @@ public sealed class ExifMetadata
     /// <summary>Sets a NUL-terminated ASCII string.</summary>
     public void SetAscii(ExifDirectory directory, ushort tag, string value)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        Guard.ThrowIfNull(value);
         if (value.AsSpan().Contains('\0') || !Ascii.IsValid(value))
             throw new ArgumentException("The string must contain ASCII characters without embedded NULs.", nameof(value));
         byte[] bytes = new byte[checked(value.Length + 1)];

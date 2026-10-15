@@ -20,7 +20,7 @@ internal sealed class PooledOutputStream : Stream
     {
         get
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
+            Guard.ThrowIfDisposed(disposed, this);
             return count;
         }
     }
@@ -28,13 +28,13 @@ internal sealed class PooledOutputStream : Stream
 
     internal byte[] ToArray()
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
+        Guard.ThrowIfDisposed(disposed, this);
         return buffer.AsSpan(0, count).ToArray();
     }
 
     public override void Write(ReadOnlySpan<byte> source)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
+        Guard.ThrowIfDisposed(disposed, this);
         EnsureCapacity(source.Length);
         source.CopyTo(buffer.AsSpan(count));
         count += source.Length;
@@ -42,13 +42,13 @@ internal sealed class PooledOutputStream : Stream
 
     public override void Write(byte[] source, int offset, int length)
     {
-        ArgumentNullException.ThrowIfNull(source);
+        Guard.ThrowIfNull(source);
         Write(source.AsSpan(offset, length));
     }
 
     public override void WriteByte(byte value)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
+        Guard.ThrowIfDisposed(disposed, this);
         EnsureCapacity(1);
         buffer[count++] = value;
     }
@@ -57,10 +57,10 @@ internal sealed class PooledOutputStream : Stream
     {
         if (additional <= buffer.Length - count)
             return;
-        if (additional > Array.MaxLength - count)
+        if (additional > RuntimeLimits.ArrayMaxLength - count)
             throw new IOException("The encoded JPEG exceeds the maximum array length.");
         int capacity = (int)Math.Max(count + additional,
-            Math.Min(Array.MaxLength, Math.Max(4096L, (long)buffer.Length * 2)));
+            Math.Min(RuntimeLimits.ArrayMaxLength, Math.Max(4096L, (long)buffer.Length * 2)));
         bool nextPooled = capacity <= MaximumPooledCapacity;
         byte[] next = nextPooled ? ArrayPool<byte>.Shared.Rent(capacity) : new byte[capacity];
         buffer.AsSpan(0, count).CopyTo(next);
@@ -72,7 +72,7 @@ internal sealed class PooledOutputStream : Stream
             ArrayPool<byte>.Shared.Return(previous);
     }
 
-    public override void Flush() => ObjectDisposedException.ThrowIf(disposed, this);
+    public override void Flush() => Guard.ThrowIfDisposed(disposed, this);
     public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
     public override void SetLength(long value) => throw new NotSupportedException();

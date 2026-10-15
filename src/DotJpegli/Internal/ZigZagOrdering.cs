@@ -1,10 +1,13 @@
+#if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
+#endif
 
 namespace DotJpegli.Internal;
 
 /// <summary>Reorders one complete DCT block using portable vector shuffles.</summary>
 internal static class ZigZagOrdering
 {
+#if !NETSTANDARD2_1
     private static readonly Vector512<ushort> W00 = CreateWideMask(0, 0);
     private static readonly Vector512<ushort> W01 = CreateWideMask(0, 1);
     private static readonly Vector512<ushort> W10 = CreateWideMask(1, 0);
@@ -46,12 +49,14 @@ internal static class ZigZagOrdering
     private static readonly Vector128<byte> M76 = CreateMask(7, 6);
     private static readonly Vector128<byte> M77 = CreateMask(7, 7);
 
+#endif
     internal static void Reorder(ReadOnlySpan<short> source, Span<short> destination)
     {
         if (source.Length < 64)
             throw new ArgumentException("A DCT block requires 64 coefficients.", nameof(source));
         if (destination.Length < 64)
             throw new ArgumentException("An ordered block requires 64 coefficients.", nameof(destination));
+#if !NETSTANDARD2_1
         if (Vector512.IsHardwareAccelerated)
         {
             ReorderVector512(source, destination);
@@ -62,6 +67,7 @@ internal static class ZigZagOrdering
             ReorderVector(source, destination);
             return;
         }
+#endif
         if (source.Overlaps(destination))
         {
             Span<short> original = stackalloc short[64];
@@ -72,6 +78,7 @@ internal static class ZigZagOrdering
             ReorderScalar(source, destination);
     }
 
+#if !NETSTANDARD2_1
     // Two complete source vectors reduce the permutation to four shuffles and
     // two ORs. Consume both before storing to retain arbitrary span overlap.
     // An explicit entry also lets tests check portable software execution.
@@ -164,6 +171,11 @@ internal static class ZigZagOrdering
         return Vector128.Create(mask);
     }
 
+#else
+    internal static void ReorderVector512(ReadOnlySpan<short> source, Span<short> destination)
+        => Reorder(source, destination);
+
+#endif
     private static void ReorderScalar(ReadOnlySpan<short> source, Span<short> destination)
     {
         // Fixed-length slices let the JIT eliminate every constant-index bound

@@ -54,11 +54,18 @@ permissions:
 
 jobs:
   test:
+    name: Tests (${{ matrix.os }}, ${{ matrix.target.library }} on ${{ matrix.target.framework }})
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        framework: [net10.0, net11.0]
+        target:
+          - framework: net10.0
+            library: net10.0
+          - framework: net11.0
+            library: net11.0
+          - framework: net10.0
+            library: netstandard2.1
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -66,11 +73,14 @@ jobs:
         with:
           global-json-file: global.json
           dotnet-version: 10.0.402
-      - name: Restore locked dependencies
+      - name: Verify all solution dependency locks
+        if: matrix.target.library == 'net11.0'
         run: dotnet restore DotJpegli.slnx --locked-mode
-      - run: dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release -f ${{ matrix.framework }} --no-restore
+      - name: Restore selected library dependencies for tests
+        run: dotnet restore tests/DotJpegli.Tests/DotJpegli.Tests.csproj --locked-mode -p:DotJpegliLibraryTargetFramework=${{ matrix.target.library }}
+      - run: dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release -f ${{ matrix.target.framework }} --no-restore -p:DotJpegliLibraryTargetFramework=${{ matrix.target.library }}
       - name: Full test suite (CI only)
-        run: dotnet run --project tests/DotJpegli.Tests -c Release -f ${{ matrix.framework }} --no-build -- -result-xml "${{ runner.temp }}/dotjpegli-full-tests.xml"
+        run: dotnet run --project tests/DotJpegli.Tests -c Release -f ${{ matrix.target.framework }} --no-build -p:DotJpegliLibraryTargetFramework=${{ matrix.target.library }} -- -result-xml "${{ runner.temp }}/dotjpegli-full-tests.xml"
       - name: Slowest test cases
         if: always()
         shell: pwsh
@@ -84,11 +94,12 @@ jobs:
               ForEach-Object { '{0}s {1}' -f $_.time, $_.name }
           }
       - name: Managed SIMD fallback and software vector parity
+        if: matrix.target.library != 'netstandard2.1'
         env:
           DOTNET_EnableHWIntrinsic: '0'
-        run: dotnet run --project tests/DotJpegli.Tests -c Release -f ${{ matrix.framework }} --no-build -- -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.PlaneDctTests -class DotJpegli.Tests.Net11DctTransposeTests -class DotJpegli.Tests.Net11DownsamplingTests -class DotJpegli.Tests.AdaptiveQuantizationReuseTests -class DotJpegli.Tests.SimdColorConversionTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.SimdQuantizationTests -class DotJpegli.Tests.PreparedQuantizationTests -class DotJpegli.Tests.OrderedEntropyTests -class DotJpegli.Tests.OrderedProgressiveEntropyTests -class DotJpegli.Tests.SimdAdaptiveQuantizationTests -class DotJpegli.Tests.PlanarPixelSourceTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.EncoderParallelTests -class DotJpegli.Tests.SourceIccColorManagementTests -class DotJpegli.Tests.NumericalTests -class DotJpegli.Tests.EncoderSmokeTests
+        run: dotnet run --project tests/DotJpegli.Tests -c Release -f ${{ matrix.target.framework }} --no-build -p:DotJpegliLibraryTargetFramework=${{ matrix.target.library }} -- -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.PlaneDctTests -class DotJpegli.Tests.Net11DctTransposeTests -class DotJpegli.Tests.Net11DownsamplingTests -class DotJpegli.Tests.AdaptiveQuantizationReuseTests -class DotJpegli.Tests.SimdColorConversionTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.SimdQuantizationTests -class DotJpegli.Tests.PreparedQuantizationTests -class DotJpegli.Tests.OrderedEntropyTests -class DotJpegli.Tests.OrderedProgressiveEntropyTests -class DotJpegli.Tests.SimdAdaptiveQuantizationTests -class DotJpegli.Tests.PlanarPixelSourceTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.EncoderParallelTests -class DotJpegli.Tests.SourceIccColorManagementTests -class DotJpegli.Tests.NumericalTests -class DotJpegli.Tests.EncoderSmokeTests
       - name: Verify reproducible Release assembly and package
-        if: matrix.framework == 'net11.0'
+        if: matrix.target.library == 'net11.0'
         shell: pwsh
         run: ./tools/verify-reproducibility.ps1
 

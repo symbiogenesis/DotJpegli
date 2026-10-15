@@ -28,7 +28,7 @@ internal sealed class EntropyTokens : IDisposable
 
     internal EntropyTokens(long maximumBytes = 64L * 1024 * 1024)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(maximumBytes);
+        Guard.ThrowIfNegative(maximumBytes);
         this.maximumBytes = Math.Min(maximumBytes, 64L * 1024 * 1024);
         uint available = (uint)Math.Min(DefaultSegmentLength, this.maximumBytes / sizeof(uint));
         // Shared-pool buckets start at sixteen elements. Smaller budgets simply
@@ -139,8 +139,8 @@ internal sealed class EntropyTokens : IDisposable
 
     internal void Replay(BitWriter writer, HuffmanCodingPlan.ScanCoding coding, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(coding);
+        Guard.ThrowIfNull(writer);
+        Guard.ThrowIfNull(coding);
         if (!IsComplete)
             throw new InvalidOperationException("An abandoned entropy token sequence cannot be replayed.");
         cancellationToken.ThrowIfCancellationRequested();

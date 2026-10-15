@@ -29,7 +29,7 @@ public static class JpegliMetadata
     public static JpegliEncoderOptions Reconcile(JpegliEncoderOptions options, int width, int height,
         JpegliMetadataEdits? edits = null, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(options);
+        Guard.ThrowIfNull(options);
         if (width is < 1 or > 65535)
             throw new ArgumentOutOfRangeException(nameof(width));
         if (height is < 1 or > 65535)

@@ -52,7 +52,13 @@ internal static class IccProfileWriter
         bytes[64..68].Clear();
         bytes[84..100].Clear();
         Span<byte> digest = stackalloc byte[16];
+#if NETSTANDARD2_1
+        using var md5 = MD5.Create();
+        if (!md5.TryComputeHash(bytes, digest, out _))
+            throw new InvalidOperationException("The MD5 destination is too short.");
+#else
         MD5.HashData(bytes, digest);
+#endif
         UInt32(bytes, 44, flags);
         UInt32(bytes, 64, intent);
         digest.CopyTo(bytes[84..100]);

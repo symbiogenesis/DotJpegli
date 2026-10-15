@@ -23,7 +23,7 @@ internal sealed class BitWriter
 
     public BitWriter(Stream output, bool buffered = false)
     {
-        ArgumentNullException.ThrowIfNull(output);
+        Guard.ThrowIfNull(output);
         if (!output.CanWrite)
         {
             throw new ArgumentException("The output stream must be writable.", nameof(output));

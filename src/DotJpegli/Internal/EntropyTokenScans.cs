@@ -7,7 +7,7 @@ internal sealed class EntropyTokenScans : IDisposable
 
     internal EntropyTokenScans(int count)
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+        Guard.ThrowIfNegativeOrZero(count);
         long budgetPerScan = 64L * 1024 * 1024 / count;
         scans = new EntropyTokens[count];
         for (int index = 0; index < count; index++)

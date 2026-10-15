@@ -105,7 +105,7 @@ public static class JpegliEncoder
     private static void EncodeCore(Stream output, PixelSource pixels, int width, int height,
         JpegliEncoderOptions? options, int stride, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(output);
+        Guard.ThrowIfNull(output);
         if (!output.CanWrite)
             throw new ArgumentException("The destination stream must be writable.", nameof(output));
         options ??= new JpegliEncoderOptions();
