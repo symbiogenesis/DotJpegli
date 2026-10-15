@@ -4,6 +4,33 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Targeted development diagnostic or full quality/performance acceptance'
+        type: choice
+        options: [targeted, full]
+        default: targeted
+      images:
+        description: 'Targeted image IDs, comma separated (kodim01..kodim24 or fixed control names)'
+        default: kodim01
+      distances:
+        description: 'Targeted distances (1, 4, or 1,4)'
+        default: '1'
+      samplings:
+        description: 'Targeted samplings (444, 420, or 444,420)'
+        default: '444,420'
+      progressions:
+        description: 'Targeted progression levels (0, 2, or 0,2)'
+        default: '0,2'
+      blocks:
+        description: 'Targeted independent blocks (3..7)'
+        default: '7'
+      warmups:
+        description: 'Targeted untimed warmups per block (1..10)'
+        default: '5'
+      iterations:
+        description: 'Targeted fixed iterations per block (3..100); blank uses 50ms calibration'
+        default: ''
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -44,12 +71,121 @@ jobs:
       - name: Managed SIMD fallback and software vector parity
         env:
           DOTNET_EnableHWIntrinsic: '0'
-        run: dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.SimdColorConversionTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.SimdQuantizationTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.EncoderParallelTests -class DotJpegli.Tests.SourceIccColorManagementTests -class DotJpegli.Tests.NumericalTests -class DotJpegli.Tests.EncoderSmokeTests
+        run: dotnet run --project tests/DotJpegli.Tests -c Release --no-build -- -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.SimdColorConversionTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.SimdQuantizationTests -class DotJpegli.Tests.SimdAdaptiveQuantizationTests -class DotJpegli.Tests.PlanarPixelSourceTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.EncoderParallelTests -class DotJpegli.Tests.SourceIccColorManagementTests -class DotJpegli.Tests.NumericalTests -class DotJpegli.Tests.EncoderSmokeTests
       - name: Verify reproducible Release assembly and package
         shell: pwsh
         run: ./tools/verify-reproducibility.ps1
 
+  native-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Identify native cache toolchain
+        id: toolchain
+        run: |
+          identity=$( { cat /etc/os-release; uname -m; c++ --version; cmake --version; ninja --version; } | sha256sum | cut -d' ' -f1)
+          echo "identity=$identity" >> "$GITHUB_OUTPUT"
+      - name: Restore pinned native executable and provenance
+        id: native-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ${{ runner.temp }}/parity-native/jpegli-parity-native
+            ${{ runner.temp }}/parity-native/provenance.json
+          key: jpegli-native-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.identity }}-031a0077f5799a6041004267fc12b956c1f52a20-${{ hashFiles('tools/parity/native/**', 'tools/parity/build-upstream.ps1') }}
+      - name: Build unchanged pinned upstream reference
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: ./tools/parity/build-upstream.ps1 -SourceDirectory "${{ runner.temp }}/parity-upstream" -BuildDirectory "${{ runner.temp }}/parity-native" -Generator Ninja -Parallelism 2
+      - name: Verify cached native identity
+        run: |
+          chmod +x "${{ runner.temp }}/parity-native/jpegli-parity-native"
+          test "$("${{ runner.temp }}/parity-native/jpegli-parity-native" version)" = 031a0077f5799a6041004267fc12b956c1f52a20
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'parity-native'
+          metadata = json.loads((root / 'provenance.json').read_text(encoding='utf-8-sig'))
+          assert metadata['sourceUnmodified'] and metadata['revision'] == '031a0077f5799a6041004267fc12b956c1f52a20'
+          assert hashlib.sha256((root / 'jpegli-parity-native').read_bytes()).hexdigest() == metadata['executableSha256']
+          PY
+      - name: Restore pinned lossless photographic corpus
+        id: corpus-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/parity-corpus
+          key: jpegli-corpus-v1-${{ hashFiles('tools/parity/corpus.json', 'tools/parity/prepare-corpus.py') }}
+      - name: Prepare hash-pinned lossless photographic corpus
+        if: steps.corpus-cache.outputs.cache-hit != 'true'
+        run: python3 tools/parity/prepare-corpus.py --output "${{ runner.temp }}/parity-corpus"
+      - name: Share reference and corpus with comparison job
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: parity-reference-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/parity-native/jpegli-parity-native
+            ${{ runner.temp }}/parity-native/provenance.json
+            ${{ runner.temp }}/parity-corpus/
+          retention-days: 7
+          if-no-files-found: error
+
+  performance-targeted:
+    if: github.event_name == 'push' || inputs.mode != 'full'
+    needs: native-reference
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: parity-reference-${{ github.sha }}
+          path: ${{ runner.temp }}
+      - name: Restore and build performance comparison
+        run: |
+          chmod +x "${{ runner.temp }}/parity-native/jpegli-parity-native"
+          dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
+          dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-restore
+      - name: Verify performance evidence policy using synthetic samples
+        run: dotnet run --project tools/DotJpegli.Performance -c Release --no-build -- --self-test
+      - name: Compare selected encoding cases (CI only; no full parity verdict)
+        env:
+          DOTJPEGLI_PERFORMANCE_REVISION: ${{ github.sha }}
+          DOTNET_TieredCompilation: '0'
+          TARGET_IMAGES: ${{ inputs.images || 'kodim01' }}
+          TARGET_DISTANCES: ${{ inputs.distances || '1' }}
+          TARGET_SAMPLINGS: ${{ inputs.samplings || '444,420' }}
+          TARGET_PROGRESSIONS: ${{ inputs.progressions || '0,2' }}
+          TARGET_BLOCKS: ${{ inputs.blocks || '7' }}
+          TARGET_WARMUPS: ${{ inputs.warmups || '5' }}
+          TARGET_ITERATIONS: ${{ inputs.iterations }}
+        run: |
+          cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
+          args=(--diagnostic --images "$TARGET_IMAGES" --distances "$TARGET_DISTANCES" --samplings "$TARGET_SAMPLINGS" --progressions "$TARGET_PROGRESSIONS" --blocks "$TARGET_BLOCKS" --warmups "$TARGET_WARMUPS")
+          if [[ -n "$TARGET_ITERATIONS" ]]; then args+=(--iterations "$TARGET_ITERATIONS"); fi
+          taskset -c "$cpu" dotnet run --project tools/DotJpegli.Performance -c Release --no-build -- --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/performance-evidence" "${args[@]}"
+      - name: Publish selected-case report in job summary
+        if: always()
+        run: |
+          if [[ -f "${{ runner.temp }}/performance-evidence/report.md" ]]; then cat "${{ runner.temp }}/performance-evidence/report.md" >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Retain selected-case evidence and native build provenance
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: performance-targeted-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/performance-evidence/
+            ${{ runner.temp }}/parity-native/provenance.json
+            ${{ runner.temp }}/parity-corpus/corpus.json
+          retention-days: 30
+          if-no-files-found: error
+
   quality-compression-parity:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'full'
+    needs: native-reference
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -57,11 +193,12 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
-      - name: Build unchanged pinned upstream reference
-        shell: pwsh
-        run: ./tools/parity/build-upstream.ps1 -SourceDirectory "${{ runner.temp }}/parity-upstream" -BuildDirectory "${{ runner.temp }}/parity-native" -Generator Ninja -Parallelism 2
-      - name: Prepare hash-pinned lossless photographic corpus
-        run: python3 tools/parity/prepare-corpus.py --output "${{ runner.temp }}/parity-corpus"
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: parity-reference-${{ github.sha }}
+          path: ${{ runner.temp }}
+      - name: Make downloaded native executable runnable
+        run: chmod +x "${{ runner.temp }}/parity-native/jpegli-parity-native"
       - name: Restore and build managed comparison
         run: |
           dotnet restore tools/DotJpegli.Parity/DotJpegli.Parity.csproj --locked-mode

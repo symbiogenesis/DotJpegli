@@ -14,6 +14,22 @@ internal static class SelfTest
         Assert(Evidence.Statistics([1, 1, 1]).RelativeMad == 0, "Constant samples should have zero MAD.");
         Reject(() => Evidence.Statistics([])); Reject(() => Evidence.Statistics([1, double.PositiveInfinity]));
         Reject(() => Evidence.Statistics([0, 1]));
+        DiagnosticSelection defaults = DiagnosticSelection.Parse(new Dictionary<string, string>());
+        Assert(defaults.ExpectedCases == 4 && defaults.Policy == policy, "Default diagnostic must select four representative cases with the unchanged sampling policy.");
+        DiagnosticSelection target = DiagnosticSelection.Parse(new Dictionary<string, string>
+        {
+            ["--images"] = "kodim03,line-art", ["--samplings"] = "420", ["--progressions"] = "2", ["--distances"] = "4",
+            ["--blocks"] = "3", ["--warmups"] = "1", ["--iterations"] = "4"
+        });
+        Assert(target.ExpectedCases == 2 && target.Policy.Blocks == 3 && target.Policy.Warmups == 1 &&
+            target.Policy.MinimumIterations == 4 && target.Policy.MaximumIterations == 4, "Bounded diagnostic overrides were ignored.");
+        foreach (var values in new Dictionary<string, string>[]
+        {
+            new() { ["--images"] = "untrusted" }, new() { ["--images"] = "kodim01,kodim01" }, new() { ["--distances"] = "2" },
+            new() { ["--distances"] = "1,1.0" }, new() { ["--blocks"] = "1" }, new() { ["--iterations"] = "1000000" },
+            new() { ["--warmups"] = "0" }, new() { ["--unknown"] = "1" }, new() { ["--samplings"] = "444," },
+            new() { ["--images"] = string.Join(',', Evidence.ImageIds("natural")), ["--distances"] = "1,4" }
+        }) Reject(() => DiagnosticSelection.Parse(values));
         const string nativeFixture = """
             {"encoder":"native-jpegli","upstreamPin":"031a0077f5799a6041004267fc12b956c1f52a20","width":768,"height":512,
             "distance":1,"sampling":"444","progressiveLevel":2,"optimizeHuffman":true,"adaptiveQuantization":true,
@@ -31,8 +47,15 @@ internal static class SelfTest
         Evaluation passing = Evidence.Evaluate(cases, policy);
         Assert(passing.Valid && passing.Passed && passing.Groups.Length == 8 && cases.Count == 256, "Complete in-bound evidence must pass.");
         Assert(Evidence.Evaluate(Corpus(.5), policy).Passed, "Faster managed latency is accepted.");
+        Evaluation diagnostic = Evidence.EvaluateDiagnostic([cases[0]], policy, 1);
+        Assert(diagnostic.Valid && !diagnostic.Passed && diagnostic.Groups.Length == 0 && diagnostic.Failures.Length == 0,
+            "An in-bound targeted diagnostic must never become a full parity pass.");
+        Assert(!Evidence.EvaluateDiagnostic([cases[0]], policy, 2).Valid, "Missing selected diagnostic case was accepted.");
+        Assert(!Evidence.EvaluateDiagnostic([cases[0], cases[0]], policy, 2).Valid, "Duplicate selected diagnostic case was accepted.");
         cases[0] = Case(cases[0].Id, cases[0].Category, cases[0].Sampling, cases[0].ProgressiveLevel, cases[0].Distance, 1.11);
         Evaluation isolatedSlow = Evidence.Evaluate(cases, policy);
+        Evaluation slowDiagnostic = Evidence.EvaluateDiagnostic([cases[0]], policy, 1);
+        Assert(slowDiagnostic.Valid && !slowDiagnostic.Passed && slowDiagnostic.Failures.Length == 1, "Selected-case regression must remain actionable without a full parity claim.");
         Assert(Evidence.IsDecisiveCaseFailure(cases[0], policy), "A stable individual counterexample must permit a failed verdict.");
         Assert(!Evidence.IsDecisiveCaseFailure(Corpus(1)[0], policy), "An in-bound observation cannot bypass complete passing coverage.");
         Assert(!Evidence.IsDecisiveCaseFailure(cases[0] with { StructureDifference = "wrong quantizers" }, policy), "Unmatched settings cannot establish a counterexample.");
@@ -98,7 +121,7 @@ internal static class SelfTest
     private static void Reject(Action action)
     {
         try { action(); }
-        catch (Exception error) when (error is InvalidDataException or KeyNotFoundException) { return; }
+        catch (Exception error) when (error is InvalidDataException or KeyNotFoundException or ArgumentException or FormatException) { return; }
         throw new InvalidOperationException("Self-test: invalid timing input was accepted.");
     }
 }

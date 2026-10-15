@@ -1,12 +1,12 @@
 namespace DotJpegli.Performance;
 
-// Policy is checked into source before any measurement; command-line overrides are deliberately absent.
+// The acceptance protocol always uses these defaults. Only diagnostic runs may override work counts.
 internal sealed record Policy
 {
-    public int Warmups => 5;
-    public int Blocks => 7;
-    public int MinimumIterations => 3;
-    public int MaximumIterations => 100;
+    public int Warmups { get; init; } = 5;
+    public int Blocks { get; init; } = 7;
+    public int MinimumIterations { get; init; } = 3;
+    public int MaximumIterations { get; init; } = 100;
     public double TargetBlockMilliseconds => 50;
     public double MinimumBlockMilliseconds => 1;
     public double MaximumRelativeMad => 0.10;
@@ -158,6 +158,17 @@ internal static class Evidence
         string[] invalid = cases.SelectMany(item => ValidateCase(item, policy)).Distinct().ToArray();
         return new(invalid.Length == 0, false, [], invalid,
             [$"{Label(cases[^1])}: median latency ratio {cases[^1].MedianRatio:F6} exceeds 1.10. Stable matched counterexample; remaining cases are unmeasured."]);
+    }
+
+    // A selected-case diagnostic may disprove a bound, but can never establish full parity.
+    public static Evaluation EvaluateDiagnostic(IReadOnlyList<CaseResult> cases, Policy policy, int expectedCases)
+    {
+        var invalid = cases.SelectMany(item => ValidateCase(item, policy)).Distinct().ToList();
+        if (cases.Count != expectedCases) invalid.Add("Incomplete selected-case coverage.");
+        if (cases.Select(Label).Distinct().Count() != cases.Count) invalid.Add("Duplicate selected case.");
+        string[] failures = cases.Where(item => ValidateCase(item, policy).Length == 0 && item.MedianRatio > policy.MaximumCaseRatio)
+            .Select(item => $"{Label(item)}: selected-case median latency ratio {item.MedianRatio:F6} exceeds 1.10.").ToArray();
+        return new(invalid.Count == 0, false, [], invalid.ToArray(), failures);
     }
 
     internal static string Label(CaseResult item) => $"{item.Id}/{item.Sampling}/p{item.ProgressiveLevel}/d{item.Distance}";

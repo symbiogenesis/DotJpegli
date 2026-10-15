@@ -1,4 +1,48 @@
-# Performance noninferiority evidence
+# Targeted performance development and full acceptance evidence
+
+A normal push to `main` runs four targeted cases: `kodim01`, distance 1,
+444/420 and progression 0/2. It does not first run the 1,280-pair quality matrix
+or the 256-case performance matrix. The native executable and Kodak inputs are
+cached by pinned source/wrapper/toolchain and corpus hashes; native identity,
+provenance and input hashes remain checked when reused. The selected-case table
+appears in the CI job summary and the `performance-targeted-<revision>` artifact.
+
+To focus a later run, use workflow dispatch with `mode=targeted`. For example:
+
+```sh
+gh workflow run ci.yml --ref main -f mode=targeted \
+  -f images=kodim03 -f distances=4 -f samplings=420 -f progressions=2 \
+  -f blocks=3 -f iterations=3 -f warmups=1
+```
+
+Inspect existing runs for the intended commit first and reuse its automatic run
+when it covers the desired comparison. Do not dispatch a duplicate for the same
+revision unless an additional measurement was requested. A deliberately smaller
+selection uses three blocks of three encodes, plus one warmup per encoder per
+block. The default targeted run retains the full protocol's seven blocks, five
+warmups and calibrated iteration count. All timed benchmarks remain CI-only.
+
+The equivalent runner options are `--diagnostic --images kodim03 --distances 4
+--samplings 420 --progressions 2 --blocks 3 --iterations 3 --warmups 1`, in
+addition to the required absolute `--native`, `--corpus` and `--output` paths.
+Images may be `kodim01` through `kodim24` or one of the eight fixed control IDs.
+The four selection flags accept unique comma-separated lists; their Cartesian
+product is limited to 64 cases. Distances select 1/4, samplings 444/420 and
+progressions 0/2. Blocks are bounded to 3..7, warmups to 1..10 and optional fixed
+iterations to 3..100. Omit `--iterations` to retain native calibration.
+
+Diagnostics measure every selected case and return 1 for a stable matched case
+above the 1.10 managed/native latency bound, 2 for invalid or unstable evidence,
+and 0 when the selected cases are valid and within that individual bound. They
+always record `parityVerdict: not-evaluated` and `passed: null`: selected-case
+success never establishes full parity or the full protocol's group bounds.
+Count/selection overrides require `--diagnostic`; they cannot change acceptance.
+
+## Full acceptance protocol
+
+Use workflow dispatch with `mode=full` only when the full quality/compression and
+performance evidence is needed. The fixed protocols and thresholds remain
+unchanged. This opt-in path runs the complete quality matrix before performance.
 
 This CI-only tool compares complete in-memory encode latency with the pinned
 native jpegli encoder. It uses the shared Kodak24 hash manifest, eight shared

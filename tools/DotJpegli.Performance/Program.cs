@@ -41,28 +41,31 @@ internal static class Program
             string nativeVersion = (await Native(options.Native, worker, output, "version")).Trim();
             if (nativeVersion != UpstreamPin) throw new InvalidDataException("Native encoder does not report the pinned upstream revision.");
             var images = ReadCorpus(options.Corpus);
+            if (options.Diagnostic is { } selection) images = images.Where(image => selection.Images.Contains(image.Id, StringComparer.Ordinal)).ToList();
             var sources = new List<SourceImage>();
             var cases = new List<CaseResult>();
-            var policy = new Policy();
+            Policy policy = options.Diagnostic?.Policy ?? new Policy();
+            int expectedCases = options.Diagnostic?.ExpectedCases ?? 256;
             bool stoppedAfterCounterexample = false;
-            var configurations = from sampling in Evidence.Samplings
-                                 from progression in Evidence.Progressions
-                                 from distance in Evidence.Distances
+            var configurations = from sampling in options.Diagnostic?.Samplings ?? Evidence.Samplings
+                                 from progression in options.Diagnostic?.Progressions ?? Evidence.Progressions
+                                 from distance in options.Diagnostic?.Distances ?? Evidence.Distances
                                  select (sampling, progression, distance);
             object environment = EnvironmentDetails();
             await WriteJson(output, "run.json", new
             {
-                schemaVersion = 1, startedAtUtc = DateTimeOffset.UtcNow, expectedCases = 256, upstreamPin = UpstreamPin,
+                schemaVersion = 1, startedAtUtc = DateTimeOffset.UtcNow, expectedCases, diagnostic = options.Diagnostic, upstreamPin = UpstreamPin,
                 testedRevision = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA"),
                 githubRunId = Environment.GetEnvironmentVariable("GITHUB_RUN_ID"),
                 nativeExecutableSha256 = HashFile(options.Native), managedEncoderSha256 = HashFile(typeof(JpegliEncoder).Assembly.Location),
                 managedRunnerSha256 = HashFile(Assembly.GetExecutingAssembly().Location),
                 corpusManifestSha256 = HashFile(Path.Combine(AppContext.BaseDirectory, "corpus.json")), policy, environment
             });
-            await WriteJson(output, "summary.json", new { schemaVersion = 1, status = "incomplete", valid = false, passed = false,
+            await WriteJson(output, "summary.json", new { schemaVersion = 1, mode = options.Diagnostic is null ? "acceptance" : "diagnostic", status = "incomplete", valid = false, passed = (bool?)null,
                 runMetadata = "run.json", progress = "progress.json", rawMeasurements = "cases.json" });
             await File.WriteAllTextAsync(Path.Combine(output, "report.md"),
-                "# Performance parity: INCOMPLETE\n\nMeasurement has not completed; no passing parity verdict is available. " +
+                (options.Diagnostic is null ? "# Performance parity: INCOMPLETE\n\n" : "# Targeted performance diagnostic: INCOMPLETE\n\n") +
+                "Measurement has not completed; no passing parity verdict is available. " +
                 "run.json retains the machine, policy and executable identities; progress.json and cases.json retain completed work.\n");
             foreach (var (id, category, sourcePath, image) in images)
             {
@@ -122,16 +125,19 @@ internal static class Program
                         managedStats.Median / nativeStats.Median, managedJpeg.LongLength, nativeBytes, Hash(managedJpeg), Hash(nativeJpeg), structure,
                         Evidence.ValidateSamples(blocks.ToArray(), iterations, policy)));
                     await WriteJson(output, "cases.json", cases);
-                    await WriteJson(output, "progress.json", new { completedCases = cases.Count, expectedCases = 256, updatedAtUtc = DateTimeOffset.UtcNow });
-                    if (Evidence.IsDecisiveCaseFailure(cases[^1], policy))
+                    await WriteJson(output, "progress.json", new { completedCases = cases.Count, expectedCases, updatedAtUtc = DateTimeOffset.UtcNow });
+                    Console.WriteLine(FormattableString.Invariant($"{Evidence.Label(cases[^1])}: managed/native={cases[^1].MedianRatio:F3}; {cases.Count}/{expectedCases} cases retained."));
+                    if (options.Diagnostic is null && Evidence.IsDecisiveCaseFailure(cases[^1], policy))
                     {
                         stoppedAfterCounterexample = true;
                         break;
                     }
                 }
-                Console.WriteLine($"Measured {id} ({category}); {cases.Count}/256 cases retained.");
+                Console.WriteLine($"Measured {id} ({category}); {cases.Count}/{expectedCases} cases retained.");
                 if (stoppedAfterCounterexample) break;
             }
+            if (options.Diagnostic is not null)
+                return await CompleteDiagnostic(options, cases, policy, expectedCases);
             Evaluation evaluation = stoppedAfterCounterexample
                 ? Evidence.EvaluateCounterexample(cases, policy)
                 : Evidence.Evaluate(cases, policy);
@@ -341,6 +347,33 @@ internal static class Program
         return text.ToString();
     }
 
+    private static async Task<int> CompleteDiagnostic(Options options, List<CaseResult> cases, Policy policy, int expectedCases)
+    {
+        Evaluation evaluation = Evidence.EvaluateDiagnostic(cases, policy, expectedCases);
+        string status = !evaluation.Valid ? "invalid" : evaluation.Failures.Length > 0 ? "selected-case-bound-exceeded" : "selected-cases-within-bound";
+        await WriteJson(options.Output, "summary.json", new
+        {
+            schemaVersion = 1, mode = "diagnostic", status, evaluation.Valid, passed = (bool?)null, parityVerdict = "not-evaluated",
+            selectedCoverageComplete = cases.Count == expectedCases, fullCoverageComplete = false,
+            scope = "Selected cases only; no full parity verdict or aggregate acceptance claim", expectedCases, cases = cases.Count,
+            testedRevision = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA"),
+            policy, selection = options.Diagnostic, invalidReasons = evaluation.InvalidReasons, failures = evaluation.Failures,
+            runMetadata = "run.json", rawMeasurements = "cases.json"
+        });
+        var report = new StringBuilder("# Targeted performance diagnostic\n\n");
+        report.AppendLine($"Status: {status}. {cases.Count}/{expectedCases} selected cases measured. **Full performance parity is not evaluated.**");
+        report.AppendLine($"Tested revision: `{Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA")}`.");
+        report.AppendLine($"\n{policy.Blocks} alternating blocks, {policy.Warmups} untimed warmups per block, {policy.MinimumIterations}..{policy.MaximumIterations} shared iterations. The selected-case latency bound is managed/native <=1.10. No group or whole-corpus acceptance verdict is inferred.\n");
+        report.AppendLine("| Case | Managed median (ms) | Native median (ms) | Ratio | Managed MAD | Native MAD |\n| --- | ---: | ---: | ---: | ---: | ---: |");
+        foreach (CaseResult item in cases)
+            report.AppendLine(FormattableString.Invariant($"| {Evidence.Label(item)} | {item.Managed.Median / 1_000_000:F3} | {item.Native.Median / 1_000_000:F3} | {item.MedianRatio:F3} | {item.Managed.RelativeMad:P1} | {item.Native.RelativeMad:P1} |"));
+        foreach (string reason in evaluation.InvalidReasons.Concat(evaluation.Failures)) report.AppendLine("\n- " + reason);
+        report.AppendLine("\nRaw samples, allocations, JPEG structure matching, input hashes, settings and host identity are retained. Exit 0 means selected cases were valid and within their individual bound; it does not mean full parity passed. Exit 1 identifies a stable selected-case bound failure; exit 2 identifies invalid evidence.");
+        await File.WriteAllTextAsync(Path.Combine(options.Output, "report.md"), report.ToString());
+        Console.WriteLine($"Targeted diagnostic: {status}; no full parity verdict; evidence: {options.Output}");
+        return !evaluation.Valid ? 2 : evaluation.Failures.Length > 0 ? 1 : 0;
+    }
+
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
     private static string HashFile(string path) => Hash(File.ReadAllBytes(path));
     private static Task WriteJson<T>(string output, string name, T value) => File.WriteAllTextAsync(Path.Combine(output, name), JsonSerializer.Serialize(value, JsonOptions) + "\n");
@@ -348,20 +381,27 @@ internal static class Program
     private sealed record ManagedSample(double NsPerEncode, int Gen0Collections, int Gen1Collections, int Gen2Collections, long AllocatedBytes);
 }
 
-internal sealed record Options(string Native, string Corpus, string Output)
+internal sealed record Options(string Native, string Corpus, string Output, DiagnosticSelection? Diagnostic)
 {
     public static Options Parse(string[] args)
     {
-        if (args.Length != 6) throw new ArgumentException("Usage: DotJpegli.Performance --native PATH --corpus DIRECTORY --output EMPTY_DIRECTORY; or --self-test.");
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
-        for (int index = 0; index < args.Length; index += 2)
+        bool diagnostic = args.Contains("--diagnostic", StringComparer.Ordinal);
+        string[] pairs = args.Where(argument => argument != "--diagnostic").ToArray();
+        if (args.Count(argument => argument == "--diagnostic") > 1 || pairs.Length % 2 != 0)
+            throw new ArgumentException("Options require name/value pairs; --diagnostic is a flag.");
+        for (int index = 0; index < pairs.Length; index += 2)
         {
-            if (args[index] is not ("--native" or "--corpus" or "--output") || !Path.IsPathFullyQualified(args[index + 1]) ||
-                !values.TryAdd(args[index], Path.GetFullPath(args[index + 1])))
-                throw new ArgumentException("Unknown/duplicate option or non-absolute path.");
+            if (!values.TryAdd(pairs[index], pairs[index + 1])) throw new ArgumentException("Duplicate option.");
         }
-        if (values.Count != 3 || !File.Exists(values["--native"]) || !Directory.Exists(values["--corpus"]))
+        string[] paths = ["--native", "--corpus", "--output"];
+        foreach (string key in paths)
+            if (!values.TryGetValue(key, out string? path) || !Path.IsPathFullyQualified(path)) throw new ArgumentException("Native, corpus and output must be absolute paths.");
+        if (!File.Exists(values["--native"]) || !Directory.Exists(values["--corpus"]))
             throw new ArgumentException("Native executable and corpus directory must exist.");
-        return new(values["--native"], values["--corpus"], values["--output"]);
+        var selectionValues = values.Where(pair => !paths.Contains(pair.Key, StringComparer.Ordinal)).ToDictionary();
+        if (!diagnostic && selectionValues.Count > 0) throw new ArgumentException("Selection and count overrides require --diagnostic; the full acceptance protocol cannot be overridden.");
+        return new(Path.GetFullPath(values["--native"]), Path.GetFullPath(values["--corpus"]), Path.GetFullPath(values["--output"]),
+            diagnostic ? DiagnosticSelection.Parse(selectionValues) : null);
     }
 }
