@@ -53,6 +53,14 @@ their individual bounds. The diagnostic records `passed: null` and
 `parityVerdict: not-evaluated`; it cannot establish the full protocol's group
 bounds or a passing performance parity verdict.
 
+When a targeted comparison fails, the same CI job collects one bounded CPU
+profile of `kodim01` at 444, progression 0 and distance 1 using pinned
+`dotnet-trace 10.0.750501`. Its trace, Speedscope file, logs and marked
+instrumented evidence are retained separately as `performance-profile-<revision>`.
+These profiling timings cannot establish latency acceptance; the original
+unprofiled comparison remains the job's result. Manual dispatch can disable this
+follow-up with `profile=false`.
+
 ## Full acceptance scope and policy
 
 The comparison covers the 24 hash-pinned Kodak photographs and eight deterministic

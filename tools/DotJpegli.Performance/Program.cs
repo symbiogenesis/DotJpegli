@@ -310,6 +310,7 @@ internal static class Program
             serverGc = System.Runtime.GCSettings.IsServerGC, gcLatencyMode = System.Runtime.GCSettings.LatencyMode.ToString(),
             dotnetTieredCompilation = Environment.GetEnvironmentVariable("DOTNET_TieredCompilation"),
             complusTieredCompilation = Environment.GetEnvironmentVariable("COMPlus_TieredCompilation"),
+            instrumentation = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_INSTRUMENTATION"),
             githubRunnerOs = Environment.GetEnvironmentVariable("RUNNER_OS"), githubRunnerArchitecture = Environment.GetEnvironmentVariable("RUNNER_ARCH") };
     }
 
@@ -350,17 +351,20 @@ internal static class Program
     private static async Task<int> CompleteDiagnostic(Options options, List<CaseResult> cases, Policy policy, int expectedCases)
     {
         Evaluation evaluation = Evidence.EvaluateDiagnostic(cases, policy, expectedCases);
+        string? instrumentation = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_INSTRUMENTATION");
         string status = !evaluation.Valid ? "invalid" : evaluation.Failures.Length > 0 ? "selected-case-bound-exceeded" : "selected-cases-within-bound";
         await WriteJson(options.Output, "summary.json", new
         {
             schemaVersion = 1, mode = "diagnostic", status, evaluation.Valid, passed = (bool?)null, parityVerdict = "not-evaluated",
             selectedCoverageComplete = cases.Count == expectedCases, fullCoverageComplete = false,
-            scope = "Selected cases only; no full parity verdict or aggregate acceptance claim", expectedCases, cases = cases.Count,
+            scope = "Selected cases only; no full parity verdict or aggregate acceptance claim", instrumentation, expectedCases, cases = cases.Count,
             testedRevision = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA"),
             policy, selection = options.Diagnostic, invalidReasons = evaluation.InvalidReasons, failures = evaluation.Failures,
             runMetadata = "run.json", rawMeasurements = "cases.json"
         });
         var report = new StringBuilder("# Targeted performance diagnostic\n\n");
+        if (instrumentation is not null)
+            report.AppendLine($"**Instrumented CPU diagnostic only. Timings do not establish latency acceptance.** {instrumentation}\n");
         report.AppendLine($"Status: {status}. {cases.Count}/{expectedCases} selected cases measured. **Full performance parity is not evaluated.**");
         report.AppendLine($"Tested revision: `{Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA")}`.");
         report.AppendLine($"\n{policy.Blocks} alternating blocks, {policy.Warmups} untimed warmups per block, {policy.MinimumIterations}..{policy.MaximumIterations} shared iterations. The selected-case latency bound is managed/native <=1.10. No group or whole-corpus acceptance verdict is inferred.\n");

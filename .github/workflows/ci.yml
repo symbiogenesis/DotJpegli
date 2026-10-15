@@ -31,6 +31,10 @@ on:
       iterations:
         description: 'Targeted fixed iterations per block (3..100); blank uses 50ms calibration'
         default: ''
+      profile:
+        description: 'Collect one instrumented CPU diagnostic after a targeted comparison fails'
+        type: boolean
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -152,6 +156,7 @@ jobs:
       - name: Verify performance evidence policy using synthetic samples
         run: dotnet run --project tools/DotJpegli.Performance -c Release --no-build -- --self-test
       - name: Compare selected encoding cases (CI only; no full parity verdict)
+        id: targeted
         env:
           DOTJPEGLI_PERFORMANCE_REVISION: ${{ github.sha }}
           DOTNET_TieredCompilation: '0'
@@ -167,6 +172,36 @@ jobs:
           args=(--diagnostic --images "$TARGET_IMAGES" --distances "$TARGET_DISTANCES" --samplings "$TARGET_SAMPLINGS" --progressions "$TARGET_PROGRESSIONS" --blocks "$TARGET_BLOCKS" --warmups "$TARGET_WARMUPS")
           if [[ -n "$TARGET_ITERATIONS" ]]; then args+=(--iterations "$TARGET_ITERATIONS"); fi
           taskset -c "$cpu" dotnet run --project tools/DotJpegli.Performance -c Release --no-build -- --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/performance-evidence" "${args[@]}"
+      - name: Install pinned CPU diagnostic tool after selected-case failure
+        id: profiler
+        if: failure() && steps.targeted.outcome == 'failure' && (github.event_name == 'push' || inputs.profile)
+        continue-on-error: true
+        timeout-minutes: 3
+        working-directory: ${{ runner.temp }}
+        run: dotnet tool install dotnet-trace --version 10.0.750501 --tool-path "${{ runner.temp }}/diagnostic-tools" 2>&1 | tee "${{ runner.temp }}/performance-profile-install.log"
+      - name: Profile one encoding case (instrumented diagnostic only)
+        id: profile
+        if: failure() && steps.targeted.outcome == 'failure' && steps.profiler.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 5
+        working-directory: ${{ runner.temp }}
+        env:
+          DOTJPEGLI_PERFORMANCE_REVISION: ${{ github.sha }}
+          DOTNET_TieredCompilation: '0'
+          DOTJPEGLI_PERFORMANCE_INSTRUMENTATION: 'dotnet-trace 10.0.750501; dotnet-sampled-thread-time; profiling timings are not acceptance evidence'
+        run: |
+          cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
+          taskset -c "$cpu" "${{ runner.temp }}/diagnostic-tools/dotnet-trace" collect --profile dotnet-sampled-thread-time --format Speedscope --show-child-io --output "${{ runner.temp }}/performance-profile.nettrace" -- dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/net10.0/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/profile-evidence" --diagnostic --images kodim01 --distances 1 --samplings 444 --progressions 0 --blocks 3 --iterations 20 --warmups 1 2>&1 | tee "${{ runner.temp }}/performance-profile.log"
+      - name: Retain separate instrumented CPU diagnostics
+        if: always() && steps.profiler.outcome != 'skipped'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: performance-profile-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/performance-profile*
+            ${{ runner.temp }}/profile-evidence/
+          retention-days: 30
+          if-no-files-found: warn
       - name: Publish selected-case report in job summary
         if: always()
         run: |
