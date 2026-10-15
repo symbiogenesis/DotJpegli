@@ -61,26 +61,37 @@ internal sealed class EntropyTokens : IDisposable
     {
         if (!IsComplete)
             return;
-        if (current is null || currentCount == current.Length)
+        ulong[]? segment = current;
+        int index = currentCount;
+        if (segment is not null && (uint)index < (uint)segment.Length)
         {
-            if (segmentLength == 0 || rentedBytes + (long)segmentLength * sizeof(ulong) > maximumBytes)
-            {
-                Dispose();
-                return;
-            }
-            ulong[] next = ArrayPool<ulong>.Shared.Rent(segmentLength);
-            if (rentedBytes + (long)next.Length * sizeof(ulong) > maximumBytes)
-            {
-                ArrayPool<ulong>.Shared.Return(next);
-                Dispose();
-                return;
-            }
-            segments.Add(next);
-            rentedBytes += (long)next.Length * sizeof(ulong);
-            current = next;
-            currentCount = 0;
+            segment[index] = token;
+            currentCount = index + 1;
+            return;
         }
-        current[currentCount++] = token;
+        AddSegment(token);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void AddSegment(ulong token)
+    {
+        if (segmentLength == 0 || rentedBytes + (long)segmentLength * sizeof(ulong) > maximumBytes)
+        {
+            Dispose();
+            return;
+        }
+        ulong[] next = ArrayPool<ulong>.Shared.Rent(segmentLength);
+        if (rentedBytes + (long)next.Length * sizeof(ulong) > maximumBytes)
+        {
+            ArrayPool<ulong>.Shared.Return(next);
+            Dispose();
+            return;
+        }
+        segments.Add(next);
+        rentedBytes += (long)next.Length * sizeof(ulong);
+        current = next;
+        next[0] = token;
+        currentCount = 1;
     }
 
     internal void Replay(BitWriter writer, HuffmanCodingPlan.ScanCoding coding, CancellationToken cancellationToken)
