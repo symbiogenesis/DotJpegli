@@ -17,12 +17,13 @@ internal static class EntropyEncoder
         ReadOnlySpan<short> naturalCoefficients,
         ref int previousDc,
         HuffmanTable dc,
-        HuffmanTable ac)
+        HuffmanTable ac,
+        bool coefficientsValidated = false)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(dc);
         ArgumentNullException.ThrowIfNull(ac);
-        ValidateBlock(naturalCoefficients, previousDc);
+        ValidateBlock(naturalCoefficients, previousDc, coefficientsValidated);
 
         int difference = naturalCoefficients[0] - previousDc;
         int category = Category(difference);
@@ -63,7 +64,8 @@ internal static class EntropyEncoder
         ReadOnlySpan<short> naturalCoefficients,
         ref int previousDc,
         long[] dc,
-        long[] ac)
+        long[] ac,
+        bool coefficientsValidated = false)
     {
         ArgumentNullException.ThrowIfNull(dc);
         ArgumentNullException.ThrowIfNull(ac);
@@ -72,7 +74,7 @@ internal static class EntropyEncoder
             throw new ArgumentException("Frequency tables must each have 256 entries.");
         }
 
-        ValidateBlock(naturalCoefficients, previousDc);
+        ValidateBlock(naturalCoefficients, previousDc, coefficientsValidated);
         int difference = naturalCoefficients[0] - previousDc;
         checked { dc[Category(difference)]++; }
         previousDc = naturalCoefficients[0];
@@ -115,7 +117,7 @@ internal static class EntropyEncoder
     private static int CountNonzeroAc(ReadOnlySpan<short> coefficients) =>
         63 - coefficients[1..].Count((short)0);
 
-    private static void ValidateBlock(ReadOnlySpan<short> coefficients, int previousDc)
+    private static void ValidateBlock(ReadOnlySpan<short> coefficients, int previousDc, bool coefficientsValidated)
     {
         if (coefficients.Length != 64)
         {
@@ -130,9 +132,45 @@ internal static class EntropyEncoder
             throw new ArgumentOutOfRangeException(nameof(coefficients), "The DC difference exceeds baseline JPEG's 11-bit category.");
         }
 
-        if (coefficients[1..].ContainsAnyExceptInRange((short)-1023, (short)1023))
-        {
+        if (!coefficientsValidated)
+            ValidateAc(coefficients);
+    }
+
+    // Cached blocks call this once before their histogram and emission passes.
+    // DC depends on scan order and predictors and is always checked separately.
+    internal static void ValidateAc(ReadOnlySpan<short> coefficients)
+    {
+        if (!AcCoefficientsInRange(coefficients))
             throw new ArgumentOutOfRangeException(nameof(coefficients), "An AC coefficient exceeds baseline JPEG's 10-bit category.");
+    }
+
+    internal static bool AcCoefficientsInRange(ReadOnlySpan<short> coefficients)
+    {
+        if (coefficients.Length != 64)
+            throw new ArgumentException("A DCT block must contain 64 coefficients.", nameof(coefficients));
+
+        bool invalid = false;
+        int lanes = Vector<short>.Count;
+        if (Vector.IsHardwareAccelerated && lanes <= 64 && 64 % lanes == 0)
+        {
+            var minimum = new Vector<short>(-1023);
+            var maximum = new Vector<short>(1023);
+            // Load full vectors without a scalar tail. The first lane is DC,
+            // whose wider/difference-dependent range must not affect this test.
+            Vector<short> values = Vector.WithElement(new Vector<short>(coefficients), 0, (short)0);
+            Vector<short> outside = Vector.LessThan(values, minimum) | Vector.GreaterThan(values, maximum);
+            for (int offset = lanes; offset < 64; offset += lanes)
+            {
+                values = new Vector<short>(coefficients.Slice(offset, lanes));
+                outside |= Vector.LessThan(values, minimum) | Vector.GreaterThan(values, maximum);
+            }
+            invalid = !Vector.EqualsAll(outside, Vector<short>.Zero);
         }
+        else
+        {
+            for (int offset = 1; offset < 64; offset++)
+                invalid |= coefficients[offset] is < -1023 or > 1023;
+        }
+        return !invalid;
     }
 }

@@ -68,11 +68,13 @@ internal static class ProgressiveEntropyEncoder
         HuffmanTable ac,
         int successiveLow = 0,
         int spectralStart = 1,
-        int spectralEnd = 63)
+        int spectralEnd = 63,
+        bool coefficientsValidated = false)
     {
         // The standard AC tables only define the one-block EOB symbol.
         int pendingEobRun = 0;
-        WriteAc(writer, naturalCoefficients, ac, ref pendingEobRun, successiveLow, spectralStart, spectralEnd);
+        WriteAc(writer, naturalCoefficients, ac, ref pendingEobRun, successiveLow, spectralStart, spectralEnd,
+            coefficientsValidated);
         FlushAc(writer, ac, ref pendingEobRun);
     }
 
@@ -83,13 +85,14 @@ internal static class ProgressiveEntropyEncoder
         ref int pendingEobRun,
         int successiveLow = 0,
         int spectralStart = 1,
-        int spectralEnd = 63)
+        int spectralEnd = 63,
+        bool coefficientsValidated = false)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(ac);
         ValidateSuccessiveLow(successiveLow, refinement: false);
         ValidateSpectralRange(spectralStart, spectralEnd);
-        ValidateAc(naturalCoefficients);
+        ValidateAc(naturalCoefficients, coefficientsValidated);
         ValidateEobRun(pendingEobRun);
         if (pendingEobRun == MaximumEobRun)
         {
@@ -138,10 +141,12 @@ internal static class ProgressiveEntropyEncoder
         long[] ac,
         int successiveLow = 0,
         int spectralStart = 1,
-        int spectralEnd = 63)
+        int spectralEnd = 63,
+        bool coefficientsValidated = false)
     {
         int pendingEobRun = 0;
-        AccumulateAcFrequencies(naturalCoefficients, ac, ref pendingEobRun, successiveLow, spectralStart, spectralEnd);
+        AccumulateAcFrequencies(naturalCoefficients, ac, ref pendingEobRun, successiveLow, spectralStart, spectralEnd,
+            coefficientsValidated);
         FlushAcFrequencies(ac, ref pendingEobRun);
     }
 
@@ -151,12 +156,13 @@ internal static class ProgressiveEntropyEncoder
         ref int pendingEobRun,
         int successiveLow = 0,
         int spectralStart = 1,
-        int spectralEnd = 63)
+        int spectralEnd = 63,
+        bool coefficientsValidated = false)
     {
         ValidateFrequencies(ac);
         ValidateSuccessiveLow(successiveLow, refinement: false);
         ValidateSpectralRange(spectralStart, spectralEnd);
-        ValidateAc(naturalCoefficients);
+        ValidateAc(naturalCoefficients, coefficientsValidated);
         ValidateEobRun(pendingEobRun);
         if (pendingEobRun == MaximumEobRun)
         {
@@ -205,11 +211,13 @@ internal static class ProgressiveEntropyEncoder
         HuffmanTable ac,
         int successiveLow,
         int spectralStart = 1,
-        int spectralEnd = 63)
+        int spectralEnd = 63,
+        bool coefficientsValidated = false)
     {
         // Standard tables only define the one-block EOB symbol.
         var state = new ProgressiveAcRefinementState();
-        WriteAcRefinement(writer, naturalCoefficients, ac, state, successiveLow, spectralStart, spectralEnd);
+        WriteAcRefinement(writer, naturalCoefficients, ac, state, successiveLow, spectralStart, spectralEnd,
+            coefficientsValidated);
         FlushAcRefinement(writer, ac, state);
     }
 
@@ -220,14 +228,15 @@ internal static class ProgressiveEntropyEncoder
         ProgressiveAcRefinementState state,
         int successiveLow,
         int spectralStart = 1,
-        int spectralEnd = 63)
+        int spectralEnd = 63,
+        bool coefficientsValidated = false)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(ac);
         ArgumentNullException.ThrowIfNull(state);
         ValidateSuccessiveLow(successiveLow, refinement: true);
         ValidateSpectralRange(spectralStart, spectralEnd);
-        ValidateAc(naturalCoefficients);
+        ValidateAc(naturalCoefficients, coefficientsValidated);
         ProcessAcRefinement(naturalCoefficients, state, successiveLow, spectralStart, spectralEnd, writer, ac, null);
     }
 
@@ -236,10 +245,12 @@ internal static class ProgressiveEntropyEncoder
         long[] ac,
         int successiveLow,
         int spectralStart = 1,
-        int spectralEnd = 63)
+        int spectralEnd = 63,
+        bool coefficientsValidated = false)
     {
         var state = new ProgressiveAcRefinementState();
-        AccumulateAcRefinementFrequencies(naturalCoefficients, ac, state, successiveLow, spectralStart, spectralEnd);
+        AccumulateAcRefinementFrequencies(naturalCoefficients, ac, state, successiveLow, spectralStart, spectralEnd,
+            coefficientsValidated);
         FlushAcRefinementFrequencies(ac, state);
     }
 
@@ -249,13 +260,14 @@ internal static class ProgressiveEntropyEncoder
         ProgressiveAcRefinementState state,
         int successiveLow,
         int spectralStart = 1,
-        int spectralEnd = 63)
+        int spectralEnd = 63,
+        bool coefficientsValidated = false)
     {
         ValidateFrequencies(ac);
         ArgumentNullException.ThrowIfNull(state);
         ValidateSuccessiveLow(successiveLow, refinement: true);
         ValidateSpectralRange(spectralStart, spectralEnd);
-        ValidateAc(naturalCoefficients);
+        ValidateAc(naturalCoefficients, coefficientsValidated);
         ProcessAcRefinement(naturalCoefficients, state, successiveLow, spectralStart, spectralEnd, null, null, ac);
     }
 
@@ -519,12 +531,10 @@ internal static class ProgressiveEntropyEncoder
         }
     }
 
-    private static void ValidateAc(ReadOnlySpan<short> coefficients)
+    private static void ValidateAc(ReadOnlySpan<short> coefficients, bool coefficientsValidated)
     {
         ValidateLength(coefficients);
-        if (coefficients[1..].ContainsAnyExceptInRange((short)-1023, (short)1023))
-        {
+        if (!coefficientsValidated && !EntropyEncoder.AcCoefficientsInRange(coefficients))
             throw new ArgumentOutOfRangeException(nameof(coefficients), "An AC coefficient exceeds eight-bit JPEG's 10-bit category.");
-        }
     }
 }
