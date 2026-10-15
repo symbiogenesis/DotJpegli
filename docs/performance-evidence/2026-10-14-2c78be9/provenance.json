@@ -1,0 +1,33 @@
+{
+  "testedRevision": "2c78be9060b64e537373d31d13300ee6cb4716b3",
+  "runId": "38683739549",
+  "runUrl": "https://github.com/symbiogenesis/DotJpegli/actions/runs/38683739549",
+  "artifactId": "11949431459",
+  "artifactName": "performance-targeted-2c78be9060b64e537373d31d13300ee6cb4716b3",
+  "files": [
+    {
+      "path": "native-provenance.json",
+      "sha256": "1bfe82bb6c9d9441245cf085ffaf41877c40945b10c78d9843d8468554d8e7d8"
+    },
+    {
+      "path": "targeted/cases.json",
+      "sha256": "a3f312a02908a6c8f17d3cbfd0bb48f8b84c9b4f7201d80ad8d94613c2100e37"
+    },
+    {
+      "path": "targeted/report.md",
+      "sha256": "02f07655d8bfc609ef4c93f09f1aa12d57536c0082c15a37d02461886f5910ba"
+    },
+    {
+      "path": "targeted/run.json",
+      "sha256": "0de73339476ee0c4f0df00c067f955199c72c9dd43e31dadbc98d557ff205a16"
+    },
+    {
+      "path": "targeted/sources.json",
+      "sha256": "077577216aed0513c0a95fcca9fd3f7be6b6318c93d9d1a1de5bb130c0815454"
+    },
+    {
+      "path": "targeted/summary.json",
+      "sha256": "d3e5f7a3dbe9fd082083ff0f0bfff67afc61705c7d8cd45bc5cd3f158e830ba8"
+    }
+  ]
+}

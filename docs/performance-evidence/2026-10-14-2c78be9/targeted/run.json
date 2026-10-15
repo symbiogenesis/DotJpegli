@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "startedAtUtc": "2026-10-15T04:53:31.2696294+00:00",
+  "expectedCases": 4,
+  "diagnostic": {
+    "images": [
+      "kodim01"
+    ],
+    "distances": [
+      1
+    ],
+    "samplings": [
+      444,
+      420
+    ],
+    "progressions": [
+      0,
+      2
+    ],
+    "policy": {
+      "warmups": 5,
+      "blocks": 7,
+      "minimumIterations": 3,
+      "maximumIterations": 100,
+      "targetBlockMilliseconds": 50,
+      "minimumBlockMilliseconds": 1,
+      "maximumRelativeMad": 0.1,
+      "maximumGroupGeometricMeanRatio": 1.05,
+      "maximumCaseRatio": 1.1,
+      "managedWorkers": 1
+    },
+    "expectedCases": 4
+  },
+  "upstreamPin": "031a0077f5799a6041004267fc12b956c1f52a20",
+  "testedRevision": "2c78be9060b64e537373d31d13300ee6cb4716b3",
+  "githubRunId": "38683739549",
+  "nativeExecutableSha256": "2b01922fa6cdf2a34dd7cd76146c773bb82272d189d89317688af3d36665b688",
+  "managedEncoderSha256": "2197b303273eb1b93d5e1ea01eff34b8fd87aab19de451ce99847a23b247f0a6",
+  "managedRunnerSha256": "152ad443ea0ecabe662b2eba81d58d357450bbebed025185b48c35de2070b6da",
+  "corpusManifestSha256": "6a529b1ae279c7f89998eb1f89f58237a5c1507ef53f502d71ea429d188dd8a5",
+  "policy": {
+    "warmups": 5,
+    "blocks": 7,
+    "minimumIterations": 3,
+    "maximumIterations": 100,
+    "targetBlockMilliseconds": 50,
+    "minimumBlockMilliseconds": 1,
+    "maximumRelativeMad": 0.1,
+    "maximumGroupGeometricMeanRatio": 1.05,
+    "maximumCaseRatio": 1.1,
+    "managedWorkers": 1
+  },
+  "environment": {
+    "cpu": "AMD EPYC 7763 64-Core Processor",
+    "affinity": "0",
+    "os": "Ubuntu 24.04.5 LTS",
+    "osArchitecture": 1,
+    "processArchitecture": 1,
+    "runtime": ".NET 11.0.0-rc.2.26504.105",
+    "runtimeVersion": "11.0.0",
+    "corelibInformationalVersion": "11.0.0-rc.2.26504.105\u002B820230c386db5b0106c5430b3e5aee92a7826bf5",
+    "runtimeProductVersion": "11.0.0-rc.2.26504.105",
+    "encoderTargetFramework": ".NETCoreApp,Version=v11.0",
+    "explicitNet11Simd": true,
+    "logicalProcessors": 1,
+    "frequency": 1000000000,
+    "isHighResolution": true,
+    "isHardwareAccelerated": true,
+    "vectorFloatWidth": 8,
+    "vector128": true,
+    "vector256": true,
+    "vector512": false,
+    "serverGc": false,
+    "gcLatencyMode": "Interactive",
+    "dotnetTieredCompilation": "0",
+    "complusTieredCompilation": null,
+    "instrumentation": null,
+    "githubRunnerOs": "Linux",
+    "githubRunnerArchitecture": "X64"
+  }
+}
