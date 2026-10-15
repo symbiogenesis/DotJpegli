@@ -9,6 +9,24 @@ public sealed class SimdDownsamplingTests
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(2)]
+    public void PreparedInteriorBlocksPreserveScalarBitsAndOutputBoundaries(int kind)
+    {
+        const int width = 41, height = 35, stride = width * 4 + 13;
+        PixelSource pixels = SimdSampleFixtures.Pixels(
+            SimdSampleFixtures.Source(kind, width, height, stride, PixelComponentLayout.Bgra), PixelComponentLayout.Bgra)
+            .WithConvertedPlanes(width, height, stride, TestContext.Current.CancellationToken);
+        using IDisposable? storage = pixels.ConvertedStorage;
+        foreach (int ratio in new[] { 1, 2 })
+            for (int component = 0; component < 3; component++)
+                foreach ((int left, int top) in new[]
+                    { (0, 0), (8, 8), (width - 8 * ratio, height - 8 * ratio), (width - 5, height - 3), (-1, -1) })
+                    AssertBlock(pixels, width, height, stride, component, left, top, ratio, ratio, 0);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
     public void AllUnsmoothedRatiosPreserveScalarBitsForEverySourcePrecision(int kind)
     {
         foreach (PixelComponentLayout layout in new[] { PixelComponentLayout.Rgb, PixelComponentLayout.Bgra })

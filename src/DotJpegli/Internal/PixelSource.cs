@@ -61,6 +61,9 @@ internal readonly ref struct PixelSource
     internal ParallelDctRows? ParallelRows { get; }
     // The encode call owns this lease; worker snapshots only borrow its storage.
     internal IDisposable? ConvertedStorage => convertedPlanes;
+    internal ReadOnlySpan<float> GetConvertedPlane(int component)
+        => convertedPlanes is null ? default : convertedPlanes.Samples.AsSpan(
+            component * convertedPlanes.PlaneLength, convertedPlanes.PlaneLength);
     internal bool IsGrayscaleInput => ComponentsPerPixel == 1;
     internal bool CanManageSourceColor => !ycbcr && !xyb;
     internal JpegColorSpace ColorSpace => colorSpace == JpegColorSpace.Automatic

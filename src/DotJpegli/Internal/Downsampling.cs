@@ -2,6 +2,9 @@
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 
 namespace DotJpegli.Internal;
 
@@ -90,6 +93,23 @@ internal static class Downsampling
             return;
         }
 
+        bool direct = sampleWidth == 1 && sampleHeight == 1;
+        bool directQuarter = sampleWidth == 2 && sampleHeight == 2
+            && Vector<float>.Count == 8 && Avx.IsSupported;
+        if ((direct || directQuarter) && left >= 0 && top >= 0
+            && left <= width - 8 * sampleWidth && top <= height - 8 * sampleHeight)
+        {
+            ReadOnlySpan<float> plane = pixels.GetConvertedPlane(component);
+            if (!plane.IsEmpty)
+            {
+                if (direct)
+                    FillConvertedBlock(plane, width, left, top, samples);
+                else
+                    FillConvertedQuarterBlock(plane, width, left, top, samples);
+                return;
+            }
+        }
+
         Span<float> rawRow = stackalloc float[32];
         // Each consecutive eight-sample group supplies one horizontal term
         // for all output columns. At most four terms in each of four rows.
@@ -143,6 +163,42 @@ internal static class Downsampling
     }
 
     private static bool CanUseVector => Vector<float>.Count <= 8 && 8 % Vector<float>.Count == 0;
+
+    private static void FillConvertedBlock(ReadOnlySpan<float> plane, int width, int left, int top, Span<float> samples)
+    {
+        int lanes = Vector<float>.Count;
+        var center = new Vector<float>(128f);
+        for (int row = 0; row < 8; row++)
+        {
+            int source = (top + row) * width + left;
+            for (int column = 0; column < 8; column += lanes)
+                (new Vector<float>(plane.Slice(source + column, lanes)) - center)
+                    .CopyTo(samples.Slice(row * 8 + column, lanes));
+        }
+    }
+
+    private static void FillConvertedQuarterBlock(ReadOnlySpan<float> plane, int width, int left, int top,
+        Span<float> samples)
+    {
+        var scale = Vector256.Create(0.25f);
+        var center = Vector256.Create(128f);
+        for (int row = 0; row < 8; row++)
+        {
+            int source = (top + row * 2) * width + left;
+            Vector256<float> first = PairwiseSums(plane.Slice(source, 16));
+            Vector256<float> second = PairwiseSums(plane.Slice(source + width, 16));
+            // Downsample2x2 adds each row's pairs before the single scale.
+            ((first + second) * scale - center).CopyTo(samples.Slice(row * 8, 8));
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector256<float> PairwiseSums(ReadOnlySpan<float> samples)
+    {
+        Vector256<float> pairs = Avx.HorizontalAdd(Vector256.Create(samples[..8]), Vector256.Create(samples[8..]));
+        // HorizontalAdd works independently in each 128-bit half.
+        return Vector256.Shuffle(pairs, Vector256.Create(0, 1, 4, 5, 2, 3, 6, 7));
+    }
 
     private static Vector<float> AverageRowVector(ReadOnlySpan<float> terms, int row, int column,
         int sampleWidth, bool quarter)
