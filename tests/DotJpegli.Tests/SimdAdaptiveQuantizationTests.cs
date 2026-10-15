@@ -17,7 +17,7 @@ public sealed class SimdAdaptiveQuantizationTests
     public void VectorAndDispatchPreserveScalarStrengthBits(int kind)
     {
         const int height = 35;
-        foreach (int width in new[] { 1, 3, 8, 9, 19, 32, 67 })
+        foreach (int width in new[] { 1, 3, 8, 9, 19, 32, 56, 57, 63, 64, 65, 67, 127, 128, 129 })
         {
             int components = kind == 0 ? 1 : kind == 2 ? 4 : 3;
             int stride = width * components + 7;
@@ -65,6 +65,12 @@ public sealed class SimdAdaptiveQuantizationTests
                                 TestContext.Current.CancellationToken);
                             AssertSameBits(expected, actual.AsSpan(0, expected.Length));
                             Assert.Equal(-123.25f, actual[^1]);
+                            // Explicit batches also run on four-lane and software
+                            // runtimes, exercising full groups, tails and padding.
+                            analysis.ComputeRowBatched(pixels, stride, top, quant, actual,
+                                TestContext.Current.CancellationToken);
+                            AssertSameBits(expected, actual.AsSpan(0, expected.Length));
+                            Assert.Equal(-123.25f, actual[^1]);
                             analysis.ComputeRow(pixels, stride, top, quant, actual,
                                 TestContext.Current.CancellationToken);
                             AssertSameBits(expected, actual.AsSpan(0, expected.Length));
@@ -72,6 +78,37 @@ public sealed class SimdAdaptiveQuantizationTests
                 }
             }
         }
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void BatchedConvertedNeighborhoodReusePreservesFreshScalarStrengthBits(int sampling)
+    {
+        const int width = 129;
+        int stride = width + 11, mcuHeight = sampling * 8, height = mcuHeight * 3 + 3;
+        byte[] source = new byte[stride * height];
+        new Random(7341 + sampling).NextBytes(source);
+        PixelSource pixels = new PixelSource(source, PixelLayout.Gray8)
+            .WithConvertedPlanes(width, height, stride, TestContext.Current.CancellationToken);
+        using IDisposable? storage = pixels.ConvertedStorage;
+        var batched = new AdaptiveQuantization(width, height, sampling);
+        float[] expected = new float[batched.BlocksWide * sampling];
+        float[] actual = new float[expected.Length + 1];
+        foreach (int row in new[] { 0, 1, 2, 3, 2, 1, 0, 3 })
+            foreach (int quant in new[] { 4, 18, 65 })
+            {
+                var fresh = new AdaptiveQuantization(width, height, sampling);
+                fresh.ComputeRowScalar(pixels, stride, row * mcuHeight, quant, expected,
+                    TestContext.Current.CancellationToken);
+                actual[^1] = -123.25f;
+                batched.ComputeRowBatched(pixels, stride, row * mcuHeight, quant, actual,
+                    TestContext.Current.CancellationToken);
+                AssertSameBits(expected, actual.AsSpan(0, expected.Length));
+                Assert.Equal(-123.25f, actual[^1]);
+            }
     }
 
     private static void AssertSameBits(ReadOnlySpan<float> expected, ReadOnlySpan<float> actual)

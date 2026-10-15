@@ -4,6 +4,7 @@
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 
 namespace DotJpegli.Internal;
 
@@ -82,8 +83,16 @@ internal sealed class AdaptiveQuantization
         Span<float> strengths, CancellationToken cancellationToken)
         => ComputeRowCore(pixels, stride, top, lumaAcQuant, strengths, cancellationToken, true);
 
+    // The explicit batch entry also verifies eight-block reductions on runtimes
+    // that implement Vector256 in software. Dispatch retains its four-lane path.
+    internal void ComputeRowBatched(PixelSource pixels, int stride, int top, int lumaAcQuant,
+        Span<float> strengths, CancellationToken cancellationToken)
+        => ComputeRowCore(pixels, stride, top, lumaAcQuant, strengths, cancellationToken,
+            useVector: true, forceBatchedModulation: true);
+
     private void ComputeRowCore(PixelSource pixels, int stride, int top, int lumaAcQuant,
-        Span<float> strengths, CancellationToken cancellationToken, bool useVector)
+        Span<float> strengths, CancellationToken cancellationToken, bool useVector,
+        bool forceBatchedModulation = false)
     {
         int mcuHeight = verticalSampling * 8;
         IDisposable? storage = pixels.ConvertedStorage;
@@ -158,12 +167,34 @@ internal sealed class AdaptiveQuantization
         float dampen = lumaAcQuant < 9 ? 1f : MathF.Max(0f, 1f - (lumaAcQuant - 9f) / 56f);
         float mul = acQuant * dampen;
         float add = (1f - dampen) * (0.48f * acQuant);
+        bool batchModulation = useVector && BlocksWide >= 8
+            && ((Vector<float>.Count == 8 && Vector256.IsHardwareAccelerated) || forceBatchedModulation);
+        // Allocate once per MCU row and reuse across every eight-block group.
+        Span<Vector256<float>> modulationRows = batchModulation ? stackalloc Vector256<float>[16] : default;
+        Span<float> modulationValues = batchModulation ? stackalloc float[16] : default;
         for (int blockY = 0; blockY < verticalSampling; blockY++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ComputeFuzzyErosion(blockY * 2 + 1, 0, useVector);
             ComputeFuzzyErosion(blockY * 2 + 2, preStride, useVector);
-            for (int blockX = 0; blockX < BlocksWide; blockX++)
+            int blockX = 0;
+            if (batchModulation)
+                for (; blockX <= BlocksWide - 8; blockX += 8)
+                {
+                    ModulateEightBlocks(blockX * 8, 5 + blockY * 8, modulationRows, modulationValues);
+                    for (int block = 0; block < 8; block++)
+                    {
+                        int x = (blockX + block) * 2;
+                        float value = fuzzy[preStride + x] + fuzzy[preStride + x + 1]
+                            + fuzzy[x] + fuzzy[x + 1];
+                        value = ComputeMask(value);
+                        value = modulationValues[block] + value;
+                        value = (-0.15526878023684174f * InvLog2E) * FastLog2(modulationValues[8 + block]) + value;
+                        float field = FastPow2(value * 1.442695041f) * mul + add;
+                        strengths[blockY * BlocksWide + blockX + block] = MathF.Max(0f, 0.6f / field - 1f);
+                    }
+                }
+            for (; blockX < BlocksWide; blockX++)
             {
                 int x = blockX * 2;
                 float value = fuzzy[preStride + x] + fuzzy[preStride + x + 1]
@@ -290,6 +321,59 @@ internal sealed class AdaptiveQuantization
         float v4 = 1f / (v * v + 0.25f * 2.1925739705298404f);
         return -0.74174993f + (3.2353257320940401f * v4
             + (12.906028311180409f * v2 + 5.0220313103171232f * v3));
+    }
+
+    private void ModulateEightBlocks(int x, int y, Span<Vector256<float>> rows, Span<float> output)
+    {
+        Span<Vector256<float>> current = rows[..8], next = rows.Slice(8, 8);
+        int row = y * lumaStride + x + 1;
+        LoadModulationColumns(row, current);
+        Vector256<float> sum = Vector256<float>.Zero, ratio = Vector256<float>.Zero;
+        var gammaOffset = Vector256.Create(0.16f / InputScaling);
+        for (int dy = 0; dy < 8; dy++)
+        {
+            if (dy != 7)
+                LoadModulationColumns(row + lumaStride, next);
+            ReadOnlySpan<Vector256<float>> below = dy == 7 ? current : next;
+            // A lane now represents one block. Each lane sees the original
+            // horizontal/vertical interleaving and gamma raster-order sum,
+            // without extracting or horizontally reducing individual lanes.
+            for (int column = 0; column < 8; column++)
+            {
+                Vector256<float> samples = current[column];
+                if (column != 7)
+                    sum += Vector256.Abs(samples - current[column + 1]);
+                sum += Vector256.Abs(samples - below[column]);
+                ratio += DerivativeRatio(samples + gammaOffset);
+            }
+            Span<Vector256<float>> previous = current;
+            current = next;
+            next = previous;
+            row += lumaStride;
+        }
+        const float sumCoeff = (float)(-2.0052193233688884f * InputScaling / 112.0);
+        (sum * Vector256.Create(sumCoeff)).CopyTo(output[..8]);
+        (ratio * Vector256.Create(InputScaling / 64f)).CopyTo(output.Slice(8, 8));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void LoadModulationColumns(int row, Span<Vector256<float>> columns)
+    {
+        for (int block = 0; block < 8; block++)
+            columns[block] = Vector256.Create(luma.AsSpan(row + block * 8, 8));
+        // Eight consecutive blocks form a row panel. Transpose its samples so
+        // every vector contains the same column from eight independent blocks.
+        ForwardDct.TransposePortable(columns);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector256<float> DerivativeRatio(Vector256<float> value)
+    {
+        value = Vector256.Max(value, Vector256<float>.Zero);
+        Vector256<float> squared = value * value;
+        Vector256<float> numerator = Vector256.Create(NumMul) * squared + Vector256.Create(NumOffset);
+        Vector256<float> denominator = (Vector256.Create(DenMul) * value) * squared + Vector256.Create(VOffset);
+        return numerator / denominator;
     }
 
     private float ModulateVector(int x, int y, float value)
