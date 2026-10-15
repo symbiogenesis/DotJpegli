@@ -153,7 +153,7 @@ public static class JpegliEncoder
             pixels = pixels.WithColorTransform(transform);
             options = options with { IccProfile = destination };
             // Evaluate source-dependent nonlinear arithmetic before any output. The
-            // conversion remains on demand and uses no image-sized converted buffer.
+            // conversion is preflighted before preparing reusable sample planes.
             for (int row = 0; row < height; row++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -668,6 +668,7 @@ public static class JpegliEncoder
                         {
                             int componentX = left / mcuWidth * blocksWide + blockX;
                             int componentY = top / mcuHeight * blocksHigh + blockY;
+                            scoped ReadOnlySpan<short> encoded;
                             if (componentX >= realBlocksWide || componentY >= realBlocksHigh)
                             {
                                 // Upstream's baseline streaming path emits a zero DC difference
@@ -675,9 +676,10 @@ public static class JpegliEncoder
                                 // and bypass sample conversion, the DCT and adaptive quantization.
                                 quantized.Clear();
                                 quantized[0] = checked((short)previousDc[component]);
+                                encoded = quantized;
                             }
                             else if (quantizedImage is not null)
-                                quantizedImage.CopyBlock(component, componentX, componentY, quantized);
+                                encoded = quantizedImage.GetBlock(component, componentX, componentY);
                             else
                             {
                                 if (pixels.ParallelRows is { } parallelRows)
@@ -699,28 +701,31 @@ public static class JpegliEncoder
                                     adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
                                     previousDc: previousDc[component], requireEightBitCoefficients: requireEightBitCoefficients,
                                     rgb: pixels.IsRgb);
+                                encoded = quantized;
                             }
                             int tableIndex = contextByComponent ? component : pixels.IsRgb || component == 0 ? 0 : 1;
                             if (dcOnly)
                             {
                                 if (refine)
-                                    ProgressiveEntropyEncoder.WriteDcRefinement(writer!, quantized, successiveLow);
+                                    ProgressiveEntropyEncoder.WriteDcRefinement(writer!, encoded, successiveLow);
                                 else if (writer is null)
-                                    ProgressiveEntropyEncoder.AccumulateDcFrequencies(quantized,
+                                    ProgressiveEntropyEncoder.AccumulateDcFrequencies(encoded,
                                         ref previousScanDc[component], dcFrequencies![tableIndex], successiveLow);
                                 else
-                                    ProgressiveEntropyEncoder.WriteDc(writer, quantized,
+                                    ProgressiveEntropyEncoder.WriteDc(writer, encoded,
                                         ref previousScanDc[component], dcTables[tableIndex], successiveLow);
                                 // Dummy blocks and quantization use the full coefficient,
                                 // independently of the initial scan's shifted predictor.
-                                previousDc[component] = quantized[0];
+                                previousDc[component] = encoded[0];
                             }
                             else if (writer is null)
-                                EntropyEncoder.AccumulateFrequencies(quantized, ref previousDc[component],
-                                    dcFrequencies![tableIndex], acFrequencies![tableIndex]);
+                                EntropyEncoder.AccumulateFrequencies(encoded, ref previousDc[component],
+                                    dcFrequencies![tableIndex], acFrequencies![tableIndex],
+                                    coefficientsValidated: quantizedImage is not null);
                             else
-                                EntropyEncoder.WriteBlock(writer, quantized, ref previousDc[component],
-                                    dcTables[tableIndex], acTables[tableIndex]);
+                                EntropyEncoder.WriteBlock(writer, encoded, ref previousDc[component],
+                                    dcTables[tableIndex], acTables[tableIndex],
+                                    coefficientsValidated: quantizedImage is not null);
                         }
                     }
                 }
@@ -800,8 +805,9 @@ public static class JpegliEncoder
                     restartIndex = (restartIndex + 1) & 7;
                     mcusRemaining = restartInterval;
                 }
+                scoped ReadOnlySpan<short> encoded;
                 if (quantizedImage is not null)
-                    quantizedImage.CopyBlock(component, blockX, blockY, quantized);
+                    encoded = quantizedImage.GetBlock(component, blockX, blockY);
                 else
                 {
                     if (pixels.ParallelRows is { } parallelRows)
@@ -825,42 +831,49 @@ public static class JpegliEncoder
                         adaptiveStrength: strength,
                         adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
                         rgb: pixels.IsRgb);
+                    encoded = quantized;
                 }
                 if (sequential)
                 {
                     if (writer is null)
-                        EntropyEncoder.AccumulateFrequencies(quantized, ref previousScanDc,
-                            dcFrequencies![tableIndex], acFrequencies![tableIndex]);
+                        EntropyEncoder.AccumulateFrequencies(encoded, ref previousScanDc,
+                            dcFrequencies![tableIndex], acFrequencies![tableIndex],
+                            coefficientsValidated: quantizedImage is not null);
                     else
-                        EntropyEncoder.WriteBlock(writer, quantized, ref previousScanDc,
-                            dcTables![tableIndex], acTables[tableIndex]);
+                        EntropyEncoder.WriteBlock(writer, encoded, ref previousScanDc,
+                            dcTables![tableIndex], acTables[tableIndex],
+                            coefficientsValidated: quantizedImage is not null);
                 }
                 else if (dcOnly)
                 {
                     if (refine)
-                        ProgressiveEntropyEncoder.WriteDcRefinement(writer!, quantized, successiveLow);
+                        ProgressiveEntropyEncoder.WriteDcRefinement(writer!, encoded, successiveLow);
                     else if (writer is null)
-                        ProgressiveEntropyEncoder.AccumulateDcFrequencies(quantized,
+                        ProgressiveEntropyEncoder.AccumulateDcFrequencies(encoded,
                             ref previousScanDc, dcFrequencies![tableIndex], successiveLow);
                     else
-                        ProgressiveEntropyEncoder.WriteDc(writer, quantized,
+                        ProgressiveEntropyEncoder.WriteDc(writer, encoded,
                             ref previousScanDc, dcTables![tableIndex], successiveLow);
                 }
                 else if (refine)
                 {
                     if (writer is null)
-                        ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(quantized,
-                            acFrequencies![tableIndex], refinementState!, successiveLow, spectralStart, spectralEnd);
+                        ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(encoded,
+                            acFrequencies![tableIndex], refinementState!, successiveLow, spectralStart, spectralEnd,
+                            coefficientsValidated: quantizedImage is not null);
                     else
-                        ProgressiveEntropyEncoder.WriteAcRefinement(writer, quantized, acTables[tableIndex],
-                            refinementState!, successiveLow, spectralStart, spectralEnd);
+                        ProgressiveEntropyEncoder.WriteAcRefinement(writer, encoded, acTables[tableIndex],
+                            refinementState!, successiveLow, spectralStart, spectralEnd,
+                            coefficientsValidated: quantizedImage is not null);
                 }
                 else if (writer is null)
-                    ProgressiveEntropyEncoder.AccumulateAcFrequencies(quantized, acFrequencies![tableIndex],
-                        ref pendingEobRun, successiveLow, spectralStart, spectralEnd);
+                    ProgressiveEntropyEncoder.AccumulateAcFrequencies(encoded, acFrequencies![tableIndex],
+                        ref pendingEobRun, successiveLow, spectralStart, spectralEnd,
+                        coefficientsValidated: quantizedImage is not null);
                 else
-                    ProgressiveEntropyEncoder.WriteAc(writer, quantized, acTables[tableIndex], ref pendingEobRun,
-                        successiveLow, spectralStart, spectralEnd);
+                    ProgressiveEntropyEncoder.WriteAc(writer, encoded, acTables[tableIndex], ref pendingEobRun,
+                        successiveLow, spectralStart, spectralEnd,
+                        coefficientsValidated: quantizedImage is not null);
                 // Annex K default AC tables only contain the one-block EOB
                 // symbol. Aggregated runs use the collected, optimized tables.
                 if (!aggregateEobRuns)

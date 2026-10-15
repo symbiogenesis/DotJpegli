@@ -77,11 +77,13 @@ internal sealed class QuantizedImage : IDisposable
                                 + x * horizontal / factor.Horizontal];
                             // Built-in DC zero-bias multipliers are zero, so the full DC
                             // coefficient does not depend on scan order or restart predictors.
-                            Quantization.Quantize(transformed, tables[component], image.Block(component, x, y),
+                            Span<short> quantized = image.Block(component, x, y);
+                            Quantization.Quantize(transformed, tables[component], quantized,
                                 component, distance, grayscale: pixels.IsGrayscale,
                                 adaptiveQuantization: adaptive is not null, adaptiveStrength: strength,
                                 adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
                                 rgb: pixels.IsRgb);
+                            EntropyEncoder.ValidateAc(quantized);
                         }
                 }
             }
@@ -97,8 +99,8 @@ internal sealed class QuantizedImage : IDisposable
     private Span<short> Block(int component, int x, int y)
         => components[component].AsSpan((y * widths[component] + x) * 64, 64);
 
-    internal void CopyBlock(int component, int x, int y, Span<short> destination)
-        => Block(component, x, y).CopyTo(destination);
+    internal ReadOnlySpan<short> GetBlock(int component, int x, int y)
+        => Block(component, x, y);
 
     public void Dispose()
     {

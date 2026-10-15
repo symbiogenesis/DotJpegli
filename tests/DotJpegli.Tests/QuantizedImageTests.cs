@@ -54,7 +54,7 @@ public sealed class QuantizedImageTests
                     Quantization.Quantize(transformed, tables[component], expected, component, 1.45f,
                         adaptiveQuantization: adaptive, adaptiveStrength: strength,
                         adaptiveMultipliers: multipliers is null ? default : multipliers[component]);
-                    image.CopyBlock(component, x, y, actual);
+                    image.GetBlock(component, x, y).CopyTo(actual);
                     Assert.Equal(expected, actual);
                 }
             }
