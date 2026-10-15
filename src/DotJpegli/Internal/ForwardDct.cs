@@ -197,9 +197,17 @@ internal static class ForwardDct
         TransformRecursiveVector(rows);
         for (int row = 0; row < 8; row++)
             rows[row] *= new Vector<float>(0.125f);
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        TransposeNet11(System.Runtime.InteropServices.MemoryMarshal.Cast<Vector<float>, Vector256<float>>(rows));
+#else
         TransposeAvx(rows);
+#endif
         TransformRecursiveVector(rows);
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        TransposeNet11(System.Runtime.InteropServices.MemoryMarshal.Cast<Vector<float>, Vector256<float>>(rows));
+#else
         TransposeAvx(rows);
+#endif
         for (int row = 0; row < 8; row++)
             rows[row].CopyTo(coefficients.Slice(row * 8, 8));
     }
@@ -233,6 +241,42 @@ internal static class ForwardDct
         rows[6] = Avx.Permute2x128(s2, s6, 0x31).AsVector();
         rows[7] = Avx.Permute2x128(s3, s7, 0x31).AsVector();
     }
+
+#if NET11_0_OR_GREATER
+    // Opt-in portable lane composition for comparison with the existing AVX
+    // transpose. Zip interleaves full vector halves, unlike lane-local AVX
+    // unpack/shuffle operations; hardware code generation must be measured.
+    internal static void TransposeNet11(Span<Vector256<float>> rows)
+    {
+        if (rows.Length < 8)
+            throw new ArgumentException("An 8 by 8 transpose requires eight vector rows.", nameof(rows));
+        Vector256<float> t0 = Vector256.ZipLower(rows[0], rows[1]);
+        Vector256<float> t1 = Vector256.ZipUpper(rows[0], rows[1]);
+        Vector256<float> t2 = Vector256.ZipLower(rows[2], rows[3]);
+        Vector256<float> t3 = Vector256.ZipUpper(rows[2], rows[3]);
+        Vector256<float> t4 = Vector256.ZipLower(rows[4], rows[5]);
+        Vector256<float> t5 = Vector256.ZipUpper(rows[4], rows[5]);
+        Vector256<float> t6 = Vector256.ZipLower(rows[6], rows[7]);
+        Vector256<float> t7 = Vector256.ZipUpper(rows[6], rows[7]);
+        // Reinterpret paired floats as 64-bit lanes solely for data movement.
+        Vector256<float> s0 = Vector256.ZipLower(t0.AsDouble(), t2.AsDouble()).AsSingle();
+        Vector256<float> s1 = Vector256.ZipUpper(t0.AsDouble(), t2.AsDouble()).AsSingle();
+        Vector256<float> s2 = Vector256.ZipLower(t1.AsDouble(), t3.AsDouble()).AsSingle();
+        Vector256<float> s3 = Vector256.ZipUpper(t1.AsDouble(), t3.AsDouble()).AsSingle();
+        Vector256<float> s4 = Vector256.ZipLower(t4.AsDouble(), t6.AsDouble()).AsSingle();
+        Vector256<float> s5 = Vector256.ZipUpper(t4.AsDouble(), t6.AsDouble()).AsSingle();
+        Vector256<float> s6 = Vector256.ZipLower(t5.AsDouble(), t7.AsDouble()).AsSingle();
+        Vector256<float> s7 = Vector256.ZipUpper(t5.AsDouble(), t7.AsDouble()).AsSingle();
+        rows[0] = Vector256.ConcatLowerLower(s0, s4);
+        rows[1] = Vector256.ConcatUpperUpper(s0, s4);
+        rows[2] = Vector256.ConcatLowerLower(s1, s5);
+        rows[3] = Vector256.ConcatUpperUpper(s1, s5);
+        rows[4] = Vector256.ConcatLowerLower(s2, s6);
+        rows[5] = Vector256.ConcatUpperUpper(s2, s6);
+        rows[6] = Vector256.ConcatLowerLower(s3, s7);
+        rows[7] = Vector256.ConcatUpperUpper(s3, s7);
+    }
+#endif
 
     private static void TransformRecursiveVector(Span<Vector<float>> values)
     {
