@@ -504,6 +504,13 @@ internal static class ProgressiveEntropyEncoder
         int oldCount = BitOperations.PopCount(previouslySignificant);
         if (lastNew >= spectralStart || state.CorrectionBitCount + oldCount > ProgressiveAcRefinementState.MaximumCorrectionBits)
             FlushAcRefinementCore(state, writer, ac, frequencies, tokens, component);
+        if (newlySignificant != 0 && writer is null && frequencies is not null && tokens is not null
+            && tokens.TryReserveBlock(out Span<uint> destination))
+        {
+            AccumulateReservedOrderedAcRefinement(coefficients, state, successiveLow, spectralStart, spectralEnd,
+                newlySignificant, previouslySignificant, lastNew, frequencies, tokens, component, destination);
+            return;
+        }
 
         Span<byte> corrections = stackalloc byte[63];
         int correctionCount = 0;
@@ -548,26 +555,106 @@ internal static class ProgressiveEntropyEncoder
         }
     }
 
+    private static void AccumulateReservedOrderedAcRefinement(ReadOnlySpan<short> coefficients,
+        ProgressiveAcRefinementState state, int successiveLow, int spectralStart, int spectralEnd,
+        ulong newlySignificant, ulong previouslySignificant, int lastNew,
+        long[] frequencies, EntropyTokens tokens, int component, Span<uint> destination)
+    {
+        // A new coefficient has already flushed the preceding EOB run. Every
+        // symbol consumes a new coefficient or 16 zeros, and each raw record
+        // consumes at least one old coefficient. The block needs at most 63
+        // records; any trailing EOB starts a fresh run of exactly one block.
+        int count = 0;
+        int context = (component << 1) | 1;
+        Span<byte> corrections = stackalloc byte[63];
+        int correctionCount = 0;
+        int run = 0;
+        int previousPosition = spectralStart - 1;
+        ulong occupied = newlySignificant | previouslySignificant;
+        while (occupied != 0)
+        {
+            int position = BitOperations.TrailingZeroCount(occupied);
+            occupied &= occupied - 1;
+            run += position - previousPosition - 1;
+            while (run >= 16 && position <= lastNew)
+            {
+                IncrementReservedFrequency(frequencies, 0xf0, tokens, count);
+                destination[count++] = EntropyTokens.PackHuffman(context, 0xf0, 0, 0);
+                if (correctionCount != 0)
+                    WriteReservedCorrectionBits(corrections[..correctionCount], destination, ref count);
+                correctionCount = 0;
+                run -= 16;
+            }
+            int value = coefficients[position];
+            if ((previouslySignificant & (1UL << position)) != 0)
+                corrections[correctionCount++] = (byte)((Math.Abs(value) >> successiveLow) & 1);
+            else
+            {
+                int symbol = (run << 4) | 1;
+                IncrementReservedFrequency(frequencies, symbol, tokens, count);
+                destination[count++] = EntropyTokens.PackHuffman(context, symbol, value > 0 ? 1U : 0U, 1);
+                if (correctionCount != 0)
+                    WriteReservedCorrectionBits(corrections[..correctionCount], destination, ref count);
+                correctionCount = 0;
+                run = 0;
+            }
+            previousPosition = position;
+        }
+        if (lastNew < spectralEnd)
+            state.AppendBlock(corrections[..correctionCount]);
+        tokens.CommitBlock(count);
+    }
+
+    private static void WriteReservedCorrectionBits(ReadOnlySpan<byte> corrections, Span<uint> destination, ref int count)
+    {
+        const uint rawContext = 6U << 24;
+        while (corrections.Length >= 32)
+        {
+            uint packed = PackCorrectionByte(corrections) << 24
+                | PackCorrectionByte(corrections[8..]) << 16
+                | PackCorrectionByte(corrections[16..]) << 8
+                | PackCorrectionByte(corrections[24..]);
+            // AddBits stores a 32-bit correction group as these same two
+            // records. Retain its exact prefix and pooled-budget behavior.
+            destination[count++] = rawContext | (24U << 27) | (packed >> 8);
+            destination[count++] = rawContext | (8U << 27) | (packed & 255U);
+            corrections = corrections[32..];
+        }
+        while (corrections.Length >= 8)
+        {
+            destination[count++] = rawContext | (8U << 27) | PackCorrectionByte(corrections);
+            corrections = corrections[8..];
+        }
+        if (corrections.IsEmpty)
+            return;
+        uint remainder = 0;
+        foreach (byte correction in corrections)
+            remainder = (remainder << 1) | correction;
+        destination[count++] = rawContext | ((uint)corrections.Length << 27) | remainder;
+    }
+
     private static void ClassifyOrderedCoefficients(ReadOnlySpan<short> coefficients, int successiveLow,
         out ulong newlySignificant, out ulong previouslySignificant)
     {
         newlySignificant = previouslySignificant = 0;
+        // Abs(short.MinValue) retains the unsigned 0x8000 magnitude. Keep
+        // comparisons unsigned so already-validated wide callers match scalar.
         if (Vector256.IsHardwareAccelerated)
         {
-            var one = Vector256.Create((short)1);
+            var one = Vector256.Create((ushort)1);
             for (int offset = 0; offset < 64; offset += Vector256<short>.Count)
             {
-                var magnitude = Vector256.ShiftRightLogical(Vector256.Abs(Vector256.Create(coefficients[offset..])), successiveLow);
+                var magnitude = Vector256.ShiftRightLogical(Vector256.Abs(Vector256.Create(coefficients[offset..])).AsUInt16(), successiveLow);
                 newlySignificant |= (ulong)Vector256.Equals(magnitude, one).ExtractMostSignificantBits() << offset;
                 previouslySignificant |= (ulong)Vector256.GreaterThan(magnitude, one).ExtractMostSignificantBits() << offset;
             }
         }
         else if (Vector128.IsHardwareAccelerated)
         {
-            var one = Vector128.Create((short)1);
+            var one = Vector128.Create((ushort)1);
             for (int offset = 0; offset < 64; offset += Vector128<short>.Count)
             {
-                var magnitude = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients[offset..])), successiveLow);
+                var magnitude = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients[offset..])).AsUInt16(), successiveLow);
                 newlySignificant |= (ulong)Vector128.Equals(magnitude, one).ExtractMostSignificantBits() << offset;
                 previouslySignificant |= (ulong)Vector128.GreaterThan(magnitude, one).ExtractMostSignificantBits() << offset;
             }

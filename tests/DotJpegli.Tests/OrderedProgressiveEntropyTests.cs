@@ -11,6 +11,155 @@ public sealed class OrderedProgressiveEntropyTests
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
+    public void RefinementReservationPreservesScalarOverflowCorrectionsPendingRunAndRecordedPrefix(int failure)
+    {
+        int pending = failure == 4 ? 32766 : 1;
+        int corrections = failure switch { 0 or 3 => 255, 1 => 253, 4 => 3, _ => 17 };
+        int failingSymbol = failure switch { 0 or 3 => 0, 1 => 0xf0, 4 => 0xe0, _ => 0x11 };
+        short[] ordered = new short[64];
+        switch (failure)
+        {
+            case 0: ordered[1] = 1; break;
+            case 1: ordered[1] = -3; ordered[63] = 1; break;
+            case 2: ordered[1] = 3; ordered[2] = 1; ordered[3] = -2; ordered[5] = -1; break;
+            default: ordered[1] = 3; break;
+        }
+        long[] expected = new long[256], actual = new long[256];
+        expected[failingSymbol] = actual[failingSymbol] = long.MaxValue;
+        ProgressiveAcRefinementState expectedState = RefinementState(pending, corrections);
+        ProgressiveAcRefinementState actualState = RefinementState(pending, corrections);
+        using var expectedTokens = new EntropyTokens();
+        using var actualTokens = new EntropyTokens();
+        expectedTokens.AddBits(0, 0);
+        actualTokens.AddBits(0, 0);
+        Assert.True(actualTokens.TryReserveBlock(out _));
+        Assert.Throws<OverflowException>(() => ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(ToNatural(ordered),
+            expected, expectedState, 0, tokens: expectedTokens, component: 2));
+        Assert.Throws<OverflowException>(() => ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(ordered,
+            actual, actualState, 0, tokens: actualTokens, component: 2, zigZagOrdered: true));
+        Assert.Equal(expected, actual);
+        AssertRefinementState(expectedState, actualState);
+        Assert.Equal(Replay(expectedTokens), Replay(actualTokens));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(64)]
+    [InlineData(128)]
+    [InlineData(256)]
+    [InlineData(512)]
+    [InlineData(4096)]
+    [InlineData(65536)]
+    public void ReservedRefinementAndCapacityFallbackPreserveEveryBudgetAndCorrectionPartition(int budget)
+    {
+        long[] expected = new long[256], actual = new long[256];
+        var expectedState = RefinementState(1, 255);
+        var actualState = RefinementState(1, 255);
+        using var expectedTokens = new EntropyTokens(budget);
+        using var actualTokens = new EntropyTokens(budget);
+        expectedTokens.AddBits(0, 0);
+        actualTokens.AddBits(0, 0);
+        for (int index = 0; index < 80; index++)
+        {
+            short[] ordered = Enumerable.Range(0, 64).Select(position => (short)((index % 4) switch
+            {
+                0 => position % 2 == 0 ? 3 : -1,
+                1 => position % 7 == 0 ? -1 : position % 3 == 0 ? 0 : 2,
+                2 => 3,
+                _ => 0
+            })).ToArray();
+            ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(ToNatural(ordered), expected, expectedState, 0,
+                tokens: expectedTokens, component: 2);
+            ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(ordered, actual, actualState, 0,
+                tokens: actualTokens, component: 2, zigZagOrdered: true);
+            Assert.Equal(expected, actual);
+            AssertRefinementState(expectedState, actualState);
+            Assert.Equal(expectedTokens.IsComplete, actualTokens.IsComplete);
+        }
+        ProgressiveEntropyEncoder.FlushAcRefinementFrequencies(expected, expectedState, expectedTokens, 2);
+        ProgressiveEntropyEncoder.FlushAcRefinementFrequencies(actual, actualState, actualTokens, 2);
+        Assert.Equal(expected, actual);
+        AssertRefinementState(expectedState, actualState);
+        Assert.Equal(expectedTokens.IsComplete, actualTokens.IsComplete);
+        if (actualTokens.IsComplete)
+            Assert.Equal(Replay(expectedTokens), Replay(actualTokens));
+    }
+
+    [Fact]
+    public void RefinementMaximumEobFlushPreservesAllPendingCorrectionWidths()
+    {
+        foreach (int corrections in new[] { 0, 1, 7, 8, 24, 31, 32, 33, 254, 255 })
+        {
+            long[] expected = new long[256], actual = new long[256];
+            var expectedState = RefinementState(32766, corrections);
+            var actualState = RefinementState(32766, corrections);
+            using var expectedTokens = new EntropyTokens();
+            using var actualTokens = new EntropyTokens();
+            expectedTokens.AddBits(0, 0);
+            actualTokens.AddBits(0, 0);
+            ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(new short[64], expected, expectedState, 0,
+                tokens: expectedTokens, component: 2);
+            ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(new short[64], actual, actualState, 0,
+                tokens: actualTokens, component: 2, zigZagOrdered: true);
+            Assert.Equal(expected, actual);
+            AssertRefinementState(expectedState, actualState);
+            Assert.Equal(0, actualState.PendingEobRun);
+            Assert.Equal(Replay(expectedTokens), Replay(actualTokens));
+        }
+    }
+
+    [Fact]
+    public void OrderedRefinementPreservesWideValidatedMagnitudesAcrossEveryLowAndBandBoundary()
+    {
+        foreach ((int start, int end) in new[] { (1, 63), (1, 2), (3, 63), (7, 32), (63, 63) })
+            for (int low = 0; low <= 9; low++)
+            {
+                short[] ordered = Enumerable.Repeat((short)-3, 64).ToArray();
+                ordered[0] = ordered[1] = ordered[16] = short.MinValue;
+                ordered[2] = ordered[31] = short.MaxValue;
+                ordered[7] = ordered[32] = 0;
+                ordered[63] = -1;
+                long[] expected = new long[256], actual = new long[256];
+                var expectedState = new ProgressiveAcRefinementState();
+                var actualState = new ProgressiveAcRefinementState();
+                using var expectedTokens = new EntropyTokens();
+                using var actualTokens = new EntropyTokens();
+                expectedTokens.AddBits(0, 0);
+                actualTokens.AddBits(0, 0);
+                ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(ToNatural(ordered), expected, expectedState,
+                    low, start, end, coefficientsValidated: true, tokens: expectedTokens, component: 2);
+                ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(ordered, actual, actualState,
+                    low, start, end, coefficientsValidated: true, tokens: actualTokens, component: 2, zigZagOrdered: true);
+                Assert.Equal(expected, actual);
+                AssertRefinementState(expectedState, actualState);
+                ProgressiveEntropyEncoder.FlushAcRefinementFrequencies(expected, expectedState, expectedTokens, 2);
+                ProgressiveEntropyEncoder.FlushAcRefinementFrequencies(actual, actualState, actualTokens, 2);
+                Assert.Equal(expected, actual);
+                Assert.Equal(Replay(expectedTokens), Replay(actualTokens));
+            }
+    }
+
+    private static ProgressiveAcRefinementState RefinementState(int pending, int corrections)
+    {
+        var state = new ProgressiveAcRefinementState();
+        state.AppendBlock(Enumerable.Range(0, corrections).Select(index => (byte)((index * 7 + index / 3) & 1)).ToArray());
+        for (int index = 1; index < pending; index++)
+            state.AppendBlock(ReadOnlySpan<byte>.Empty);
+        return state;
+    }
+
+    private static void AssertRefinementState(ProgressiveAcRefinementState expected, ProgressiveAcRefinementState actual)
+    {
+        Assert.Equal(expected.PendingEobRun, actual.PendingEobRun);
+        Assert.Equal(expected.Corrections.ToArray(), actual.Corrections.ToArray());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
     [InlineData(5)]
     public void ReservedInitialAcOverflowRetainsTheScalarTokenPrefixAndPendingRun(int failure)
     {
