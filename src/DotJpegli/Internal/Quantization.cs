@@ -525,9 +525,9 @@ internal static class Quantization
             lower /= new Vector<float>(divisors.Slice(i, width));
             upper /= new Vector<float>(divisors.Slice(i + width, width));
             lower = Vector.ConditionalSelect(Vector.LessThan(Vector.Abs(lower), lowerThreshold),
-                Vector<float>.Zero, Vector.Round(lower, MidpointRounding.ToEven));
+                Vector<float>.Zero, Vector.Round(lower));
             upper = Vector.ConditionalSelect(Vector.LessThan(Vector.Abs(upper), upperThreshold),
-                Vector<float>.Zero, Vector.Round(upper, MidpointRounding.ToEven));
+                Vector<float>.Zero, Vector.Round(upper));
             if (i == 0)
                 lower = Vector.WithElement(lower, 0, dc);
             if (requireEightBitCoefficients)
@@ -689,9 +689,9 @@ internal static class Quantization
             lower /= Vector.ConvertToSingle(lowerDivisors);
             upper /= Vector.ConvertToSingle(upperDivisors);
             lower = Vector.ConditionalSelect(Vector.LessThan(Vector.Abs(lower), lowerThreshold),
-                Vector<float>.Zero, Vector.Round(lower, MidpointRounding.ToEven));
+                Vector<float>.Zero, Vector.Round(lower));
             upper = Vector.ConditionalSelect(Vector.LessThan(Vector.Abs(upper), upperThreshold),
-                Vector<float>.Zero, Vector.Round(upper, MidpointRounding.ToEven));
+                Vector<float>.Zero, Vector.Round(upper));
             // Reinsert the scalar DC result, including its previous-block
             // threshold, before validating or storing the complete batch.
             if (i == 0)
