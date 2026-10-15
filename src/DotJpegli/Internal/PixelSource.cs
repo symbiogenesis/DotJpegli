@@ -5,7 +5,7 @@ using System.Numerics;
 
 namespace DotJpegli.Internal;
 
-/// <summary>Reads interleaved source samples in fractional JPEG units without a converted image buffer.</summary>
+/// <summary>Reads source samples in fractional JPEG units, optionally reusing converted planes.</summary>
 internal readonly ref struct PixelSource
 {
     private readonly ReadOnlySpan<byte> bytes;
@@ -17,6 +17,7 @@ internal readonly ref struct PixelSource
     private readonly bool xyb;
     private readonly JpegColorSpace colorSpace;
     private readonly IccColorTransform? colorTransform;
+    private readonly ConvertedPlanes? convertedPlanes;
 
     internal PixelSource(ReadOnlySpan<byte> pixels, PixelLayout layout)
     {
@@ -68,7 +69,8 @@ internal readonly ref struct PixelSource
     internal int AnalysisComponent => IsRgb ? 1 : 0;
 
     private PixelSource(PixelSource source, JpegColorSpace colorSpace, ParallelDctRows? parallelRows = null,
-        IccColorTransform? colorTransform = null)
+        IccColorTransform? colorTransform = null, ConvertedPlanes? convertedPlanes = null,
+        bool discardConvertedPlanes = false)
     {
         bytes = source.bytes;
         words = source.words;
@@ -81,12 +83,57 @@ internal readonly ref struct PixelSource
         this.colorSpace = colorSpace;
         ParallelRows = parallelRows;
         this.colorTransform = colorTransform ?? source.colorTransform;
+        this.convertedPlanes = discardConvertedPlanes ? null : convertedPlanes ?? source.convertedPlanes;
     }
 
     internal PixelSource WithParallelRows(ParallelDctRows rows) => new(this, colorSpace, rows);
 
     internal PixelSource WithColorTransform(IccColorTransform transform) => new(this, colorSpace,
-        colorTransform: transform);
+        colorTransform: transform, discardConvertedPlanes: true);
+
+    /// <summary>Converts each source pixel once for reuse by analysis and every encoding scan.</summary>
+    internal PixelSource WithConvertedPlanes(int width, int height, int stride,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (convertedPlanes is not null)
+            return this;
+        // Preserve bounded memory use for very large images. The existing
+        // streaming reader remains available when full planes exceed 64 MiB.
+        const int maximumSamples = 64 * 1024 * 1024 / sizeof(float);
+        int components = IsGrayscale ? 1 : 3;
+        if ((long)width * height * components > maximumSamples)
+            return this;
+        var planes = new ConvertedPlanes(width, height, stride, Length, components);
+        int planeLength = planes.PlaneLength;
+        for (int y = 0; y < height; y++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            int rowStart = y * stride;
+            int destination = y * width;
+            for (int x = 0; x < width; x++)
+            {
+                ReadConvertedComponents(rowStart + x * ComponentsPerPixel,
+                    out float first, out float second, out float third);
+                planes.Samples[destination + x] = first;
+                if (components > 1)
+                {
+                    planes.Samples[planeLength + destination + x] = second;
+                    planes.Samples[2 * planeLength + destination + x] = third;
+                }
+            }
+        }
+        return new PixelSource(this, colorSpace, convertedPlanes: planes);
+    }
+
+    private sealed class ConvertedPlanes(int width, int height, int sourceStride, int sourceLength, int components)
+    {
+        internal readonly int Width = width;
+        internal readonly int SourceStride = sourceStride;
+        internal readonly int SourceLength = sourceLength;
+        internal readonly int PlaneLength = checked(width * height);
+        internal readonly float[] Samples = new float[checked(width * height * components)];
+    }
 
     /// <summary>Owned managed storage allows workers to recreate this span-based reader safely.</summary>
     internal sealed class Snapshot
@@ -101,12 +148,15 @@ internal readonly ref struct PixelSource
         private readonly JpegColorSpace colorSpace;
         private readonly int componentsPerPixel;
         private readonly IccColorTransform? colorTransform;
+        private readonly ConvertedPlanes? convertedPlanes;
 
         internal Snapshot(PixelSource source, int length, CancellationToken cancellationToken)
         {
-            bytes = source.sourceType == SourceType.Byte ? Copy(source.bytes, length, cancellationToken) : [];
-            words = source.sourceType == SourceType.UInt16 ? Copy(source.words, length, cancellationToken) : [];
-            floats = source.sourceType == SourceType.Float ? Copy(source.floats, length, cancellationToken) : [];
+            cancellationToken.ThrowIfCancellationRequested();
+            convertedPlanes = source.convertedPlanes;
+            bytes = convertedPlanes is null && source.sourceType == SourceType.Byte ? Copy(source.bytes, length, cancellationToken) : [];
+            words = convertedPlanes is null && source.sourceType == SourceType.UInt16 ? Copy(source.words, length, cancellationToken) : [];
+            floats = convertedPlanes is null && source.sourceType == SourceType.Float ? Copy(source.floats, length, cancellationToken) : [];
             sourceType = source.sourceType;
             bgr = source.bgr;
             ycbcr = source.ycbcr;
@@ -130,7 +180,9 @@ internal readonly ref struct PixelSource
                 _ => new PixelSource(floats, GetLayout())
             };
             pixels = pixels.WithColorSpace(colorSpace);
-            return colorTransform is null ? pixels : pixels.WithColorTransform(colorTransform);
+            if (colorTransform is not null)
+                pixels = pixels.WithColorTransform(colorTransform);
+            return convertedPlanes is null ? pixels : new PixelSource(pixels, colorSpace, convertedPlanes: convertedPlanes);
         }
 
         private PixelComponentLayout GetLayout() => xyb ? PixelComponentLayout.Xyb
@@ -163,14 +215,14 @@ internal readonly ref struct PixelSource
         if (outputColorSpace == JpegColorSpace.Rgb && ycbcr)
             throw new ArgumentException("Direct YCbCr input cannot be converted to RGB output.",
                 nameof(JpegliEncoderOptions.ColorSpace));
-        return new PixelSource(this, outputColorSpace);
+        return new PixelSource(this, outputColorSpace, discardConvertedPlanes: true);
     }
-    internal int Length => sourceType switch
+    internal int Length => convertedPlanes?.SourceLength ?? (sourceType switch
     {
         SourceType.Byte => bytes.Length,
         SourceType.UInt16 => words.Length,
         _ => floats.Length
-    };
+    });
 
     internal bool ValidateSamples(int width, int height, int stride, CancellationToken cancellationToken,
         bool allowOutOfRangeFloatSamples = false)
@@ -212,6 +264,12 @@ internal readonly ref struct PixelSource
 
     internal float ReadSample(int offset, int component)
     {
+        if (convertedPlanes is not null)
+        {
+            int row = offset / convertedPlanes.SourceStride;
+            int column = (offset - row * convertedPlanes.SourceStride) / ComponentsPerPixel;
+            return convertedPlanes.Samples[component * convertedPlanes.PlaneLength + row * convertedPlanes.Width + column];
+        }
         if (colorTransform is not null)
         {
             float red = ReadNormalizedComponent(offset + (IsGrayscaleInput ? 0 : bgr ? 2 : 0));
@@ -258,12 +316,69 @@ internal readonly ref struct PixelSource
         return component switch { 0 => y, 1 => cb, _ => cr };
     }
 
+    // The coordinate path avoids dividing an interleaved source offset for cached samples.
+    internal float ReadSampleAt(int x, int y, int stride, int component)
+        => convertedPlanes is null ? ReadSample(y * stride + x * ComponentsPerPixel, component)
+            : convertedPlanes.Samples[component * convertedPlanes.PlaneLength + y * convertedPlanes.Width + x];
+
+    private void ReadConvertedComponents(int offset, out float first, out float second, out float third)
+    {
+        if (colorTransform is not null || (IsXyb && !xyb))
+        {
+            float red = ReadNormalizedComponent(offset + (IsGrayscaleInput ? 0 : bgr ? 2 : 0));
+            float green = IsGrayscaleInput ? red : ReadNormalizedComponent(offset + 1);
+            float blue = IsGrayscaleInput ? red : ReadNormalizedComponent(offset + (bgr ? 0 : 2));
+            if (colorTransform is not null)
+                colorTransform.Convert(red, green, blue, out red, out green, out blue);
+            if (IsXyb)
+            {
+                XybColorConversion.SrgbToScaledXyb(red, green, blue, out first, out second, out third);
+                return;
+            }
+            first = red * 255f;
+            second = green * 255f;
+            third = blue * 255f;
+            if (!IsGrayscale && !IsRgb)
+                ColorConversion.RgbToYCbCr(first, second, third, out first, out second, out third);
+            return;
+        }
+        if (IsGrayscaleInput)
+        {
+            first = ReadComponent(offset);
+            second = third = ColorSpace == JpegColorSpace.YCbCr ? 128f : first;
+            return;
+        }
+        if (ycbcr)
+        {
+            first = ReadComponent(offset);
+            second = ReadComponent(offset + 1);
+            third = ReadComponent(offset + 2);
+            return;
+        }
+        float r = ReadComponent(offset + (bgr ? 2 : 0));
+        float g = ReadComponent(offset + 1);
+        float b = ReadComponent(offset + (bgr ? 0 : 2));
+        if (IsRgb)
+        {
+            first = r;
+            second = g;
+            third = b;
+        }
+        else
+            ColorConversion.RgbToYCbCr(r, g, b, out first, out second, out third);
+    }
+
     // Read only a bounded source row, including replicated edge pixels.
     // Gathering preserves ushort's double normalization, float scaling,
     // BGR component order and the omission of alpha/padding components.
     internal void ReadRowScalar(int width, int height, int stride, int component,
         int x, int y, Span<float> samples)
     {
+        if (convertedPlanes is not null)
+        {
+            ReadConvertedRow(width, height, component, x, y, samples);
+            return;
+        }
         int rowStart = Math.Clamp(y, 0, height - 1) * stride;
         for (int column = 0; column < samples.Length; column++)
         {
@@ -275,6 +390,11 @@ internal readonly ref struct PixelSource
     internal void ReadRowVector(int width, int height, int stride, int component,
         int x, int y, Span<float> samples)
     {
+        if (convertedPlanes is not null)
+        {
+            ReadConvertedRow(width, height, component, x, y, samples);
+            return;
+        }
         int lanes = Vector<float>.Count;
         // Nonlinear XYB and null transforms retain their existing scalar
         // semantics. Bound scratch space even if a future runtime has wider vectors.
@@ -308,6 +428,26 @@ internal readonly ref struct PixelSource
         // A row can end between vector boundaries, without reading source padding.
         if (column != samples.Length)
             ReadRowScalar(width, height, stride, component, x + column, y, samples[column..]);
+    }
+
+    private void ReadConvertedRow(int width, int height, int component, int x, int y, Span<float> samples)
+    {
+        ReadOnlySpan<float> row = convertedPlanes!.Samples.AsSpan(
+            component * convertedPlanes.PlaneLength + Math.Clamp(y, 0, height - 1) * width, width);
+        if (x < 0)
+        {
+            int prefix = (int)Math.Min(samples.Length, -(long)x);
+            samples[..prefix].Fill(row[0]);
+            samples = samples[prefix..];
+            x = 0;
+        }
+        if (x < width)
+        {
+            int count = Math.Min(samples.Length, width - x);
+            row.Slice(x, count).CopyTo(samples);
+            samples = samples[count..];
+        }
+        samples.Fill(row[^1]);
     }
 
     private float ReadComponent(int offset) => sourceType switch

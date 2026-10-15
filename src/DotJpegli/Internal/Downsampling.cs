@@ -97,6 +97,17 @@ internal static class Downsampling
         int lanes = Vector<float>.Count;
         bool quarter = sampleWidth == 2 && sampleHeight == 2;
         var center = new Vector<float>(128f);
+        if (sampleWidth == 1 && sampleHeight == 1)
+        {
+            for (int row = 0; row < 8; row++)
+            {
+                Span<float> destination = samples.Slice(row * 8, 8);
+                pixels.ReadRowVector(width, height, stride, component, left, top + row, destination);
+                for (int column = 0; column < 8; column += lanes)
+                    (new Vector<float>(destination.Slice(column, lanes)) - center).CopyTo(destination.Slice(column, lanes));
+            }
+            return;
+        }
         for (int row = 0; row < 8; row++)
         {
             for (int dy = 0; dy < sampleHeight; dy++)
@@ -254,8 +265,6 @@ internal static class Downsampling
     private static float ReadRawSample(PixelSource pixels, int width, int height, int stride,
         int component, int x, int y)
     {
-        int offset = Math.Clamp(y, 0, height - 1) * stride
-            + Math.Clamp(x, 0, width - 1) * pixels.ComponentsPerPixel;
-        return pixels.ReadSample(offset, component);
+        return pixels.ReadSampleAt(Math.Clamp(x, 0, width - 1), Math.Clamp(y, 0, height - 1), stride, component);
     }
 }
