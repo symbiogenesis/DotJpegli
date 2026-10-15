@@ -6,14 +6,17 @@ namespace DotJpegli.Internal;
 
 // Managed scalar adaptation of google/jpegli lib/jpegli/bit_writer.h
 // (WriteBits and EmitByte) and bit_writer.cc (JumpToByteBoundary), revision
-// 031a0077f5799a6041004267fc12b956c1f52a20. Emits complete bytes eagerly.
+// 031a0077f5799a6041004267fc12b956c1f52a20. Optional output batching avoids
+// one virtual stream call per entropy byte; the default remains eager.
 internal sealed class BitWriter
 {
     private readonly Stream output;
+    private readonly byte[]? outputBuffer;
+    private int outputCount;
     private ulong buffer;
     private int bufferedBits;
 
-    public BitWriter(Stream output)
+    public BitWriter(Stream output, bool buffered = false)
     {
         ArgumentNullException.ThrowIfNull(output);
         if (!output.CanWrite)
@@ -22,6 +25,7 @@ internal sealed class BitWriter
         }
 
         this.output = output;
+        outputBuffer = buffered ? new byte[4096] : null;
     }
 
     public void WriteBits(uint bits, int count)
@@ -59,6 +63,7 @@ internal sealed class BitWriter
 
         buffer = 0;
         bufferedBits = 0;
+        DrainOutput();
     }
 
     public void WriteRestartMarker(int index)
@@ -75,10 +80,31 @@ internal sealed class BitWriter
 
     private void WriteByte(byte value)
     {
-        output.WriteByte(value);
-        if (value == 0xff)
+        if (outputBuffer is null)
         {
-            output.WriteByte(0);
+            output.WriteByte(value);
+            if (value == 0xff)
+                output.WriteByte(0);
+            return;
         }
+
+        // Reserve room for both a sample byte and its possible stuffing byte.
+        // Keeping the pair together also leaves any failed write at a complete
+        // entropy-byte boundary.
+        if (outputCount > outputBuffer.Length - 2)
+            DrainOutput();
+        outputBuffer[outputCount++] = value;
+        if (value == 0xff)
+            outputBuffer[outputCount++] = 0;
+        if (outputCount == outputBuffer.Length)
+            DrainOutput();
+    }
+
+    private void DrainOutput()
+    {
+        if (outputCount == 0)
+            return;
+        output.Write(outputBuffer.AsSpan(0, outputCount));
+        outputCount = 0;
     }
 }
