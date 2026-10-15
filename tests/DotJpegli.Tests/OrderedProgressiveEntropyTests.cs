@@ -6,6 +6,110 @@ namespace DotJpegli.Tests;
 public sealed class OrderedProgressiveEntropyTests
 {
     [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    public void ReservedInitialAcOverflowRetainsTheScalarTokenPrefixAndPendingRun(int failure)
+    {
+        short[] ordered = new short[64];
+        int initialPending = failure switch { 0 => 32767, 4 => 32766, 1 or 3 or 5 => 7, _ => 0 };
+        int failingSymbol = failure switch { 0 or 4 => 0xe0, 1 => 0x20, 2 or 5 => 0xf0, _ => 2 };
+        if (failure is 1 or 3)
+            ordered[1] = 1;
+        if (failure == 3)
+            ordered[2] = 2;
+        if (failure == 2)
+            ordered[1] = 1;
+        if (failure is 2 or 5)
+            ordered[63] = 1;
+        short[] natural = ToNatural(ordered);
+        long[] expected = new long[256], actual = new long[256];
+        expected[failingSymbol] = actual[failingSymbol] = long.MaxValue;
+        int expectedPending = initialPending, actualPending = initialPending;
+        using var expectedTokens = new EntropyTokens();
+        using var actualTokens = new EntropyTokens();
+        // Prime existing segment storage so the ordered call takes its direct
+        // reservation path, including failures before its first coefficient.
+        expectedTokens.AddBits(0, 0);
+        actualTokens.AddBits(0, 0);
+        Assert.True(actualTokens.TryReserveBlock(out _));
+        Assert.Throws<OverflowException>(() => ProgressiveEntropyEncoder.AccumulateAcFrequencies(natural,
+            expected, ref expectedPending, tokens: expectedTokens, component: 2));
+        Assert.Throws<OverflowException>(() => ProgressiveEntropyEncoder.AccumulateAcFrequencies(ordered,
+            actual, ref actualPending, tokens: actualTokens, component: 2, zigZagOrdered: true));
+        Assert.Equal(expected, actual);
+        Assert.Equal(expectedPending, actualPending);
+        Assert.Equal(Replay(expectedTokens), Replay(actualTokens));
+    }
+
+    [Fact]
+    public void ReservedInitialAcMasksPreserveWideValidatedMagnitudesAndEverySpectralBoundary()
+    {
+        foreach ((int start, int end) in new[] { (1, 63), (1, 2), (3, 63), (7, 32), (63, 63) })
+            for (int low = 0; low <= 10; low++)
+            {
+                short[] ordered = Enumerable.Repeat((short)-3, 64).ToArray();
+                ordered[0] = ordered[1] = ordered[16] = short.MinValue;
+                ordered[2] = ordered[31] = short.MaxValue;
+                ordered[7] = ordered[32] = 0;
+                ordered[63] = -1;
+                long[] expected = new long[256], actual = new long[256];
+                int expectedPending = 7, actualPending = 7;
+                using var expectedTokens = new EntropyTokens();
+                using var actualTokens = new EntropyTokens();
+                expectedTokens.AddBits(0, 0);
+                actualTokens.AddBits(0, 0);
+                ProgressiveEntropyEncoder.AccumulateAcFrequencies(ToNatural(ordered), expected, ref expectedPending,
+                    low, start, end, coefficientsValidated: true, tokens: expectedTokens, component: 2);
+                ProgressiveEntropyEncoder.AccumulateAcFrequencies(ordered, actual, ref actualPending,
+                    low, start, end, coefficientsValidated: true, tokens: actualTokens, component: 2, zigZagOrdered: true);
+                Assert.Equal(expected, actual);
+                Assert.Equal(expectedPending, actualPending);
+                Assert.Equal(Replay(expectedTokens), Replay(actualTokens));
+            }
+    }
+
+    [Fact]
+    public void ReservedInitialAcFitsThePendingFlushAndAll63NonzeroCoefficients()
+    {
+        short[] ordered = Enumerable.Repeat((short)1, 64).ToArray();
+        long[] expected = new long[256], actual = new long[256];
+        int expectedPending = 7, actualPending = 7;
+        using var expectedTokens = new EntropyTokens();
+        using var actualTokens = new EntropyTokens();
+        expectedTokens.AddBits(0, 0);
+        actualTokens.AddBits(0, 0);
+        ProgressiveEntropyEncoder.AccumulateAcFrequencies(ToNatural(ordered), expected, ref expectedPending,
+            tokens: expectedTokens, component: 2);
+        ProgressiveEntropyEncoder.AccumulateAcFrequencies(ordered, actual, ref actualPending,
+            tokens: actualTokens, component: 2, zigZagOrdered: true);
+        Assert.Equal(expected, actual);
+        Assert.Equal(0, actualPending);
+        Assert.Equal(Replay(expectedTokens), Replay(actualTokens));
+    }
+
+    private static byte[] Replay(EntropyTokens tokens)
+    {
+        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        using var output = new MemoryStream();
+        var writer = new BitWriter(output, buffered: true);
+        tokens.Replay(writer, new HuffmanCodingPlan.ScanCoding([], [table, table, table], [], []), TestContext.Current.CancellationToken);
+        writer.Flush();
+        return output.ToArray();
+    }
+
+    private static short[] ToNatural(short[] ordered)
+    {
+        short[] natural = new short[64];
+        for (int position = 0; position < 64; position++)
+            natural[JpegConstants.ZigZag[position]] = ordered[position];
+        return natural;
+    }
+
+    [Theory]
     [InlineData(false, 1, 63)]
     [InlineData(false, 1, 1)]
     [InlineData(false, 63, 63)]

@@ -4,6 +4,7 @@
 
 using System.Buffers.Binary;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 
 namespace DotJpegli.Internal;
@@ -182,6 +183,12 @@ internal static class ProgressiveEntropyEncoder
         {
             FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
         }
+        if (zigZagOrdered && tokens is not null && tokens.TryReserveBlock(out Span<uint> destination))
+        {
+            AccumulateOrderedAcFrequencies(naturalCoefficients, ac, ref pendingEobRun, successiveLow,
+                spectralStart, spectralEnd, tokens, component, destination);
+            return;
+        }
 
         int run = 0;
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
@@ -221,6 +228,99 @@ internal static class ProgressiveEntropyEncoder
                 FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
             }
         }
+    }
+
+    private static void AccumulateOrderedAcFrequencies(ReadOnlySpan<short> coefficients, long[] frequencies,
+        ref int pendingEobRun, int successiveLow, int spectralStart, int spectralEnd,
+        EntropyTokens tokens, int component, Span<uint> destination)
+    {
+        int count = 0;
+        int context = (component << 1) | 1;
+        ulong nonzero = OrderedAcMask(coefficients, successiveLow, spectralStart, spectralEnd);
+        if (nonzero != 0 && pendingEobRun != 0)
+            FlushReservedAcFrequencies(frequencies, ref pendingEobRun, tokens, context, destination, ref count);
+
+        int previousPosition = spectralStart - 1;
+        while (nonzero != 0)
+        {
+            int position = BitOperations.TrailingZeroCount(nonzero);
+            int run = position - previousPosition - 1;
+            while (run >= 16)
+            {
+                IncrementReservedFrequency(frequencies, 0xf0, tokens, count);
+                destination[count++] = EntropyTokens.PackHuffman(context, 0xf0, 0, 0);
+                run -= 16;
+            }
+            int value = ShiftAc(coefficients[position], successiveLow);
+            int category = Category(value);
+            int symbol = (run << 4) | category;
+            IncrementReservedFrequency(frequencies, symbol, tokens, count);
+            destination[count++] = EntropyTokens.PackHuffman(context, symbol, AdditionalBits(value, category), category);
+            previousPosition = position;
+            nonzero &= nonzero - 1;
+        }
+        if (previousPosition < spectralEnd)
+        {
+            pendingEobRun++;
+            if (pendingEobRun == MaximumEobRun)
+                FlushReservedAcFrequencies(frequencies, ref pendingEobRun, tokens, context, destination, ref count);
+        }
+        tokens.CommitBlock(count);
+    }
+
+    private static ulong OrderedAcMask(ReadOnlySpan<short> coefficients, int successiveLow, int spectralStart, int spectralEnd)
+    {
+        ulong mask = 0;
+        // Narrow low-frequency bands are cheaper to inspect directly. Larger
+        // bands classify independent magnitudes together, then skip every zero.
+        if (spectralEnd - spectralStart >= 8 && Vector256.IsHardwareAccelerated)
+        {
+            for (int offset = 0; offset < 64; offset += Vector256<short>.Count)
+            {
+                var magnitude = Vector256.ShiftRightLogical(Vector256.Abs(Vector256.Create(coefficients[offset..])), successiveLow);
+                mask |= (ulong)(~Vector256.Equals(magnitude, Vector256<short>.Zero)).ExtractMostSignificantBits() << offset;
+            }
+        }
+        else if (spectralEnd - spectralStart >= 8 && Vector128.IsHardwareAccelerated)
+        {
+            for (int offset = 0; offset < 64; offset += Vector128<short>.Count)
+            {
+                var magnitude = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients[offset..])), successiveLow);
+                mask |= (ulong)(~Vector128.Equals(magnitude, Vector128<short>.Zero)).ExtractMostSignificantBits() << offset;
+            }
+        }
+        else
+            for (int position = spectralStart; position <= spectralEnd; position++)
+                if ((Math.Abs((int)coefficients[position]) >> successiveLow) != 0)
+                    mask |= 1UL << position;
+        return mask & (ulong.MaxValue << spectralStart) & (ulong.MaxValue >> (63 - spectralEnd));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void FlushReservedAcFrequencies(long[] frequencies, ref int pendingEobRun,
+        EntropyTokens tokens, int context, Span<uint> destination, ref int count)
+    {
+        int bits = BitOperations.Log2((uint)pendingEobRun);
+        IncrementReservedFrequency(frequencies, bits << 4, tokens, count);
+        destination[count++] = EntropyTokens.PackHuffman(context, bits << 4,
+            (uint)(pendingEobRun - (1 << bits)), bits);
+        pendingEobRun = 0;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void IncrementReservedFrequency(long[] frequencies, int symbol, EntropyTokens tokens, int count)
+    {
+        ref long frequency = ref frequencies[symbol];
+        // A spectral band has at most 63 coefficients, plus one preceding EOB
+        // run. The reservation holds that complete prefix. Commit it on the
+        // sole exceptional exit without an EH region in the hot token loop.
+        long next = unchecked(frequency + 1);
+        if (next < frequency)
+        {
+            tokens.CommitBlock(count);
+            throw new OverflowException();
+        }
+        frequency = next;
     }
 
     public static void WriteAcRefinement(
@@ -614,14 +714,25 @@ internal static class ProgressiveEntropyEncoder
         }
     }
 
-    private static int Category(int value) =>
-        value == 0 ? 0 : BitOperations.Log2((uint)Math.Abs(value)) + 1;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int Category(int value)
+    {
+        int sign = value >> 31;
+        uint magnitude = unchecked((uint)((value ^ sign) - sign));
+        return 32 - BitOperations.LeadingZeroCount(magnitude);
+    }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static uint AdditionalBits(int value, int category) =>
-        unchecked((uint)(value < 0 ? value - 1 : value)) & ((1U << category) - 1);
+        unchecked((uint)(value + (value >> 31))) & ((1U << category) - 1);
 
-    private static int ShiftAc(int value, int successiveLow) =>
-        value < 0 ? -(-value >> successiveLow) : value >> successiveLow;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int ShiftAc(int value, int successiveLow)
+    {
+        int sign = value >> 31;
+        int magnitude = (value ^ sign) - sign;
+        return ((magnitude >> successiveLow) ^ sign) - sign;
+    }
 
     private static void ValidateSuccessiveLow(int successiveLow, bool refinement)
     {
