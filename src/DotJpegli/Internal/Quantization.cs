@@ -420,9 +420,8 @@ internal static class Quantization
             1 => 0.58146f,
             _ => 0.57988f,
         };
-        // AC begins after the scalar DC lane. A wider future Vector must not
-        // load outside the remaining 63 coefficients. Scalar tails handle
-        // widths that do not divide that length.
+        // A vector batch holds two float vectors, matching one ushort table
+        // vector. Keep any future width larger than the block scalar.
         if (useVector && Vector<float>.Count < BlockSize &&
             !MemoryMarshal.AsBytes(coefficients).Overlaps(MemoryMarshal.AsBytes(output)) &&
             !MemoryMarshal.AsBytes(table).Overlaps(MemoryMarshal.AsBytes(output)) &&
@@ -480,44 +479,80 @@ internal static class Quantization
         QuantizeScalarCore(coefficients, table, output, acOffset, adaptiveQuantization,
             adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients, end: 1);
 
+        short dc = output[0];
         int width = Vector<float>.Count;
-        Span<float> divisors = stackalloc float[width];
+        int batch = Vector<ushort>.Count;
         var offset = new Vector<float>(acOffset);
         var strength = new Vector<float>(adaptiveStrength);
-        int i = 1;
-        for (; i <= BlockSize - width; i += width)
+        var finiteLimit = new Vector<float>(float.MaxValue);
+        var minimum = new Vector<float>(short.MinValue);
+        var maximum = new Vector<float>(short.MaxValue);
+        int i = 0;
+        for (; i <= BlockSize - batch; i += batch)
         {
-            for (int lane = 0; lane < width; lane++)
+            Vector<ushort> quantizers = new(table.Slice(i, batch));
+            Vector<float> lower = new(coefficients.Slice(i, width));
+            Vector<float> upper = new(coefficients.Slice(i + width, width));
+            Vector<int> valid = Vector.LessThanOrEqual(Vector.Abs(lower), finiteLimit)
+                & Vector.LessThanOrEqual(Vector.Abs(upper), finiteLimit);
+            Vector<float> lowerThreshold = offset;
+            Vector<float> upperThreshold = offset;
+            if (adaptiveQuantization)
             {
-                int index = i + lane;
-                if (table[index] is < 1 or > 32767 || !float.IsFinite(coefficients[index]) ||
-                    (adaptiveQuantization && (!float.IsFinite(adaptiveMultipliers[index]) ||
-                        adaptiveMultipliers[index] < 0)))
-                {
-                    // Re-run this batch and the remainder in scalar order.
-                    // This preserves the first exception and all preceding
-                    // output writes, including coefficient range failures.
-                    QuantizeScalarCore(coefficients, table, output, acOffset, adaptiveQuantization,
-                        adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients, start: i);
-                    return;
-                }
-                divisors[lane] = table[index];
+                Vector<float> lowerMultipliers = new(adaptiveMultipliers.Slice(i, width));
+                Vector<float> upperMultipliers = new(adaptiveMultipliers.Slice(i + width, width));
+                valid &= Vector.GreaterThanOrEqual(lowerMultipliers, Vector<float>.Zero)
+                    & Vector.LessThanOrEqual(lowerMultipliers, finiteLimit)
+                    & Vector.GreaterThanOrEqual(upperMultipliers, Vector<float>.Zero)
+                    & Vector.LessThanOrEqual(upperMultipliers, finiteLimit);
+                // Preserve the separately rounded multiply and add; FMA would
+                // move some strict zero-bias comparisons across their boundary.
+                lowerThreshold += strength * lowerMultipliers;
+                upperThreshold += strength * upperMultipliers;
+            }
+            // Subtraction wraps zero to ushort.MaxValue, so one comparison
+            // rejects both zero and every table value above 32767.
+            if (!Vector.LessThanAll(quantizers - Vector<ushort>.One, new Vector<ushort>(32767))
+                || !Vector.EqualsAll(valid, new Vector<int>(-1)))
+            {
+                QuantizeScalarCore(coefficients, table, output, acOffset, adaptiveQuantization,
+                    adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients, start: Math.Max(i, 1));
+                return;
             }
 
             // Division must match the scalar port exactly; multiplying by
             // precomputed reciprocals can change a half-integer boundary.
-            Vector<float> quantized = new Vector<float>(coefficients.Slice(i, width))
-                / new Vector<float>(divisors);
-            // Preserve the separately rounded multiply and add; FMA would
-            // move some strict zero-bias comparisons across their boundary.
-            Vector<float> threshold = adaptiveQuantization
-                ? offset + strength * new Vector<float>(adaptiveMultipliers.Slice(i, width))
-                : offset;
-            Vector<float> values = Vector.ConditionalSelect(
-                Vector.LessThan(Vector.Abs(quantized), threshold), Vector<float>.Zero,
-                Vector.Round(quantized, MidpointRounding.ToEven));
-            for (int lane = 0; lane < width; lane++)
-                StoreQuantizedValue(values[lane], i + lane, output, requireEightBitCoefficients);
+            Vector.Widen(quantizers, out Vector<uint> lowerDivisors, out Vector<uint> upperDivisors);
+            lower /= Vector.ConvertToSingle(lowerDivisors);
+            upper /= Vector.ConvertToSingle(upperDivisors);
+            lower = Vector.ConditionalSelect(Vector.LessThan(Vector.Abs(lower), lowerThreshold),
+                Vector<float>.Zero, Vector.Round(lower, MidpointRounding.ToEven));
+            upper = Vector.ConditionalSelect(Vector.LessThan(Vector.Abs(upper), upperThreshold),
+                Vector<float>.Zero, Vector.Round(upper, MidpointRounding.ToEven));
+            // Reinsert the scalar DC result, including its previous-block
+            // threshold, before validating or storing the complete batch.
+            if (i == 0)
+                lower = Vector.WithElement(lower, 0, dc);
+            if (requireEightBitCoefficients)
+            {
+                var acMinimum = new Vector<float>(-1023f);
+                Vector<float> lowerMinimum = i == 0 ? Vector.WithElement(acMinimum, 0, -1024f) : acMinimum;
+                Vector<int> inRange = Vector.GreaterThanOrEqual(lower, lowerMinimum)
+                    & Vector.LessThanOrEqual(lower, new Vector<float>(1023f))
+                    & Vector.GreaterThanOrEqual(upper, acMinimum)
+                    & Vector.LessThanOrEqual(upper, new Vector<float>(1023f));
+                if (!Vector.EqualsAll(inRange, new Vector<int>(-1)))
+                {
+                    // Re-run the untouched batch in scalar order to retain
+                    // the first exception and its exact written prefix.
+                    QuantizeScalarCore(coefficients, table, output, acOffset, adaptiveQuantization,
+                        adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients, start: Math.Max(i, 1));
+                    return;
+                }
+            }
+            Vector<int> lowerIntegers = Vector.ConvertToInt32(Vector.Clamp(lower, minimum, maximum));
+            Vector<int> upperIntegers = Vector.ConvertToInt32(Vector.Clamp(upper, minimum, maximum));
+            Vector.Narrow(lowerIntegers, upperIntegers).CopyTo(output.Slice(i, batch));
         }
         QuantizeScalarCore(coefficients, table, output, acOffset, adaptiveQuantization,
             adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients, start: i);
