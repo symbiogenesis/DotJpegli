@@ -1,6 +1,7 @@
 // Copyright (c) the JPEG XL Project Authors.
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
 
+using System.Buffers;
 using System.Numerics;
 using System.Runtime.Intrinsics;
 
@@ -58,6 +59,8 @@ internal readonly ref struct PixelSource
 
     internal int ComponentsPerPixel { get; }
     internal ParallelDctRows? ParallelRows { get; }
+    // The encode call owns this lease; worker snapshots only borrow its storage.
+    internal IDisposable? ConvertedStorage => convertedPlanes;
     internal bool IsGrayscaleInput => ComponentsPerPixel == 1;
     internal bool CanManageSourceColor => !ycbcr && !xyb;
     internal JpegColorSpace ColorSpace => colorSpace == JpegColorSpace.Automatic
@@ -100,36 +103,45 @@ internal readonly ref struct PixelSource
         if (convertedPlanes is not null)
             return this;
         // Preserve bounded memory use for very large images. The existing
-        // streaming reader remains available when full planes exceed 64 MiB.
+        // streaming reader remains available when pooled planes exceed 64 MiB.
         const int maximumSamples = 64 * 1024 * 1024 / sizeof(float);
         int components = IsGrayscale ? 1 : 3;
-        if ((long)width * height * components > maximumSamples)
+        ulong samples = (ulong)((long)width * height * components);
+        if (BitOperations.RoundUpToPowerOf2(samples) > maximumSamples)
             return this;
         var planes = new ConvertedPlanes(width, height, stride, Length, components);
-        int planeLength = planes.PlaneLength;
-        bool vectorRgb = Vector.IsHardwareAccelerated && BitConverter.IsLittleEndian
-            && Vector<float>.Count is 4 or 8 && sourceType == SourceType.Byte
-            && !IsGrayscaleInput && !ycbcr && !xyb && colorTransform is null
-            && ColorSpace is JpegColorSpace.YCbCr or JpegColorSpace.Grayscale;
-        for (int y = 0; y < height; y++)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            int rowStart = y * stride;
-            int destination = y * width;
-            int converted = vectorRgb ? ConvertByteRow(planes, rowStart, destination, components) : 0;
-            for (int x = converted; x < width; x++)
+            int planeLength = planes.PlaneLength;
+            bool vectorRgb = Vector.IsHardwareAccelerated && BitConverter.IsLittleEndian
+                && Vector<float>.Count is 4 or 8 && sourceType == SourceType.Byte
+                && !IsGrayscaleInput && !ycbcr && !xyb && colorTransform is null
+                && ColorSpace is JpegColorSpace.YCbCr or JpegColorSpace.Grayscale;
+            for (int y = 0; y < height; y++)
             {
-                ReadConvertedComponents(rowStart + x * ComponentsPerPixel,
-                    out float first, out float second, out float third);
-                planes.Samples[destination + x] = first;
-                if (components > 1)
+                cancellationToken.ThrowIfCancellationRequested();
+                int rowStart = y * stride;
+                int destination = y * width;
+                int converted = vectorRgb ? ConvertByteRow(planes, rowStart, destination, components) : 0;
+                for (int x = converted; x < width; x++)
                 {
-                    planes.Samples[planeLength + destination + x] = second;
-                    planes.Samples[2 * planeLength + destination + x] = third;
+                    ReadConvertedComponents(rowStart + x * ComponentsPerPixel,
+                        out float first, out float second, out float third);
+                    planes.Samples[destination + x] = first;
+                    if (components > 1)
+                    {
+                        planes.Samples[planeLength + destination + x] = second;
+                        planes.Samples[2 * planeLength + destination + x] = third;
+                    }
                 }
             }
+            return new PixelSource(this, colorSpace, convertedPlanes: planes);
         }
-        return new PixelSource(this, colorSpace, convertedPlanes: planes);
+        catch
+        {
+            planes.Dispose();
+            throw;
+        }
     }
 
     private int ConvertByteRow(ConvertedPlanes planes, int rowStart, int destination, int components)
@@ -185,16 +197,24 @@ internal readonly ref struct PixelSource
         => Vector128.Create(0xffffff00U | (uint)component, 0xffffff00U | (uint)(component + step),
             0xffffff00U | (uint)(component + 2 * step), 0xffffff00U | (uint)(component + 3 * step)).AsByte();
 
-    private sealed class ConvertedPlanes(int width, int height, int sourceStride, int sourceLength, int components)
+    private sealed class ConvertedPlanes(int width, int height, int sourceStride, int sourceLength, int components) : IDisposable
     {
         internal readonly int Width = width;
         internal readonly int SourceStride = sourceStride;
         internal readonly int SourceLength = sourceLength;
         internal readonly int PlaneLength = checked(width * height);
-        internal readonly float[] Samples = new float[checked(width * height * components)];
+        internal float[] Samples { get; private set; } = ArrayPool<float>.Shared.Rent(checked(width * height * components));
+
+        public void Dispose()
+        {
+            float[] samples = Samples;
+            Samples = [];
+            if (samples.Length != 0)
+                ArrayPool<float>.Shared.Return(samples);
+        }
     }
 
-    /// <summary>Owned managed storage allows workers to recreate this span-based reader safely.</summary>
+    /// <summary>Workers own source copies or borrow immutable planes for the encode lease's lifetime.</summary>
     internal sealed class Snapshot
     {
         private readonly byte[] bytes;

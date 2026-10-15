@@ -77,6 +77,7 @@ public sealed class PlanarPixelSourceTests
         PixelSource pixels = SimdSampleFixtures.Pixels(
             SimdSampleFixtures.Source(precision, width, height, stride, PixelComponentLayout.Bgra), PixelComponentLayout.Bgra);
         PixelSource cached = pixels.WithConvertedPlanes(width, height, stride, TestContext.Current.CancellationToken);
+        using IDisposable? storage = cached.ConvertedStorage;
         float[] expected = new float[64], scalar = new float[64], vector = new float[64];
         for (int component = 0; component < 3; component++)
             foreach ((int sx, int sy) in new[] { (1, 1), (2, 2), (3, 4), (4, 3) })
@@ -98,17 +99,19 @@ public sealed class PlanarPixelSourceTests
     }
 
     [Fact]
-    public void ConvertedSnapshotOwnsSamplesAndPreservesOriginalLengthAndMetadata()
+    public void ConvertedSnapshotSharesLeaseAndPreservesOriginalLengthAndMetadata()
     {
         const int width = 19, height = 3, stride = width * 4 + 11;
         float[] samples = (float[])SimdSampleFixtures.Source(2, width, height, stride, PixelComponentLayout.Bgra);
         PixelSource pixels = new PixelSource(samples, PixelComponentLayout.Bgra).WithColorSpace(JpegColorSpace.Xyb);
         PixelSource cached = pixels.WithConvertedPlanes(width, height, stride, TestContext.Current.CancellationToken);
+        using IDisposable? storage = cached.ConvertedStorage;
         var snapshot = new PixelSource.Snapshot(cached, samples.Length, TestContext.Current.CancellationToken);
         float[] expected = new float[32], actual = new float[32];
         cached.ReadRowVector(width, height, stride, 2, -2, 1, expected);
         Array.Fill(samples, float.NaN);
         PixelSource restored = snapshot.GetPixels();
+        Assert.Same(storage, restored.ConvertedStorage);
         Assert.Equal(samples.Length, restored.Length);
         Assert.Equal(4, restored.ComponentsPerPixel);
         Assert.True(restored.IsXyb);
@@ -141,6 +144,7 @@ public sealed class PlanarPixelSourceTests
             TestContext.Current.CancellationToken);
         Assert.Equal(0, streaming.Length);
         Assert.False(streaming.IsGrayscale);
+        Assert.Null(streaming.ConvertedStorage);
     }
 
     private static void ConvertCanceled(CancellationToken token)
@@ -149,6 +153,7 @@ public sealed class PlanarPixelSourceTests
     private static void AssertConverted(PixelSource pixels, int width, int height, int stride)
     {
         PixelSource cached = pixels.WithConvertedPlanes(width, height, stride, TestContext.Current.CancellationToken);
+        using IDisposable? storage = cached.ConvertedStorage;
         PixelSource restored = new PixelSource.Snapshot(cached, pixels.Length, TestContext.Current.CancellationToken).GetPixels();
         Assert.Equal(pixels.Length, cached.Length);
         int components = pixels.IsGrayscale ? 1 : 3;
