@@ -94,33 +94,10 @@ internal sealed class HuffmanTable
 
     public static HuffmanTable CreateOptimized(ReadOnlySpan<long> frequencies)
     {
-        if (frequencies.Length != 256)
-        {
-            throw new ArgumentException("A frequency table must have 256 entries.", nameof(frequencies));
-        }
-
-        UInt128[] counts = new UInt128[257];
-        bool hasSymbol = false;
-        for (int symbol = 0; symbol < 256; symbol++)
-        {
-            if (frequencies[symbol] < 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(frequencies), "Symbol frequencies cannot be negative.");
-            }
-
-            counts[symbol] = (UInt128)frequencies[symbol];
-            hasSymbol |= frequencies[symbol] != 0;
-        }
-
-        if (!hasSymbol)
-        {
-            counts[0] = 1;
-        }
-
-        // Removing the pseudo-symbol leaves unused code space, preventing
-        // an all-ones code from being assigned to any real symbol.
-        counts[256] = 1;
-        int[] depth = BuildCodeLengths(counts);
+        Span<UInt128> counts = stackalloc UInt128[257];
+        InitializeCounts(frequencies, counts);
+        Span<int> depth = stackalloc int[257];
+        BuildCodeLengths(counts, depth);
         byte[] histogram = new byte[16];
         int symbolCount = 0;
         for (int symbol = 0; symbol < 256; symbol++)
@@ -156,6 +133,53 @@ internal sealed class HuffmanTable
         return new HuffmanTable(histogram, symbols);
     }
 
+    // Clustering needs only code lengths and the symbol count. Constructing
+    // canonical codes and allocating table arrays for each trial is unnecessary.
+    internal static float EstimateOptimizedCost(ReadOnlySpan<long> frequencies)
+    {
+        Span<UInt128> counts = stackalloc UInt128[257];
+        InitializeCounts(frequencies, counts);
+        Span<int> depth = stackalloc int[257];
+        BuildCodeLengths(counts, depth);
+        int symbolCount = 0;
+        UInt128 bits = 0;
+        for (int symbol = 0; symbol < 256; symbol++)
+        {
+            symbolCount += depth[symbol] == 0 ? 0 : 1;
+            bits += (UInt128)frequencies[symbol] * (uint)depth[symbol];
+        }
+        return (float)(bits + (uint)((17 + symbolCount) * 8));
+    }
+
+    private static void InitializeCounts(ReadOnlySpan<long> frequencies, Span<UInt128> counts)
+    {
+        if (frequencies.Length != 256)
+        {
+            throw new ArgumentException("A frequency table must have 256 entries.", nameof(frequencies));
+        }
+
+        bool hasSymbol = false;
+        for (int symbol = 0; symbol < 256; symbol++)
+        {
+            if (frequencies[symbol] < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(frequencies), "Symbol frequencies cannot be negative.");
+            }
+
+            counts[symbol] = (UInt128)frequencies[symbol];
+            hasSymbol |= frequencies[symbol] != 0;
+        }
+
+        if (!hasSymbol)
+        {
+            counts[0] = 1;
+        }
+
+        // Removing the pseudo-symbol leaves unused code space, preventing
+        // an all-ones code from being assigned to any real symbol.
+        counts[256] = 1;
+    }
+
     public void WriteSymbol(BitWriter writer, int symbol)
     {
         if ((uint)symbol >= 256 || lengths[symbol] == 0)
@@ -164,6 +188,15 @@ internal sealed class HuffmanTable
         }
 
         writer.WriteBits(codes[symbol], lengths[symbol]);
+    }
+
+    // Entropy callers supply a bounded, validated amplitude or EOB-run suffix.
+    // The Huffman code and suffix together fit a single 32-bit write.
+    public void WriteSymbolWithBits(BitWriter writer, int symbol, uint bits, int count)
+    {
+        if ((uint)symbol >= 256 || lengths[symbol] == 0)
+            throw new InvalidOperationException($"The Huffman table has no code for symbol {symbol}.");
+        writer.WriteBits((codes[symbol] << count) | bits, lengths[symbol] + count);
     }
 
     // HistogramCost in upstream includes the selector, 16 length counts and
@@ -182,12 +215,11 @@ internal sealed class HuffmanTable
         return (float)bits;
     }
 
-    private static int[] BuildCodeLengths(UInt128[] frequencies)
+    private static void BuildCodeLengths(ReadOnlySpan<UInt128> frequencies, Span<int> depth)
     {
-        int[] depth = new int[frequencies.Length];
         // Every retry has at most one leaf per frequency, one internal node per
         // merge, and two sentinels. Reuse this bounded storage across retries.
-        Node[] tree = new Node[2 * frequencies.Length + 1];
+        Span<Node> tree = stackalloc Node[2 * 257 + 1];
         UInt128 minimumCount = 0;
         while (true)
         {
@@ -200,7 +232,7 @@ internal sealed class HuffmanTable
                 }
             }
 
-            tree.AsSpan(0, leafCount).Sort(static (left, right) =>
+            tree[..leafCount].Sort(static (left, right) =>
             {
                 int comparison = left.Count.CompareTo(right.Count);
                 return comparison != 0 ? comparison : right.RightOrSymbol.CompareTo(left.RightOrSymbol);
@@ -220,11 +252,11 @@ internal sealed class HuffmanTable
                 tree[leafCount + merge + 1] = sentinel;
             }
 
-            Array.Clear(depth);
+            depth.Clear();
             SetDepth(tree, 2 * leafCount - 1, depth, 0);
-            if (!depth.AsSpan().ContainsAnyInRange(17, int.MaxValue))
+            if (!depth.ContainsAnyInRange(17, int.MaxValue))
             {
-                return depth;
+                return;
             }
 
             // CreateHuffmanTree uses limits 1, 2, 4... and clamps at limit-1.
@@ -233,7 +265,7 @@ internal sealed class HuffmanTable
         }
     }
 
-    private static void SetDepth(Node[] tree, int nodeIndex, int[] depth, int level)
+    private static void SetDepth(ReadOnlySpan<Node> tree, int nodeIndex, Span<int> depth, int level)
     {
         Node node = tree[nodeIndex];
         if (node.Left < 0)

@@ -111,6 +111,7 @@ internal sealed class HuffmanCodingPlan
         var slots = new List<int>();
         var slotHistograms = new List<int>();
         var slotCosts = new List<float>();
+        Span<long> combined = stackalloc long[256];
         for (int index = 0; index < histograms.Count; index++)
         {
             long[] current = histograms[index];
@@ -122,7 +123,7 @@ internal sealed class HuffmanCodingPlan
             float bestCost = forceBaseline && bestSlot > 1 ? float.MaxValue : Cost(current);
             for (int slot = 0; slot < slotHistograms.Count; slot++)
             {
-                long[] combined = Add(clusters[slotHistograms[slot]], current);
+                Add(clusters[slotHistograms[slot]], current, combined);
                 float cost = Cost(combined) - slotCosts[slot];
                 if (cost < bestCost)
                 {
@@ -149,7 +150,7 @@ internal sealed class HuffmanCodingPlan
             else
             {
                 int histogramIndex = slotHistograms[bestSlot];
-                clusters[histogramIndex] = Add(clusters[histogramIndex], current);
+                Add(clusters[histogramIndex], current, clusters[histogramIndex]);
                 indexes[index] = histogramIndex;
                 slotCosts[bestSlot] += bestCost;
             }
@@ -157,14 +158,12 @@ internal sealed class HuffmanCodingPlan
         return new(clusters, indexes, slots);
     }
 
-    private static long[] Add(long[] left, long[] right)
+    private static void Add(ReadOnlySpan<long> left, ReadOnlySpan<long> right, Span<long> sum)
     {
-        var sum = new long[256];
         for (int symbol = 0; symbol < sum.Length; symbol++)
             sum[symbol] = checked(left[symbol] + right[symbol]);
-        return sum;
     }
 
-    private static float Cost(long[] frequencies)
-        => HuffmanTable.CreateOptimized(frequencies).EstimateCost(frequencies);
+    private static float Cost(ReadOnlySpan<long> frequencies)
+        => HuffmanTable.EstimateOptimizedCost(frequencies);
 }

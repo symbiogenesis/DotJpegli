@@ -6,6 +6,27 @@ namespace DotJpegli.Tests;
 public sealed class HuffmanTableOptimizationTests
 {
     [Fact]
+    public void CombinedSymbolAndSuffixWritesPreserveEntropyBytes()
+    {
+        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        using var expected = new MemoryStream();
+        using var actual = new MemoryStream();
+        var separate = new BitWriter(expected);
+        var combined = new BitWriter(actual);
+        for (int symbol = 0; symbol < 256; symbol++)
+            for (int count = 0; count <= 14; count++)
+            {
+                uint bits = (uint)(symbol * 131 + count * 17) & ((1U << count) - 1);
+                table.WriteSymbol(separate, symbol);
+                separate.WriteBits(bits, count);
+                table.WriteSymbolWithBits(combined, symbol, bits, count);
+            }
+        separate.Flush();
+        combined.Flush();
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+    }
+
+    [Fact]
     public void EmptyAndSingletonTablesMatchIndependentReference()
     {
         AssertMatchesReference(new long[256]);
@@ -86,6 +107,8 @@ public sealed class HuffmanTableOptimizationTests
         HuffmanTable actual = HuffmanTable.CreateOptimized(frequencies);
         Assert.Equal(expected.Counts, actual.Counts);
         Assert.Equal(expected.Symbols, actual.Symbols);
+        Assert.Equal(BitConverter.SingleToInt32Bits(actual.EstimateCost(frequencies)),
+            BitConverter.SingleToInt32Bits(HuffmanTable.EstimateOptimizedCost(frequencies)));
     }
 
     // Deliberately use a slow unordered priority set instead of the production
