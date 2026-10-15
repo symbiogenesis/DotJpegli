@@ -5,6 +5,11 @@ internal static class SelfTest
     public static void Run()
     {
         var policy = new Policy();
+        Assert(Program.RuntimeProductVersion("11.0.0-rc.2.26504.105+abcdef1234") == "11.0.0-rc.2.26504.105",
+            "Runtime identity must retain the exact prerelease build rather than only Environment.Version's numeric prefix.");
+        Assert(Program.RuntimeProductVersion("10.0.13+abcdef1234") == "10.0.13" &&
+            Program.RuntimeProductVersion("10.0.13") == "10.0.13" && Program.RuntimeProductVersion(null) is null,
+            "Runtime product identity extraction must preserve stable versions and missing metadata.");
         Assert(policy.ManagedWorkers == 1 && policy.Blocks == 7 && policy.Warmups >= 5 && policy.MaximumGroupGeometricMeanRatio == 1.05 && policy.MaximumCaseRatio == 1.10, "Fixed policy changed.");
         Assert(Evidence.Iterations(1_000_000, policy) == 50 && Evidence.Iterations(1, policy) == 100 && Evidence.Iterations(100_000_000, policy) == 3, "Calibration/count clamps are incorrect.");
         Reject(() => Evidence.Iterations(double.NaN, policy));

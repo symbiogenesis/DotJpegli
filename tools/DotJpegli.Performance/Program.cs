@@ -297,6 +297,7 @@ internal static class Program
     private static object EnvironmentDetails()
     {
         string cpu = Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ?? "not supplied";
+        string? corelibInformationalVersion = typeof(object).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         string? affinity = null;
         if (OperatingSystem.IsLinux())
         {
@@ -304,7 +305,9 @@ internal static class Program
             affinity = File.ReadLines("/proc/self/status").FirstOrDefault(line => line.StartsWith("Cpus_allowed_list:", StringComparison.Ordinal))?.Split(':', 2)[1].Trim();
         }
         return new { cpu, affinity, os = RuntimeInformation.OSDescription, RuntimeInformation.OSArchitecture, RuntimeInformation.ProcessArchitecture,
-            runtime = RuntimeInformation.FrameworkDescription, runtimeVersion = Environment.Version.ToString(), logicalProcessors = Environment.ProcessorCount,
+            runtime = RuntimeInformation.FrameworkDescription, runtimeVersion = Environment.Version.ToString(),
+            corelibInformationalVersion, runtimeProductVersion = RuntimeProductVersion(corelibInformationalVersion),
+            logicalProcessors = Environment.ProcessorCount,
             Stopwatch.Frequency, Stopwatch.IsHighResolution, Vector.IsHardwareAccelerated, vectorFloatWidth = Vector<float>.Count,
             vector128 = Vector128.IsHardwareAccelerated, vector256 = Vector256.IsHardwareAccelerated, vector512 = Vector512.IsHardwareAccelerated,
             serverGc = System.Runtime.GCSettings.IsServerGC, gcLatencyMode = System.Runtime.GCSettings.LatencyMode.ToString(),
@@ -313,6 +316,10 @@ internal static class Program
             instrumentation = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_INSTRUMENTATION"),
             githubRunnerOs = Environment.GetEnvironmentVariable("RUNNER_OS"), githubRunnerArchitecture = Environment.GetEnvironmentVariable("RUNNER_ARCH") };
     }
+
+    // Environment.Version is numeric and cannot identify a prerelease build.
+    // Preserve the complete prerelease suffix; only remove the source-hash metadata.
+    internal static string? RuntimeProductVersion(string? informationalVersion) => informationalVersion?.Split('+', 2)[0];
 
     private static string Report(string status, int count, Evaluation evaluation, bool stoppedAfterCounterexample)
     {
