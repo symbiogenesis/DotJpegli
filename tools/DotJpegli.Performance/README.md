@@ -69,6 +69,33 @@ runner supports AVX-512. Separate `baseline-avx2-comparison` reports and raw
 `avx2-current-evidence` / `avx2-baseline-evidence` directories record this
 diagnostic; it does not replace the normal hardware-dispatch acceptance result.
 
+## Interleaved kernel selection diagnostics
+
+A main push ending in `[compare-kernels]` compares the original and optimized
+fuzzy-erosion and narrow-zigzag kernels in the same automatic workflow, on x64
+and ARM64 with both .NET targets. It holds the other kernel Automatic and checks
+all three preferences for identical JPEG bytes. Four-lane ARM64 skips unreachable
+narrow-zigzag comparisons explicitly. These runs do not compare against native
+Jpegli or establish full parity.
+
+The CI-only command is `--compare-kernels`, with absolute `--corpus` and
+`--output` paths and the existing image/distance/sampling/progression selection
+arguments. The mode uses six balanced ABBA/BAAB quartets, five warmups per leg
+and 20 encodes per leg by default; images below 1,024 pixels use 100 encodes.
+The same count applies to both variants. Raw samples and actual counts are kept.
+
+Use `--self-test-kernel-comparison` locally to check synthetic statistics without
+timing any encoding. The actual mode requires Release and GitHub Actions.
+Guards retain the 1 ms minimum and 10% MAD limit, and additionally reject
+within-quartet drift, minority timing states and order bias. Both orders must
+be balanced. Evidence preferences remain inconclusive unless every paired ratio
+clears a 0.5% margin in the same direction and all guards pass. Kernel selection
+rules remain conservative when evidence is small, inconsistent or unavailable.
+
+The automatic run retains `kernel-comparison-<architecture>-<framework>-<sha>`
+artifacts with the machine/runtime/vector identities, source and JPEG hashes,
+raw quartet legs, allocation/GC diagnostics, skipped cases and the report.
+
 ## Full acceptance protocol
 
 Include `[full-parity]` in the final commit message of a push to `main` when

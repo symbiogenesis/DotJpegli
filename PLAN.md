@@ -274,7 +274,40 @@ replacements require format/decoder changes and are outside this JPEG scope.
   despite slow/fast regimes in the remaining blocks; native drift alone cannot
   reliably correct such data.
 
-## First-batch results
+## Runtime selection follow-up
+
+The original and optimized fuzzy-erosion and narrow-zigzag kernels are retained
+side by side. Internal immutable options carry each encode's preferences into
+its AQ instance and prepared quantizers. Explicit preferences support tests and
+CI; ordinary callers use Automatic. There is no process-global mutable selector,
+per-image race, startup benchmark or timing-dependent JPEG output.
+
+This follow-up first measures each kernel independently with the other set to
+Automatic. Until those isolated measurements justify a guard, Automatic uses
+the original kernel. The existing wide-SIMD and DC-only paths remain available.
+Explicit narrow preferences reach the 128-bit implementation even on an
+AVX-512 host; default dispatch retains the wide path.
+
+The planned `[compare-kernels]` push runs one interleaved comparison job per
+framework and architecture: .NET 10/11 on x64 and ARM64. Six balanced ABBA/BAAB
+quartets compare identical encodes in the same process and on one CPU, using
+20 iterations per leg (100 for inputs below 1,024 pixels) and five warmups.
+Both variants and Automatic must produce identical JPEG bytes. x64 uses actual
+256-bit acceleration with AVX-512 disabled; four-lane ARM64 records narrow
+ordering as unreachable instead of claiming to measure it.
+
+Raw leg timings, allocations, collections and quartet ratios are retained.
+Guards check minimum timed work, MAD, repeated-leg drift, minority timing states
+and order bias. Small or inconsistent differences stay inconclusive. Final
+hardware/input rules will use only supported measurements, keep the original
+implementation as a fallback, and avoid image-ID-specific decisions.
+
+Focused tests cover both kernels exhaustively, per-instance preference capture,
+forced prepared-table output, all nine kernel combinations in complete encodes,
+concurrent encodes, padding and software fallback. Measurement and final
+Automatic rules are pending the planned run.
+
+## First-batch implementation and validation
 
 ### Implemented
 

@@ -30,11 +30,14 @@ assembly. No CPU-specific intrinsics are used. Smoothing and nonlinear
 RGB-to-XYB conversion use scalar paths. These implementation choices do not
 establish speed parity; see the [performance measurements and protocol](performance-parity.md).
 
-Fuzzy erosion selects its four smallest neighbors with a pruned seven-layer
-network (39 min/max operations). Narrow transposed zigzag ordering packs
-adjacent columns into 2x4 tiles before byte shuffles; .NET 11 uses portable
-64-bit Zip operations and .NET 10 uses compatible shuffle/select operations.
-The selection and permutation changes preserve the existing arithmetic results.
+Fuzzy erosion retains both the four-value insertion algorithm (45 min/max
+operations) and the pruned seven-layer network (39 operations). Narrow
+transposed zigzag ordering retains the original shuffle network and adjacent-
+column 2x4 tiles; .NET 11 packs tiles with portable 64-bit Zip operations and
+.NET 10 uses compatible shuffle/select operations. Internal immutable settings
+let CI compare one kernel at a time without changing concurrent encodes.
+Automatic policy guards require interleaved hardware/input evidence before
+selecting an alternative. Both algorithms preserve the existing arithmetic.
 
 ## Build
 

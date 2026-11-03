@@ -235,6 +235,85 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  kernel-comparison:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[compare-kernels]')
+    needs: native-reference
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            architecture: X64
+            framework: net10.0
+          - runner: ubuntu-latest
+            architecture: X64
+            framework: net11.0
+          - runner: ubuntu-24.04-arm
+            architecture: ARM64
+            framework: net10.0
+          - runner: ubuntu-24.04-arm
+            architecture: ARM64
+            framework: net11.0
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      DOTNET_TieredCompilation: '0'
+      # .NET 10 and .NET 11 recognize different AVX-512 diagnostic names.
+      DOTNET_EnableAVX512F: '0'
+      DOTNET_EnableAVX512: '0'
+      DOTJPEGLI_PERFORMANCE_REVISION: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          dotnet-version: 10.0.403
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          # Pixel inputs are architecture-independent; no native binary is run.
+          name: parity-reference-X64-${{ github.sha }}
+          path: ${{ runner.temp }}
+      - name: Restore and build kernel comparison
+        run: |
+          dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
+          dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release -f ${{ matrix.framework }} --no-restore
+      - name: Check comparison statistics with synthetic samples
+        run: dotnet run --project tools/DotJpegli.Performance -c Release -f ${{ matrix.framework }} --no-build -- --self-test-kernel-comparison
+      - name: Interleave original and optimized encodes on one CPU (CI only)
+        run: |
+          cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
+          taskset -c "$cpu" dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll" --compare-kernels --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/kernel-evidence" --images kodim01,low-noise,low-contrast,tiny-odd-edges --distances 1,4 --samplings 444,420 --progressions 0,2 --blocks 6 --warmups 5 --iterations 20
+      - name: Check actual comparison capabilities
+        if: always()
+        env:
+          EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          run = json.loads((Path(os.environ['RUNNER_TEMP']) / 'kernel-evidence/run.json').read_text())
+          environment = run['environment']
+          assert environment['vector128'], 'Expected accelerated SIMD'
+          if os.environ['EXPECTED_ARCHITECTURE'] == 'X64':
+              assert environment['vector256'] and not environment['vector512'] and environment['vectorFloatWidth'] == 8, 'Expected accelerated narrow SIMD'
+          else:
+              assert environment['vectorFloatWidth'] == 4 and not run['narrowApplicable'], 'Expected ARM64 four-lane analysis'
+          PY
+      - name: Retain interleaved kernel evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kernel-comparison-${{ matrix.architecture }}-${{ matrix.framework }}-${{ github.sha }}
+          path: ${{ runner.temp }}/kernel-evidence/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Publish kernel comparison report
+        if: always()
+        run: |
+          if [[ -f "${{ runner.temp }}/kernel-evidence/report.md" ]]; then
+            cat "${{ runner.temp }}/kernel-evidence/report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   performance-targeted:
     if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[full-parity]')) || (github.event_name == 'workflow_dispatch' && inputs.mode != 'full')
     needs: native-reference
