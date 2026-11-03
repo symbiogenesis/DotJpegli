@@ -17,14 +17,14 @@ internal static class WorkloadDiagnostics
     private const int Warmups = 3;
     internal sealed record Scenario(string Id, int Width, int Height, int Sampling = 444, int Progression = 0,
         string Color = "ycbcr", bool Stream = true, int Workers = 1, int Concurrent = 1, bool Tiered = false, bool Noise = false,
-        long CacheBytes = 192L * 1024 * 1024, bool ScalePhotograph = false);
+        long CacheBytes = 192L * 1024 * 1024, bool ScalePhotograph = false, int WarmupBatches = 3);
     internal sealed record Request(Scenario Scenario, string Photograph, string PhotographSha256, string Output);
     internal sealed record Memory(long WorkingSetBytes, long ProcessPeakWorkingSetBytes, long ManagedBytesWithoutCollection,
         long LastGcHeapBytes, long LastGcFragmentedBytes, long LastGcCommittedBytes);
     internal sealed record Sample(int Index, double BatchMilliseconds, double[] EncodeMilliseconds,
         long AllocatedBytes, int Gen0Collections, int Gen1Collections, int Gen2Collections, Memory Memory, CacheObservation[] Caches);
     internal sealed record CacheObservation(long PeakBytes, long ConvertedSamplePeakBytes, long CoefficientPeakBytes,
-        long EntropyTokenPeakBytes, long CurrentBytesAfterEncode);
+        long EntropyTokenPeakBytes, long CurrentBytesAfterEncode, int ConvertedSampleCachedRows, int ConvertedSampleTotalRows);
     private sealed record Encoded(byte[]? Bytes, long Length, double Milliseconds, CacheObservation Cache);
 
     internal static Scenario[] Scenarios() =>
@@ -32,6 +32,7 @@ internal static class WorkloadDiagnostics
         new("photo-array", 768, 512, Stream: false),
         new("photo-stream", 768, 512),
         new("photo-default-tiering", 768, 512, Tiered: true),
+        new("photo-default-tiering-extended", 768, 512, Tiered: true, WarmupBatches: 256),
         new("tiny", 19, 17),
         new("photograph-9m-444", 3840, 2560, Progression: 2, ScalePhotograph: true),
         new("photograph-9m-420", 3840, 2560, Sampling: 420, ScalePhotograph: true),
@@ -75,7 +76,7 @@ internal static class WorkloadDiagnostics
         {
             throw new ArgumentException("Workload evidence requires an empty absolute output directory.");
         }
-        Directory.CreateDirectory(output);
+        _ = Directory.CreateDirectory(output);
         (_, _, string sourcePath, PpmImage sourceImage) = Program.ReadCorpus(args[2]).Single(item => item.Id == "kodim01");
         string photographPath = Path.Combine(args[2], sourcePath);
         // ReadCorpus has already verified the pinned manifest and pixel identities.
@@ -96,7 +97,7 @@ internal static class WorkloadDiagnostics
             photographHeight = sourceImage.Height,
             scenarios,
             samples = Samples,
-            warmups = Warmups,
+            defaultWarmupBatches = Warmups,
             maximumElapsedMinutes = 10,
             scope = "Observations only: fresh process per scenario; cold first encode then warmed samples. No native, regression or universal speed verdict."
         });
@@ -111,7 +112,7 @@ internal static class WorkloadDiagnostics
                 break;
             }
             string directory = Path.Combine(output, scenario.Id);
-            Directory.CreateDirectory(directory);
+            _ = Directory.CreateDirectory(directory);
             var request = new Request(scenario, photographPath, photoHash, directory);
             string requestPath = Path.Combine(directory, "request.json");
             await File.WriteAllTextAsync(requestPath, JsonSerializer.Serialize(request, Json));
@@ -167,8 +168,8 @@ internal static class WorkloadDiagnostics
             start.ArgumentList.Add(argument);
         }
 
-        start.Environment.Remove("DOTNET_TieredCompilation");
-        start.Environment.Remove("COMPlus_TieredCompilation");
+        _ = start.Environment.Remove("DOTNET_TieredCompilation");
+        _ = start.Environment.Remove("COMPlus_TieredCompilation");
         using Process process = Process.Start(start) ?? throw new InvalidOperationException("Unable to start workload worker.");
         Task<string> stdout = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
         Task<string> stderr = process.StandardError.ReadToEndAsync(CancellationToken.None);
@@ -244,7 +245,7 @@ internal static class WorkloadDiagnostics
         long expectedLength = first.Length;
         // First timed call above precedes every validation encode and warmup.
         // Streaming timings discard output; full byte equality is checked separately below.
-        for (int index = 0; index < Warmups; index++)
+        for (int index = 0; index < scenario.WarmupBatches; index++)
         {
             foreach (Encoded warm in (await EncodeBatch(concurrentInputs, scenario, settings, 1)).SelectMany(batch => batch))
             {
@@ -322,6 +323,7 @@ internal static class WorkloadDiagnostics
             schemaVersion = 1,
             scenario,
             actualTieredCompilation = actualTiered,
+            warmupBatches = scenario.WarmupBatches,
             environment = Program.EnvironmentDetails(),
             inputSha256 = inputHash,
             jpegSha256 = jpegHash,
@@ -336,7 +338,9 @@ internal static class WorkloadDiagnostics
             samples,
             warmedLatencyMilliseconds = latency,
             medianEncodesPerSecond = Evidence.Statistics(throughput).Median,
-            timingStable = latency.RelativeMad <= 0.1,
+            p90ToP10Ratio = latency.P90 / latency.P10,
+            timingStable = HasBoundedDispersion(latency),
+            timingCheck = "Relative MAD <=10% and p90/p10 <=1.20; observational dispersion only, not timing acceptance.",
             meanWorkloadAllocatedBytesPerEncode = samples.Average(sample => (double)sample.AllocatedBytes / (scenario.Concurrent * iterations)),
             scope = "Cold is first encode after input/settings preparation, not process startup. Memory snapshots do not force GC. RSS includes runtime, caller input and validation; sampled peak is a lower bound. Stream timing discards bytes; byte equality is checked separately. Observational samples do not establish regression, scaling or latency-SLA acceptance."
         });
@@ -388,17 +392,19 @@ internal static class WorkloadDiagnostics
             throw new InvalidDataException("Image cache ownership remains after encoding.");
         }
         return new(cache.PeakBytes, cache.ConvertedSamplePeakBytes, cache.CoefficientPeakBytes,
-            cache.EntropyTokenPeakBytes, cache.CurrentBytes);
+            cache.EntropyTokenPeakBytes, cache.CurrentBytes, cache.ConvertedSampleCachedRows, cache.ConvertedSampleTotalRows);
     }
 
     private static void ValidateCacheBoundary(Scenario scenario, CacheObservation cache)
     {
         if (scenario.Id.StartsWith("planes-", StringComparison.Ordinal))
         {
-            bool expectedAdmission = scenario.Id.EndsWith("-below", StringComparison.Ordinal);
-            if ((cache.ConvertedSamplePeakBytes > 0) != expectedAdmission)
+            bool expectedPartial = scenario.Id == "planes-444-above";
+            if (cache.ConvertedSamplePeakBytes <= 0 || cache.ConvertedSampleTotalRows != scenario.Height
+                || cache.ConvertedSampleCachedRows <= 0 || cache.ConvertedSampleCachedRows > scenario.Height
+                || (cache.ConvertedSampleCachedRows < scenario.Height) != expectedPartial)
             {
-                throw new InvalidDataException("Converted-plane boundary did not exercise the expected admission/fallback.");
+                throw new InvalidDataException("Converted-plane boundary did not exercise the expected complete/partial cache.");
             }
         }
         if (scenario.Id.StartsWith("coefficients-", StringComparison.Ordinal) && cache.CoefficientPeakBytes <= 0)
@@ -454,7 +460,8 @@ internal static class WorkloadDiagnostics
 
     private static async Task Report(string output, Scenario[] scenarios, List<string> errors)
     {
-        var report = new StringBuilder("# Workload observations\n\nSeparate from the fixed native parity protocol. Each row uses a fresh process, three warmups and seven warmed batches. Cold latency excludes process/input preparation. No speed or tail-latency acceptance verdict is inferred.\n\n| Scenario | Cold ms | Warm median ms | Encodes/s | Workload alloc KiB/encode | Cache peak MiB | Warm phase RSS MiB | MAD |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
+        var noisy = new List<string>();
+        var report = new StringBuilder("# Workload observations\n\nSeparate from the fixed native parity protocol. Each row uses a fresh process, normally three warmups and seven measured batches; the extended-tiering scenario uses 256 warmups. Cold latency excludes process/input preparation. Neither warmup count proves that tiered compilation has stabilized. No speed or tail-latency acceptance verdict is inferred.\n\n| Scenario | Cold ms | Warm median ms | Encodes/s | Workload alloc KiB/encode | Cache peak MiB | Warm phase RSS MiB | MAD |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
         foreach (Scenario scenario in scenarios)
         {
             string file = Path.Combine(output, scenario.Id, "result.json");
@@ -465,13 +472,21 @@ internal static class WorkloadDiagnostics
 
             using var document = JsonDocument.Parse(await File.ReadAllTextAsync(file));
             JsonElement row = document.RootElement;
-            report.AppendLine(CultureInfo.InvariantCulture, $"| {scenario.Id} | {row.GetProperty("coldFirstEncodeMilliseconds").GetDouble():F3} | {row.GetProperty("warmedLatencyMilliseconds").GetProperty("median").GetDouble():F3} | {row.GetProperty("medianEncodesPerSecond").GetDouble():F2} | {row.GetProperty("meanWorkloadAllocatedBytesPerEncode").GetDouble() / 1024:F1} | {row.GetProperty("coldCaches").GetProperty("peakBytes").GetInt64() / 1048576.0:F1} | {row.GetProperty("afterMeasurement").GetProperty("workingSetBytes").GetInt64() / 1048576.0:F1} | {row.GetProperty("warmedLatencyMilliseconds").GetProperty("relativeMad").GetDouble():P1} |");
+            _ = report.AppendLine(CultureInfo.InvariantCulture, $"| {scenario.Id} | {row.GetProperty("coldFirstEncodeMilliseconds").GetDouble():F3} | {row.GetProperty("warmedLatencyMilliseconds").GetProperty("median").GetDouble():F3} | {row.GetProperty("medianEncodesPerSecond").GetDouble():F2} | {row.GetProperty("meanWorkloadAllocatedBytesPerEncode").GetDouble() / 1024:F1} | {row.GetProperty("coldCaches").GetProperty("peakBytes").GetInt64() / 1048576.0:F1} | {row.GetProperty("afterMeasurement").GetProperty("workingSetBytes").GetInt64() / 1048576.0:F1} | {row.GetProperty("warmedLatencyMilliseconds").GetProperty("relativeMad").GetDouble():P1} |");
+            if (!row.GetProperty("timingStable").GetBoolean())
+            {
+                noisy.Add(scenario.Id);
+            }
         }
-        report.AppendLine("\nRSS and managed-heap snapshots include caller input and the runtime; neither is exact retained pool capacity. Parent RSS sampling includes setup and final byte-validation allocations and is only a lower bound on peak RSS. Raw samples, cold/warm phase snapshots, hashes, runtime identities and runtime configurations are retained. Rows over 10% MAD are noisy observations, not discarded or retried. The seven-batch sample does not estimate service p95/p99. Concurrent throughput includes task scheduling, while encode latency is recorded separately. Stream timing uses a counting discard sink, without I/O or retained JPEG storage.");
-        report.AppendLine("Workload allocation traffic includes encoder, result wrappers, diagnostics, options copies and task scheduling; it is not an encoder-only allocation measurement. Cache peak is accepted storage owned by one encode, not the process or concurrent sum. Instrumentation is present in all timed calls; this report does not replace uninstrumented native acceptance.");
+        if (noisy.Count > 0)
+        {
+            _ = report.AppendLine(CultureInfo.InvariantCulture, $"\nNoisy observations (all samples retained): {string.Join(", ", noisy)}.\n");
+        }
+        _ = report.AppendLine("\nRSS and managed-heap snapshots include caller input and the runtime; neither is exact retained pool capacity. Parent RSS sampling includes setup and final byte-validation allocations and is only a lower bound on peak RSS. Raw samples, cold/warm phase snapshots, hashes, runtime identities and runtime configurations are retained. Rows over 10% MAD or 1.20 p90/p10 are noisy observations, not discarded or retried. These simple dispersion bounds are not timing acceptance. The seven-batch sample does not estimate service p95/p99. Concurrent throughput includes task scheduling, while encode latency is recorded separately. Stream timing uses a counting discard sink, without I/O or retained JPEG storage.");
+        _ = report.AppendLine("Workload allocation traffic includes encoder, result wrappers, diagnostics, options copies and task scheduling; it is not an encoder-only allocation measurement. Cache peak is accepted storage owned by one encode, not the process or concurrent sum. Instrumentation is present in all timed calls; this report does not replace uninstrumented native acceptance.");
         foreach (string error in errors)
         {
-            report.AppendLine(CultureInfo.InvariantCulture, $"\nIncomplete: {error}");
+            _ = report.AppendLine(CultureInfo.InvariantCulture, $"\nIncomplete: {error}");
         }
 
         await File.WriteAllTextAsync(Path.Combine(output, "report.md"), report.ToString());
@@ -481,7 +496,7 @@ internal static class WorkloadDiagnostics
     {
         string[][] families =
         [
-            ["photo-array", "photo-stream", "photo-default-tiering"],
+            ["photo-array", "photo-stream", "photo-default-tiering", "photo-default-tiering-extended"],
             ["scaling-workers-1", "scaling-workers-2", "scaling-workers-4", "scaling-concurrent-2", "scaling-concurrent-4", "cache-disabled", "cache-16m"]
         ];
         foreach (string[] family in families)
@@ -511,6 +526,7 @@ internal static class WorkloadDiagnostics
         if (scenarios.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count() != scenarios.Length
             || scenarios.Any(item => item.Width < 1 || item.Height < 1 || (long)item.Width * item.Height > 12_000_000)
             || scenarios.Max(item => item.Workers) != 4 || scenarios.Max(item => item.Concurrent) != 4
+            || scenarios.Any(item => item.WarmupBatches is < 3 or > 256)
             || !scenarios.Any(item => item.Tiered) || !scenarios.Any(item => !item.Stream))
         {
             throw new InvalidDataException("Workload bounds or coverage changed.");
@@ -544,7 +560,14 @@ internal static class WorkloadDiagnostics
         {
             throw new InvalidDataException("Stream byte accounting mismatch.");
         }
+        if (HasBoundedDispersion(Evidence.Statistics([73.5285, 76.0399, 73.6401, 73.717, 75.6841, 72.5816, 22.8438])))
+        {
+            throw new InvalidDataException("Low MAD must not hide a minority timing state.");
+        }
     }
+
+    private static bool HasBoundedDispersion(TimingStatistics statistics)
+        => statistics.RelativeMad <= 0.1 && statistics.P90 / statistics.P10 <= 1.2;
 
     private static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
     private static string HashFile(string file) { using FileStream stream = File.OpenRead(file); return Convert.ToHexStringLower(SHA256.HashData(stream)); }

@@ -254,7 +254,7 @@ including setup. A timed-out or failed worker preserves its logs, raw completed
 samples and memory observations; incomplete coverage returns exit 2. There are
 no retries, fastest-sample selection or changes to native acceptance.
 
-The 25 scenarios include the 4:4:4 converted-plane bucket boundary
+The 26 scenarios include the 4:4:4 converted-plane bucket boundary
 at 2048 by 2728/2736, the former dense coefficient bucket at 2048 by 4096/4104,
 and the 64 MiB segmented coefficient capacity boundary at 2048 by 5456/5464.
 4:2:0 uses 4096 by 2048/2064. These are real complete encodes of tiled Kodak01
@@ -269,8 +269,11 @@ Per-encode cache observations report actual admitted peak capacity for converted
 samples, coefficients and entropy tokens, plus their combined peak; returned
 ownership must be zero. These observations establish the paths exercised without
 assuming that a nominal dimension always selects the same cache layout.
-Converted-plane boundary cases additionally require the expected admission or
-fallback, and coefficient cases require actual retained coefficients. The
+Converted-plane boundary cases additionally retain admitted/total source rows
+and require the expected complete or partial cache: the 4:4:4 case above the
+64 MiB boundary keeps a prefix, while both 4:2:0 cases fit completely using
+segments above the former whole-plane bucket limit. Coefficient cases require
+actual retained coefficients. The
 untimed self-test verifies that segmented capacity plans straddle 64 MiB.
 
 The remaining cases cover RGB, XYB and Display-P3 source-ICC conversion,
@@ -281,8 +284,11 @@ processor count; it does not fabricate four available cores on a smaller runner.
 Only one scenario runs at a time. Parallel and concurrent scenarios use the
 runner's available cores, while the fixed native protocol remains single-core.
 
-Each process records its first encode before validation or warmup, then three
-warmup batches and seven measured batches. Tiny images use 32 operations per
+Each process records its first encode before validation or warmup, then normally
+three warmup batches and seven measured batches. The extended default-tiering
+scenario uses 256 fixed warmup batches, retaining the original three-warmup
+scenario separately. The count is recorded per scenario and does not prove that
+tiered compilation has stabilized. Tiny images use 32 operations per
 caller per batch; other scenarios use one. Every encode has a separate timer;
 batch throughput also includes task scheduling. Input construction, profile
 creation, hash checks and report writes are outside encode timers. Cold latency
@@ -291,8 +297,10 @@ not a startup distribution. One child uses a runtime configuration with normal
 tiered compilation enabled; others retain the existing untiered configuration.
 The actual runtime configuration is saved beside each request. Seven samples
 cannot establish service p95/p99, and cross-process scenario differences are not
-interleaved causal estimates. MAD over 10% marks noisy observations without
-discarding them or producing a speed preference.
+interleaved causal estimates. MAD over 10% or p90/p10 over 1.20 marks noisy
+observations without discarding them or producing a speed preference. The
+percentile check catches minority timing states that a low MAD can hide;
+passing both checks still does not establish timing acceptance.
 
 Streaming timings count and discard bytes, avoiding output retention and disk or
 network I/O. Array outputs are checked by hash after timing; all timed stream
