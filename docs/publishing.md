@@ -79,8 +79,10 @@ and SDK Source Link support are retained, so a separate `.snupkg` is unnecessary
 Actions are pinned to immutable commits, publication jobs run serially, and
 duplicate package versions fail instead of being silently skipped.
 
-Each GitHub release contains the NuGet package, two portable CLI ZIPs, two MSI
-installers, two symbol ZIPs and `SHA256SUMS`. See the [CLI guide](cli.md) for
+Each GitHub release contains the NuGet package, two standalone CLI EXEs, two
+portable CLI ZIPs, two MSI installers, two symbol ZIPs and `SHA256SUMS`.
+The EXE names include the release version and architecture; their bytes match
+the executables in the portable ZIPs and installers. See the [CLI guide](cli.md) for
 installation and signing status.
 
 ## Retries and failed checks

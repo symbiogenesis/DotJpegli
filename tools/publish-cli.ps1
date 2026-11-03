@@ -1,10 +1,10 @@
 #requires -Version 7.6
 <#
 .SYNOPSIS
-Publishes the NativeAOT CLI, portable ZIP, symbols ZIP, and Windows MSI.
+Publishes the NativeAOT EXE, portable ZIP, symbols ZIP, and Windows MSI.
 .DESCRIPTION
 Uses a fresh output directory and a pinned, isolated WiX tool installation.
-The release directory contains only the three files intended for distribution.
+The release directory contains only the four files intended for distribution.
 .PARAMETER RuntimeIdentifier
 Native Windows architecture to publish. Use a matching Windows build host.
 .PARAMETER OutputRoot
@@ -76,6 +76,7 @@ $pdb = Join-Path $publish 'dotjpegli.pdb'
 if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw 'Native executable is missing.' }
 if (-not (Test-Path -LiteralPath $pdb -PathType Leaf)) { throw 'Native debug symbols are missing.' }
 Copy-Item -LiteralPath $executable -Destination $portable
+Copy-Item -LiteralPath $executable -Destination (Join-Path $release "$assetName.exe")
 Copy-Item -LiteralPath $pdb -Destination $symbols
 foreach ($runtimeNotice in @('LICENSE.dotnet.txt', 'THIRD-PARTY-NOTICES.dotnet.txt')) {
     Copy-Item -LiteralPath (Join-Path $publish $runtimeNotice) -Destination $portable

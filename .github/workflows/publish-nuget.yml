@@ -123,7 +123,7 @@ jobs:
           $expectedNames = @($packages[0].Name)
           foreach ($rid in @('win-x64', 'win-arm64')) {
             $stem = "DotJpegli.Cli-$env:EXPECTED_VERSION-$rid"
-            $expectedNames += @("$stem.zip", "$stem.msi", "$stem-symbols.zip")
+            $expectedNames += @("$stem.exe", "$stem.zip", "$stem.msi", "$stem-symbols.zip")
           }
           $files = @(Get-ChildItem -LiteralPath $releaseRoot -File | Sort-Object Name)
           if (@(Compare-Object -ReferenceObject $expectedNames -DifferenceObject @($files.Name)).Count -ne 0) {
@@ -246,5 +246,5 @@ jobs:
           fi
           # Attach everything before publication, including on repositories with immutable releases.
           gh release edit "$tag" --target "$REVISION"
-          gh release upload "$tag" ./*.nupkg ./*.zip ./*.msi SHA256SUMS --clobber
+          gh release upload "$tag" ./*.nupkg ./*.exe ./*.zip ./*.msi SHA256SUMS --clobber
           gh release edit "$tag" --draft=false --latest

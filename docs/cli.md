@@ -17,6 +17,8 @@ Windows Settings can repair or uninstall it. A newer MSI upgrades the same
 architecture; uninstall removes the installed files and its PATH entry.
 
 For portable use, extract the matching ZIP and run `dotjpegli.exe` directly.
+The same binary is also available as a standalone
+`DotJpegli.Cli-<version>-<rid>.exe` download and can be renamed to `dotjpegli.exe`.
 Keep the included license and third-party notices with redistributed binaries.
 The separate `-symbols.zip` download is for debugging and is not needed to run
 the program. `SHA256SUMS` lists the SHA-256 of each release download.
@@ -53,12 +55,13 @@ requires Visual Studio C++ build tools and a Windows SDK. In PowerShell 7.6 or l
 ```
 
 Use a fresh output directory. Each invocation produces a `release` directory
-containing `DotJpegli.Cli-<version>-<rid>.zip`, `.msi` and `-symbols.zip` files.
+containing `DotJpegli.Cli-<version>-<rid>.exe`, `.zip`, `.msi` and `-symbols.zip` files.
 The executable and installer use the library's committed version. Combined MSI
 releases require a stable three-part version within Windows Installer's numeric
 limits. The packaging script pins WiX 5.0.2, which predates the maintenance-fee
 and EULA requirements introduced by later WiX versions.
 
 CI publishes both architectures on their native Windows runners, exercises the
-published executable, and checks MSI installation, repair and removal before
+published executable, verifies that the standalone EXE matches the portable ZIP,
+and checks MSI installation, repair and removal before
 retaining the artifacts. See [publishing](publishing.md) for the release process.

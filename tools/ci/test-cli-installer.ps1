@@ -1,7 +1,7 @@
 #requires -Version 7.6
 <#
 .SYNOPSIS
-Checks portable release assets and MSI install, repair, and removal on disposable CI hosts.
+Checks EXE/portable release assets and MSI install, repair, and removal on disposable CI hosts.
 .PARAMETER ArtifactRoot
 OutputRoot produced by tools/publish-cli.ps1.
 .PARAMETER RuntimeIdentifier
@@ -65,13 +65,17 @@ $ArtifactRoot = (Resolve-Path -LiteralPath $ArtifactRoot).ProviderPath
 $release = Join-Path $ArtifactRoot 'release'
 $assets = @(Get-ChildItem -LiteralPath $release -File)
 $installers = @($assets | Where-Object Extension -EQ '.msi')
-if ($assets.Count -ne 3 -or $installers.Count -ne 1) { throw 'Expected one MSI and two ZIP release assets.' }
+if ($assets.Count -ne 4 -or $installers.Count -ne 1) { throw 'Expected one EXE, one MSI and two ZIP release assets.' }
 $installer = $installers[0].FullName
 $assetName = $installers[0].BaseName
 if ($assetName -notmatch "\ADotJpegli\.Cli-([0-9]+\.[0-9]+\.[0-9]+)-$RuntimeIdentifier\z") {
     throw 'Unexpected MSI filename or architecture.'
 }
 $version = $Matches[1]
+$expectedNames = @("$assetName.exe", "$assetName.msi", "$assetName.zip", "$assetName-symbols.zip")
+if (@(Compare-Object -ReferenceObject $expectedNames -DifferenceObject @($assets.Name) -CaseSensitive).Count -ne 0) {
+    throw 'CLI release files do not match the expected version, architecture and complete artifact set.'
+}
 $extracted = Join-Path $ArtifactRoot 'extracted'
 $symbols = Join-Path $ArtifactRoot 'extracted-symbols'
 Expand-Archive -LiteralPath (Join-Path $release "$assetName.zip") -DestinationPath $extracted
@@ -84,6 +88,10 @@ foreach ($name in @('dotjpegli.exe', 'LICENSE', 'LICENSE.jpegli', 'THIRD-PARTY-N
 }
 if (-not (Test-Path -LiteralPath (Join-Path $symbols 'dotjpegli.pdb') -PathType Leaf)) {
     throw 'Symbols archive is missing the NativeAOT PDB.'
+}
+$expectedHash = (Get-FileHash -LiteralPath (Join-Path $extracted 'dotjpegli.exe') -Algorithm SHA256).Hash
+if ((Get-FileHash -LiteralPath (Join-Path $release "$assetName.exe") -Algorithm SHA256).Hash -ne $expectedHash) {
+    throw 'The standalone executable differs from the portable executable.'
 }
 $binary = [IO.File]::ReadAllBytes((Join-Path $extracted 'dotjpegli.exe'))
 $peOffset = [BitConverter]::ToInt32($binary, 0x3c)
@@ -126,7 +134,6 @@ try {
     Assert-InstalledPath
     & (Join-Path $PSScriptRoot 'test-cli.ps1') -ExecutablePath $installedExecutable `
         -OutputRoot (Join-Path $ArtifactRoot 'installed-smoke') -ExpectedVersion $version
-    $expectedHash = (Get-FileHash -LiteralPath (Join-Path $extracted 'dotjpegli.exe') -Algorithm SHA256).Hash
     if ((Get-FileHash -LiteralPath $installedExecutable -Algorithm SHA256).Hash -ne $expectedHash) {
         throw 'The installed executable differs from the portable executable.'
     }
@@ -145,4 +152,4 @@ try {
 }
 if (Test-Path -LiteralPath $installedExecutable) { throw 'Uninstall left the CLI executable behind.' }
 Assert-UserPathRestored -Original $originalUserPath -Current $pathState['uninstalled'] -InstalledDirectory $installedDirectory
-Write-Output 'CLI distribution checks passed: portable/symbols archives and MSI install, repair, and uninstall.'
+Write-Output 'CLI distribution checks passed: standalone EXE, portable/symbols archives and MSI install, repair, and uninstall.'
