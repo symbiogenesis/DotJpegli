@@ -129,6 +129,20 @@ for coverage.
 
 ## Performance
 
+Same-host comparisons against the source published as **1.0.0** found no
+confirmed latency regressions in the repaired encoder across the measured
+.NET 10/11 x64 and ARM64 configurations, including .NET 11 AVX-512. Across
+1,792 selected case comparisons, 1,640 consistently favored the repaired
+encoder and 152 were inconclusive. Geometric means of the selected latency
+ratios show **5.9–11.7% less encoding time** across the seven configurations.
+The [six-lane release evidence](docs/performance-evidence/2026-11-03-release-regression-74ae25d/README.md)
+and [AVX-512 evidence](docs/performance-evidence/2026-11-03-release-regression-a045052/README.md)
+retain every case and retry, including four slightly slower but inconclusive
+medians, plus the measured tradeoffs between alternative algorithms. These
+results describe the tested configurations and trials that passed the timing
+stability checks.
+
+The native comparison charts below retain the last complete valid snapshot.
 Compare DotJpegli with **native Google Jpegli** on all 24 Kodak photographs.
 The charts use fresh measurements from **November 3, 2026**,
 [CI run 41619016995](https://github.com/symbiogenesis/DotJpegli/actions/runs/41619016995),

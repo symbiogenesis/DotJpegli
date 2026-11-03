@@ -8,7 +8,33 @@ does not establish parity. Results must name the tested revision, hosted run,
 machine and measured bounds. The timing method and acceptance bounds were fixed
 before the first measurement.
 
-## Current measurement scope
+## Released-version regression checks
+
+The repaired encoder at `74ae25d` passes the complete 256-case comparison
+against released 1.0.0 source in all six measured .NET 10/11 x64 and ARM64 lanes.
+The encoder is unchanged at `a045052`, which adds a passing .NET 11 x64 lane
+requiring actual Vector512 support. Across all seven lanes, all 1,792 selected
+comparisons pass the timing guards and produce identical JPEG bytes to 1.0.0.
+There are 1,640 consistent improvements, 152 inconclusive differences and no
+confirmed regressions under the fixed 0.5% preference margin. Four selected
+medians in the wide-SIMD lane are slightly slower (at most 0.57%); each is
+inconclusive across its paired measurements.
+
+The [six-lane release evidence](performance-evidence/2026-11-03-release-regression-74ae25d/README.md)
+and [wide-SIMD evidence](performance-evidence/2026-11-03-release-regression-a045052/README.md)
+include every selected trial, all 158 earlier invalid trials, actual CPU
+capabilities and the limits of selecting the first stable complete trial.
+Valid slower or inconclusive measurements are never retried. Selecting for
+stability can favor quieter intervals, so these results do not describe the
+unconditional latency distribution or prove performance on untested hardware.
+
+The six-lane run's native comparison matched every JPEG structure, but one of its
+256 cases failed the timing-noise guard and many valid cases still exceeded
+the native latency bounds. It does not replace the complete valid native
+reference below or establish native performance parity. Version regression
+checks and native performance parity answer different questions.
+
+## Native comparison reference
 
 The complete 256-case comparison of revision
 `d5f3226d9501a1b636f13eb15ff9b7113a767920` in

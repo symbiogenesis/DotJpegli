@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 2,
+  "mode": "interleaved-revision-comparison",
+  "status": "completed",
+  "valid": true,
+  "parityVerdict": "not-evaluated",
+  "fullCoverageComplete": false,
+  "releaseCoverageComplete": true,
+  "releaseRegressionVerdict": "no-regressions-detected",
+  "baselineRevision": "a40868bfdace7d737413085522a88d351aa16782",
+  "currentRevision": "a0450526af276d2f686a820a523c270aa30f09f1",
+  "regressions": [],
+  "comparisons": 256,
+  "expectedComparisons": 256,
+  "initiallyInvalidComparisons": 23,
+  "retriedComparisons": 23,
+  "totalAttempts": 281,
+  "maximumAttempts": 8,
+  "inconclusiveComparisons": 37,
+  "invalidReasons": []
+}

@@ -32,6 +32,9 @@ does not cover the .NET 11 Vector512 path implicated by the earlier
 [123c8a9 comparison](../2026-11-03-release-regression-123c8a9/README.md).
 Any additional hardware attempt is retained separately from this initial
 matrix, preserving all original artifact identities and results.
+The subsequent [targeted a045052 comparison](../2026-11-03-release-regression-a045052/README.md)
+requires actual Vector512 support and covers that .NET 11 path; its results
+remain separate from this original six-lane snapshot.
 
 ## Sampling and retained invalid attempts
 

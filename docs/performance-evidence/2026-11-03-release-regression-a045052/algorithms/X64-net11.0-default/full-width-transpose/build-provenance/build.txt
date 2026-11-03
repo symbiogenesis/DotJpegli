@@ -1,0 +1,11 @@
+Comparison: current default versus retained full-width-transpose algorithm
+Source for both workers: a0450526af276d2f686a820a523c270aa30f09f1
+Framework: net11.0; SIMD lane: default; CPU affinity: 0
+Baseline flags: DotJpegliSparseTransposedQuantization=false; DotJpegliFullWidthTranspose=false
+Candidate flags: DotJpegliSparseTransposedQuantization=false; DotJpegliFullWidthTranspose=true
+Selection: kodim01,kodim02,kodim04,kodim22,low-noise,low-contrast,full-noise,tiny-odd-edges; distances1/4; sampling444/420; progression0/2
+Method: six balanced quartets, 20 encodes per leg (100 for tiny input), five warmups; no timing retries in this selected diagnostic
+41b78af7c29d7b5dfaee039613cfc9a4a8a5e8221973a66aadd3b84066db025e  /home/runner/work/_temp/algorithm-default-worker/DotJpegli.dll
+53b0a1fbd36af920c5c8317e4ffe97a01a354569793b0d9a3266b815d937e6ba  /home/runner/work/_temp/algorithm-full-width-transpose-worker/DotJpegli.dll
+ce4f75bc7f372d5cf0f74fccabfba8d0e155de111876041a3194553ba0e29250  /home/runner/work/_temp/algorithm-default-worker/DotJpegli.Performance.dll
+ce4f75bc7f372d5cf0f74fccabfba8d0e155de111876041a3194553ba0e29250  /home/runner/work/_temp/algorithm-full-width-transpose-worker/DotJpegli.Performance.dll

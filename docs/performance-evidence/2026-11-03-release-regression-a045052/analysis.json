@@ -1,0 +1,2785 @@
+{
+  "schemaVersion": 1,
+  "note": "Offline analysis of retained CI evidence. Release statistics use first stability-valid complete trials; algorithms use single trials and valid-row subset aggregates. Earlier invalid release trials remain in raw files; no unconditional latency claim.",
+  "releaseLanes": [
+    {
+      "cases": 256,
+      "valid": 256,
+      "invalid": 0,
+      "strongBaseline": 0,
+      "strongCurrent": 219,
+      "inconclusive": 37,
+      "currentFasterMedians": 252,
+      "validMedianGeometricMean": 0.9034488741241181,
+      "validMedianMinimum": 0.45849577888089854,
+      "validMedianMaximum": 1.0057022419636903,
+      "lane": "X64-net11.0-default",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "vectorFloatWidth": 8,
+      "vector256": true,
+      "vector512": true,
+      "initiallyInvalid": 23,
+      "totalAttempts": 281,
+      "maximumSelectedAttempt": 3.0,
+      "verdict": "no-regressions-detected",
+      "groups": [
+        {
+          "cases": 32,
+          "valid": 32,
+          "invalid": 0,
+          "strongBaseline": 0,
+          "strongCurrent": 25,
+          "inconclusive": 7,
+          "currentFasterMedians": 32,
+          "validMedianGeometricMean": 0.9433137257232501,
+          "validMedianMinimum": 0.5858651738040013,
+          "validMedianMaximum": 0.9883131943655152,
+          "sampling": 444,
+          "progressiveLevel": 0,
+          "distance": 1,
+          "rows": [
+            {
+              "case": "kodim01/444/p0/d1",
+              "ratio": 0.9779863084940967,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim02/444/p0/d1",
+              "ratio": 0.9750453256107432,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim03/444/p0/d1",
+              "ratio": 0.9675732268704259,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim04/444/p0/d1",
+              "ratio": 0.9768078056894478,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim05/444/p0/d1",
+              "ratio": 0.9742388802637911,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim06/444/p0/d1",
+              "ratio": 0.9707182619352464,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim07/444/p0/d1",
+              "ratio": 0.9700879082052138,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim08/444/p0/d1",
+              "ratio": 0.9792832643008414,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim09/444/p0/d1",
+              "ratio": 0.9730055491196659,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim10/444/p0/d1",
+              "ratio": 0.9718570147454384,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim11/444/p0/d1",
+              "ratio": 0.9749978260156089,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim12/444/p0/d1",
+              "ratio": 0.9689034716886628,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim13/444/p0/d1",
+              "ratio": 0.9883131943655152,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim14/444/p0/d1",
+              "ratio": 0.9794188588845363,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim15/444/p0/d1",
+              "ratio": 0.9697256982929023,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim16/444/p0/d1",
+              "ratio": 0.9682848108818287,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim17/444/p0/d1",
+              "ratio": 0.9744614028978715,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim18/444/p0/d1",
+              "ratio": 0.9820709260291305,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim19/444/p0/d1",
+              "ratio": 0.9766476147222607,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim20/444/p0/d1",
+              "ratio": 0.9700716525687372,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim21/444/p0/d1",
+              "ratio": 0.9698886976742938,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim22/444/p0/d1",
+              "ratio": 0.9764650135197388,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim23/444/p0/d1",
+              "ratio": 0.9695082296009898,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim24/444/p0/d1",
+              "ratio": 0.9827097094104091,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "smooth-gradient/444/p0/d1",
+              "ratio": 0.8896764123284171,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-contrast/444/p0/d1",
+              "ratio": 0.8975196619267137,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "color-edges/444/p0/d1",
+              "ratio": 0.8956554586860923,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "line-art/444/p0/d1",
+              "ratio": 0.8880319490526564,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "structured-texture/444/p0/d1",
+              "ratio": 0.922629702243239,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-noise/444/p0/d1",
+              "ratio": 0.8972061934839899,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "full-noise/444/p0/d1",
+              "ratio": 0.9327898987566381,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "tiny-odd-edges/444/p0/d1",
+              "ratio": 0.5858651738040013,
+              "valid": true,
+              "preference": "current"
+            }
+          ]
+        },
+        {
+          "cases": 32,
+          "valid": 32,
+          "invalid": 0,
+          "strongBaseline": 0,
+          "strongCurrent": 31,
+          "inconclusive": 1,
+          "currentFasterMedians": 32,
+          "validMedianGeometricMean": 0.9268757205996826,
+          "validMedianMinimum": 0.5277898114163758,
+          "validMedianMaximum": 0.9685333571544856,
+          "sampling": 444,
+          "progressiveLevel": 0,
+          "distance": 4,
+          "rows": [
+            {
+              "case": "kodim01/444/p0/d4",
+              "ratio": 0.9650011538465618,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim02/444/p0/d4",
+              "ratio": 0.9656919231498595,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim03/444/p0/d4",
+              "ratio": 0.9636207908745364,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim04/444/p0/d4",
+              "ratio": 0.9685333571544856,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim05/444/p0/d4",
+              "ratio": 0.9675159243591656,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim06/444/p0/d4",
+              "ratio": 0.9637708070634019,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim07/444/p0/d4",
+              "ratio": 0.9649399568625788,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim08/444/p0/d4",
+              "ratio": 0.9659934016454458,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim09/444/p0/d4",
+              "ratio": 0.9627142235934804,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim10/444/p0/d4",
+              "ratio": 0.968377172379272,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim11/444/p0/d4",
+              "ratio": 0.9626637727621157,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim12/444/p0/d4",
+              "ratio": 0.9614489894338175,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim13/444/p0/d4",
+              "ratio": 0.9667093910051718,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim14/444/p0/d4",
+              "ratio": 0.9653553531512323,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim15/444/p0/d4",
+              "ratio": 0.9621849456318262,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim16/444/p0/d4",
+              "ratio": 0.9631373290774288,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim17/444/p0/d4",
+              "ratio": 0.9656740791457966,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim18/444/p0/d4",
+              "ratio": 0.9675049474665101,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim19/444/p0/d4",
+              "ratio": 0.9672802698867469,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim20/444/p0/d4",
+              "ratio": 0.9607743072243695,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim21/444/p0/d4",
+              "ratio": 0.9622297924364444,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim22/444/p0/d4",
+              "ratio": 0.9641393195509468,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim23/444/p0/d4",
+              "ratio": 0.9632497784853791,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim24/444/p0/d4",
+              "ratio": 0.9613198320011795,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "smooth-gradient/444/p0/d4",
+              "ratio": 0.856115423637626,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-contrast/444/p0/d4",
+              "ratio": 0.8704910816947657,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "color-edges/444/p0/d4",
+              "ratio": 0.8834656690822371,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "line-art/444/p0/d4",
+              "ratio": 0.8720614866409679,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "structured-texture/444/p0/d4",
+              "ratio": 0.8856019431726561,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-noise/444/p0/d4",
+              "ratio": 0.8595123032976957,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "full-noise/444/p0/d4",
+              "ratio": 0.9070974885057699,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "tiny-odd-edges/444/p0/d4",
+              "ratio": 0.5277898114163758,
+              "valid": true,
+              "preference": "current"
+            }
+          ]
+        },
+        {
+          "cases": 32,
+          "valid": 32,
+          "invalid": 0,
+          "strongBaseline": 0,
+          "strongCurrent": 30,
+          "inconclusive": 2,
+          "currentFasterMedians": 32,
+          "validMedianGeometricMean": 0.8857023220828291,
+          "validMedianMinimum": 0.49539822252196863,
+          "validMedianMaximum": 0.9935205775519034,
+          "sampling": 444,
+          "progressiveLevel": 2,
+          "distance": 1,
+          "rows": [
+            {
+              "case": "kodim01/444/p2/d1",
+              "ratio": 0.9314804197709359,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim02/444/p2/d1",
+              "ratio": 0.9124963256575116,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim03/444/p2/d1",
+              "ratio": 0.9267903271915554,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim04/444/p2/d1",
+              "ratio": 0.9080854674260872,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim05/444/p2/d1",
+              "ratio": 0.9935205775519034,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim06/444/p2/d1",
+              "ratio": 0.882716217368651,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim07/444/p2/d1",
+              "ratio": 0.959487249630399,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim08/444/p2/d1",
+              "ratio": 0.9862243616536468,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim09/444/p2/d1",
+              "ratio": 0.909261610578562,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim10/444/p2/d1",
+              "ratio": 0.9081839124455139,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim11/444/p2/d1",
+              "ratio": 0.9591115749685893,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim12/444/p2/d1",
+              "ratio": 0.9154487852564661,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim13/444/p2/d1",
+              "ratio": 0.9038300416270524,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim14/444/p2/d1",
+              "ratio": 0.9615712605939052,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim15/444/p2/d1",
+              "ratio": 0.9721464650525823,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim16/444/p2/d1",
+              "ratio": 0.8316677296318913,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim17/444/p2/d1",
+              "ratio": 0.8409252933435222,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim18/444/p2/d1",
+              "ratio": 0.9846245773490261,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim19/444/p2/d1",
+              "ratio": 0.8974242855493382,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim20/444/p2/d1",
+              "ratio": 0.9458655782259967,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim21/444/p2/d1",
+              "ratio": 0.8796310037274776,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim22/444/p2/d1",
+              "ratio": 0.9669079563545788,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim23/444/p2/d1",
+              "ratio": 0.9038792783152506,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim24/444/p2/d1",
+              "ratio": 0.9776272918156351,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "smooth-gradient/444/p2/d1",
+              "ratio": 0.6699604240831343,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-contrast/444/p2/d1",
+              "ratio": 0.7938600829443044,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "color-edges/444/p2/d1",
+              "ratio": 0.8847269779459639,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "line-art/444/p2/d1",
+              "ratio": 0.7715525771978865,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "structured-texture/444/p2/d1",
+              "ratio": 0.9518212844665705,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-noise/444/p2/d1",
+              "ratio": 0.7895646298103246,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "full-noise/444/p2/d1",
+              "ratio": 0.952526913106851,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "tiny-odd-edges/444/p2/d1",
+              "ratio": 0.49539822252196863,
+              "valid": true,
+              "preference": "current"
+            }
+          ]
+        },
+        {
+          "cases": 32,
+          "valid": 32,
+          "invalid": 0,
+          "strongBaseline": 0,
+          "strongCurrent": 32,
+          "inconclusive": 0,
+          "currentFasterMedians": 32,
+          "validMedianGeometricMean": 0.7905694728954283,
+          "validMedianMinimum": 0.46843304317940354,
+          "validMedianMaximum": 0.9175354844909522,
+          "sampling": 444,
+          "progressiveLevel": 2,
+          "distance": 4,
+          "rows": [
+            {
+              "case": "kodim01/444/p2/d4",
+              "ratio": 0.8308390164658319,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim02/444/p2/d4",
+              "ratio": 0.7939764626892938,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim03/444/p2/d4",
+              "ratio": 0.8216193683776429,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim04/444/p2/d4",
+              "ratio": 0.7968718215992341,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim05/444/p2/d4",
+              "ratio": 0.8947319696190081,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim06/444/p2/d4",
+              "ratio": 0.8119812515851477,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim07/444/p2/d4",
+              "ratio": 0.7985585395843168,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim08/444/p2/d4",
+              "ratio": 0.8313128507558876,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim09/444/p2/d4",
+              "ratio": 0.7959335293753792,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim10/444/p2/d4",
+              "ratio": 0.7979786758486038,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim11/444/p2/d4",
+              "ratio": 0.8059384722809755,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim12/444/p2/d4",
+              "ratio": 0.7897920956964573,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim13/444/p2/d4",
+              "ratio": 0.8329895593336959,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim14/444/p2/d4",
+              "ratio": 0.8656485222021644,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim15/444/p2/d4",
+              "ratio": 0.7930047782925147,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim16/444/p2/d4",
+              "ratio": 0.7965119878989944,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim17/444/p2/d4",
+              "ratio": 0.7970551134288639,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim18/444/p2/d4",
+              "ratio": 0.818399401356763,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim19/444/p2/d4",
+              "ratio": 0.801572724595051,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim20/444/p2/d4",
+              "ratio": 0.7858411923478983,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim21/444/p2/d4",
+              "ratio": 0.7981036196955174,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim22/444/p2/d4",
+              "ratio": 0.8040282314939884,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim23/444/p2/d4",
+              "ratio": 0.7723179476062132,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim24/444/p2/d4",
+              "ratio": 0.8172279861610338,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "smooth-gradient/444/p2/d4",
+              "ratio": 0.6629512165981377,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-contrast/444/p2/d4",
+              "ratio": 0.7196702626102713,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "color-edges/444/p2/d4",
+              "ratio": 0.8981763106219445,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "line-art/444/p2/d4",
+              "ratio": 0.7692086849686514,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "structured-texture/444/p2/d4",
+              "ratio": 0.907391795361808,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-noise/444/p2/d4",
+              "ratio": 0.6606446930300667,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "full-noise/444/p2/d4",
+              "ratio": 0.9175354844909522,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "tiny-odd-edges/444/p2/d4",
+              "ratio": 0.46843304317940354,
+              "valid": true,
+              "preference": "current"
+            }
+          ]
+        },
+        {
+          "cases": 32,
+          "valid": 32,
+          "invalid": 0,
+          "strongBaseline": 0,
+          "strongCurrent": 18,
+          "inconclusive": 14,
+          "currentFasterMedians": 31,
+          "validMedianGeometricMean": 0.953782209747834,
+          "validMedianMinimum": 0.6051874863895668,
+          "validMedianMaximum": 1.0007007940652861,
+          "sampling": 420,
+          "progressiveLevel": 0,
+          "distance": 1,
+          "rows": [
+            {
+              "case": "kodim01/420/p0/d1",
+              "ratio": 0.9811235338208478,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim02/420/p0/d1",
+              "ratio": 0.983639284269904,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim03/420/p0/d1",
+              "ratio": 0.9772256891514954,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim04/420/p0/d1",
+              "ratio": 0.9763562230238281,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim05/420/p0/d1",
+              "ratio": 0.9911143623890338,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim06/420/p0/d1",
+              "ratio": 0.9794005868632303,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim07/420/p0/d1",
+              "ratio": 0.9808919204182525,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim08/420/p0/d1",
+              "ratio": 0.9879532975412466,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim09/420/p0/d1",
+              "ratio": 0.9780380271207574,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim10/420/p0/d1",
+              "ratio": 0.9814813934556499,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim11/420/p0/d1",
+              "ratio": 0.9811420570451531,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim12/420/p0/d1",
+              "ratio": 0.9843870782478523,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim13/420/p0/d1",
+              "ratio": 0.9894989046104505,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim14/420/p0/d1",
+              "ratio": 0.9817150147145339,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim15/420/p0/d1",
+              "ratio": 0.9800775644801891,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim16/420/p0/d1",
+              "ratio": 0.9811254279711923,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim17/420/p0/d1",
+              "ratio": 0.9784632673474181,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim18/420/p0/d1",
+              "ratio": 0.9809849393476974,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim19/420/p0/d1",
+              "ratio": 0.9785983430821747,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim20/420/p0/d1",
+              "ratio": 0.9794304794233486,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim21/420/p0/d1",
+              "ratio": 0.9837410019455111,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim22/420/p0/d1",
+              "ratio": 0.9921098159361562,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim23/420/p0/d1",
+              "ratio": 0.982588512604107,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim24/420/p0/d1",
+              "ratio": 1.0007007940652861,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "smooth-gradient/420/p0/d1",
+              "ratio": 0.9125135030583811,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-contrast/420/p0/d1",
+              "ratio": 0.909433103955495,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "color-edges/420/p0/d1",
+              "ratio": 0.9132290446797057,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "line-art/420/p0/d1",
+              "ratio": 0.9172780468687656,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "structured-texture/420/p0/d1",
+              "ratio": 0.9317150153740558,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-noise/420/p0/d1",
+              "ratio": 0.9095701605370914,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "full-noise/420/p0/d1",
+              "ratio": 0.931639243420991,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "tiny-odd-edges/420/p0/d1",
+              "ratio": 0.6051874863895668,
+              "valid": true,
+              "preference": "current"
+            }
+          ]
+        },
+        {
+          "cases": 32,
+          "valid": 32,
+          "invalid": 0,
+          "strongBaseline": 0,
+          "strongCurrent": 30,
+          "inconclusive": 2,
+          "currentFasterMedians": 32,
+          "validMedianGeometricMean": 0.9386162967932793,
+          "validMedianMinimum": 0.5443465025607797,
+          "validMedianMaximum": 0.9828191803890549,
+          "sampling": 420,
+          "progressiveLevel": 0,
+          "distance": 4,
+          "rows": [
+            {
+              "case": "kodim01/420/p0/d4",
+              "ratio": 0.9810770964640676,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim02/420/p0/d4",
+              "ratio": 0.9763502315463168,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim03/420/p0/d4",
+              "ratio": 0.9740954736858101,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim04/420/p0/d4",
+              "ratio": 0.9710734294981005,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim05/420/p0/d4",
+              "ratio": 0.9766462769616897,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim06/420/p0/d4",
+              "ratio": 0.9828191803890549,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim07/420/p0/d4",
+              "ratio": 0.977563473861644,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim08/420/p0/d4",
+              "ratio": 0.9776036617998975,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim09/420/p0/d4",
+              "ratio": 0.9677338162735896,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim10/420/p0/d4",
+              "ratio": 0.9681778930713634,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim11/420/p0/d4",
+              "ratio": 0.9783179644084494,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim12/420/p0/d4",
+              "ratio": 0.9765972141898795,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim13/420/p0/d4",
+              "ratio": 0.9785279551730289,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim14/420/p0/d4",
+              "ratio": 0.9775852811043002,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim15/420/p0/d4",
+              "ratio": 0.9748464771970522,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim16/420/p0/d4",
+              "ratio": 0.977328233579401,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim17/420/p0/d4",
+              "ratio": 0.9705098035447742,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim18/420/p0/d4",
+              "ratio": 0.9743714604532905,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim19/420/p0/d4",
+              "ratio": 0.9715263593362096,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim20/420/p0/d4",
+              "ratio": 0.9719013562833375,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim21/420/p0/d4",
+              "ratio": 0.9728121474340619,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim22/420/p0/d4",
+              "ratio": 0.9756141241529949,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim23/420/p0/d4",
+              "ratio": 0.9750736843322145,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim24/420/p0/d4",
+              "ratio": 0.974811775116019,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "smooth-gradient/420/p0/d4",
+              "ratio": 0.8952558742613599,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-contrast/420/p0/d4",
+              "ratio": 0.883806592303171,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "color-edges/420/p0/d4",
+              "ratio": 0.8876803033678029,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "line-art/420/p0/d4",
+              "ratio": 0.8915726674635733,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "structured-texture/420/p0/d4",
+              "ratio": 0.8905817398185356,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-noise/420/p0/d4",
+              "ratio": 0.8748896522836023,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "full-noise/420/p0/d4",
+              "ratio": 0.9079039244511677,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "tiny-odd-edges/420/p0/d4",
+              "ratio": 0.5443465025607797,
+              "valid": true,
+              "preference": "current"
+            }
+          ]
+        },
+        {
+          "cases": 32,
+          "valid": 32,
+          "invalid": 0,
+          "strongBaseline": 0,
+          "strongCurrent": 21,
+          "inconclusive": 11,
+          "currentFasterMedians": 29,
+          "validMedianGeometricMean": 0.9309356718563131,
+          "validMedianMinimum": 0.482336260260244,
+          "validMedianMaximum": 1.0057022419636903,
+          "sampling": 420,
+          "progressiveLevel": 2,
+          "distance": 1,
+          "rows": [
+            {
+              "case": "kodim01/420/p2/d1",
+              "ratio": 0.9983303114617725,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim02/420/p2/d1",
+              "ratio": 0.9886754689574231,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim03/420/p2/d1",
+              "ratio": 0.9740641184508623,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim04/420/p2/d1",
+              "ratio": 0.9885590048074933,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim05/420/p2/d1",
+              "ratio": 1.0033419395145289,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim06/420/p2/d1",
+              "ratio": 0.9934785284947703,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim07/420/p2/d1",
+              "ratio": 0.9816537826649774,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim08/420/p2/d1",
+              "ratio": 1.001451596182952,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim09/420/p2/d1",
+              "ratio": 0.9501188214514621,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim10/420/p2/d1",
+              "ratio": 0.9773465402639444,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim11/420/p2/d1",
+              "ratio": 0.9925286707308658,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim12/420/p2/d1",
+              "ratio": 0.9814627371508717,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim13/420/p2/d1",
+              "ratio": 1.0057022419636903,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim14/420/p2/d1",
+              "ratio": 0.9935964463646973,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim15/420/p2/d1",
+              "ratio": 0.9798465522663428,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim16/420/p2/d1",
+              "ratio": 0.9861326120202235,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim17/420/p2/d1",
+              "ratio": 0.9776681410978469,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim18/420/p2/d1",
+              "ratio": 0.999155471984063,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim19/420/p2/d1",
+              "ratio": 0.9759792282830114,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim20/420/p2/d1",
+              "ratio": 0.9608893347877558,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim21/420/p2/d1",
+              "ratio": 0.9657986171245252,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim22/420/p2/d1",
+              "ratio": 0.9939737491710686,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim23/420/p2/d1",
+              "ratio": 0.9571439730714059,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim24/420/p2/d1",
+              "ratio": 0.9999012204021409,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "smooth-gradient/420/p2/d1",
+              "ratio": 0.6827944945162009,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-contrast/420/p2/d1",
+              "ratio": 0.8559020303875344,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "color-edges/420/p2/d1",
+              "ratio": 0.8687166557936652,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "line-art/420/p2/d1",
+              "ratio": 0.8262252446949863,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "structured-texture/420/p2/d1",
+              "ratio": 0.9262092988812869,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-noise/420/p2/d1",
+              "ratio": 0.8495345249260032,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "full-noise/420/p2/d1",
+              "ratio": 0.929039696209454,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "tiny-odd-edges/420/p2/d1",
+              "ratio": 0.482336260260244,
+              "valid": true,
+              "preference": "current"
+            }
+          ]
+        },
+        {
+          "cases": 32,
+          "valid": 32,
+          "invalid": 0,
+          "strongBaseline": 0,
+          "strongCurrent": 32,
+          "inconclusive": 0,
+          "currentFasterMedians": 32,
+          "validMedianGeometricMean": 0.8698936980250753,
+          "validMedianMinimum": 0.45849577888089854,
+          "validMedianMaximum": 0.9783228280821483,
+          "sampling": 420,
+          "progressiveLevel": 2,
+          "distance": 4,
+          "rows": [
+            {
+              "case": "kodim01/420/p2/d4",
+              "ratio": 0.9406834799307354,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim02/420/p2/d4",
+              "ratio": 0.9136680508718475,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim03/420/p2/d4",
+              "ratio": 0.9280735808969174,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim04/420/p2/d4",
+              "ratio": 0.9151931905996916,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim05/420/p2/d4",
+              "ratio": 0.9783228280821483,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim06/420/p2/d4",
+              "ratio": 0.9145150503315125,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim07/420/p2/d4",
+              "ratio": 0.9548628745960219,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim08/420/p2/d4",
+              "ratio": 0.9505712264581176,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim09/420/p2/d4",
+              "ratio": 0.9206989610512168,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim10/420/p2/d4",
+              "ratio": 0.8965586013462985,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim11/420/p2/d4",
+              "ratio": 0.9197222309437256,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim12/420/p2/d4",
+              "ratio": 0.9187419594933,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim13/420/p2/d4",
+              "ratio": 0.9284346080909167,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim14/420/p2/d4",
+              "ratio": 0.9463520706267557,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim15/420/p2/d4",
+              "ratio": 0.9437706971816311,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim16/420/p2/d4",
+              "ratio": 0.8824953431883982,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim17/420/p2/d4",
+              "ratio": 0.8878961977895563,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim18/420/p2/d4",
+              "ratio": 0.9434393085220165,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim19/420/p2/d4",
+              "ratio": 0.8839744820070218,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim20/420/p2/d4",
+              "ratio": 0.9303762033125702,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim21/420/p2/d4",
+              "ratio": 0.8959605043227457,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim22/420/p2/d4",
+              "ratio": 0.9171430204435629,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim23/420/p2/d4",
+              "ratio": 0.8920653412403254,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "kodim24/420/p2/d4",
+              "ratio": 0.9199043942665314,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "smooth-gradient/420/p2/d4",
+              "ratio": 0.6827219567087457,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-contrast/420/p2/d4",
+              "ratio": 0.6906436012277455,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "color-edges/420/p2/d4",
+              "ratio": 0.8631898898022641,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "line-art/420/p2/d4",
+              "ratio": 0.8117984051842437,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "structured-texture/420/p2/d4",
+              "ratio": 0.8929476292073749,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "low-noise/420/p2/d4",
+              "ratio": 0.6802026275691648,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "full-noise/420/p2/d4",
+              "ratio": 0.8936566518991992,
+              "valid": true,
+              "preference": "current"
+            },
+            {
+              "case": "tiny-odd-edges/420/p2/d4",
+              "ratio": 0.45849577888089854,
+              "valid": true,
+              "preference": "current"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "algorithmScenarios": [
+    {
+      "cases": 64,
+      "valid": 57,
+      "invalid": 7,
+      "strongBaseline": 6,
+      "strongCurrent": 0,
+      "inconclusive": 51,
+      "currentFasterMedians": 15,
+      "validMedianGeometricMean": 1.00288686031845,
+      "validMedianMinimum": 0.9914249360487849,
+      "validMedianMaximum": 1.0130733464820953,
+      "lane": "X64-net11.0-default",
+      "variant": "full-width-transpose",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "vectorFloatWidth": 8,
+      "vector256": true,
+      "vector512": true,
+      "groups": [
+        {
+          "cases": 8,
+          "valid": 6,
+          "invalid": 2,
+          "strongBaseline": 0,
+          "strongCurrent": 0,
+          "inconclusive": 6,
+          "currentFasterMedians": 1,
+          "validMedianGeometricMean": 1.004458266892081,
+          "validMedianMinimum": 0.9993638169891953,
+          "validMedianMaximum": 1.0118667501662943,
+          "sampling": 444,
+          "progressiveLevel": 0,
+          "distance": 1,
+          "rows": [
+            {
+              "case": "kodim01/444/p0/d1",
+              "ratio": 1.00365156427051,
+              "valid": false,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim02/444/p0/d1",
+              "ratio": 1.0022224228494174,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim04/444/p0/d1",
+              "ratio": 1.0118667501662943,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim22/444/p0/d1",
+              "ratio": 1.0078252694466459,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-contrast/444/p0/d1",
+              "ratio": 0.9993638169891953,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-noise/444/p0/d1",
+              "ratio": 1.0052871440754263,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "full-noise/444/p0/d1",
+              "ratio": 1.0002416878790776,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "tiny-odd-edges/444/p0/d1",
+              "ratio": 1.0042045057557971,
+              "valid": false,
+              "preference": "inconclusive"
+            }
+          ]
+        },
+        {
+          "cases": 8,
+          "valid": 8,
+          "invalid": 0,
+          "strongBaseline": 2,
+          "strongCurrent": 0,
+          "inconclusive": 6,
+          "currentFasterMedians": 2,
+          "validMedianGeometricMean": 1.0030921823492929,
+          "validMedianMinimum": 0.9979460920765654,
+          "validMedianMaximum": 1.0099257532949284,
+          "sampling": 444,
+          "progressiveLevel": 0,
+          "distance": 4,
+          "rows": [
+            {
+              "case": "kodim01/444/p0/d4",
+              "ratio": 1.0027737324068977,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim02/444/p0/d4",
+              "ratio": 1.005747718599074,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim04/444/p0/d4",
+              "ratio": 1.0082004642519995,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim22/444/p0/d4",
+              "ratio": 1.0099257532949284,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-contrast/444/p0/d4",
+              "ratio": 0.9986322009780293,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-noise/444/p0/d4",
+              "ratio": 1.0014329025728728,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "full-noise/444/p0/d4",
+              "ratio": 1.000147184467892,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "tiny-odd-edges/444/p0/d4",
+              "ratio": 0.9979460920765654,
+              "valid": true,
+              "preference": "inconclusive"
+            }
+          ]
+        },
+        {
+          "cases": 8,
+          "valid": 7,
+          "invalid": 1,
+          "strongBaseline": 0,
+          "strongCurrent": 0,
+          "inconclusive": 7,
+          "currentFasterMedians": 2,
+          "validMedianGeometricMean": 1.0026880684030894,
+          "validMedianMinimum": 0.9966372383581947,
+          "validMedianMaximum": 1.008194648075745,
+          "sampling": 444,
+          "progressiveLevel": 2,
+          "distance": 1,
+          "rows": [
+            {
+              "case": "kodim01/444/p2/d1",
+              "ratio": 1.0052925776881487,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim02/444/p2/d1",
+              "ratio": 1.007535108818694,
+              "valid": false,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim04/444/p2/d1",
+              "ratio": 1.008194648075745,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim22/444/p2/d1",
+              "ratio": 1.0078762699837425,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-contrast/444/p2/d1",
+              "ratio": 0.9977029825611569,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-noise/444/p2/d1",
+              "ratio": 1.002241341768498,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "full-noise/444/p2/d1",
+              "ratio": 0.9966372383581947,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "tiny-odd-edges/444/p2/d1",
+              "ratio": 1.0009356362877595,
+              "valid": true,
+              "preference": "inconclusive"
+            }
+          ]
+        },
+        {
+          "cases": 8,
+          "valid": 7,
+          "invalid": 1,
+          "strongBaseline": 2,
+          "strongCurrent": 0,
+          "inconclusive": 5,
+          "currentFasterMedians": 0,
+          "validMedianGeometricMean": 1.005877171416692,
+          "validMedianMinimum": 1.001036033328488,
+          "validMedianMaximum": 1.0130733464820953,
+          "sampling": 444,
+          "progressiveLevel": 2,
+          "distance": 4,
+          "rows": [
+            {
+              "case": "kodim01/444/p2/d4",
+              "ratio": 1.006294391294274,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim02/444/p2/d4",
+              "ratio": 1.0090203734939684,
+              "valid": false,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim04/444/p2/d4",
+              "ratio": 1.0130733464820953,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim22/444/p2/d4",
+              "ratio": 1.0096266377950032,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-contrast/444/p2/d4",
+              "ratio": 1.004452310546978,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-noise/444/p2/d4",
+              "ratio": 1.005107476364305,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "full-noise/444/p2/d4",
+              "ratio": 1.001036033328488,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "tiny-odd-edges/444/p2/d4",
+              "ratio": 1.0016047718127714,
+              "valid": true,
+              "preference": "inconclusive"
+            }
+          ]
+        },
+        {
+          "cases": 8,
+          "valid": 7,
+          "invalid": 1,
+          "strongBaseline": 0,
+          "strongCurrent": 0,
+          "inconclusive": 7,
+          "currentFasterMedians": 1,
+          "validMedianGeometricMean": 1.0044809747224566,
+          "validMedianMinimum": 0.9914249360487849,
+          "validMedianMaximum": 1.0093162160250493,
+          "sampling": 420,
+          "progressiveLevel": 0,
+          "distance": 1,
+          "rows": [
+            {
+              "case": "kodim01/420/p0/d1",
+              "ratio": 1.0050399594147985,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim02/420/p0/d1",
+              "ratio": 1.0093162160250493,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim04/420/p0/d1",
+              "ratio": 1.0047834096177972,
+              "valid": false,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim22/420/p0/d1",
+              "ratio": 1.0082331356445373,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-contrast/420/p0/d1",
+              "ratio": 1.0065215414123139,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-noise/420/p0/d1",
+              "ratio": 1.0049931018477174,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "full-noise/420/p0/d1",
+              "ratio": 1.00594553848323,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "tiny-odd-edges/420/p0/d1",
+              "ratio": 0.9914249360487849,
+              "valid": true,
+              "preference": "inconclusive"
+            }
+          ]
+        },
+        {
+          "cases": 8,
+          "valid": 7,
+          "invalid": 1,
+          "strongBaseline": 2,
+          "strongCurrent": 0,
+          "inconclusive": 5,
+          "currentFasterMedians": 0,
+          "validMedianGeometricMean": 1.0073608808072112,
+          "validMedianMinimum": 1.0051670201786276,
+          "validMedianMaximum": 1.0104335016158106,
+          "sampling": 420,
+          "progressiveLevel": 0,
+          "distance": 4,
+          "rows": [
+            {
+              "case": "kodim01/420/p0/d4",
+              "ratio": 1.0074446728590063,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim02/420/p0/d4",
+              "ratio": 1.0104335016158106,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim04/420/p0/d4",
+              "ratio": 1.006922432398978,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim22/420/p0/d4",
+              "ratio": 1.0074257352091123,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-contrast/420/p0/d4",
+              "ratio": 1.006087416785462,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-noise/420/p0/d4",
+              "ratio": 1.0080536001976457,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "full-noise/420/p0/d4",
+              "ratio": 1.0051670201786276,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "tiny-odd-edges/420/p0/d4",
+              "ratio": 0.999366280776842,
+              "valid": false,
+              "preference": "inconclusive"
+            }
+          ]
+        },
+        {
+          "cases": 8,
+          "valid": 7,
+          "invalid": 1,
+          "strongBaseline": 0,
+          "strongCurrent": 0,
+          "inconclusive": 7,
+          "currentFasterMedians": 5,
+          "validMedianGeometricMean": 0.9975975150383317,
+          "validMedianMinimum": 0.9916681477836524,
+          "validMedianMaximum": 1.0042042000681575,
+          "sampling": 420,
+          "progressiveLevel": 2,
+          "distance": 1,
+          "rows": [
+            {
+              "case": "kodim01/420/p2/d1",
+              "ratio": 0.9943391742172796,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim02/420/p2/d1",
+              "ratio": 1.0042042000681575,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim04/420/p2/d1",
+              "ratio": 1.003885805238198,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim22/420/p2/d1",
+              "ratio": 0.9983398095773424,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-contrast/420/p2/d1",
+              "ratio": 0.9916681477836524,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-noise/420/p2/d1",
+              "ratio": 0.9972657289170608,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "full-noise/420/p2/d1",
+              "ratio": 1.0005240855989412,
+              "valid": false,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "tiny-odd-edges/420/p2/d1",
+              "ratio": 0.9935528329049371,
+              "valid": true,
+              "preference": "inconclusive"
+            }
+          ]
+        },
+        {
+          "cases": 8,
+          "valid": 8,
+          "invalid": 0,
+          "strongBaseline": 0,
+          "strongCurrent": 0,
+          "inconclusive": 8,
+          "currentFasterMedians": 4,
+          "validMedianGeometricMean": 0.9984158742489636,
+          "validMedianMinimum": 0.9950209805697365,
+          "validMedianMaximum": 1.0013251039916156,
+          "sampling": 420,
+          "progressiveLevel": 2,
+          "distance": 4,
+          "rows": [
+            {
+              "case": "kodim01/420/p2/d4",
+              "ratio": 1.0001297054207834,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim02/420/p2/d4",
+              "ratio": 1.00068227495126,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim04/420/p2/d4",
+              "ratio": 0.9958595569172407,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim22/420/p2/d4",
+              "ratio": 1.0013251039916156,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-contrast/420/p2/d4",
+              "ratio": 0.9972763398116886,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-noise/420/p2/d4",
+              "ratio": 1.0010495293953527,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "full-noise/420/p2/d4",
+              "ratio": 0.9960078608586705,
+              "valid": true,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "tiny-odd-edges/420/p2/d4",
+              "ratio": 0.9950209805697365,
+              "valid": true,
+              "preference": "inconclusive"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cases": 64,
+      "valid": 56,
+      "invalid": 8,
+      "strongBaseline": 49,
+      "strongCurrent": 0,
+      "inconclusive": 7,
+      "currentFasterMedians": 1,
+      "validMedianGeometricMean": 1.079333340016372,
+      "validMedianMinimum": 0.9954338303273494,
+      "validMedianMaximum": 1.1564990153322783,
+      "lane": "X64-net11.0-default",
+      "variant": "sparse-transposed",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "vectorFloatWidth": 8,
+      "vector256": true,
+      "vector512": true,
+      "groups": [
+        {
+          "cases": 8,
+          "valid": 6,
+          "invalid": 2,
+          "strongBaseline": 5,
+          "strongCurrent": 0,
+          "inconclusive": 1,
+          "currentFasterMedians": 1,
+          "validMedianGeometricMean": 1.1033611102813843,
+          "validMedianMinimum": 0.9954338303273494,
+          "validMedianMaximum": 1.1564990153322783,
+          "sampling": 444,
+          "progressiveLevel": 0,
+          "distance": 1,
+          "rows": [
+            {
+              "case": "kodim01/444/p0/d1",
+              "ratio": 1.0935654519894293,
+              "valid": false,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim02/444/p0/d1",
+              "ratio": 1.1407952837711282,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim04/444/p0/d1",
+              "ratio": 1.122994704281678,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim22/444/p0/d1",
+              "ratio": 1.1257202901455559,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-contrast/444/p0/d1",
+              "ratio": 1.0867570142953995,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-noise/444/p0/d1",
+              "ratio": 1.1564990153322783,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "full-noise/444/p0/d1",
+              "ratio": 1.0917844456971117,
+              "valid": false,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "tiny-odd-edges/444/p0/d1",
+              "ratio": 0.9954338303273494,
+              "valid": true,
+              "preference": "inconclusive"
+            }
+          ]
+        },
+        {
+          "cases": 8,
+          "valid": 8,
+          "invalid": 0,
+          "strongBaseline": 7,
+          "strongCurrent": 0,
+          "inconclusive": 1,
+          "currentFasterMedians": 0,
+          "validMedianGeometricMean": 1.103093948551679,
+          "validMedianMinimum": 1.0041006368951595,
+          "validMedianMaximum": 1.1410463419990378,
+          "sampling": 444,
+          "progressiveLevel": 0,
+          "distance": 4,
+          "rows": [
+            {
+              "case": "kodim01/444/p0/d4",
+              "ratio": 1.1410463419990378,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim02/444/p0/d4",
+              "ratio": 1.1348230407980175,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim04/444/p0/d4",
+              "ratio": 1.1211100508135683,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim22/444/p0/d4",
+              "ratio": 1.1386745851131446,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-contrast/444/p0/d4",
+              "ratio": 1.0837659190877937,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-noise/444/p0/d4",
+              "ratio": 1.1066768047597515,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "full-noise/444/p0/d4",
+              "ratio": 1.1012531803339085,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "tiny-odd-edges/444/p0/d4",
+              "ratio": 1.0041006368951595,
+              "valid": true,
+              "preference": "inconclusive"
+            }
+          ]
+        },
+        {
+          "cases": 8,
+          "valid": 7,
+          "invalid": 1,
+          "strongBaseline": 6,
+          "strongCurrent": 0,
+          "inconclusive": 1,
+          "currentFasterMedians": 0,
+          "validMedianGeometricMean": 1.0628308737288823,
+          "validMedianMinimum": 1.0017987438885096,
+          "validMedianMaximum": 1.0981704519851705,
+          "sampling": 444,
+          "progressiveLevel": 2,
+          "distance": 1,
+          "rows": [
+            {
+              "case": "kodim01/444/p2/d1",
+              "ratio": 1.0588881313810425,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim02/444/p2/d1",
+              "ratio": 1.094750566514904,
+              "valid": false,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim04/444/p2/d1",
+              "ratio": 1.088699442996144,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim22/444/p2/d1",
+              "ratio": 1.0795391351297892,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-contrast/444/p2/d1",
+              "ratio": 1.0862978685727072,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-noise/444/p2/d1",
+              "ratio": 1.0981704519851705,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "full-noise/444/p2/d1",
+              "ratio": 1.030038587054003,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "tiny-odd-edges/444/p2/d1",
+              "ratio": 1.0017987438885096,
+              "valid": true,
+              "preference": "inconclusive"
+            }
+          ]
+        },
+        {
+          "cases": 8,
+          "valid": 8,
+          "invalid": 0,
+          "strongBaseline": 7,
+          "strongCurrent": 0,
+          "inconclusive": 1,
+          "currentFasterMedians": 0,
+          "validMedianGeometricMean": 1.0755431268501996,
+          "validMedianMinimum": 1.0008741814359334,
+          "validMedianMaximum": 1.1063561615211683,
+          "sampling": 444,
+          "progressiveLevel": 2,
+          "distance": 4,
+          "rows": [
+            {
+              "case": "kodim01/444/p2/d4",
+              "ratio": 1.0875615677996469,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim02/444/p2/d4",
+              "ratio": 1.1063561615211683,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim04/444/p2/d4",
+              "ratio": 1.0966802875856265,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim22/444/p2/d4",
+              "ratio": 1.1019786012676107,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-contrast/444/p2/d4",
+              "ratio": 1.085102137871641,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-noise/444/p2/d4",
+              "ratio": 1.0832717587671055,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "full-noise/444/p2/d4",
+              "ratio": 1.046726208340044,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "tiny-odd-edges/444/p2/d4",
+              "ratio": 1.0008741814359334,
+              "valid": true,
+              "preference": "inconclusive"
+            }
+          ]
+        },
+        {
+          "cases": 8,
+          "valid": 8,
+          "invalid": 0,
+          "strongBaseline": 7,
+          "strongCurrent": 0,
+          "inconclusive": 1,
+          "currentFasterMedians": 0,
+          "validMedianGeometricMean": 1.0839977203178581,
+          "validMedianMinimum": 1.0136873336810157,
+          "validMedianMaximum": 1.140701995298668,
+          "sampling": 420,
+          "progressiveLevel": 0,
+          "distance": 1,
+          "rows": [
+            {
+              "case": "kodim01/420/p0/d1",
+              "ratio": 1.102550437402359,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim02/420/p0/d1",
+              "ratio": 1.140701995298668,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim04/420/p0/d1",
+              "ratio": 1.1220460958763576,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim22/420/p0/d1",
+              "ratio": 1.1123435754182145,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-contrast/420/p0/d1",
+              "ratio": 1.0593467681302786,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-noise/420/p0/d1",
+              "ratio": 1.0797717767593369,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "full-noise/420/p0/d1",
+              "ratio": 1.0474480596914777,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "tiny-odd-edges/420/p0/d1",
+              "ratio": 1.0136873336810157,
+              "valid": true,
+              "preference": "inconclusive"
+            }
+          ]
+        },
+        {
+          "cases": 8,
+          "valid": 6,
+          "invalid": 2,
+          "strongBaseline": 6,
+          "strongCurrent": 0,
+          "inconclusive": 0,
+          "currentFasterMedians": 0,
+          "validMedianGeometricMean": 1.0915188655045436,
+          "validMedianMinimum": 1.0556034593153976,
+          "validMedianMaximum": 1.127280455903331,
+          "sampling": 420,
+          "progressiveLevel": 0,
+          "distance": 4,
+          "rows": [
+            {
+              "case": "kodim01/420/p0/d4",
+              "ratio": 1.127280455903331,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim02/420/p0/d4",
+              "ratio": 1.1192576675448902,
+              "valid": false,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim04/420/p0/d4",
+              "ratio": 1.108611144892254,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim22/420/p0/d4",
+              "ratio": 1.1230849879907447,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-contrast/420/p0/d4",
+              "ratio": 1.0556034593153976,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-noise/420/p0/d4",
+              "ratio": 1.06349673270681,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "full-noise/420/p0/d4",
+              "ratio": 1.0733137011152012,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "tiny-odd-edges/420/p0/d4",
+              "ratio": 1.0069967592673261,
+              "valid": false,
+              "preference": "inconclusive"
+            }
+          ]
+        },
+        {
+          "cases": 8,
+          "valid": 8,
+          "invalid": 0,
+          "strongBaseline": 7,
+          "strongCurrent": 0,
+          "inconclusive": 1,
+          "currentFasterMedians": 0,
+          "validMedianGeometricMean": 1.056820125059497,
+          "validMedianMinimum": 1.0008463475229443,
+          "validMedianMaximum": 1.087023706374449,
+          "sampling": 420,
+          "progressiveLevel": 2,
+          "distance": 1,
+          "rows": [
+            {
+              "case": "kodim01/420/p2/d1",
+              "ratio": 1.0589016840380907,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim02/420/p2/d1",
+              "ratio": 1.087023706374449,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim04/420/p2/d1",
+              "ratio": 1.077464201476583,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim22/420/p2/d1",
+              "ratio": 1.0722506534111824,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-contrast/420/p2/d1",
+              "ratio": 1.0811434827112156,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "low-noise/420/p2/d1",
+              "ratio": 1.0645058175020767,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "full-noise/420/p2/d1",
+              "ratio": 1.015818209021735,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "tiny-odd-edges/420/p2/d1",
+              "ratio": 1.0008463475229443,
+              "valid": true,
+              "preference": "inconclusive"
+            }
+          ]
+        },
+        {
+          "cases": 8,
+          "valid": 5,
+          "invalid": 3,
+          "strongBaseline": 4,
+          "strongCurrent": 0,
+          "inconclusive": 1,
+          "currentFasterMedians": 0,
+          "validMedianGeometricMean": 1.0572129288791097,
+          "validMedianMinimum": 1.004353076179294,
+          "validMedianMaximum": 1.0908140075733765,
+          "sampling": 420,
+          "progressiveLevel": 2,
+          "distance": 4,
+          "rows": [
+            {
+              "case": "kodim01/420/p2/d4",
+              "ratio": 1.08771319992074,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim02/420/p2/d4",
+              "ratio": 1.1012723456200417,
+              "valid": false,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "kodim04/420/p2/d4",
+              "ratio": 1.0908140075733765,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "kodim22/420/p2/d4",
+              "ratio": 1.0978821634107698,
+              "valid": false,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-contrast/420/p2/d4",
+              "ratio": 1.0490727625605611,
+              "valid": false,
+              "preference": "inconclusive"
+            },
+            {
+              "case": "low-noise/420/p2/d4",
+              "ratio": 1.0639025171998968,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "full-noise/420/p2/d4",
+              "ratio": 1.041739117111971,
+              "valid": true,
+              "preference": "baseline"
+            },
+            {
+              "case": "tiny-odd-edges/420/p2/d4",
+              "ratio": 1.004353076179294,
+              "valid": true,
+              "preference": "inconclusive"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "matchingRawLegsIncludingEarlierTrials": 9816,
+  "retainedEarlierInvalidTrials": 25
+}

@@ -1,0 +1,280 @@
+{
+  "schemaVersion": 1,
+  "runId": 41668548392,
+  "runAttempt": 1,
+  "runUrl": "https://github.com/symbiogenesis/DotJpegli/actions/runs/41668548392/attempts/1",
+  "sourceRevision": "a0450526af276d2f686a820a523c270aa30f09f1",
+  "artifacts": [
+    {
+      "artifactId": 13248760514,
+      "artifactName": "release-regression-X64-net11.0-default-a0450526af276d2f686a820a523c270aa30f09f1-attempt1",
+      "archiveDigest": "sha256:646f12b002b7a41c03c84df1f25cbf267834d29a4f313ed1c83da355b35e60dc",
+      "archiveBytes": 19677653,
+      "retainedFiles": [
+        {
+          "path": "release/X64-net11.0-default/cases.json",
+          "artifactPath": "release-regression/cases.json",
+          "sha256": "69123dfecbdc36b6f904eb389ecdd84621187bb5724a63afbfa1298ee0e83901"
+        },
+        {
+          "path": "release/X64-net11.0-default/summary.json",
+          "artifactPath": "release-regression/summary.json",
+          "sha256": "82e35957d3a1542bc7424145a7664ae0887cbcc006de5a881b698f24ff103de3"
+        },
+        {
+          "path": "release/X64-net11.0-default/run.json",
+          "artifactPath": "release-regression/run.json",
+          "sha256": "2c63a7dea0343051cf7727386799f2f62b7a13d08b99196f5bf872d13d69a4ae"
+        },
+        {
+          "path": "release/X64-net11.0-default/sources.json",
+          "artifactPath": "release-regression/sources.json",
+          "sha256": "f7bda0ffbb89f0db3c2a2db604ef7cd557d5d63d41aa6ea2d3a71c881ee80dcb"
+        },
+        {
+          "path": "release/X64-net11.0-default/report.md",
+          "artifactPath": "release-regression/report.md",
+          "sha256": "0e676c9c2547e6da9044006979f108096ccefb88ea573653003b56ff0e008116"
+        },
+        {
+          "path": "release/X64-net11.0-default/build-provenance/build.txt",
+          "artifactPath": "release-build-provenance/build.txt",
+          "sha256": "6a08ce5b72e954f953dec25927476a9d1ebeb314e4d161c685acfc8c7e59bf2d"
+        },
+        {
+          "path": "release/X64-net11.0-default/build-provenance/released-packages.lock.json",
+          "artifactPath": "release-build-provenance/released-packages.lock.json",
+          "sha256": "95d5fbc6978dafea463391f0a77a3567b84a2c5805c8e55404d4a8ab4ed31296"
+        },
+        {
+          "path": "release/X64-net11.0-default/build-provenance/rebuilt-packages.lock.json",
+          "artifactPath": "release-build-provenance/rebuilt-packages.lock.json",
+          "sha256": "16108ff48559cf439bbfa908b0050a163e36e1a2a49144e412392ac613152e7c"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim01_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_444_p0_d1.json",
+          "sha256": "830ab126f327b710e401ed42d2e2095fdc5d4abed1a7949f3ad545d66e87e2fe"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim01_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_420_p2_d1.json",
+          "sha256": "75e04723d50d85ee8d2214d2829cf807bd56b824a8c61f0063082c87ee194c2b"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim01_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_420_p2_d4.json",
+          "sha256": "781ebe86257e4072bfffc6363e27bc38454cf2eb2886acfc5cf07a3331c76e7f"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim03_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim03_444_p0_d1.json",
+          "sha256": "45b955e6741c8cb6024df1818ccc3a948d0d9fd894d6b3ac8727541df0594ccd"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim03_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim03_420_p2_d1.json",
+          "sha256": "ebd46dd1efb4d11b1966cbc7c7a23304ad0b2a004d8d56c2ca283c968f9de855"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim03_420_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim03_420_p2_d1_attempt02.json",
+          "sha256": "7ffde325af0cf892466bebea552876078a130b55b03d3205d4c4fd2cc230e84d"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim04_444_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim04_444_p0_d4.json",
+          "sha256": "a45d76df30eed503a1be5b989613d99d190d3fe6dc6219ff3b29c80296de26fe"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim11_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_420_p0_d1.json",
+          "sha256": "baf21f7bd75bc8f3b2628e444418bf6abc8c9f4622e606e8f3577957e2277949"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim11_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_420_p0_d1_attempt02.json",
+          "sha256": "45e2ffd904681904d26453c0a83f9af7c71a870c839b18dc49dd4c37f2149483"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim12_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_420_p0_d1.json",
+          "sha256": "76a902715f31a1bfacb1e99fa4385ca69ddee5df5c8d0c75a666d9eba1789976"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim12_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_420_p2_d1.json",
+          "sha256": "de6808643fff253a5e5a54aad672f4ca70ba92c0840fa0bd3b220263f2ec6bdc"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim17_444_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim17_444_p0_d4.json",
+          "sha256": "c5247acca96e36cb77e3795f9eabf15c743ef4199a81816b34de6e8cb030131c"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim20_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim20_444_p2_d1.json",
+          "sha256": "1d03fdabe416617c71353a4351b91b5a87c83737d2de3a8de640fbf13cf0c3bc"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim20_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim20_444_p2_d4.json",
+          "sha256": "11c071f0cd6bc6d1e5a3afdcba716201664fbb58006d7563d5f9c4e08217a69a"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim21_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim21_420_p0_d1.json",
+          "sha256": "5bf1595cf5f8beae1b957b2d3c3ccbffb3e2fb6af8e270e59ac211c79a985d48"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim22_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim22_420_p0_d4.json",
+          "sha256": "b588811f556a69b926f8be52301f5f2d3028256490b8a251f84624fcb23a7a4a"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/kodim24_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim24_444_p2_d4.json",
+          "sha256": "84c3b768639d5e296d99a3bc3755c75ffc1a33d404b875514a9262f3722abff5"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/low-contrast_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/low-contrast_444_p0_d1.json",
+          "sha256": "87f98fb975d1487062704d64c863d9386420c93df87e77942b39ac2c59223593"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/color-edges_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/color-edges_444_p2_d4.json",
+          "sha256": "9b01aeca3abc18b52508410680bbeeb02c62ab5cd15fd00c15586118d63e8302"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/color-edges_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/color-edges_420_p2_d1.json",
+          "sha256": "71320080d9cfbe913e4ba6d6c18af72cc3580f4ef5e5151144349f4d3d964944"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/line-art_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/line-art_420_p0_d1.json",
+          "sha256": "d4be6cd8808711a65f6c4df36b6884a80f9f2d029d54a9500e5d1de938beec66"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/low-noise_444_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_444_p0_d4.json",
+          "sha256": "bcac142853cf720e2102de4b0dccf3b3c5a6586c7e32861b3c003ce9738a1337"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/low-noise_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_444_p2_d1.json",
+          "sha256": "1fb1d30d16ef798f5ce8f116d64c53d9f817c0bd2738b034001f80d4a6a7d1f0"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/tiny-odd-edges_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_444_p0_d1.json",
+          "sha256": "2a57fb02aa6e3aab1ed2180b4554bc594a31863d998e3e368b4909a401d95ec8"
+        },
+        {
+          "path": "release/X64-net11.0-default/raw-comparisons/tiny-odd-edges_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p0_d1.json",
+          "sha256": "bcd63e42a5357a9c1a637389efd8560127a2618001ebe50c64d3fe7cdd1d717b"
+        }
+      ]
+    },
+    {
+      "artifactId": 13248561075,
+      "artifactName": "algorithm-scenarios-X64-net11.0-default-a0450526af276d2f686a820a523c270aa30f09f1-attempt1",
+      "archiveDigest": "sha256:c8ec962271eae70715fdf5f0be18ebd1fe6b18b4008e7642daa99e70921a160a",
+      "archiveBytes": 7312578,
+      "retainedFiles": [
+        {
+          "path": "algorithms/X64-net11.0-default/full-width-transpose/evidence/cases.json",
+          "artifactPath": "full-width-transpose/evidence/cases.json",
+          "sha256": "3ad404628185ab6f69429ea0eb4551df709ca9859a622c89b9311d9710a22ffd"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/full-width-transpose/evidence/summary.json",
+          "artifactPath": "full-width-transpose/evidence/summary.json",
+          "sha256": "0bac7f4b4e89ea861d241f59e2bfc7f0583d0511011815ead3e68158dbb1da85"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/full-width-transpose/evidence/run.json",
+          "artifactPath": "full-width-transpose/evidence/run.json",
+          "sha256": "060c113ca1803d80b7961a617b2c5f929efc74dac96ee54cbd0187e00f1933eb"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/full-width-transpose/evidence/sources.json",
+          "artifactPath": "full-width-transpose/evidence/sources.json",
+          "sha256": "9c0e334e3033e0faa86756cf5b493d51fcdf3b942645da5d06269119c481ed0f"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/full-width-transpose/evidence/report.md",
+          "artifactPath": "full-width-transpose/evidence/report.md",
+          "sha256": "0ff0c5d567c028c33ddde5a3043e31b295a9376cd84ac13a7e67989bde084d7f"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/full-width-transpose/build-provenance/build.txt",
+          "artifactPath": "full-width-transpose/build-provenance/build.txt",
+          "sha256": "5e60fe96fbce83e7e5ff54b602bb17a455458a76f747c3b58f9778a56bf1a146"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/full-width-transpose/build-provenance/build.log",
+          "artifactPath": "full-width-transpose/build-provenance/build.log",
+          "sha256": "861cdd8e6177dc90f8c2d2dd20377e11b1eafda1a0b63cb87a136b49bd93d2ab"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/full-width-transpose/build-provenance/exit-code.txt",
+          "artifactPath": "full-width-transpose/build-provenance/exit-code.txt",
+          "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/full-width-transpose/README.md",
+          "artifactPath": "full-width-transpose/README.md",
+          "sha256": "27b7d91c86f8b34f15b2e448264631ff648baf2476a309f6ee39159377167379"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/sparse-transposed/evidence/cases.json",
+          "artifactPath": "sparse-transposed/evidence/cases.json",
+          "sha256": "b3ca28b6fe6943f424e56b043dfefc89eae94bfc369100b72ecd7f2de15f9a22"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/sparse-transposed/evidence/summary.json",
+          "artifactPath": "sparse-transposed/evidence/summary.json",
+          "sha256": "c5888118da5f98dcd93ea6037a86d6aa2e9e88f76cdf63fede716b4502636f1a"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/sparse-transposed/evidence/run.json",
+          "artifactPath": "sparse-transposed/evidence/run.json",
+          "sha256": "91ecc8553d0599284d387cd3fc4d3e27448e0802f0e2cf83e9976a4251ad478e"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/sparse-transposed/evidence/sources.json",
+          "artifactPath": "sparse-transposed/evidence/sources.json",
+          "sha256": "9c0e334e3033e0faa86756cf5b493d51fcdf3b942645da5d06269119c481ed0f"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/sparse-transposed/evidence/report.md",
+          "artifactPath": "sparse-transposed/evidence/report.md",
+          "sha256": "ba1d736bb574d83f484dc9803bca5caaf948a7c1bd6fb6cabcce234aa5be9931"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/sparse-transposed/build-provenance/build.txt",
+          "artifactPath": "sparse-transposed/build-provenance/build.txt",
+          "sha256": "1106336efe48a7e6c391511095e14b7bdf367ce3354bb068665bab883923f7a2"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/sparse-transposed/build-provenance/build.log",
+          "artifactPath": "sparse-transposed/build-provenance/build.log",
+          "sha256": "8a781b31a7b43538599c47ab1ed0b57ddb95ac1f4d97c0c5da71c2fc78ff1d87"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/sparse-transposed/build-provenance/exit-code.txt",
+          "artifactPath": "sparse-transposed/build-provenance/exit-code.txt",
+          "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+        },
+        {
+          "path": "algorithms/X64-net11.0-default/sparse-transposed/README.md",
+          "artifactPath": "sparse-transposed/README.md",
+          "sha256": "38f66e478925c8f19077a77c73860978228fa915c786f95ab1705834a4753439"
+        }
+      ]
+    }
+  ]
+}
