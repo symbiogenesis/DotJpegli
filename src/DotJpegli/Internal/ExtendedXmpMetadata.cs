@@ -18,7 +18,7 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
 
     internal static ExtendedXmpMetadata? Prepare(JpegliEncoderOptions options, CancellationToken cancellationToken)
     {
-        HashSet<XName> selection = AutomaticXmpPartitioning.CreateSelection(options, cancellationToken);
+        HashSet<XName>? selection = AutomaticXmpPartitioning.CreateSelection(options, cancellationToken);
         AutomaticXmpPartitioning.Partition? automatic = options.AutoPartitionXmp && !string.IsNullOrEmpty(options.XmpPacket)
             ? AutomaticXmpPartitioning.Prepare(options.XmpPacket, selection, cancellationToken) : null;
         string? packet = automatic?.ExtendedPacket ?? options.ExtendedXmpPacket;

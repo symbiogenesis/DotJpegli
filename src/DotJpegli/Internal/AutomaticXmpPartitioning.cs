@@ -20,12 +20,11 @@ internal static class AutomaticXmpPartitioning
 
     [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
         Justification = "Selection validation identifies the caller's StandardXmpProperties option.")]
-    internal static HashSet<XName> CreateSelection(JpegliEncoderOptions options, CancellationToken cancellationToken)
+    internal static HashSet<XName>? CreateSelection(JpegliEncoderOptions options, CancellationToken cancellationToken)
     {
-        var names = new HashSet<XName>();
         if (options.StandardXmpProperties is not { Count: > 0 } properties)
         {
-            return names;
+            return null;
         }
 
         if (!options.AutoPartitionXmp)
@@ -34,6 +33,7 @@ internal static class AutomaticXmpPartitioning
                 nameof(options.StandardXmpProperties));
         }
 
+        var names = new HashSet<XName>();
         foreach (XmpPropertyName property in properties)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -66,7 +66,7 @@ internal static class AutomaticXmpPartitioning
 
     [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
         Justification = "Packet validation identifies the caller's XmpPacket option forwarded to this helper.")]
-    internal static Partition? Prepare(string packet, HashSet<XName> selection, CancellationToken cancellationToken)
+    internal static Partition? Prepare(string packet, HashSet<XName>? selection, CancellationToken cancellationToken)
     {
         var chunks = new ExtendedXmpMetadata.Utf8Chunks(packet);
         int length = 0;
@@ -136,7 +136,7 @@ internal static class AutomaticXmpPartitioning
             // Serialize only the original root: declarations, document padding
             // and outer xpacket instructions are not part of extended XMP.
             XElement? standardRoot = null;
-            if (selection.Count != 0)
+            if (selection is { Count: > 0 })
             {
                 // Copy envelope attributes, including namespace declarations and
                 // inherited XML context, without large formatting/padding nodes.
