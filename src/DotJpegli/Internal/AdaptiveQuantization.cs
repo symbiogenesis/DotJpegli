@@ -40,7 +40,6 @@ internal sealed class AdaptiveQuantization : IDisposable
     private readonly bool useSelectionNetwork;
     private float[] luma = [];
     private float[] preErosion = [];
-    private float[] difference = [];
     private float[] fuzzy = [];
     private float[] strengths = [];
     private bool disposed;
@@ -79,7 +78,6 @@ internal sealed class AdaptiveQuantization : IDisposable
         {
             this.luma = this.Allocate(lumaLength);
             this.preErosion = this.Allocate(preErosionLength);
-            this.difference = this.Allocate(this.paddedWidth);
             this.fuzzy = this.Allocate(fuzzyLength);
         }
         catch
@@ -121,7 +119,6 @@ internal sealed class AdaptiveQuantization : IDisposable
         this.previousStorage = null;
         this.Return(ref this.luma);
         this.Return(ref this.preErosion);
-        this.Return(ref this.difference);
         this.Return(ref this.fuzzy);
         this.Return(ref this.strengths);
     }
@@ -326,8 +323,9 @@ internal sealed class AdaptiveQuantization : IDisposable
         const float gammaOffset = (float)(0.019 / InputScaling);
         float maskingScale = MathF.Sqrt((float)(211.50759899638012f * 1e8));
         int middle = (firstRow * this.lumaStride) + 1;
+        int output = outputRow * this.preStride;
         int x = 0;
-        if (useVector)
+        if (useVector && Vector<float>.Count % 4 == 0)
         {
             for (; x <= this.paddedWidth - Vector<float>.Count; x += Vector<float>.Count)
             {
@@ -355,30 +353,40 @@ internal sealed class AdaptiveQuantization : IDisposable
                 below = new(this.luma, index + (4 * this.lumaStride));
                 sum += PreErosionDifference(current, new(this.luma, index + (3 * this.lumaStride) - 1),
                     new(this.luma, index + (3 * this.lumaStride) + 1), above, below, gammaOffset, maskingScale);
-                sum.CopyTo(this.difference, x);
+                // Reduce each horizontal group while its four-row sums are
+                // still available. Explicit lane reads preserve the original
+                // left-to-right scalar reduction without width-sized staging.
+                for (int lane = 0; lane < Vector<float>.Count; lane += 4)
+                {
+                    this.preErosion[output + ((x + lane) / 4)] =
+                        (sum[lane] + sum[lane + 1] + sum[lane + 2] + sum[lane + 3]) * 0.25f;
+                }
             }
         }
 
-        for (; x < this.paddedWidth; x++)
+        for (; x < this.paddedWidth; x += 4)
         {
             int index = middle + x;
-            float sum = PreErosionDifference(this.luma[index], this.luma[index - 1], this.luma[index + 1],
-                this.luma[index - this.lumaStride], this.luma[index + this.lumaStride], gammaOffset, maskingScale);
-            for (int dy = 1; dy < 4; dy++)
-            {
-                int next = index + (dy * this.lumaStride);
-                sum += PreErosionDifference(this.luma[next], this.luma[next - 1], this.luma[next + 1],
-                    this.luma[next - this.lumaStride], this.luma[next + this.lumaStride], gammaOffset, maskingScale);
-            }
-            this.difference[x] = sum;
+            float first = this.PreErosionColumn(index, gammaOffset, maskingScale);
+            float second = this.PreErosionColumn(index + 1, gammaOffset, maskingScale);
+            float third = this.PreErosionColumn(index + 2, gammaOffset, maskingScale);
+            float fourth = this.PreErosionColumn(index + 3, gammaOffset, maskingScale);
+            this.preErosion[output + (x / 4)] = (first + second + third + fourth) * 0.25f;
         }
-        int output = outputRow * this.preStride;
-        for (x = 0; x < this.preStride; x++)
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private float PreErosionColumn(int index, float gammaOffset, float maskingScale)
+    {
+        float sum = PreErosionDifference(this.luma[index], this.luma[index - 1], this.luma[index + 1],
+            this.luma[index - this.lumaStride], this.luma[index + this.lumaStride], gammaOffset, maskingScale);
+        for (int dy = 1; dy < 4; dy++)
         {
-            int offset = x * 4;
-            this.preErosion[output + x] = (this.difference[offset] + this.difference[offset + 1]
-                + this.difference[offset + 2] + this.difference[offset + 3]) * 0.25f;
+            int next = index + (dy * this.lumaStride);
+            sum += PreErosionDifference(this.luma[next], this.luma[next - 1], this.luma[next + 1],
+                this.luma[next - this.lumaStride], this.luma[next + this.lumaStride], gammaOffset, maskingScale);
         }
+        return sum;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -88,6 +88,18 @@ strength-bit fixtures cover one-row and odd-edge images, sampling factors one
 through four, scalar/vector paths and immutable converted-plane reuse. The
 avoided stencil work does not establish an end-to-end speed improvement.
 
+Pre-erosion also reduces each completed four-pixel group directly into its output.
+The vector path reads four lanes in their original order; the scalar path keeps
+four column sums. Each column retains its four-row addition order, followed by
+the original left-to-right horizontal sum and multiplication. This eliminates
+the padded-width `difference` array, its full-row stores and subsequent reads:
+three scratch arrays are prepared, with a fourth rented lazily for strengths.
+The removed request was four bytes times the padded source width; its pooled
+capacity could be larger. An independent original staged-stencil oracle compares
+intermediate result bits across boundaries, sampling factors and neighborhood
+reuse. Pool regressions cover dirty tails, failed rentals and cleanup. This
+storage reduction does not establish latency or peak-working-memory savings.
+
 Fuzzy erosion retains both the four-value insertion algorithm (45 min/max
 operations) and the pruned seven-layer network (39 operations). Narrow
 transposed zigzag ordering retains the original shuffle network and adjacent-

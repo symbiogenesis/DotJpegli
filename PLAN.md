@@ -38,6 +38,12 @@ completed work.
 - AQ scratch has encode-owned bounded pooling, oversized-array fallback and
   strengths-row reuse across passes. Identical clamped pre-erosion rows reuse
   their rounded results at image boundaries.
+- AQ pre-erosion reduces completed four-pixel groups directly into its output,
+  removing one padded-width float workspace and its rental/return. Scalar and
+  vector paths preserve the original vertical and horizontal addition order.
+  An independent staged-stencil oracle checks intermediate bits and pool tails;
+  workspace failure and cleanup checks cover the reduced rental count. Latency
+  and peak-working-memory effects remain unmeasured.
 - Scalar AQ modulation shares one block traversal for high-frequency and gamma
   analysis, carrying horizontal neighbors through the first seven columns and
   handling the final column separately. Independent raster-order sums and the
@@ -145,19 +151,6 @@ low-contrast and tiny odd-edge controls, both distances and sampling modes,
 baseline/progressive output and dedicated cache-pressure workloads as relevant.
 
 ## Bounded speed and memory candidates
-
-### Exact SIMD scheduling
-
-Search DCT transpose and AQ stencil/modulation schedules for fewer shuffles,
-shorter dependencies, lower register pressure and fewer spills. Preserve each
-floating-point operation's evaluation order. Count packing and staging costs,
-retain portable fallbacks and validate independent lanes, guards and whole
-encodes before measuring.
-
-[Minotaur](https://arxiv.org/abs/2306.00229),
-[Isaria](https://doi.org/10.1145/3617232.3624873) and
-[AlphaEvolve](https://arxiv.org/abs/2506.13131) offer search methods, not direct
-.NET compiler extensions or established gains for these kernels.
 
 ### Rounding-aware numerical fast paths
 

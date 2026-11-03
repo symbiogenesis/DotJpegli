@@ -62,10 +62,10 @@ public sealed class AdaptiveQuantizationWorkspaceTests
                 }
             }
 
-            Assert.Equal(5, pool.Rents);
-            Assert.Equal(5, pool.Outstanding.Count);
+            Assert.Equal(4, pool.Rents);
+            Assert.Equal(4, pool.Outstanding.Count);
         }
-        Assert.Equal(5, pool.Returns);
+        Assert.Equal(4, pool.Returns);
         Assert.Empty(pool.Outstanding);
     }
 
@@ -81,21 +81,21 @@ public sealed class AdaptiveQuantizationWorkspaceTests
     [Fact]
     public void FailedStrengthRentalCanBeRetriedAndDisposalReturnsStorageOnce()
     {
-        var pool = new DirtyPool(throwOnRent: 5);
+        var pool = new DirtyPool(throwOnRent: 4);
         var analysis = new AdaptiveQuantization(19, 23, 2, pool);
         try
         {
             _ = Assert.Throws<InvalidOperationException>(() => { _ = analysis.Strengths.Length; });
-            Assert.Equal(4, pool.Outstanding.Count);
+            Assert.Equal(3, pool.Outstanding.Count);
             Assert.Equal(6, analysis.Strengths.Length);
-            Assert.Equal(5, pool.Outstanding.Count);
+            Assert.Equal(4, pool.Outstanding.Count);
         }
         finally
         {
             analysis.Dispose();
         }
         analysis.Dispose();
-        Assert.Equal(5, pool.Returns);
+        Assert.Equal(4, pool.Returns);
         Assert.Empty(pool.Outstanding);
         _ = Assert.Throws<ObjectDisposedException>(() => { _ = analysis.Strengths.Length; });
         _ = Assert.Throws<ObjectDisposedException>(() => analysis.ComputeRow(new byte[19 * 23], 19, 1,
