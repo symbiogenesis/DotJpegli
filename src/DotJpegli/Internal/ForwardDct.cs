@@ -454,6 +454,29 @@ internal static class ForwardDct
         ref Vector256<float> r2, ref Vector256<float> r3, ref Vector256<float> r4, ref Vector256<float> r5,
         ref Vector256<float> r6, ref Vector256<float> r7)
     {
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD && DOTJPEGLI_FULL_WIDTH_TRANSPOSE
+        // Retain the full-width schedule for isolated same-host CI comparison.
+        Vector256<float> t0 = Vector256.ZipLower(r0, r1), t1 = Vector256.ZipUpper(r0, r1);
+        Vector256<float> t2 = Vector256.ZipLower(r2, r3), t3 = Vector256.ZipUpper(r2, r3);
+        Vector256<float> t4 = Vector256.ZipLower(r4, r5), t5 = Vector256.ZipUpper(r4, r5);
+        Vector256<float> t6 = Vector256.ZipLower(r6, r7), t7 = Vector256.ZipUpper(r6, r7);
+        Vector256<float> u0 = Vector256.ZipLower(t0.AsDouble(), t2.AsDouble()).AsSingle();
+        Vector256<float> u1 = Vector256.ZipUpper(t0.AsDouble(), t2.AsDouble()).AsSingle();
+        Vector256<float> u2 = Vector256.ZipLower(t1.AsDouble(), t3.AsDouble()).AsSingle();
+        Vector256<float> u3 = Vector256.ZipUpper(t1.AsDouble(), t3.AsDouble()).AsSingle();
+        Vector256<float> u4 = Vector256.ZipLower(t4.AsDouble(), t6.AsDouble()).AsSingle();
+        Vector256<float> u5 = Vector256.ZipUpper(t4.AsDouble(), t6.AsDouble()).AsSingle();
+        Vector256<float> u6 = Vector256.ZipLower(t5.AsDouble(), t7.AsDouble()).AsSingle();
+        Vector256<float> u7 = Vector256.ZipUpper(t5.AsDouble(), t7.AsDouble()).AsSingle();
+        r0 = Vector256.Create(u0.GetLower(), u4.GetLower());
+        r1 = Vector256.Create(u0.GetUpper(), u4.GetUpper());
+        r2 = Vector256.Create(u1.GetLower(), u5.GetLower());
+        r3 = Vector256.Create(u1.GetUpper(), u5.GetUpper());
+        r4 = Vector256.Create(u2.GetLower(), u6.GetLower());
+        r5 = Vector256.Create(u2.GetUpper(), u6.GetUpper());
+        r6 = Vector256.Create(u3.GetLower(), u7.GetLower());
+        r7 = Vector256.Create(u3.GetUpper(), u7.GetUpper());
+#else
         // Keep the released four-panel schedule. Full-width Zip decomposes
         // into extra half extractions and joins on 256-bit x64 hosts; fewer
         // managed operations do not imply fewer emitted instructions.
@@ -473,6 +496,7 @@ internal static class ForwardDct
         r5 = Vector256.Create(b1, d1);
         r6 = Vector256.Create(b2, d2);
         r7 = Vector256.Create(b3, d3);
+#endif
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

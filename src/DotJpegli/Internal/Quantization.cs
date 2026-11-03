@@ -726,19 +726,46 @@ internal static class Quantization
         ReadOnlySpan<float> divisors, ReadOnlySpan<float> multipliers, float acOffset, float adaptiveStrength,
         bool adaptive, bool dc, ref bool valid)
     {
+#if DOTJPEGLI_SPARSE_TRANSPOSED_QUANTIZATION
+        // The sparse alternative is built separately for CI comparisons, so
+        // an unused experiment does not add branches to the default schedule.
+        var magnitudes = Vector256.Abs(coefficients);
+        valid &= Vector256.LessThanOrEqualAll(magnitudes, Vector256.Create(float.MaxValue));
+        if (!dc && Vector256.EqualsAll(coefficients, Vector256<float>.Zero))
+        {
+            return Vector128<short>.Zero;
+        }
+        var divisorValues = Vector256.Create(divisors);
+#else
         // Keep the released straight-line SIMD schedule. Testing every AC row
         // for three different sparse shortcuts adds comparisons, mask extracts
         // and branches to each dense block, including all seven AC frequencies.
         valid &= Vector256.LessThanOrEqualAll(Vector256.Abs(coefficients), Vector256.Create(float.MaxValue));
         Vector256<float> values = coefficients / Vector256.Create(divisors);
         float dcValue = dc ? values.GetElement(0) : 0f;
+#endif
         var threshold = Vector256.Create(acOffset);
         if (adaptive)
         {
             threshold += Vector256.Create(adaptiveStrength) * Vector256.Create(multipliers);
         }
 
+#if DOTJPEGLI_SPARSE_TRANSPOSED_QUANTIZATION
+        if (!dc && CanSuppressTransposedAcRow(magnitudes, divisorValues, threshold, acOffset))
+        {
+            return Vector128<short>.Zero;
+        }
+        Vector256<float> values = coefficients / divisorValues;
+        float dcValue = dc ? values.GetElement(0) : 0f;
+        var suppressed = Vector256.LessThan(Vector256.Abs(values), threshold);
+        if (!dc && suppressed.ExtractMostSignificantBits() == 0xff)
+        {
+            return Vector128<short>.Zero;
+        }
+        values = Vector256.ConditionalSelect(suppressed,
+#else
         values = Vector256.ConditionalSelect(Vector256.LessThan(Vector256.Abs(values), threshold),
+#endif
             Vector256<float>.Zero, Vector256.Round(values));
         if (dc)
         {

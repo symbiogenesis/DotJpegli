@@ -108,6 +108,30 @@ added cross-half instructions on x64, so .NET 11 again uses portable
 signed zeros and NaN payloads; independent single-lane regressions also check
 untouched tails. Complete-encode timing remains a CI measurement.
 
+Two opt-in library build properties retain alternative schedules for isolated
+CI comparisons: `DotJpegliFullWidthTranspose=true` enables full-width Zip on
+.NET 11 when `DotJpegliNet11Simd` is enabled, and
+`DotJpegliSparseTransposedQuantization=true` enables zero-row, conservative
+suppression and fully-suppressed-row shortcuts in the fused SIMD quantizer.
+Both default to `false`; compiling each alternative separately keeps unused
+experimental dispatch out of ordinary encodes. Existing transpose and fused
+quantization tests check the same exact outputs in either build. Runtime,
+vector capabilities, image geometry and quantization settings can inform a
+future deterministic selection policy only after same-host complete-encode
+measurements establish the relevant tradeoffs.
+
+The release repair retains scenario-specific choices throughout the encoder.
+Selection uses encoding settings and available capabilities, never image IDs
+or timing probes during encoding.
+
+| Operation | Deterministic choice |
+| --- | --- |
+| Entropy replay | Six-context lookups use direct indexes; partial lookups subtract their validated context offset. Select the specialization once per token batch. |
+| Rate-distortion search | Enter the isolated search helper only when its explicit lambda is positive. Ordinary coefficient preparation retains its compact path. |
+| AQ arithmetic | Select Original or certified reciprocal arithmetic once per MCU row from the immutable per-encode preference. Automatic retains Original. |
+| Sequential coefficient storage | Retain the existing bounded cache on accelerated 256-bit hosts without accelerated 512-bit vectors; other eligible sequential cases stream. Existing admission limits and fallbacks still apply. |
+| Sparse quantization and full-width transpose | Retain both schedules through the build properties above. Automatic gains a scenario rule only after CI establishes which settings favor each alternative. |
+
 AQ copies the preceding pre-erosion row when edge clamping selects the same
 four-pixel stencil again. This reuses the rounded result without new scratch
 storage and retains cancellation checks for every requested row. Retained

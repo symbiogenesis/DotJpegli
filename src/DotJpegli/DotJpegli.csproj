@@ -15,6 +15,12 @@
     <RepositoryUrl>https://github.com/symbiogenesis/DotJpegli</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <IsPackable>true</IsPackable>
+    <!-- Isolated CI comparisons retain both schedules without adding dispatch
+         branches to ordinary encodes. Defaults need same-host evidence to change. -->
+    <DotJpegliSparseTransposedQuantization Condition="'$(DotJpegliSparseTransposedQuantization)' == ''">false</DotJpegliSparseTransposedQuantization>
+    <DotJpegliFullWidthTranspose Condition="'$(DotJpegliFullWidthTranspose)' == ''">false</DotJpegliFullWidthTranspose>
+    <DefineConstants Condition="'$(DotJpegliSparseTransposedQuantization)' == 'true'">$(DefineConstants);DOTJPEGLI_SPARSE_TRANSPOSED_QUANTIZATION</DefineConstants>
+    <DefineConstants Condition="'$(DotJpegliFullWidthTranspose)' == 'true'">$(DefineConstants);DOTJPEGLI_FULL_WIDTH_TRANSPOSE</DefineConstants>
   </PropertyGroup>
 
   <!-- Consumer publish properties also reach every target during restore. -->
