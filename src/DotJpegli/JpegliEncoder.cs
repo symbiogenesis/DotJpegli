@@ -1,4 +1,7 @@
 using System.Numerics;
+#if !NETSTANDARD2_1
+using System.Runtime.Intrinsics;
+#endif
 using DotJpegli.Internal;
 
 namespace DotJpegli;
@@ -529,15 +532,21 @@ public static class JpegliEncoder
         CancellationToken cancellationToken)
     {
         int componentCount = tables.Length;
-        // One interleaved sequential scan needs only its entropy decisions after
-        // collecting histograms. Record them as each block is quantized rather
-        // than storing and then rereading the entire coefficient image. Parallel
-        // and multi-scan encodes retain the reusable coefficient path.
+        // A single sequential scan can retain entropy decisions without storing
+        // coefficients. With 256-bit SIMD, separate component-row preparation
+        // keeps the fused transform out of the MCU traversal's live state.
+        // Its existing pooled-storage budget still falls back to streaming for
+        // large images. Wider SIMD, scalar and 128-bit paths keep streaming.
         bool streamSequential = !options.Progressive && scans.Length == 1 && componentCount == 3
             && scans[0].Components.Count == 3 && pixels.ParallelRows is null;
-        using QuantizedImage? quantizedImage = streamSequential ? null : QuantizedImage.Create(pixels, width, height, stride,
+        bool cacheSequential = false;
+#if !NETSTANDARD2_1
+        cacheSequential = Vector256.IsHardwareAccelerated && !Vector512.IsHardwareAccelerated;
+#endif
+        using QuantizedImage? quantizedImage = streamSequential && !cacheSequential ? null : QuantizedImage.Create(pixels, width, height, stride,
             sampling, tables, distance, options.SmoothingFactor, adaptive, adaptiveMultipliers, cancellationToken,
             zigZagOrdered: true);
+        streamSequential &= quantizedImage is null;
         using EntropyTokenScans? tokenScans = streamSequential || quantizedImage is not null ? new(scans, options.Progressive) : null;
         var dcFrequencies = new long[componentCount][];
         for (int component = 0; component < componentCount; component++)
@@ -820,7 +829,8 @@ public static class JpegliEncoder
         int mcuHeight = vertical * 8;
         int mcusRemaining = restartInterval;
         int restartIndex = 0;
-        float[]? strengths = adaptive is null ? null : new float[adaptive.BlocksWide * vertical];
+        float[]? strengths = adaptive is null || quantizedImage is not null
+            ? null : new float[adaptive.BlocksWide * vertical];
         for (int top = 0; top < height; top += mcuHeight)
         {
             if (quantizedImage is null)

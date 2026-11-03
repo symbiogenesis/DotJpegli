@@ -21,8 +21,9 @@ public sealed class EncoderParallelTests
     [MemberData(nameof(SequentialSamplingModes))]
     public void StreamingSequentialMatchesCachedPreparationAcrossSamplingAndEdges(int precision, ChromaSubsampling sampling)
     {
-        // A forced worker keeps the coefficient-image path as an independent
-        // traversal. Single-worker sequential encoding records tokens directly.
+        // A forced worker always retains a coefficient image. Single-worker
+        // preparation selects streaming or a bounded cache for its SIMD width;
+        // both must preserve the same MCU predictors, padding and entropy bytes.
         foreach (var (width, height, smoothing, interval, rows, adaptive) in new[]
         {
             (1, 1, 0, 0, 0, true), (1, 33, 0, 1, 0, true),
