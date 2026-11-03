@@ -28,18 +28,27 @@ internal static class KernelComparison
     internal sealed record Leg(int Position, string Variant, double NsPerEncode, long AllocatedBytes,
         int Gen0Collections, int Gen1Collections, int Gen2Collections);
     internal sealed record Quartet(int Block, string Order, Leg[] Legs);
-    internal sealed record Analysis(TimingStatistics? Original, TimingStatistics? Optimized,
+    internal sealed record Analysis(
+        [property: JsonPropertyName("baseline")] TimingStatistics? Original,
+        [property: JsonPropertyName("candidate")] TimingStatistics? Optimized,
         TimingStatistics? PairedRatios, double? GeometricMeanPairedRatio, double? OrderBias,
-        double? MaximumWithinQuartetDrift, double? OriginalPercentileDrift, double? OptimizedPercentileDrift,
-        double? OriginalAllocatedBytesPerEncode, double? OptimizedAllocatedBytesPerEncode,
+        double? MaximumWithinQuartetDrift,
+        [property: JsonPropertyName("baselinePercentileDrift")] double? OriginalPercentileDrift,
+        [property: JsonPropertyName("candidatePercentileDrift")] double? OptimizedPercentileDrift,
+        [property: JsonPropertyName("baselineAllocatedBytesPerEncode")] double? OriginalAllocatedBytesPerEncode,
+        [property: JsonPropertyName("candidateAllocatedBytesPerEncode")] double? OptimizedAllocatedBytesPerEncode,
         string EvidencePreference, string[] InvalidReasons);
     internal sealed record Result(string Id, string Category, int Width, int Height, int Sampling,
-        int ProgressiveLevel, float Distance, string Kernel, bool OptimizedKernelReachable,
-        int Iterations, string OriginalJpegSha256, string OptimizedJpegSha256, string AutomaticJpegSha256,
+        int ProgressiveLevel, float Distance, string Kernel, string BaselinePreference, string CandidatePreference,
+        string BaselineVariant, string CandidateVariant,
+        [property: JsonPropertyName("candidateKernelReachable")] bool OptimizedKernelReachable,
+        int Iterations,
+        [property: JsonPropertyName("baselineJpegSha256")] string OriginalJpegSha256,
+        [property: JsonPropertyName("candidateJpegSha256")] string OptimizedJpegSha256, string AutomaticJpegSha256,
         long JpegBytes, Quartet[] Quartets, Analysis Analysis);
     private sealed record Skipped(string Id, int Width, int Height, int Sampling,
         int ProgressiveLevel, float Distance, string Kernel, string Reason);
-    private sealed record Settings(string Corpus, string Output, DiagnosticSelection Selection);
+    private sealed record Settings(string Corpus, string Output, DiagnosticSelection Selection, bool IncludeAutomatic);
 
     internal static async Task<int> Run(string[] args)
     {
@@ -59,43 +68,44 @@ internal static class KernelComparison
             Policy policy = selection.Policy;
             int requestedIterations = policy.MinimumIterations;
             bool narrowApplicable = Vector256.IsHardwareAccelerated && Vector<float>.Count == 8;
-            int expectedComparisons = selection.ExpectedCases * (narrowApplicable ? 2 : 1);
+            int expectedComparisons = ExpectedComparisons(selection.ExpectedCases, narrowApplicable, options.IncludeAutomatic);
             var results = new List<Result>();
             var skipped = new List<Skipped>();
             var sources = new List<SourceImage>();
             await WriteJson(output, "run.json", new
             {
-                schemaVersion = 1, mode = "interleaved-kernel-comparison", startedAtUtc = DateTimeOffset.UtcNow,
+                schemaVersion = 2, mode = "interleaved-kernel-comparison", startedAtUtc = DateTimeOffset.UtcNow,
                 testedRevision = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION")
                     ?? Environment.GetEnvironmentVariable("GITHUB_SHA"),
                 githubRunId = Environment.GetEnvironmentVariable("GITHUB_RUN_ID"),
                 managedEncoderSha256 = HashFile(typeof(JpegliEncoder).Assembly.Location),
                 managedRunnerSha256 = HashFile(Assembly.GetExecutingAssembly().Location),
                 corpusManifestSha256 = HashFile(Path.Combine(AppContext.BaseDirectory, "corpus.json")),
-                selection, expectedComparisons, requestedComparisons = selection.ExpectedCases * 2,
-                narrowApplicable, environment = Program.EnvironmentDetails(),
+                selection, expectedComparisons,
+                requestedComparisons = ExpectedComparisons(selection.ExpectedCases, true, options.IncludeAutomatic),
+                options.IncludeAutomatic, narrowApplicable, environment = Program.EnvironmentDetails(),
                 method = new
                 {
                     scope = "Selected managed kernels only; no native comparison or full performance parity verdict",
-                    variants = "Each pair forces one kernel Original/Optimized and holds the other Automatic; both Automatic is checked untimed for identical JPEG bytes",
-                    order = "Six quartets by default; require an even count, balanced ABBA/BAAB by comparison and block index; A=Original, B=Optimized",
+                    variants = "Forced pairs change one kernel Original/Optimized and hold the other Automatic; optional automatic-policy pair compares both Original against both Automatic; exact preferences retained per comparison",
+                    order = "Six quartets by default; require an even count, balanced ABBA/BAAB by comparison and block index; A=baseline, B=candidate",
                     warmup = "Each leg receives the same untimed warmups; options are immutable and prepared outside the timer",
                     iterations = "Fixed requested count, except inputs below1024 pixels use max(requested,100); actual iterations retained per comparison",
                     calibration = "None; both variants use identical recorded iteration counts",
                     latency = "Only complete public byte-array Encode calls timed; output equality checked after stopping each timer",
-                    ratio = "Each quartet uses geometric mean Optimized / geometric mean Original; primary statistic is median of those paired ratios",
+                    ratio = "Each quartet uses geometric mean candidate / geometric mean baseline; primary statistic is median of those paired ratios",
                     gc = "Natural GC included; no forced collections or no-GC region; per-leg allocations and collection counts retained",
                     minimumLegMilliseconds = policy.MinimumBlockMilliseconds,
                     maximumRelativeMad = policy.MaximumRelativeMad,
                     maximumWithinQuartetDrift = MaximumWithinQuartetDrift,
                     maximumP90ToP10Drift = MaximumPercentileDrift,
                     maximumOrderBias = MaximumOrderBias,
-                    evidencePreference = "Original or Optimized only when valid and every quartet ratio lies beyond1+/-0.005 in the same direction; otherwise inconclusive",
+                    evidencePreference = "Baseline or candidate variant name only when valid and every quartet ratio lies beyond1+/-0.005 in the same direction; otherwise inconclusive",
                     rawMeasurements = "raw-comparisons/*.json is updated after each completed quartet, before analysis; nonfinite raw values use named JSON strings"
                 }
             });
             await WriteJson(output, "summary.json", new
-                { schemaVersion = 1, mode = "interleaved-kernel-comparison", status = "incomplete", valid = false, expectedComparisons });
+                { schemaVersion = 2, mode = "interleaved-kernel-comparison", status = "incomplete", valid = false, expectedComparisons });
             foreach (var (id, category, sourcePath, image) in Program.ReadCorpus(options.Corpus)
                 .Where(image => selection.Images.Contains(image.Id, StringComparer.Ordinal)))
             {
@@ -121,7 +131,9 @@ internal static class KernelComparison
                             await File.WriteAllBytesAsync(Path.Combine(output, "jpegs", stem + "_automatic.jpg"), automatic);
                             int iterations = Iterations(image.Width, image.Height, requestedIterations);
                             Policy casePolicy = policy with { MinimumIterations = iterations, MaximumIterations = iterations };
-                            foreach (string kernel in new[] { "fuzzy-erosion", "narrow-zigzag" })
+                            string[] comparisons = options.IncludeAutomatic
+                                ? ["fuzzy-erosion", "narrow-zigzag", "automatic-policy"] : ["fuzzy-erosion", "narrow-zigzag"];
+                            foreach (string kernel in comparisons)
                             {
                                 if (kernel == "narrow-zigzag" && !narrowApplicable)
                                 {
@@ -130,12 +142,28 @@ internal static class KernelComparison
                                     await WriteJson(output, "skipped.json", skipped);
                                     continue;
                                 }
-                                JpegliEncoderOptions original = kernel == "fuzzy-erosion"
-                                    ? automaticSettings with { FuzzyErosionKernel = KernelPreference.Original }
-                                    : automaticSettings with { NarrowZigZagKernel = KernelPreference.Original };
-                                JpegliEncoderOptions optimized = kernel == "fuzzy-erosion"
-                                    ? automaticSettings with { FuzzyErosionKernel = KernelPreference.Optimized }
-                                    : automaticSettings with { NarrowZigZagKernel = KernelPreference.Optimized };
+                                JpegliEncoderOptions original = kernel switch
+                                {
+                                    "fuzzy-erosion" => automaticSettings with { FuzzyErosionKernel = KernelPreference.Original },
+                                    "narrow-zigzag" => automaticSettings with { NarrowZigZagKernel = KernelPreference.Original },
+                                    _ => automaticSettings with
+                                    {
+                                        FuzzyErosionKernel = KernelPreference.Original,
+                                        NarrowZigZagKernel = KernelPreference.Original
+                                    }
+                                };
+                                JpegliEncoderOptions optimized = kernel switch
+                                {
+                                    "fuzzy-erosion" => automaticSettings with { FuzzyErosionKernel = KernelPreference.Optimized },
+                                    "narrow-zigzag" => automaticSettings with { NarrowZigZagKernel = KernelPreference.Optimized },
+                                    _ => automaticSettings
+                                };
+                                string baselinePreference = PreferenceName(original), candidatePreference = PreferenceName(optimized);
+                                string candidateVariant = kernel == "automatic-policy" ? "automatic" : "optimized";
+                                bool candidateReachable = kernel != "automatic-policy"
+                                    || KernelPolicy.UseSelectionNetwork(KernelPreference.Automatic, image.Width)
+                                    || (!Vector512.IsHardwareAccelerated && narrowApplicable
+                                        && KernelPolicy.UseTiledZigZag(KernelPreference.Automatic));
                                 byte[] originalJpeg = Encode(image, original);
                                 byte[] optimizedJpeg = Encode(image, optimized);
                                 RequireSameBytes(expected, originalJpeg);
@@ -152,29 +180,32 @@ internal static class KernelComparison
                                     {
                                         bool baseline = order[position] == 'A';
                                         legs[position] = Measure(image, baseline ? original : optimized, expected,
-                                            iterations, policy.Warmups, position, baseline ? "original" : "optimized");
+                                            iterations, policy.Warmups, position, baseline ? "original" : candidateVariant);
                                     }
                                     quartets.Add(new(block, order, legs));
                                     await WriteJson(Path.Combine(output, "raw-comparisons"), stem + "_" + kernel + ".json", new
                                     {
-                                        schemaVersion = 1, id, category, width = image.Width, height = image.Height,
+                                        schemaVersion = 2, id, category, width = image.Width, height = image.Height,
                                         sampling, progressiveLevel = progression, distance, kernel, comparisonIndex,
-                                        originalJpegSha256 = Hash(originalJpeg), optimizedJpegSha256 = Hash(optimizedJpeg),
+                                        baselinePreference, candidatePreference, baselineVariant = "original", candidateVariant,
+                                        candidateKernelReachable = candidateReachable,
+                                        baselineJpegSha256 = Hash(originalJpeg), candidateJpegSha256 = Hash(optimizedJpeg),
                                         automaticJpegSha256 = Hash(automatic), iterations,
                                         completedQuartets = quartets.Count, expectedQuartets = policy.Blocks,
                                         updatedAtUtc = DateTimeOffset.UtcNow, quartets
                                     });
                                 }
                                 Quartet[] samples = quartets.ToArray();
-                                Analysis analysis = Analyze(samples, iterations, casePolicy, comparisonIndex);
+                                Analysis analysis = Analyze(samples, iterations, casePolicy, comparisonIndex, candidateVariant);
                                 results.Add(new(id, category, image.Width, image.Height, sampling, progression, distance,
-                                    kernel, true, iterations, Hash(originalJpeg), Hash(optimizedJpeg), Hash(automatic),
+                                    kernel, baselinePreference, candidatePreference, "original", candidateVariant,
+                                    candidateReachable, iterations, Hash(originalJpeg), Hash(optimizedJpeg), Hash(automatic),
                                     expected.LongLength, samples, analysis));
                                 await WriteJson(output, "cases.json", results);
                                 await WriteJson(output, "progress.json", new
                                     { completedComparisons = results.Count, expectedComparisons, updatedAtUtc = DateTimeOffset.UtcNow });
                                 string ratio = Metric(analysis.PairedRatios?.Median, "F4");
-                                Console.WriteLine(FormattableString.Invariant($"{id}/{sampling}/p{progression}/d{distance}/{kernel}: optimized/original={ratio}; preference={analysis.EvidencePreference}; valid={analysis.InvalidReasons.Length == 0}; {results.Count}/{expectedComparisons}"));
+                                Console.WriteLine(FormattableString.Invariant($"{id}/{sampling}/p{progression}/d{distance}/{kernel}: {candidateVariant}/original={ratio}; preference={analysis.EvidencePreference}; valid={analysis.InvalidReasons.Length == 0}; {results.Count}/{expectedComparisons}"));
                             }
                         }
             }
@@ -185,7 +216,7 @@ internal static class KernelComparison
             bool valid = invalid.Length == 0;
             await WriteJson(output, "summary.json", new
             {
-                schemaVersion = 1, mode = "interleaved-kernel-comparison", status = valid ? "completed" : "invalid",
+                schemaVersion = 2, mode = "interleaved-kernel-comparison", status = valid ? "completed" : "invalid",
                 valid, parityVerdict = "not-evaluated", fullCoverageComplete = false,
                 comparisons = results.Count, expectedComparisons, skippedComparisons = skipped.Count, invalidReasons = invalid
             });
@@ -200,7 +231,7 @@ internal static class KernelComparison
             if (output is not null)
             {
                 await WriteJson(output, "summary.json", new
-                    { schemaVersion = 1, mode = "interleaved-kernel-comparison", status = "invalid", valid = false, error = error.Message });
+                    { schemaVersion = 2, mode = "interleaved-kernel-comparison", status = "invalid", valid = false, error = error.Message });
                 await File.WriteAllTextAsync(Path.Combine(output, "report.md"),
                     $"# Kernel comparison: INVALID\n\n{error.Message}\n\nPartial raw evidence is retained; no timing conclusion is valid.\n");
             }
@@ -210,15 +241,7 @@ internal static class KernelComparison
 
     private static Settings Parse(string[] args)
     {
-        if (args.Count(value => value == "--compare-kernels") != 1)
-            throw new ArgumentException("Supply --compare-kernels exactly once.");
-        string[] pairs = args.Where(value => value != "--compare-kernels").ToArray();
-        if (pairs.Length % 2 != 0)
-            throw new ArgumentException("Kernel comparison options require name/value pairs.");
-        var values = new Dictionary<string, string>(StringComparer.Ordinal);
-        for (int index = 0; index < pairs.Length; index += 2)
-            if (!values.TryAdd(pairs[index], pairs[index + 1]))
-                throw new ArgumentException("Duplicate kernel comparison option.");
+        var (includeAutomatic, values) = ParseValues(args);
         foreach (string name in new[] { "--corpus", "--output" })
             if (!values.TryGetValue(name, out string? path) || !Path.IsPathFullyQualified(path))
                 throw new ArgumentException("Corpus and output must be absolute paths.");
@@ -231,8 +254,31 @@ internal static class KernelComparison
         values.TryAdd("--blocks", "6");
         DiagnosticSelection selection = DiagnosticSelection.Parse(values);
         RequireEvenBlocks(selection.Policy.Blocks);
-        return new(corpus, output, selection);
+        return new(corpus, output, selection, includeAutomatic);
     }
+
+    private static (bool IncludeAutomatic, Dictionary<string, string> Values) ParseValues(string[] args)
+    {
+        if (args.Count(value => value == "--compare-kernels") != 1)
+            throw new ArgumentException("Supply --compare-kernels exactly once.");
+        int includeAutomatic = args.Count(value => value == "--include-automatic");
+        if (includeAutomatic > 1)
+            throw new ArgumentException("Supply --include-automatic at most once.");
+        string[] pairs = args.Where(value => value is not ("--compare-kernels" or "--include-automatic")).ToArray();
+        if (pairs.Length % 2 != 0)
+            throw new ArgumentException("Kernel comparison options require name/value pairs.");
+        var values = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (int index = 0; index < pairs.Length; index += 2)
+            if (!values.TryAdd(pairs[index], pairs[index + 1]))
+                throw new ArgumentException("Duplicate kernel comparison option.");
+        return (includeAutomatic == 1, values);
+    }
+
+    private static int ExpectedComparisons(int cases, bool narrowApplicable, bool includeAutomatic)
+        => cases * ((narrowApplicable ? 2 : 1) + (includeAutomatic ? 1 : 0));
+
+    private static string PreferenceName(JpegliEncoderOptions settings)
+        => $"fuzzy={settings.FuzzyErosionKernel.ToString().ToLowerInvariant()},narrow={settings.NarrowZigZagKernel.ToString().ToLowerInvariant()}";
 
     private static void RequireEvenBlocks(int blocks)
     {
@@ -271,8 +317,8 @@ internal static class KernelComparison
             allocatedBytes, GC.CollectionCount(0) - gen0, GC.CollectionCount(1) - gen1, GC.CollectionCount(2) - gen2);
     }
 
-    private static double Ratio(Quartet quartet)
-        => Math.Exp(quartet.Legs.Where(leg => leg.Variant == "optimized").Average(leg => Math.Log(leg.NsPerEncode))
+    private static double Ratio(Quartet quartet, string candidateVariant)
+        => Math.Exp(quartet.Legs.Where(leg => leg.Variant == candidateVariant).Average(leg => Math.Log(leg.NsPerEncode))
             - quartet.Legs.Where(leg => leg.Variant == "original").Average(leg => Math.Log(leg.NsPerEncode)));
     private static double Drift(IEnumerable<double> values)
     {
@@ -280,9 +326,12 @@ internal static class KernelComparison
         return samples.Max() / samples.Min();
     }
 
-    internal static string[] Validate(Quartet[] quartets, int iterations, Policy policy, int comparisonIndex)
+    internal static string[] Validate(Quartet[] quartets, int iterations, Policy policy, int comparisonIndex,
+        string candidateVariant = "optimized")
     {
         var invalid = new List<string>();
+        if (candidateVariant is not ("optimized" or "automatic"))
+            invalid.Add("Unknown candidate variant.");
         if (policy.Blocks is < 4 or > 6 || (policy.Blocks & 1) != 0)
             invalid.Add("Quartet count must be four or six for balanced ABBA/BAAB orders.");
         if (iterations < policy.MinimumIterations || iterations > policy.MaximumIterations)
@@ -299,7 +348,7 @@ internal static class KernelComparison
             for (int position = 0; position < block.Legs.Length; position++)
             {
                 Leg leg = block.Legs[position];
-                string expected = block.Order[position] == 'A' ? "original" : "optimized";
+                string expected = block.Order[position] == 'A' ? "original" : candidateVariant;
                 if (leg.Position != position || leg.Variant != expected)
                     invalid.Add($"Quartet {block.Block}: mismatched leg identity.");
                 if (!double.IsFinite(leg.NsPerEncode) || leg.NsPerEncode <= 0)
@@ -314,7 +363,7 @@ internal static class KernelComparison
             return invalid.Distinct().ToArray();
         if (quartets.GroupBy(block => block.Order).Any(group => group.Count() != policy.Blocks / 2))
             invalid.Add("ABBA/BAAB orders are not balanced.");
-        foreach (string variant in new[] { "original", "optimized" })
+        foreach (string variant in new[] { "original", candidateVariant })
         {
             double[] values = quartets.SelectMany(block => block.Legs).Where(leg => leg.Variant == variant)
                 .Select(leg => leg.NsPerEncode).ToArray();
@@ -326,37 +375,38 @@ internal static class KernelComparison
             if (quartets.Any(block => Drift(block.Legs.Where(leg => leg.Variant == variant).Select(leg => leg.NsPerEncode)) > MaximumWithinQuartetDrift))
                 invalid.Add($"{variant}: repeated legs within a quartet differ by over10%.");
         }
-        double[] ratios = quartets.Select(Ratio).ToArray();
+        double[] ratios = quartets.Select(block => Ratio(block, candidateVariant)).ToArray();
         if (Evidence.Statistics(ratios).RelativeMad > policy.MaximumRelativeMad)
             invalid.Add("Paired-ratio relative MAD exceeds10%.");
         double[] orderMedians = quartets.GroupBy(block => block.Order)
-            .Select(group => Evidence.Statistics(group.Select(Ratio).ToArray()).Median).ToArray();
+            .Select(group => Evidence.Statistics(group.Select(block => Ratio(block, candidateVariant)).ToArray()).Median).ToArray();
         if (orderMedians.Length != 2 || Drift(orderMedians) > MaximumOrderBias)
             invalid.Add("ABBA/BAAB order bias exceeds10% or one order is absent.");
         return invalid.Distinct().ToArray();
     }
 
-    private static Analysis Analyze(Quartet[] quartets, int iterations, Policy policy, int comparisonIndex)
+    private static Analysis Analyze(Quartet[] quartets, int iterations, Policy policy, int comparisonIndex,
+        string candidateVariant = "optimized")
     {
-        string[] invalid = Validate(quartets, iterations, policy, comparisonIndex);
+        string[] invalid = Validate(quartets, iterations, policy, comparisonIndex, candidateVariant);
         if (iterations <= 0 || quartets.Length == 0 || quartets.Any(block => block.Legs.Length != 4
             || block.Legs.Count(leg => leg.Variant == "original") != 2
-            || block.Legs.Count(leg => leg.Variant == "optimized") != 2
+            || block.Legs.Count(leg => leg.Variant == candidateVariant) != 2
             || block.Legs.Any(leg => !double.IsFinite(leg.NsPerEncode) || leg.NsPerEncode <= 0
                 || leg.NsPerEncode * iterations < policy.MinimumBlockMilliseconds * 1_000_000)))
             return new(null, null, null, null, null, null, null, null, null, null, "inconclusive",
                 invalid.Length != 0 ? invalid : ["Raw samples cannot support numeric statistics."]);
         Leg[] original = quartets.SelectMany(block => block.Legs).Where(leg => leg.Variant == "original").ToArray();
-        Leg[] optimized = quartets.SelectMany(block => block.Legs).Where(leg => leg.Variant == "optimized").ToArray();
-        double[] ratios = quartets.Select(Ratio).ToArray();
+        Leg[] optimized = quartets.SelectMany(block => block.Legs).Where(leg => leg.Variant == candidateVariant).ToArray();
+        double[] ratios = quartets.Select(block => Ratio(block, candidateVariant)).ToArray();
         TimingStatistics a = Evidence.Statistics(original.Select(leg => leg.NsPerEncode).ToArray());
         TimingStatistics b = Evidence.Statistics(optimized.Select(leg => leg.NsPerEncode).ToArray());
         double orderBias = Drift(quartets.GroupBy(block => block.Order)
-            .Select(group => Evidence.Statistics(group.Select(Ratio).ToArray()).Median));
+            .Select(group => Evidence.Statistics(group.Select(block => Ratio(block, candidateVariant)).ToArray()).Median));
         double maximumDrift = quartets.SelectMany(block => block.Legs.GroupBy(leg => leg.Variant)
             .Select(group => Drift(group.Select(leg => leg.NsPerEncode)))).Max();
         string preference = invalid.Length != 0 ? "inconclusive"
-            : ratios.All(ratio => ratio < 1 - PreferenceMargin) ? "optimized"
+            : ratios.All(ratio => ratio < 1 - PreferenceMargin) ? candidateVariant
             : ratios.All(ratio => ratio > 1 + PreferenceMargin) ? "original" : "inconclusive";
         return new(a, b, Evidence.Statistics(ratios), Math.Exp(ratios.Average(Math.Log)), orderBias,
             maximumDrift, a.P90 / a.P10, b.P90 / b.P10,
@@ -368,12 +418,12 @@ internal static class KernelComparison
     private static string Report(IReadOnlyList<Result> results, IReadOnlyList<Skipped> skipped, string[] invalid)
     {
         var text = new StringBuilder("# Interleaved kernel comparison\n\n");
-        text.AppendLine("Selected managed variants, measured as alternating ABBA/BAAB quartets in one process. Each pair changes one kernel and holds the other Automatic. Automatic output is checked untimed. Original, optimized and automatic JPEG bytes match for every completed comparison.");
-        text.AppendLine("\nRatios below1 favor Optimized. Each ratio is the median of quartet geometric-mean ratios; allocations are mean bytes per encode. MAD, within-quartet repeats, p90/p10 drift and measurement-order bias guard against timing-state changes. Invalid rows retain raw samples but cannot establish a speed result. Unreachable candidates do not measure the changed kernel. No native or full-corpus parity verdict is implied.");
+        text.AppendLine("Selected managed variants, measured as alternating ABBA/BAAB quartets in one process. Forced pairs change one kernel and hold the other Automatic. With --include-automatic, automatic-policy compares both Original against both Automatic. Exact preference maps identify each baseline and candidate. All variants produce identical JPEG bytes for every completed comparison.");
+        text.AppendLine("\nRatios below1 favor the candidate. Each ratio is the median of quartet geometric-mean ratios; allocations are mean bytes per encode. MAD, within-quartet repeats, p90/p10 drift and measurement-order bias guard against timing-state changes. Invalid rows retain raw samples but cannot establish a speed result. An automatic-policy row with candidate reachable=false selects neither new kernel and still measures the complete baseline/candidate dispatch paths. No native or full-corpus parity verdict is implied.");
         text.AppendLine("\nEvidence preference requires valid samples and every paired ratio beyond the same side of1+/-0.005; mixed or small effects remain inconclusive. raw-comparisons/ retains each completed quartet before analysis, including malformed or nonfinite raw diagnostics.");
-        text.AppendLine("\n| Case | Kernel | Candidate reachable | Iterations/leg | Original ms | Optimized ms | Paired ratio | Original B/encode | Optimized B/encode | Evidence preference | Valid |\n| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |");
+        text.AppendLine("\n| Case | Comparison | Baseline preferences | Candidate preferences | Candidate reachable | Iterations/leg | Baseline ms | Candidate ms | Paired ratio | Baseline B/encode | Candidate B/encode | Evidence preference | Valid |\n| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |");
         foreach (Result item in results)
-            text.AppendLine(FormattableString.Invariant($"| {item.Id}/{item.Sampling}/p{item.ProgressiveLevel}/d{item.Distance:g} | {item.Kernel} | {item.OptimizedKernelReachable} | {item.Iterations} | {Metric(item.Analysis.Original?.Median / 1e6, "F4")} | {Metric(item.Analysis.Optimized?.Median / 1e6, "F4")} | {Metric(item.Analysis.PairedRatios?.Median, "F6")} | {Metric(item.Analysis.OriginalAllocatedBytesPerEncode, "F1")} | {Metric(item.Analysis.OptimizedAllocatedBytesPerEncode, "F1")} | {item.Analysis.EvidencePreference} | {item.Analysis.InvalidReasons.Length == 0} |"));
+            text.AppendLine(FormattableString.Invariant($"| {item.Id}/{item.Sampling}/p{item.ProgressiveLevel}/d{item.Distance:g} | {item.Kernel} | {item.BaselinePreference} | {item.CandidatePreference} | {item.OptimizedKernelReachable} | {item.Iterations} | {Metric(item.Analysis.Original?.Median / 1e6, "F4")} | {Metric(item.Analysis.Optimized?.Median / 1e6, "F4")} | {Metric(item.Analysis.PairedRatios?.Median, "F6")} | {Metric(item.Analysis.OriginalAllocatedBytesPerEncode, "F1")} | {Metric(item.Analysis.OptimizedAllocatedBytesPerEncode, "F1")} | {item.Analysis.EvidencePreference} | {item.Analysis.InvalidReasons.Length == 0} |"));
         if (skipped.Count != 0)
             text.AppendLine($"\n{skipped.Count} narrow-zigzag comparisons were not applicable to this pipeline's vector width; skipped.json retains their case identities and reason.");
         if (invalid.Length != 0)
@@ -395,6 +445,24 @@ internal static class KernelComparison
 
     internal static void SelfTest()
     {
+        var disabled = ParseValues(["--compare-kernels", "--iterations", "20"]);
+        Check(!disabled.IncludeAutomatic && disabled.Values["--iterations"] == "20",
+            "Automatic policy comparisons must be disabled by default.");
+        var enabled = ParseValues(["--compare-kernels", "--include-automatic", "--iterations", "20"]);
+        Check(enabled.IncludeAutomatic && enabled.Values.Count == 1 && enabled.Values["--iterations"] == "20",
+            "Optional automatic flag must not become a diagnostic name/value option.");
+        RejectArguments(() => ParseValues(["--compare-kernels", "--include-automatic", "--include-automatic"]));
+        RejectArguments(() => ParseValues(["--compare-kernels", "--include-automatic", "false"]));
+        RejectArguments(() => ParseValues(["--include-automatic"]));
+        Check(ExpectedComparisons(32, true, false) == 64 && ExpectedComparisons(32, false, false) == 32,
+            "Default forced-pair comparison counts changed.");
+        Check(ExpectedComparisons(32, true, true) == 96 && ExpectedComparisons(32, false, true) == 64,
+            "Automatic comparisons must add one measured pair per case even without a reachable new kernel.");
+        Check(PreferenceName(new JpegliEncoderOptions
+        {
+            FuzzyErosionKernel = KernelPreference.Original, NarrowZigZagKernel = KernelPreference.Original
+        }) == "fuzzy=original,narrow=original" && PreferenceName(new JpegliEncoderOptions()) == "fuzzy=automatic,narrow=automatic",
+            "Baseline and automatic candidate preference names are ambiguous.");
         var policy = new Policy { Blocks = 6, MinimumIterations = 20, MaximumIterations = 20 };
         Quartet[] samples = Enumerable.Range(0, policy.Blocks).Select(block =>
         {
@@ -411,6 +479,18 @@ internal static class KernelComparison
         Check(Iterations(17, 13, 20) == 100 && Iterations(32, 32, 20) == 20,
             "Small-input iteration policy changed.");
         Check(result.EvidencePreference == "optimized", "Consistent large improvement must favor Optimized.");
+        Quartet[] automaticSamples = samples.Select(block => block with
+        {
+            Legs = block.Legs.Select(leg => leg.Variant == "optimized" ? leg with { Variant = "automatic" } : leg).ToArray()
+        }).ToArray();
+        Analysis automaticAnalysis = Analyze(automaticSamples, 20, policy, 0, "automatic");
+        Check(automaticAnalysis.InvalidReasons.Length == 0 && automaticAnalysis.EvidencePreference == "automatic"
+            && automaticAnalysis.PairedRatios is not null && Math.Abs(automaticAnalysis.PairedRatios.Median - .8) < 1e-12,
+            "Automatic candidate legs must retain the same paired statistics without being labeled optimized.");
+        string automaticJson = JsonSerializer.Serialize(automaticAnalysis, JsonOptions);
+        Check(automaticJson.Contains("\"candidate\"", StringComparison.Ordinal)
+            && !automaticJson.Contains("\"optimized\"", StringComparison.Ordinal),
+            "Automatic analysis must use neutral baseline/candidate JSON labels.");
         Check(samples.Count(block => block.Order == "ABBA") == 3 && samples.Count(block => block.Order == "BAAB") == 3,
             "Six quartets must balance both orders.");
         RequireEvenBlocks(6);
@@ -472,5 +552,13 @@ internal static class KernelComparison
     {
         if (!condition)
             throw new InvalidDataException(message);
+    }
+
+    private static void RejectArguments(Action action)
+    {
+        bool rejected = false;
+        try { action(); }
+        catch (ArgumentException) { rejected = true; }
+        Check(rejected, "Invalid kernel comparison flags were accepted.");
     }
 }
