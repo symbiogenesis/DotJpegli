@@ -9,6 +9,7 @@
 // lib/jpegli/dct-inl.h (QuantizeBlock and ComputeCoefficientBlock).
 // https://github.com/google/jpegli/tree/031a0077f5799a6041004267fc12b956c1f52a20
 
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -1227,6 +1228,8 @@ internal static class Quantization
             adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients);
 
 #endif
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
+        Justification = "The quantized value is derived from the caller's coefficients argument, which remains the reported parameter.")]
     private static void StoreQuantizedValue(float value, int index, Span<short> output,
         bool requireEightBitCoefficients)
     {

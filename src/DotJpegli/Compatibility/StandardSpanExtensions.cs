@@ -1,14 +1,20 @@
 #if NETSTANDARD2_1
+using System.Diagnostics.CodeAnalysis;
+
 namespace DotJpegli.Compatibility;
 
 internal static class StandardSpanExtensions
 {
     internal static bool Contains(this ReadOnlySpan<char> span, char value) => span.IndexOf(value) >= 0;
+    [SuppressMessage("Performance", "CA1517:Use read-only spans instead of spans",
+        Justification = "The mutable-span receiver preserves the modern MemoryExtensions call shape on .NET Standard 2.1.")]
     internal static bool Contains(this Span<char> span, char value) => span.IndexOf(value) >= 0;
 
     internal static bool ContainsAny(this ReadOnlySpan<byte> span, byte first, byte second, byte third) =>
         span.IndexOfAny(first, second, third) >= 0;
 
+    [SuppressMessage("Performance", "CA1517:Use read-only spans instead of spans",
+        Justification = "The mutable-span receiver preserves the modern MemoryExtensions call shape on .NET Standard 2.1.")]
     internal static bool ContainsAnyExceptInRange(this Span<ushort> span, ushort lowInclusive, ushort highInclusive)
     {
         foreach (ushort value in span)
@@ -26,6 +32,8 @@ internal static class StandardSpanExtensions
         return count;
     }
 
+    [SuppressMessage("Performance", "CA1517:Use read-only spans instead of spans",
+        Justification = "The mutable-span receiver preserves the modern MemoryExtensions call shape on .NET Standard 2.1.")]
     internal static bool ContainsAnyInRange(this Span<int> span, int lowInclusive, int highInclusive)
     {
         foreach (int value in span)
@@ -34,6 +42,8 @@ internal static class StandardSpanExtensions
         return false;
     }
 
+    [SuppressMessage("Performance", "CA1517:Use read-only spans instead of spans",
+        Justification = "The mutable-span receiver preserves the modern MemoryExtensions call shape on .NET Standard 2.1.")]
     internal static bool ContainsAnyInRange(this Span<long> span, long lowInclusive, long highInclusive)
     {
         foreach (long value in span)
@@ -42,6 +52,8 @@ internal static class StandardSpanExtensions
         return false;
     }
 
+    [SuppressMessage("Performance", "CA1517:Use read-only spans instead of spans",
+        Justification = "The mutable-span receiver preserves the modern MemoryExtensions call shape on .NET Standard 2.1.")]
     internal static bool ContainsAnyExcept(this Span<long> span, long value)
     {
         foreach (long item in span)

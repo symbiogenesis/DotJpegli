@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 using System.Xml;
@@ -84,6 +85,8 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
         "<rdf:Description rdf:about=\"\" xmlns:xmpNote=\"http://ns.adobe.com/xmp/note/\" xmpNote:HasExtendedXMP=\"" +
         digest + "\"/></rdf:RDF></x:xmpmeta>\n<?xpacket end=\"w\"?>";
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
+        Justification = "Link validation identifies the caller's XmpPacket option forwarded to this helper.")]
     private static void ValidateLink(string packet, string digest)
     {
         const string message = "With extended XMP, the standard XMP packet must contain exactly one top-level " +

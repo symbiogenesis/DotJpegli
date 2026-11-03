@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DotJpegli.Internal;
 
@@ -44,6 +45,8 @@ internal sealed class IccColorTransform
         return new(inputTransform, outputTransform, scale);
     }
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
+        Justification = "The component samples originate from the public Encode pixels argument.")]
     internal void Convert(float red, float green, float blue,
         out float outputRed, out float outputGreen, out float outputBlue)
     {
@@ -61,6 +64,8 @@ internal sealed class IccColorTransform
 
     private static double Clamp(double value) => Math.Clamp(value, 0, 1);
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
+        Justification = "Nonfinite transform results identify the caller's SourceIccProfile option.")]
     private static void EnsureFinite(Triple value)
     {
         if (!double.IsFinite(value.X) || !double.IsFinite(value.Y) || !double.IsFinite(value.Z))

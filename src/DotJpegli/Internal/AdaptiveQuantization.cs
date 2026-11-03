@@ -133,27 +133,27 @@ internal sealed class AdaptiveQuantization : IDisposable
 
     internal void ComputeRow(PixelSource pixels, int stride, int top, int lumaAcQuant,
         Span<float> strengths, CancellationToken cancellationToken)
-        => ComputeRowCore(pixels, stride, top, lumaAcQuant, strengths, cancellationToken,
-            Vector.IsHardwareAccelerated);
+        => ComputeRowCore(pixels, stride, top, lumaAcQuant, strengths,
+            Vector.IsHardwareAccelerated, false, cancellationToken);
 
     internal void ComputeRowScalar(PixelSource pixels, int stride, int top, int lumaAcQuant,
         Span<float> strengths, CancellationToken cancellationToken)
-        => ComputeRowCore(pixels, stride, top, lumaAcQuant, strengths, cancellationToken, false);
+        => ComputeRowCore(pixels, stride, top, lumaAcQuant, strengths, false, false, cancellationToken);
 
     internal void ComputeRowVector(PixelSource pixels, int stride, int top, int lumaAcQuant,
         Span<float> strengths, CancellationToken cancellationToken)
-        => ComputeRowCore(pixels, stride, top, lumaAcQuant, strengths, cancellationToken, true);
+        => ComputeRowCore(pixels, stride, top, lumaAcQuant, strengths, true, false, cancellationToken);
 
     // The explicit batch entry also verifies eight-block reductions on runtimes
     // that implement Vector256 in software. Dispatch retains its four-lane path.
     internal void ComputeRowBatched(PixelSource pixels, int stride, int top, int lumaAcQuant,
         Span<float> strengths, CancellationToken cancellationToken)
-        => ComputeRowCore(pixels, stride, top, lumaAcQuant, strengths, cancellationToken,
-            useVector: true, forceBatchedModulation: true);
+        => ComputeRowCore(pixels, stride, top, lumaAcQuant, strengths,
+            useVector: true, forceBatchedModulation: true, cancellationToken);
 
     private void ComputeRowCore(PixelSource pixels, int stride, int top, int lumaAcQuant,
-        Span<float> strengths, CancellationToken cancellationToken, bool useVector,
-        bool forceBatchedModulation = false)
+        Span<float> strengths, bool useVector, bool forceBatchedModulation,
+        CancellationToken cancellationToken)
     {
         Guard.ThrowIfDisposed(disposed, this);
         int mcuHeight = verticalSampling * 8;

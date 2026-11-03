@@ -2,6 +2,8 @@
 // Use of this source code is governed by the BSD-3-Clause license in
 // THIRD-PARTY-NOTICES.md.
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace DotJpegli.Internal;
 
 // Managed adaptation of ValidateScanScript and ProcessCompressionParams from
@@ -109,5 +111,7 @@ internal static class JpegScanScript
         return snapshot;
     }
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
+        Justification = "Script validation identifies the caller's ScanScript option forwarded to this helper.")]
     private static ArgumentException Invalid(string message) => new(message, "ScanScript");
 }

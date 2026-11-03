@@ -2,6 +2,7 @@
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
 
 using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 #if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
@@ -327,7 +328,7 @@ internal readonly ref struct PixelSource
             0xffffff00U | (uint)(component + 2 * step), 0xffffff00U | (uint)(component + 3 * step)).AsByte();
 
 #else
-    private int ConvertByteRow(int rowStart, Span<float> lumaSamples, Span<float> cbSamples, Span<float> crSamples) => 0;
+    private static int ConvertByteRow(int rowStart, Span<float> lumaSamples, Span<float> cbSamples, Span<float> crSamples) => 0;
 
 #endif
     private sealed class ConvertedPlanes(int width, int height, int sourceStride, int sourceLength, int components,
@@ -425,6 +426,8 @@ internal readonly ref struct PixelSource
         }
     }
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
+        Justification = "Validation reports the caller's ColorSpace option rather than this internal adapter parameter.")]
     internal PixelSource WithColorSpace(JpegColorSpace outputColorSpace)
     {
         if (xyb && outputColorSpace is not (JpegColorSpace.Automatic or JpegColorSpace.Xyb))
@@ -445,6 +448,8 @@ internal readonly ref struct PixelSource
         _ => floats.Length
     });
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
+        Justification = "The stored samples originate from the public Encode pixels argument, which remains the reported parameter.")]
     internal bool ValidateSamples(int width, int height, int stride, CancellationToken cancellationToken,
         bool allowOutOfRangeFloatSamples = false)
     {

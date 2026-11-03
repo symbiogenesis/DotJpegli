@@ -81,4 +81,26 @@ internal static class Guard
         ObjectDisposedException.ThrowIf(condition, instance);
 #endif
     }
+
+    internal static void ThrowIfGreaterThan(int value, int maximum,
+        [CallerArgumentExpression(nameof(value))] string? parameterName = null)
+    {
+#if NETSTANDARD2_1
+        if (value > maximum)
+            throw new ArgumentOutOfRangeException(parameterName);
+#else
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(value, maximum, parameterName);
+#endif
+    }
+
+    internal static void ThrowIfZero(uint value,
+        [CallerArgumentExpression(nameof(value))] string? parameterName = null)
+    {
+#if NETSTANDARD2_1
+        if (value == 0)
+            throw new ArgumentOutOfRangeException(parameterName);
+#else
+        ArgumentOutOfRangeException.ThrowIfZero(value, parameterName);
+#endif
+    }
 }

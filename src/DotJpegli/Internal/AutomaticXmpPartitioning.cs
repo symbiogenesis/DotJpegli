@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
@@ -17,6 +18,8 @@ internal static class AutomaticXmpPartitioning
     // subtrees; both envelopes retain inherited XML attributes and namespaces.
     internal sealed record Partition(string ExtendedPacket, XElement? StandardRoot);
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
+        Justification = "Selection validation identifies the caller's StandardXmpProperties option.")]
     internal static HashSet<XName> CreateSelection(JpegliEncoderOptions options, CancellationToken cancellationToken)
     {
         var names = new HashSet<XName>();
@@ -49,6 +52,8 @@ internal static class AutomaticXmpPartitioning
         return names;
     }
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
+        Justification = "Packet validation identifies the caller's XmpPacket option forwarded to this helper.")]
     internal static Partition? Prepare(string packet, HashSet<XName> selection, CancellationToken cancellationToken)
     {
         var chunks = new ExtendedXmpMetadata.Utf8Chunks(packet);
@@ -155,6 +160,8 @@ internal static class AutomaticXmpPartitioning
         }
     }
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
+        Justification = "An oversized selected packet identifies the caller's StandardXmpProperties option.")]
     internal static string CreateStandardPacket(XElement root, string digest, CancellationToken cancellationToken)
     {
         // Existing links were rejected during envelope validation. Use the first

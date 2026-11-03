@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 #if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
@@ -106,6 +107,7 @@ public static class JpegliEncoder
         int stride = 0, CancellationToken cancellationToken = default)
         => EncodeCore(output, new PixelSource(pixels, layout), width, height, options, stride, cancellationToken);
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly", Justification = "Option validation identifies the invalid public option property in ParamName.")]
     private static void EncodeCore(Stream output, PixelSource pixels, int width, int height,
         JpegliEncoderOptions? options, int stride, CancellationToken cancellationToken)
     {
@@ -309,8 +311,8 @@ public static class JpegliEncoder
                         ? componentRestartIntervals[scan.Components[0]] : interleavedRestartInterval;
                     ProcessScan(pixels, width, height, stride, sampling, tables, distance,
                         options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
-                        dcTables, acTables, null, dcFrequencies, acFrequencies, cancellationToken,
-                        scan, options.Progressive, aggregateEobRuns: true);
+                        dcTables, acTables, null, dcFrequencies, acFrequencies,
+                        scan, options.Progressive, aggregateEobRuns: true, cancellationToken);
                 }
             }
             else if (interleaveInitialScan)
@@ -322,7 +324,7 @@ public static class JpegliEncoder
                 for (int component = 0; component < componentCount; component++)
                     ProcessComponentBlocks(pixels, width, height, stride, sampling,
                         tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
-                        component, acTables, null, acFrequencies, cancellationToken, aggregateEobRuns: false,
+                        component, acTables, null, acFrequencies, aggregateEobRuns: false, cancellationToken,
                         successiveLow: options.ProgressiveRefinementBits, dcOnly: options.Progressive,
                         dcTables: dcTables, dcFrequencies: dcFrequencies, sequential: !options.Progressive);
             if (scanScript is null && options.Progressive)
@@ -331,7 +333,7 @@ public static class JpegliEncoder
                     for (int component = 0; component < componentCount; component++)
                         ProcessComponentBlocks(pixels, width, height, stride, sampling,
                             tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
-                            component, acTables, null, acFrequencies, cancellationToken, aggregateEobRuns: true,
+                            component, acTables, null, acFrequencies, aggregateEobRuns: true, cancellationToken,
                             successiveLow: acRefinementBits[band],
                             spectralStart: band == 0 ? 1 : acScanEnds[band - 1] + 1, spectralEnd: acScanEnds[band]);
                 // DC refinement emits raw bits, so only AC refinement contributes
@@ -344,8 +346,8 @@ public static class JpegliEncoder
                         for (int component = 0; component < componentCount; component++)
                             ProcessComponentBlocks(pixels, width, height, stride, sampling,
                                 tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
-                                component, acTables, null, acFrequencies, cancellationToken,
-                                aggregateEobRuns: true, successiveLow: low, refine: true,
+                                component, acTables, null, acFrequencies,
+                                aggregateEobRuns: true, cancellationToken, successiveLow: low, refine: true,
                                 spectralStart: band == 0 ? 1 : acScanEnds[band - 1] + 1, spectralEnd: acScanEnds[band]);
                     }
             }
@@ -387,8 +389,8 @@ public static class JpegliEncoder
                 JpegMarkerWriter.WriteScanHeader(output, scan, options.Progressive, rgb);
                 ProcessScan(pixels, width, height, stride, sampling, tables, distance,
                     options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
-                    dcTables, acTables, bits, null, null, cancellationToken,
-                    scan, options.Progressive, options.OptimizeHuffmanTables);
+                    dcTables, acTables, bits, null, null,
+                    scan, options.Progressive, options.OptimizeHuffmanTables, cancellationToken);
                 bits.Flush();
             }
         }
@@ -412,7 +414,7 @@ public static class JpegliEncoder
                     successiveLow: options.ProgressiveRefinementBits, rgb: rgb, singleComponent: component);
                 ProcessComponentBlocks(pixels, width, height, stride, sampling,
                     tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
-                    component, acTables, bits, null, cancellationToken, aggregateEobRuns: false,
+                    component, acTables, bits, null, aggregateEobRuns: false, cancellationToken,
                     successiveLow: options.ProgressiveRefinementBits, dcOnly: options.Progressive,
                     dcTables: dcTables, sequential: !options.Progressive);
                 bits.Flush();
@@ -431,8 +433,8 @@ public static class JpegliEncoder
                         spectralStart: spectralStart, spectralEnd: acScanEnds[band]);
                     ProcessComponentBlocks(pixels, width, height, stride, sampling,
                         tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
-                        component, acTables, bits, null, cancellationToken,
-                        aggregateEobRuns: options.OptimizeHuffmanTables,
+                        component, acTables, bits, null,
+                        aggregateEobRuns: options.OptimizeHuffmanTables, cancellationToken,
                         successiveLow: acRefinementBits[band],
                         spectralStart: spectralStart, spectralEnd: acScanEnds[band]);
                     bits.Flush();
@@ -462,7 +464,7 @@ public static class JpegliEncoder
                                 successiveHigh: low + 1, successiveLow: low, rgb: rgb, singleComponent: component);
                             ProcessComponentBlocks(pixels, width, height, stride, sampling,
                                 tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
-                                component, acTables, bits, null, cancellationToken, aggregateEobRuns: false,
+                                component, acTables, bits, null, aggregateEobRuns: false, cancellationToken,
                                 successiveLow: low, refine: true, dcOnly: true, dcTables: dcTables);
                             bits.Flush();
                         }
@@ -481,8 +483,8 @@ public static class JpegliEncoder
                             spectralStart: spectralStart, spectralEnd: acScanEnds[band]);
                         ProcessComponentBlocks(pixels, width, height, stride, sampling,
                             tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
-                            component, acTables, bits, null, cancellationToken,
-                            aggregateEobRuns: options.OptimizeHuffmanTables, successiveLow: low, refine: true,
+                            component, acTables, bits, null,
+                            aggregateEobRuns: options.OptimizeHuffmanTables, cancellationToken, successiveLow: low, refine: true,
                             spectralStart: spectralStart, spectralEnd: acScanEnds[band]);
                         bits.Flush();
                     }
@@ -577,14 +579,14 @@ public static class JpegliEncoder
                 ? componentRestartIntervals[scan.Components[0]] : interleavedRestartInterval;
             if (streamSequential)
                 ProcessSequentialInterleaved(pixels, width, height, stride, sampling, tables, distance,
-                    options.SmoothingFactor, interval, adaptive, adaptiveMultipliers, cancellationToken,
-                    scanTokens, dcFrequencies, acFrequencies[scanIndex],
+                    options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
+                    scanTokens, dcFrequencies, acFrequencies[scanIndex], cancellationToken,
                     narrowZigZagKernel: options.NarrowZigZagKernel);
             else
                 ProcessScan(pixels, width, height, stride, sampling, tables, distance,
                     options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
-                    emptyTables, emptyTables, null, dcFrequencies, acFrequencies[scanIndex], cancellationToken,
-                    scan, options.Progressive, aggregateEobRuns: true, contextByComponent: true,
+                    emptyTables, emptyTables, null, dcFrequencies, acFrequencies[scanIndex],
+                    scan, options.Progressive, aggregateEobRuns: true, cancellationToken, contextByComponent: true,
                     quantizedImage: quantizedImage, entropyTokens: scanTokens);
         }
         HuffmanCodingPlan plan = HuffmanCodingPlan.Create(scans, dcFrequencies, acFrequencies,
@@ -613,13 +615,13 @@ public static class JpegliEncoder
                 scanTokens.Replay(bits, coding, cancellationToken);
             else if (streamSequential)
                 ProcessSequentialInterleaved(pixels, width, height, stride, sampling, tables, distance,
-                    options.SmoothingFactor, interval, adaptive, adaptiveMultipliers, cancellationToken,
-                    null, null, null, bits, coding, options.NarrowZigZagKernel);
+                    options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
+                    null, null, null, cancellationToken, bits, coding, options.NarrowZigZagKernel);
             else
                 ProcessScan(pixels, width, height, stride, sampling, tables, distance,
                     options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
-                    coding.DcTables, coding.AcTables, bits, null, null, cancellationToken,
-                    scan, options.Progressive, aggregateEobRuns: true, contextByComponent: true,
+                    coding.DcTables, coding.AcTables, bits, null, null,
+                    scan, options.Progressive, aggregateEobRuns: true, cancellationToken, contextByComponent: true,
                     quantizedImage: quantizedImage);
             bits.Flush();
         }
@@ -672,8 +674,8 @@ public static class JpegliEncoder
 
     private static void ProcessSequentialInterleaved(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor, int restartInterval,
-        AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, CancellationToken cancellationToken,
-        EntropyTokens? tokens, long[][]? dcFrequencies, long[][]? acFrequencies,
+        AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
+        EntropyTokens? tokens, long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
         BitWriter? writer = null, HuffmanCodingPlan.ScanCoding? coding = null,
         KernelPreference narrowZigZagKernel = KernelPreference.Automatic)
     {
@@ -792,8 +794,9 @@ public static class JpegliEncoder
         JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor,
         int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         HuffmanTable[] dcTables, HuffmanTable[] acTables, BitWriter? writer,
-        long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
-        JpegScan scan, bool progressive, bool aggregateEobRuns, bool contextByComponent = false,
+        long[][]? dcFrequencies, long[][]? acFrequencies,
+        JpegScan scan, bool progressive, bool aggregateEobRuns, CancellationToken cancellationToken,
+        bool contextByComponent = false,
         QuantizedImage? quantizedImage = null, EntropyTokens? entropyTokens = null)
     {
         bool dcOnly = progressive && scan.SpectralStart == 0;
@@ -801,8 +804,8 @@ public static class JpegliEncoder
         if (scan.Components.Count == 1)
             ProcessComponentBlocks(pixels, width, height, stride, sampling, tables, distance,
                 smoothingFactor, restartInterval, adaptive, adaptiveMultipliers,
-                scan.Components[0], acTables, writer, acFrequencies, cancellationToken,
-                aggregateEobRuns, scan.SuccessiveLow, refine, scan.SpectralStart, scan.SpectralEnd,
+                scan.Components[0], acTables, writer, acFrequencies,
+                aggregateEobRuns, cancellationToken, scan.SuccessiveLow, refine, scan.SpectralStart, scan.SpectralEnd,
                 dcOnly, dcTables, dcFrequencies, sequential: !progressive, contextByComponent: contextByComponent,
                 quantizedImage: quantizedImage, entropyTokens: entropyTokens);
         else
@@ -952,8 +955,8 @@ public static class JpegliEncoder
     private static void ProcessComponentBlocks(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, ushort[][] tables,
         float distance, int smoothingFactor, int restartInterval, AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
-        int component, HuffmanTable[] acTables, BitWriter? writer, long[][]? acFrequencies,
-        CancellationToken cancellationToken, bool aggregateEobRuns, int successiveLow = 0, bool refine = false,
+        int component, HuffmanTable[] acTables, BitWriter? writer, long[][]? acFrequencies, bool aggregateEobRuns,
+        CancellationToken cancellationToken, int successiveLow = 0, bool refine = false,
         int spectralStart = 1, int spectralEnd = 63, bool dcOnly = false,
         HuffmanTable[]? dcTables = null, long[][]? dcFrequencies = null, bool sequential = false,
         bool contextByComponent = false, QuantizedImage? quantizedImage = null, EntropyTokens? entropyTokens = null)

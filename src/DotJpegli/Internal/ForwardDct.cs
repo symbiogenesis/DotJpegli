@@ -156,8 +156,7 @@ internal static class ForwardDct
         Guard.ThrowIfLessThan(stride, 8);
         Guard.ThrowIfNegative(left);
         Guard.ThrowIfNegative(top);
-        if (left > stride - 8)
-            throw new ArgumentOutOfRangeException(nameof(left));
+        Guard.ThrowIfGreaterThan(left, stride - 8);
         if (((long)top + 7) * stride + left + 8 > plane.Length)
             throw new ArgumentException("The plane must contain the complete 8 by 8 block.", nameof(plane));
     }

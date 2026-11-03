@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics.CodeAnalysis;
 #if !NETSTANDARD2_1
 using System.Runtime.InteropServices;
 #endif
@@ -29,7 +30,9 @@ public enum ExifFieldType : ushort
     SignedShort = 8,
     SignedLong = 9,
     SignedRational = 10,
+    [SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "FLOAT is the standard TIFF field type name.")]
     Float = 11,
+    [SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "DOUBLE is the standard TIFF field type name.")]
     Double = 12,
 }
 
@@ -269,8 +272,7 @@ public sealed class ExifMetadata
     /// <summary>Sets a single unsigned rational. Zero denominators are rejected.</summary>
     public void SetUnsignedRational(ExifDirectory directory, ushort tag, uint numerator, uint denominator)
     {
-        if (denominator == 0)
-            throw new ArgumentOutOfRangeException(nameof(denominator));
+        Guard.ThrowIfZero(denominator);
         Span<byte> bytes = stackalloc byte[8];
         BinaryPrimitives.WriteUInt32LittleEndian(bytes, numerator);
         BinaryPrimitives.WriteUInt32LittleEndian(bytes[4..], denominator);

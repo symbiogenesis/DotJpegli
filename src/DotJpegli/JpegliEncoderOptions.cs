@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using DotJpegli.Internal;
 
@@ -499,6 +500,7 @@ public sealed record JpegliEncoderOptions
     internal int ResolveRestartInterval(int mcusPerRow) => RestartRows == 0
         ? RestartInterval : (int)Math.Min((long)RestartRows * mcusPerRow, 65535);
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly", Justification = "Option validation identifies the invalid QuantizationTables property in ParamName.")]
     internal ushort[][]? PrepareQuantizationTables(int componentCount)
     {
         if (QuantizationTables is not { } tables)
@@ -523,6 +525,7 @@ public sealed record JpegliEncoderOptions
         return snapshot;
     }
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly", Justification = "Option validation identifies the invalid MetadataMarkers property in ParamName.")]
     internal JpegMetadataMarker[]? PrepareMetadataMarkers(CancellationToken cancellationToken)
     {
         if (MetadataMarkers is not { } requested)
@@ -584,6 +587,7 @@ public sealed record JpegliEncoderOptions
         return snapshot;
     }
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly", Justification = "Option validation identifies the invalid ProgressiveAcRefinementBits property in ParamName.")]
     internal int[] PrepareProgressiveAcRefinementBits(int bandCount)
     {
         var snapshot = new int[bandCount];

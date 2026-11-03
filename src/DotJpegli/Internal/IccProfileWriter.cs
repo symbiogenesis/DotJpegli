@@ -2,6 +2,7 @@
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
 
 using System.Buffers.Binary;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -43,6 +44,8 @@ internal static class IccProfileWriter
         Signature(bytes, 80, "jxl "u8);
     }
 
+    [SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms",
+        Justification = "ICC profile identification mandates MD5; the digest is a format identifier, not a security check.")]
     internal static void ProfileId(Span<byte> bytes)
     {
         // ICC profile identification excludes flags, rendering intent and the ID.

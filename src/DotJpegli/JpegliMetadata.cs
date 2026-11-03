@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using DotJpegli.Internal;
@@ -157,6 +158,7 @@ public static class JpegliMetadata
             throw new ArgumentException($"{name} must be ASCII without NUL and at most {maximum} bytes.", name);
     }
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly", Justification = "Option validation identifies the conflicting MetadataMarkers property in ParamName.")]
     private static void RejectConflictingMarkers(JpegliEncoderOptions options, CancellationToken cancellationToken)
     {
         foreach (JpegMetadataMarker marker in options.PrepareMetadataMarkers(cancellationToken) ?? [])

@@ -1,6 +1,7 @@
 // Copyright (c) the JPEG XL Project Authors.
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 namespace DotJpegli.Internal;
@@ -78,6 +79,8 @@ internal static class CustomIccColorEncoding
             adapted[2], adapted[5], adapted[8]];
     }
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
+        Justification = "Each primary is a component of the caller's primaries argument.")]
     private static void ValidatePrimary(IccChromaticity primary)
     {
         // ACES P0 and other imaginary primaries can have negative coordinates;
@@ -125,6 +128,8 @@ internal static class CustomIccColorEncoding
         return adapted;
     }
 
+    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
+        Justification = "The matrix is derived from the caller's primaries argument, which remains the reported parameter.")]
     private static void Invert(ReadOnlySpan<float> matrix, Span<float> inverse)
     {
         Span<double> cofactors = stackalloc double[9]
