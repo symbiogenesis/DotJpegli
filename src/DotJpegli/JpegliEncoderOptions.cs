@@ -12,6 +12,9 @@ public sealed record JpegliEncoderOptions
     internal KernelPreference FuzzyErosionKernel { get; init; }
     internal KernelPreference NarrowZigZagKernel { get; init; }
     internal KernelPreference EntropyByteStuffingKernel { get; init; }
+    // Untimed numerical research only; Automatic retains exact division.
+    internal KernelPreference AqRationalKernel { get; init; }
+    internal AqRationalDiagnostics? AqRationalDiagnostics { get; init; }
 
     // Focused regressions can force complete, mixed and uncached scan emission.
     internal long EntropyTokenBudgetBytes { get; init; } = EntropyTokenBudget.DefaultMaximumBytes;

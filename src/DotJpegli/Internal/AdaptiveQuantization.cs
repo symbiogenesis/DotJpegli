@@ -38,6 +38,8 @@ internal sealed class AdaptiveQuantization : IDisposable
     private readonly int preStride;
     private readonly ArrayPool<float>? scratchPool;
     private readonly bool useSelectionNetwork;
+    private readonly bool useAqReciprocal;
+    private readonly AqRationalDiagnostics? aqRationalDiagnostics;
     private float[] luma = [];
     private float[] preErosion = [];
     private float[] fuzzy = [];
@@ -49,7 +51,9 @@ internal sealed class AdaptiveQuantization : IDisposable
     private bool previousUseVector;
 
     internal AdaptiveQuantization(int width, int height, int verticalSampling, ArrayPool<float>? scratchPool = null,
-        KernelPreference fuzzyErosionKernel = KernelPreference.Automatic)
+        KernelPreference fuzzyErosionKernel = KernelPreference.Automatic,
+        KernelPreference aqRationalKernel = KernelPreference.Automatic,
+        AqRationalDiagnostics? aqRationalDiagnostics = null)
     {
         Guard.ThrowIfNegativeOrZero(width);
         Guard.ThrowIfNegativeOrZero(height);
@@ -62,6 +66,13 @@ internal sealed class AdaptiveQuantization : IDisposable
         this.height = height;
         this.verticalSampling = verticalSampling;
         this.useSelectionNetwork = KernelPolicy.UseSelectionNetwork(fuzzyErosionKernel, width);
+        this.useAqReciprocal = aqRationalKernel switch
+        {
+            KernelPreference.Automatic or KernelPreference.Original => false,
+            KernelPreference.Optimized => true,
+            _ => throw new ArgumentOutOfRangeException(nameof(aqRationalKernel))
+        };
+        this.aqRationalDiagnostics = aqRationalDiagnostics;
         this.BlocksWide = checked((width + 7) / 8);
         this.paddedWidth = checked(this.BlocksWide * 8);
         int mcuHeight = verticalSampling * 8;
@@ -284,11 +295,12 @@ internal sealed class AdaptiveQuantization : IDisposable
                         int x = (blockX + block) * 2;
                         float value = this.fuzzy[this.preStride + x] + this.fuzzy[this.preStride + x + 1]
                             + this.fuzzy[x] + this.fuzzy[x + 1];
-                        value = ComputeMask(value);
+                        value = ComputeMask(value, this.useAqReciprocal, this.aqRationalDiagnostics);
                         value = modulationValues[block] + value;
-                        value = (-0.15526878023684174f * InvLog2E * FastLog2(modulationValues[8 + block])) + value;
-                        float field = (FastPow2(value * 1.442695041f) * mul) + add;
-                        strengths[(blockY * this.BlocksWide) + blockX + block] = MathF.Max(0f, (0.6f / field) - 1f);
+                        value = (-0.15526878023684174f * InvLog2E * FastLog2(modulationValues[8 + block], this.useAqReciprocal, this.aqRationalDiagnostics)) + value;
+                        float field = (FastPow2(value * 1.442695041f, this.useAqReciprocal, this.aqRationalDiagnostics) * mul) + add;
+                        strengths[(blockY * this.BlocksWide) + blockX + block] = MathF.Max(0f,
+                            Divide(0.6f, field, AqRationalSite.Strength, this.useAqReciprocal, this.aqRationalDiagnostics) - 1f);
                     }
                 }
             }
@@ -298,7 +310,7 @@ internal sealed class AdaptiveQuantization : IDisposable
                 int x = blockX * 2;
                 float value = this.fuzzy[this.preStride + x] + this.fuzzy[this.preStride + x + 1]
                     + this.fuzzy[x] + this.fuzzy[x + 1];
-                value = ComputeMask(value);
+                value = ComputeMask(value, this.useAqReciprocal, this.aqRationalDiagnostics);
                 if (useVector && Vector<float>.Count is 4 or 8)
                 {
                     value = this.ModulateVector(blockX * 8, 5 + (blockY * 8), value);
@@ -306,10 +318,12 @@ internal sealed class AdaptiveQuantization : IDisposable
                 else
                 {
                     int offset = ((5 + (blockY * 8)) * this.lumaStride) + (blockX * 8) + 1;
-                    value = ModulateScalar(this.luma.AsSpan(offset), this.lumaStride, value);
+                    value = ModulateScalar(this.luma.AsSpan(offset), this.lumaStride, value,
+                        this.useAqReciprocal, this.aqRationalDiagnostics);
                 }
-                float field = (FastPow2(value * 1.442695041f) * mul) + add;
-                strengths[(blockY * this.BlocksWide) + blockX] = MathF.Max(0f, (0.6f / field) - 1f);
+                float field = (FastPow2(value * 1.442695041f, this.useAqReciprocal, this.aqRationalDiagnostics) * mul) + add;
+                strengths[(blockY * this.BlocksWide) + blockX] = MathF.Max(0f,
+                    Divide(0.6f, field, AqRationalSite.Strength, this.useAqReciprocal, this.aqRationalDiagnostics) - 1f);
             }
         }
         this.previousStorage = storage;
@@ -333,7 +347,7 @@ internal sealed class AdaptiveQuantization : IDisposable
                 Vector<float> above = new(this.luma, index - this.lumaStride);
                 Vector<float> current = new(this.luma, index);
                 Vector<float> below = new(this.luma, index + this.lumaStride);
-                Vector<float> sum = PreErosionDifference(current, new(this.luma, index - 1), new(this.luma, index + 1),
+                Vector<float> sum = this.PreErosionDifference(current, new(this.luma, index - 1), new(this.luma, index + 1),
                     above, below, gammaOffset, maskingScale);
                 // Each following pixel row reuses the two vertical neighbors
                 // already loaded. Retain the original left-to-right dy sum,
@@ -341,17 +355,17 @@ internal sealed class AdaptiveQuantization : IDisposable
                 above = current;
                 current = below;
                 below = new(this.luma, index + (2 * this.lumaStride));
-                sum += PreErosionDifference(current, new(this.luma, index + this.lumaStride - 1),
+                sum += this.PreErosionDifference(current, new(this.luma, index + this.lumaStride - 1),
                     new(this.luma, index + this.lumaStride + 1), above, below, gammaOffset, maskingScale);
                 above = current;
                 current = below;
                 below = new(this.luma, index + (3 * this.lumaStride));
-                sum += PreErosionDifference(current, new(this.luma, index + (2 * this.lumaStride) - 1),
+                sum += this.PreErosionDifference(current, new(this.luma, index + (2 * this.lumaStride) - 1),
                     new(this.luma, index + (2 * this.lumaStride) + 1), above, below, gammaOffset, maskingScale);
                 above = current;
                 current = below;
                 below = new(this.luma, index + (4 * this.lumaStride));
-                sum += PreErosionDifference(current, new(this.luma, index + (3 * this.lumaStride) - 1),
+                sum += this.PreErosionDifference(current, new(this.luma, index + (3 * this.lumaStride) - 1),
                     new(this.luma, index + (3 * this.lumaStride) + 1), above, below, gammaOffset, maskingScale);
                 // Reduce each horizontal group while its four-row sums are
                 // still available. Explicit lane reads preserve the original
@@ -378,33 +392,35 @@ internal sealed class AdaptiveQuantization : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private float PreErosionColumn(int index, float gammaOffset, float maskingScale)
     {
-        float sum = PreErosionDifference(this.luma[index], this.luma[index - 1], this.luma[index + 1],
+        float sum = this.PreErosionDifference(this.luma[index], this.luma[index - 1], this.luma[index + 1],
             this.luma[index - this.lumaStride], this.luma[index + this.lumaStride], gammaOffset, maskingScale);
         for (int dy = 1; dy < 4; dy++)
         {
             int next = index + (dy * this.lumaStride);
-            sum += PreErosionDifference(this.luma[next], this.luma[next - 1], this.luma[next + 1],
+            sum += this.PreErosionDifference(this.luma[next], this.luma[next - 1], this.luma[next + 1],
                 this.luma[next - this.lumaStride], this.luma[next + this.lumaStride], gammaOffset, maskingScale);
         }
         return sum;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Vector<float> PreErosionDifference(Vector<float> value, Vector<float> left, Vector<float> right,
+    private Vector<float> PreErosionDifference(Vector<float> value, Vector<float> left, Vector<float> right,
         Vector<float> above, Vector<float> below, float gammaOffset, float maskingScale)
     {
         Vector<float> baseValue = new Vector<float>(0.25f) * (right + left + (above + below));
-        Vector<float> diff = DerivativeRatio(value + new Vector<float>(gammaOffset), invert: false) * (value - baseValue);
+        Vector<float> diff = DerivativeRatio(value + new Vector<float>(gammaOffset), invert: false,
+            this.useAqReciprocal, this.aqRationalDiagnostics) * (value - baseValue);
         diff = Vector.Min(diff * diff, new Vector<float>(0.2f));
         return new Vector<float>(0.25f) * Vector.SquareRoot((diff * new Vector<float>(maskingScale)) + new Vector<float>(28f));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static float PreErosionDifference(float value, float left, float right, float above, float below,
+    private float PreErosionDifference(float value, float left, float right, float above, float below,
         float gammaOffset, float maskingScale)
     {
         float baseValue = 0.25f * (right + left + (above + below));
-        float diff = DerivativeRatio(value + gammaOffset, invert: false) * (value - baseValue);
+        float diff = DerivativeRatio(value + gammaOffset, invert: false,
+            this.useAqReciprocal, this.aqRationalDiagnostics) * (value - baseValue);
         diff = MathF.Min(diff * diff, 0.2f);
         return 0.25f * MathF.Sqrt((diff * maskingScale) + 28f);
     }
@@ -635,12 +651,12 @@ internal sealed class AdaptiveQuantization : IDisposable
         min3 = Vector.Min(min3, next2);
     }
 
-    private static float ComputeMask(float value)
+    private static float ComputeMask(float value, bool useReciprocal, AqRationalDiagnostics? diagnostics)
     {
         float v = MathF.Max(value * 0.74760422233706747f, 1e-3f);
-        float v2 = 1f / (v + 305.04035728311436f);
-        float v3 = 1f / ((v * v) + 2.1925739705298404f);
-        float v4 = 1f / ((v * v) + (0.25f * 2.1925739705298404f));
+        float v2 = Divide(1f, v + 305.04035728311436f, AqRationalSite.Mask, useReciprocal, diagnostics);
+        float v3 = Divide(1f, (v * v) + 2.1925739705298404f, AqRationalSite.Mask, useReciprocal, diagnostics);
+        float v4 = Divide(1f, (v * v) + (0.25f * 2.1925739705298404f), AqRationalSite.Mask, useReciprocal, diagnostics);
         return -0.74174993f + ((3.2353257320940401f * v4)
             + ((12.906028311180409f * v2) + (5.0220313103171232f * v3)));
     }
@@ -672,11 +688,11 @@ internal sealed class AdaptiveQuantization : IDisposable
                 Vector256<float> nextSamples = current[column + 1];
                 sum += Vector256.Abs(samples - nextSamples);
                 sum += Vector256.Abs(samples - below[column]);
-                ratio += DerivativeRatio(samples + gammaOffset);
+                ratio += DerivativeRatio(samples + gammaOffset, this.useAqReciprocal, this.aqRationalDiagnostics);
                 samples = nextSamples;
             }
             sum += Vector256.Abs(samples - below[7]);
-            ratio += DerivativeRatio(samples + gammaOffset);
+            ratio += DerivativeRatio(samples + gammaOffset, this.useAqReciprocal, this.aqRationalDiagnostics);
             Span<Vector256<float>> previous = current;
             current = next;
             next = previous;
@@ -700,13 +716,13 @@ internal sealed class AdaptiveQuantization : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Vector256<float> DerivativeRatio(Vector256<float> value)
+    private static Vector256<float> DerivativeRatio(Vector256<float> value, bool useReciprocal, AqRationalDiagnostics? diagnostics)
     {
         value = Vector256.Max(value, Vector256<float>.Zero);
         Vector256<float> squared = value * value;
         Vector256<float> numerator = (Vector256.Create(NumMul) * squared) + Vector256.Create(NumOffset);
         Vector256<float> denominator = (Vector256.Create(DenMul) * value * squared) + Vector256.Create(VOffset);
-        return numerator / denominator;
+        return Divide(numerator, denominator, AqRationalSite.Derivative, useReciprocal, diagnostics);
     }
 
 #endif
@@ -727,7 +743,8 @@ internal sealed class AdaptiveQuantization : IDisposable
                 var horizontal = Vector.Abs(samples - new Vector<float>(this.luma, row + 1));
                 var vertical = Vector.Abs(samples - next);
                 sum = AddHfDifferences(sum, horizontal, vertical);
-                ratio = AddGammaDerivatives(ratio, DerivativeRatio(samples + gammaOffset, invert: true));
+                ratio = AddGammaDerivatives(ratio, DerivativeRatio(samples + gammaOffset, invert: true,
+                    this.useAqReciprocal, this.aqRationalDiagnostics));
                 samples = next;
                 row += this.lumaStride;
             }
@@ -744,8 +761,10 @@ internal sealed class AdaptiveQuantization : IDisposable
                 var horizontalRight = Vector.Abs(right - new Vector<float>(this.luma, row + 5));
                 sum = AddHfFourDifferences(sum, horizontalLeft, Vector.Abs(left - nextLeft), includeLastHorizontal: true);
                 sum = AddHfFourDifferences(sum, horizontalRight, Vector.Abs(right - nextRight), includeLastHorizontal: false);
-                ratio = AddGammaFourDerivatives(ratio, DerivativeRatio(left + gammaOffset, invert: true));
-                ratio = AddGammaFourDerivatives(ratio, DerivativeRatio(right + gammaOffset, invert: true));
+                ratio = AddGammaFourDerivatives(ratio, DerivativeRatio(left + gammaOffset, invert: true,
+                    this.useAqReciprocal, this.aqRationalDiagnostics));
+                ratio = AddGammaFourDerivatives(ratio, DerivativeRatio(right + gammaOffset, invert: true,
+                    this.useAqReciprocal, this.aqRationalDiagnostics));
                 left = nextLeft;
                 right = nextRight;
                 row += this.lumaStride;
@@ -757,10 +776,11 @@ internal sealed class AdaptiveQuantization : IDisposable
         const float sumCoeff = (float)(-2.0052193233688884f * InputScaling / 112.0);
         value = (sum * sumCoeff) + value;
         ratio *= InputScaling / 64f;
-        return (-0.15526878023684174f * InvLog2E * FastLog2(ratio)) + value;
+        return (-0.15526878023684174f * InvLog2E * FastLog2(ratio, this.useAqReciprocal, this.aqRationalDiagnostics)) + value;
     }
 
-    internal static float ModulateScalar(ReadOnlySpan<float> samples, int stride, float value)
+    internal static float ModulateScalar(ReadOnlySpan<float> samples, int stride, float value,
+        bool useReciprocal = false, AqRationalDiagnostics? diagnostics = null)
     {
         float sum = 0;
         float ratio = 0;
@@ -774,20 +794,20 @@ internal sealed class AdaptiveQuantization : IDisposable
                 float nextSample = samples[row + dx + 1];
                 sum += MathF.Abs(sample - nextSample);
                 sum += MathF.Abs(sample - samples[next + dx]);
-                ratio += DerivativeRatio(sample + (0.16f / InputScaling), invert: true);
+                ratio += DerivativeRatio(sample + (0.16f / InputScaling), invert: true, useReciprocal, diagnostics);
                 sample = nextSample;
             }
             // The final column has no horizontal difference. Carrying each
             // neighbor above preserves both raster-order sums without rereads.
             sum += MathF.Abs(sample - samples[next + 7]);
-            ratio += DerivativeRatio(sample + (0.16f / InputScaling), invert: true);
+            ratio += DerivativeRatio(sample + (0.16f / InputScaling), invert: true, useReciprocal, diagnostics);
         }
         // Share sample loads while retaining two independent raster-order sums.
         // Apply HF before gamma, exactly as the previous two scalar traversals did.
         const float sumCoeff = (float)(-2.0052193233688884f * InputScaling / 112.0);
         value = (sum * sumCoeff) + value;
         ratio *= InputScaling / 64f;
-        return (-0.15526878023684174f * InvLog2E * FastLog2(ratio)) + value;
+        return (-0.15526878023684174f * InvLog2E * FastLog2(ratio, useReciprocal, diagnostics)) + value;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -852,25 +872,27 @@ internal sealed class AdaptiveQuantization : IDisposable
         return ratio + values[7];
     }
 
-    private static float DerivativeRatio(float value, bool invert)
+    private static float DerivativeRatio(float value, bool invert, bool useReciprocal, AqRationalDiagnostics? diagnostics)
     {
         value = MathF.Max(value, 0);
         float squared = value * value;
         float numerator = (NumMul * squared) + NumOffset;
         float denominator = (DenMul * value * squared) + VOffset;
-        return invert ? numerator / denominator : denominator / numerator;
+        return invert ? Divide(numerator, denominator, AqRationalSite.Derivative, useReciprocal, diagnostics)
+            : Divide(denominator, numerator, AqRationalSite.Derivative, useReciprocal, diagnostics);
     }
 
-    private static Vector<float> DerivativeRatio(Vector<float> value, bool invert)
+    private static Vector<float> DerivativeRatio(Vector<float> value, bool invert, bool useReciprocal, AqRationalDiagnostics? diagnostics)
     {
         value = Vector.Max(value, Vector<float>.Zero);
         Vector<float> squared = value * value;
         Vector<float> numerator = (new Vector<float>(NumMul) * squared) + new Vector<float>(NumOffset);
         Vector<float> denominator = (new Vector<float>(DenMul) * value * squared) + new Vector<float>(VOffset);
-        return invert ? numerator / denominator : denominator / numerator;
+        return invert ? Divide(numerator, denominator, AqRationalSite.Derivative, useReciprocal, diagnostics)
+            : Divide(denominator, numerator, AqRationalSite.Derivative, useReciprocal, diagnostics);
     }
 
-    private static float FastLog2(float value)
+    private static float FastLog2(float value, bool useReciprocal, AqRationalDiagnostics? diagnostics)
     {
         int bits = BitConverter.SingleToInt32Bits(value);
         int exponent = unchecked(bits - 0x3f2aaaab) >> 23;
@@ -879,10 +901,10 @@ internal sealed class AdaptiveQuantization : IDisposable
             * mantissa) - 1.8503833400518310e-6f;
         float denominator = (((0.17409343003366853f * mantissa) + 1.0096718572241148f)
             * mantissa) + 0.99032814277590719f;
-        return (numerator / denominator) + exponent;
+        return Divide(numerator, denominator, AqRationalSite.Log2, useReciprocal, diagnostics) + exponent;
     }
 
-    private static float FastPow2(float value)
+    private static float FastPow2(float value, bool useReciprocal, AqRationalDiagnostics? diagnostics)
     {
         float floor = MathF.Floor(value);
         float exponent = BitConverter.Int32BitsToSingle(((int)floor + 127) << 23);
@@ -894,6 +916,89 @@ internal sealed class AdaptiveQuantization : IDisposable
         float denominator = (fraction * 2.10242958e-1f) - 2.22328856e-2f;
         denominator = (denominator * fraction) - 1.94414990e1f;
         denominator = (denominator * fraction) + 9.85506633e1f;
-        return numerator / denominator;
+        return Divide(numerator, denominator, AqRationalSite.Pow2, useReciprocal, diagnostics);
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float Divide(float numerator, float denominator, AqRationalSite site,
+        bool useReciprocal, AqRationalDiagnostics? diagnostics)
+    {
+        if (!useReciprocal)
+        {
+            return numerator / denominator;
+        }
+        float result = AqReciprocal.Divide(numerator, denominator, out bool fallback);
+        diagnostics?.Record(site, fallback);
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector<float> Divide(Vector<float> numerator, Vector<float> denominator, AqRationalSite site,
+        bool useReciprocal, AqRationalDiagnostics? diagnostics)
+        => useReciprocal ? DivideReciprocal(numerator, denominator, site, diagnostics) : numerator / denominator;
+
+    private static Vector<float> DivideReciprocal(Vector<float> numerator, Vector<float> denominator,
+        AqRationalSite site, AqRationalDiagnostics? diagnostics)
+    {
+        // Explicit research only: certify each lane and preserve the original
+        // vector division's exceptional-value bits on every fallback lane.
+        Span<float> results = stackalloc float[Vector<float>.Count];
+        Span<bool> fallbacks = stackalloc bool[Vector<float>.Count];
+        bool anyFallback = false;
+        for (int lane = 0; lane < results.Length; lane++)
+        {
+            results[lane] = AqReciprocal.Divide(numerator[lane], denominator[lane], out bool fallback);
+            fallbacks[lane] = fallback;
+            anyFallback |= fallback;
+            diagnostics?.Record(site, fallback);
+        }
+        if (anyFallback)
+        {
+            Vector<float> original = numerator / denominator;
+            for (int lane = 0; lane < results.Length; lane++)
+            {
+                if (fallbacks[lane])
+                {
+                    results[lane] = original[lane];
+                }
+            }
+        }
+        diagnostics?.RecordVector(anyFallback, vector256: false);
+        return new Vector<float>(results);
+    }
+
+#if !NETSTANDARD2_1
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector256<float> Divide(Vector256<float> numerator, Vector256<float> denominator, AqRationalSite site,
+        bool useReciprocal, AqRationalDiagnostics? diagnostics)
+        => useReciprocal ? DivideReciprocal(numerator, denominator, site, diagnostics) : numerator / denominator;
+
+    private static Vector256<float> DivideReciprocal(Vector256<float> numerator, Vector256<float> denominator,
+        AqRationalSite site, AqRationalDiagnostics? diagnostics)
+    {
+        Span<float> results = stackalloc float[8];
+        Span<bool> fallbacks = stackalloc bool[8];
+        bool anyFallback = false;
+        for (int lane = 0; lane < results.Length; lane++)
+        {
+            results[lane] = AqReciprocal.Divide(numerator[lane], denominator[lane], out bool fallback);
+            fallbacks[lane] = fallback;
+            anyFallback |= fallback;
+            diagnostics?.Record(site, fallback);
+        }
+        if (anyFallback)
+        {
+            Vector256<float> original = numerator / denominator;
+            for (int lane = 0; lane < results.Length; lane++)
+            {
+                if (fallbacks[lane])
+                {
+                    results[lane] = original[lane];
+                }
+            }
+        }
+        diagnostics?.RecordVector(anyFallback, vector256: true);
+        return Vector256.Create(results);
+    }
+#endif
 }

@@ -321,7 +321,7 @@ public static class JpegliEncoder
             && analysisFactor.Horizontal == sampling.MaxHorizontal && analysisFactor.Vertical == sampling.MaxVertical;
         using AdaptiveQuantization? adaptive = useAdaptiveQuantization
             ? new AdaptiveQuantization(width, height, sampling.MaxVertical, ArrayPool<float>.Shared,
-                options.FuzzyErosionKernel) : null;
+                options.FuzzyErosionKernel, options.AqRationalKernel, options.AqRationalDiagnostics) : null;
         float[][]? adaptiveMultipliers = useAdaptiveQuantization
             ? Quantization.CreateAdaptiveZeroBiasMultipliers(tables, quantizationSampling, quantizationSampling, grayscale,
                 cicpTransferFunction: transferFunction, rgb: rgb, quantizationSelectors: quantizationSelectors,
