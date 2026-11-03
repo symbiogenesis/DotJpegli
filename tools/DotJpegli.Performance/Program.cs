@@ -614,7 +614,7 @@ internal static class Program
         return !evaluation.Valid ? 2 : evaluation.Failures.Length > 0 ? 1 : 0;
     }
 
-    private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+    private static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
     private static string HashFile(string path) => Hash(File.ReadAllBytes(path));
     private static Task WriteJson<T>(string output, string name, T value) => File.WriteAllTextAsync(Path.Combine(output, name), JsonSerializer.Serialize(value, JsonOptions) + "\n");
     internal sealed record NativeSample(double NsPerEncode, long Bytes);

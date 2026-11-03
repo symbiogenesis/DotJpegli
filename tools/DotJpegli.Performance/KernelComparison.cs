@@ -563,7 +563,7 @@ internal static class KernelComparison
 
     private static string Label(Result item)
         => $"{item.Id}/{item.Sampling}/p{item.ProgressiveLevel}/d{item.Distance.ToString("g", CultureInfo.InvariantCulture)}/{item.Kernel}";
-    private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+    private static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
     private static string HashFile(string path) => Hash(File.ReadAllBytes(path));
     private static string Metric(double? value, string format) => value?.ToString(format, CultureInfo.InvariantCulture) ?? "n/a";
     private static Task WriteJson<T>(string output, string name, T value)
