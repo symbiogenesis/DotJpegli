@@ -11,6 +11,13 @@ namespace DotJpegli.Internal;
 // budget-limited quantized image to avoid rebuilding coefficients for every scan.
 internal sealed class HuffmanCodingPlan
 {
+    private static class UnusedTable
+    {
+        // Missing contexts share one immutable fallback, including its lazily
+        // prepared replay codes, instead of rebuilding the same tree per image.
+        internal static readonly HuffmanTable Value = HuffmanTable.CreateOptimized(new long[256]);
+    }
+
     internal readonly record struct Definition(HuffmanTable Table, int Selector);
     internal sealed record ScanCoding(HuffmanTable[] DcTables, HuffmanTable[] AcTables,
         byte[] Selectors, Definition[] Definitions);
@@ -49,7 +56,7 @@ internal sealed class HuffmanCodingPlan
         Clusters ac = Cluster(acContexts, limitToBaseline);
         HuffmanTable[] dcTables = dc.Histograms.Select(histogram => HuffmanTable.CreateOptimized(histogram)).ToArray();
         HuffmanTable[] acTables = ac.Histograms.Select(histogram => HuffmanTable.CreateOptimized(histogram)).ToArray();
-        HuffmanTable unused = HuffmanTable.CreateOptimized(new long[256]);
+        HuffmanTable unused = UnusedTable.Value;
         int nextAcDefinition = Math.Min(4, acTables.Length);
         var firstDefinitions = new List<Definition>();
         for (int index = 0; index < dcTables.Length; index++)
