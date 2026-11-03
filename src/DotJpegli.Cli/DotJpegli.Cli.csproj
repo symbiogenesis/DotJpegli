@@ -11,6 +11,8 @@
     <PublishAot>true</PublishAot>
     <SelfContained>true</SelfContained>
     <PublishTrimmed>true</PublishTrimmed>
+    <!-- NativeAOT does not produce the managed executable's XML documentation on a fresh publish. -->
+    <PublishDocumentationFile>false</PublishDocumentationFile>
     <TrimMode>full</TrimMode>
     <InvariantGlobalization>true</InvariantGlobalization>
     <IlcOptimizationPreference>Size</IlcOptimizationPreference>
