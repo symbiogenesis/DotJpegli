@@ -15,6 +15,10 @@ public sealed record JpegliEncoderOptions
     // Focused regressions can force complete, mixed and uncached scan emission.
     internal long EntropyTokenBudgetBytes { get; init; } = EntropyTokenBudget.DefaultMaximumBytes;
 
+    // Offline scan search can constrain histogram clustering independently for
+    // DC and AC tables. Zero retains the normal cost/slot-redefinition policy.
+    internal int HuffmanTableLimit { get; init; }
+
     /// <summary>
     /// Color space stored in the JPEG. Automatic (the default) writes grayscale
     /// for grayscale input, XYB for scaled XYB input, and YCbCr for other color input,
@@ -572,6 +576,10 @@ public sealed record JpegliEncoderOptions
 
     internal void Validate()
     {
+        if (this.HuffmanTableLimit is not (0 or 1 or 2 or 4))
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.HuffmanTableLimit));
+        }
         if (!StandardEnum.IsDefined(this.ColorRenderingIntent))
         {
             throw new ArgumentOutOfRangeException(nameof(this.ColorRenderingIntent));

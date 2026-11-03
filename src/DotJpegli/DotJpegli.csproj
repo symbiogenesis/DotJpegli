@@ -26,6 +26,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="DotJpegli.Tests" />
     <InternalsVisibleTo Include="DotJpegli.Performance" />
+    <InternalsVisibleTo Include="DotJpegli.Parity" />
     <None Include="../../LICENSE;../../LICENSE.jpegli;../../THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" Pack="true" PackagePath="" />
   </ItemGroup>
 

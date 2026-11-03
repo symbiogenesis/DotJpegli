@@ -32,8 +32,13 @@ internal sealed class HuffmanCodingPlan
     internal bool RequiresExtendedSequential { get; }
 
     internal static HuffmanCodingPlan Create(IReadOnlyList<JpegScan> scans,
-        long[][] dcFrequencies, long[][][] acFrequencies, bool progressive, bool forceBaseline)
+        long[][] dcFrequencies, long[][][] acFrequencies, bool progressive, bool forceBaseline,
+        int tableLimit = 0)
     {
+        if (tableLimit is not (0 or 1 or 2 or 4))
+        {
+            throw new ArgumentOutOfRangeException(nameof(tableLimit));
+        }
         int componentCount = dcFrequencies.Length;
         if (componentCount is not (1 or 3) || scans.Count != acFrequencies.Length)
         {
@@ -41,7 +46,7 @@ internal sealed class HuffmanCodingPlan
         }
 
         bool limitToBaseline = !progressive && forceBaseline;
-        Clusters dc = Cluster(dcFrequencies, limitToBaseline);
+        Clusters dc = Cluster(dcFrequencies, limitToBaseline, tableLimit);
         var acContexts = new List<long[]>();
         int[,] acContextIndexes = new int[scans.Count, componentCount];
         for (int scanIndex = 0; scanIndex < scans.Count; scanIndex++)
@@ -62,7 +67,7 @@ internal sealed class HuffmanCodingPlan
                 acContexts.Add(acFrequencies[scanIndex][component]);
             }
         }
-        Clusters ac = Cluster(acContexts, limitToBaseline);
+        Clusters ac = Cluster(acContexts, limitToBaseline, tableLimit);
         HuffmanTable[] dcTables = dc.Histograms.Select(histogram => HuffmanTable.CreateOptimized(histogram)).ToArray();
         HuffmanTable[] acTables = ac.Histograms.Select(histogram => HuffmanTable.CreateOptimized(histogram)).ToArray();
         HuffmanTable unused = UnusedTable.Value;
@@ -129,7 +134,7 @@ internal sealed class HuffmanCodingPlan
 
     private sealed record Clusters(List<long[]> Histograms, int[] Indexes, List<int> Slots);
 
-    private static Clusters Cluster(IReadOnlyList<long[]> histograms, bool forceBaseline)
+    private static Clusters Cluster(IReadOnlyList<long[]> histograms, bool forceBaseline, int tableLimit)
     {
         var clusters = new List<long[]>();
         int[] indexes = new int[histograms.Count];
@@ -151,7 +156,11 @@ internal sealed class HuffmanCodingPlan
             }
 
             int bestSlot = slotHistograms.Count;
-            float bestCost = forceBaseline && bestSlot > 1 ? float.MaxValue : Cost(current);
+            // Explicit offline limits retain a bounded set of clusters instead
+            // of evicting table slots. Zero keeps the existing default policy.
+            bool forbidNewCluster = (forceBaseline && bestSlot > 1)
+                || (tableLimit != 0 && bestSlot >= tableLimit);
+            float bestCost = forbidNewCluster ? float.MaxValue : Cost(current);
             for (int slot = 0; slot < slotHistograms.Count; slot++)
             {
                 Add(clusters[slotHistograms[slot]], current, combined);
