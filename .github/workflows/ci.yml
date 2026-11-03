@@ -332,23 +332,31 @@ jobs:
           dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
           dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release -f ${{ matrix.framework }} --no-restore
       - name: Check comparison statistics with synthetic samples
+        id: kernel_statistics
         run: dotnet run --project tools/DotJpegli.Performance -c Release -f ${{ matrix.framework }} --no-build -- --self-test-kernel-comparison
       - name: Interleave original and optimized encodes on one CPU (CI only)
         run: |
           cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
           taskset -c "$cpu" dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll" --compare-kernels --include-automatic --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/kernel-evidence" --images kodim01,low-noise,low-contrast,tiny-odd-edges,guard-below-32k,guard-at-32k,guard-above-32k,narrow-tall --distances 1,4 --samplings 444,420 --progressions 0,2 --blocks 6 --warmups 5 --iterations 20
+      - name: Interleave intermediate-size controls on the same CPU (CI only)
+        if: ${{ !cancelled() && steps.kernel_statistics.outcome == 'success' }}
+        run: |
+          cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
+          taskset -c "$cpu" dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll" --compare-kernels --include-automatic --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/kernel-intermediate-evidence" --images intermediate-64k,intermediate-128k --distances 1,4 --samplings 444,420 --progressions 0,2 --blocks 6 --warmups 5 --iterations 20
       - name: Check actual comparison capabilities
         if: always()
         shell: pwsh
         env:
           EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
-        run: ./tools/ci/performance-evidence.ps1 -AssertSimd -Evidence "${{ runner.temp }}/kernel-evidence" -Architecture $env:EXPECTED_ARCHITECTURE
+        run: ./tools/ci/performance-evidence.ps1 -AssertSimd -Evidence "${{ runner.temp }}/kernel-evidence", "${{ runner.temp }}/kernel-intermediate-evidence" -Architecture $env:EXPECTED_ARCHITECTURE
       - name: Retain interleaved kernel evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kernel-comparison-${{ matrix.architecture }}-${{ matrix.framework }}-${{ github.sha }}
-          path: ${{ runner.temp }}/kernel-evidence/
+          path: |
+            ${{ runner.temp }}/kernel-evidence/
+            ${{ runner.temp }}/kernel-intermediate-evidence/
           retention-days: 30
           if-no-files-found: error
       - name: Publish kernel comparison report
@@ -356,6 +364,9 @@ jobs:
         run: |
           if [[ -f "${{ runner.temp }}/kernel-evidence/report.md" ]]; then
             cat "${{ runner.temp }}/kernel-evidence/report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [[ -f "${{ runner.temp }}/kernel-intermediate-evidence/report.md" ]]; then
+            cat "${{ runner.temp }}/kernel-intermediate-evidence/report.md" >> "$GITHUB_STEP_SUMMARY"
           fi
 
   performance-targeted:

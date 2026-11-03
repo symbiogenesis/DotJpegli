@@ -573,9 +573,9 @@ internal static class KernelComparison
     {
         (string Id, string Category, string SourcePath, PpmImage Image)[] inputs = KernelDiagnosticInputs.Create(KernelDiagnosticInputs.Ids).ToArray();
         (string Id, string Category, string SourcePath, PpmImage Image)[] repeated = KernelDiagnosticInputs.Create(KernelDiagnosticInputs.Ids).ToArray();
-        (int Width, int Height)[] dimensions = [(255, 128), (256, 128), (257, 128), (8, 4096)];
+        (int Width, int Height)[] dimensions = [(255, 128), (256, 128), (257, 128), (8, 4096), (256, 256), (512, 256)];
         Check(inputs.Length == dimensions.Length && inputs.Select(input => input.Id).Distinct(StringComparer.Ordinal).Count() == inputs.Length,
-            "Kernel controls must have four unique identities.");
+            "Kernel controls must have six unique identities.");
         for (int index = 0; index < inputs.Length; index++)
         {
             PpmImage image = inputs[index].Image;
@@ -594,10 +594,22 @@ internal static class KernelComparison
                 && below.SequenceEqual(inputs[2].Image.Pixels.AsSpan(y * dimensions[2].Width * 3, below.Length)),
                 "Neighboring guard inputs must preserve their common pixels.");
         }
+        for (int y = 0; y < dimensions[4].Height; y++)
+        {
+            ReadOnlySpan<byte> intermediate = inputs[4].Image.Pixels.AsSpan(y * dimensions[4].Width * 3, dimensions[4].Width * 3);
+            Check(intermediate.SequenceEqual(inputs[5].Image.Pixels.AsSpan(y * dimensions[5].Width * 3, intermediate.Length)),
+                "Intermediate controls must preserve their common pixels across different row strides.");
+            if (y < dimensions[1].Height)
+            {
+                Check(intermediate.SequenceEqual(inputs[1].Image.Pixels.AsSpan(y * dimensions[1].Width * 3, intermediate.Length)),
+                    "Intermediate controls must preserve common pixels with the guard control.");
+            }
+        }
         Check(!KernelDiagnosticInputs.Create(["kodim01"]).Any(), "Unselected kernel controls must not be generated.");
-        Check(KernelDiagnosticInputs.Create(["guard-at-32k"]).Select(input => input.Id).SequenceEqual(["guard-at-32k"]),
+        Check(KernelDiagnosticInputs.Create(["intermediate-128k", "guard-at-32k"]).Select(input => input.Id)
+            .SequenceEqual(["intermediate-128k", "guard-at-32k"]),
             "Kernel generation must honor the selected image list.");
-        string[] ids = ["kodim01", "low-noise", "low-contrast", "tiny-odd-edges", .. KernelDiagnosticInputs.Ids];
+        string[] ids = ["kodim01", "low-noise", "low-contrast", "tiny-odd-edges", "guard-below-32k", "guard-at-32k", "guard-above-32k", "narrow-tall"];
         var selectionValues = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["--images"] = string.Join(',', ids),
@@ -606,6 +618,13 @@ internal static class KernelComparison
         var selection = DiagnosticSelection.Parse(selectionValues, KernelDiagnosticInputs.Ids);
         Check(selection.ExpectedCases == 64, "Kernel controls must fit the existing bounded diagnostic selection.");
         RejectArguments(() => DiagnosticSelection.Parse(selectionValues));
+        selectionValues["--images"] = "intermediate-64k,intermediate-128k";
+        var intermediateSelection = DiagnosticSelection.Parse(selectionValues, KernelDiagnosticInputs.Ids);
+        Check(intermediateSelection.ExpectedCases == 16,
+            "Intermediate controls must use a separate bounded selection with both distances, samplings and progressions.");
+        RejectArguments(() => DiagnosticSelection.Parse(selectionValues));
+        selectionValues["--images"] = string.Join(',', ids.Concat(intermediateSelection.Images));
+        RejectArguments(() => DiagnosticSelection.Parse(selectionValues, KernelDiagnosticInputs.Ids));
         Check(Evidence.ControlledIds.Length == 8 && !Evidence.ControlledIds.Intersect(KernelDiagnosticInputs.Ids).Any(),
             "Kernel controls must not change the fixed acceptance corpus.");
     }

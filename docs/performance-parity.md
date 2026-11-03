@@ -79,8 +79,11 @@ Include `[compare-kernels]` to collect interleaved forced-kernel and combined
 Automatic-policy comparisons on x64 and ARM64, for both .NET 10 and .NET 11, in
 the same automatic run. The selected photographs and controls include matching
 255-by-128, 256-by-128 and 257-by-128 textures around the 32,768-pixel guard, plus
-an 8-by-4,096 tall texture. These four inputs are exclusive to kernel diagnostics;
-the native acceptance corpus and bounds remain fixed. The comparison retains
+an 8-by-4,096 tall texture. A second sequential selection in the same job adds
+256-by-256 and 512-by-256 intermediate textures on the same CPU. Separate evidence
+directories retain both verdicts while preserving the 64-case limit per command.
+These six inputs are exclusive to kernel diagnostics; the native acceptance
+corpus and bounds remain fixed. The comparison retains
 JPEG hashes, allocations, balanced ABBA/BAAB quartets, drift and order-bias
 checks, including invalid and inconclusive results. These controls supply
 measurement coverage; their presence does not establish a crossover or justify

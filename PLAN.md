@@ -47,8 +47,9 @@ completed work.
   Direct emission retains its existing grouping; fewer token records can keep
   more corrections within the unchanged shared rental budget.
 - Kernel diagnostics include deterministic controls below, at and above the
-  32,768-pixel guard and an 8-by-4,096 tall image. They run only in the optional
-  CI kernel comparison and do not expand the fixed native acceptance corpus.
+  32,768-pixel guard, an 8-by-4,096 tall image and 64K/128K intermediate images.
+  They run in bounded sequential selections within the optional CI kernel
+  comparison and do not expand the fixed native acceptance corpus.
 - Converted planes, fused DCT/quantization, prepared quantizers, coefficient and
   token caches, histogram planning and buffered entropy emission already have
   optimized paths. New proposals must be compared against the current encoder.
@@ -68,8 +69,8 @@ the revision being delivered.
 2. Measure Automatic narrow ordering around the 32K-pixel guard, at intermediate
    sizes and on unusually narrow/tall images. Compare the combined Automatic
    policy as well as isolated forced kernels on .NET 10/11, x64 and ARM64.
-   The CI kernel comparison now supplies threshold and tall-image controls;
-   intermediate-size coverage and assessment of retained results remain open.
+   The CI kernel comparison now supplies threshold, tall-image and 64K/128K
+   intermediate controls; assessment of retained results remains open.
    Retain the original fallback where evidence remains inconclusive.
 3. Use interleaved same-host revision comparisons with identical inputs,
    runtime, CPU affinity, encoding policy and JPEG hashes. Detect minority

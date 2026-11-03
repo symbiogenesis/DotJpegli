@@ -5,7 +5,8 @@ using DotJpegli.Parity;
 // These controls belong only to kernel diagnostics, never the fixed acceptance corpus.
 internal static class KernelDiagnosticInputs
 {
-    internal static readonly string[] Ids = ["guard-below-32k", "guard-at-32k", "guard-above-32k", "narrow-tall"];
+    internal static readonly string[] Ids =
+    ["guard-below-32k", "guard-at-32k", "guard-above-32k", "narrow-tall", "intermediate-64k", "intermediate-128k"];
 
     internal static IEnumerable<(string Id, string Category, string SourcePath, PpmImage Image)> Create(IEnumerable<string> selectedIds)
     {
@@ -16,7 +17,10 @@ internal static class KernelDiagnosticInputs
                 "guard-below-32k" => (255, 128),
                 "guard-at-32k" => (256, 128),
                 "guard-above-32k" => (257, 128),
-                _ => (8, 4096)
+                "narrow-tall" => (8, 4096),
+                "intermediate-64k" => (256, 256),
+                "intermediate-128k" => (512, 256),
+                _ => throw new ArgumentException("Unknown kernel diagnostic input.", nameof(selectedIds))
             };
             byte[] pixels = new byte[width * height * 3];
             for (int y = 0; y < height; y++)
@@ -25,7 +29,7 @@ internal static class KernelDiagnosticInputs
                 {
                     for (int channel = 0; channel < 3; channel++)
                     {
-                        // Coordinate-based content keeps common pixels identical across guard sizes.
+                        // Coordinate-based content keeps common pixels identical across diagnostic sizes.
                         pixels[(((y * width) + x) * 3) + channel] = (byte)(((x * 29) + (y * 53) + (channel * 71)) & 255);
                     }
                 }
