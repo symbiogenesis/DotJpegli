@@ -390,10 +390,9 @@ internal readonly ref struct PixelSource
     /// <summary>Workers own source copies or borrow immutable planes for the encode lease's lifetime.</summary>
     internal sealed class Snapshot
     {
-        private readonly byte[] bytes;
-        private readonly ushort[] words;
-        private readonly float[] floats;
-        private readonly SourceType sourceType;
+        private readonly union SampleStorage(byte[], ushort[], float[]);
+
+        private readonly SampleStorage samples;
         private readonly bool bgr;
         private readonly bool ycbcr;
         private readonly bool xyb;
@@ -408,11 +407,18 @@ internal readonly ref struct PixelSource
             this.convertedPlanes = source.convertedPlanes;
             // Compact chroma planes do not retain arbitrary full-resolution
             // chroma samples. Preserve raw source bytes for fallback readers.
-            this.bytes = (this.convertedPlanes is null || this.convertedPlanes.Is420) && source.sourceType == SourceType.Byte
-                ? Copy(source.bytes, length, cancellationToken) : [];
-            this.words = this.convertedPlanes is null && source.sourceType == SourceType.UInt16 ? Copy(source.words, length, cancellationToken) : [];
-            this.floats = this.convertedPlanes is null && source.sourceType == SourceType.Float ? Copy(source.floats, length, cancellationToken) : [];
-            this.sourceType = source.sourceType;
+            // Even when the planes replace the raw samples, the empty array's
+            // case preserves the source precision without a separate tag.
+            this.samples = source.sourceType switch
+            {
+                SourceType.Byte => (this.convertedPlanes is null || this.convertedPlanes.Is420)
+                    ? Copy(source.bytes, length, cancellationToken) : [],
+                SourceType.UInt16 => this.convertedPlanes is null
+                    ? Copy(source.words, length, cancellationToken) : [],
+                SourceType.Float => this.convertedPlanes is null
+                    ? Copy(source.floats, length, cancellationToken) : [],
+                _ => throw new InvalidOperationException("The source sample precision is invalid.")
+            };
             this.bgr = source.bgr;
             this.ycbcr = source.ycbcr;
             this.xyb = source.xyb;
@@ -425,15 +431,15 @@ internal readonly ref struct PixelSource
         {
             // Reconstruct with the original precision and layout. In particular,
             // normalizing ushort input into floats would change rounding and XYB.
-            PixelSource pixels = this.sourceType switch
+            PixelSource pixels = this.samples switch
             {
-                SourceType.Byte => new PixelSource(this.bytes, this.xyb ? PixelLayout.Xyb24
+                byte[] bytes => new PixelSource(bytes, this.xyb ? PixelLayout.Xyb24
                     : this.ycbcr ? PixelLayout.YCbCr24 : this.componentsPerPixel == 1 ? PixelLayout.Gray8
                     : this.componentsPerPixel == 4 ? (this.bgr ? PixelLayout.Bgra32 : PixelLayout.Rgba32)
                     : this.bgr ? PixelLayout.Bgr24 : PixelLayout.Rgb24),
-                SourceType.UInt16 => new PixelSource(this.words, this.GetLayout()),
-                SourceType.Float => new PixelSource(this.floats, this.GetLayout()),
-                _ => new PixelSource(this.floats, this.GetLayout())
+                ushort[] words => new PixelSource(words, this.GetLayout()),
+                float[] floats => new PixelSource(floats, this.GetLayout()),
+                null => throw new InvalidOperationException("The snapshot has no sample storage.")
             };
             pixels = pixels.WithColorSpace(this.colorSpace);
             if (this.colorTransform is not null)

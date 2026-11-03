@@ -106,6 +106,12 @@ the .NET 10 runtime. Update the SDK pin deliberately to receive compiler,
 runtime and analyzer improvements, then validate all three library targets.
 All projects use C# 15 explicitly, including when compiling older framework
 targets, so the pinned compiler provides a consistent language version.
+Internal unions model scan modes, metadata edit intent and snapshot sample storage.
+The .NET 11 target uses the framework's union contracts; older library targets
+declare internal `UnionAttribute` and `IUnion` compatibility contracts. Keep union
+cases as reference types where allocations or boxing matter, and handle default
+null contents explicitly. Span-based pixel readers and packed entropy tokens
+retain their existing storage representations.
 
 All projects explicitly enable the SDK's .NET analyzers, including the
 `netstandard2.1` library, and use `AnalysisLevel=latest-recommended`.
