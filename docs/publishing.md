@@ -88,5 +88,5 @@ Local package verification (build check, no tests or benchmarks):
 ```powershell
 dotnet restore src/DotJpegli/DotJpegli.csproj --locked-mode
 dotnet pack src/DotJpegli/DotJpegli.csproj -c Release --no-restore --output <ABSOLUTE-TEMP-DIRECTORY> -p:ContinuousIntegrationBuild=true -p:RepositoryBranch=refs/heads/main
-./tools/verify-nuget-package.ps1 -PackagePath <ABSOLUTE-PACKAGE-PATH> -ExpectedVersion 1.0.0 -ExpectedRevision <FULL-COMMIT-SHA>
+./tools/verify-release.ps1 -PackagePath <ABSOLUTE-PACKAGE-PATH> -ExpectedVersion 1.0.0 -ExpectedRevision <FULL-COMMIT-SHA>
 ```

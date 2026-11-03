@@ -193,7 +193,7 @@ With Git and PowerShell 7.6 or newer installed, verify the Release library and u
 NuGet package containing all three target-framework assemblies from a committed revision:
 
 ```powershell
-./tools/verify-reproducibility.ps1
+./tools/verify-release.ps1 -Reproducibility
 ```
 
 The script builds the same commit in two fresh Git worktrees at different absolute

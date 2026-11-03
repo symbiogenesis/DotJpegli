@@ -81,7 +81,7 @@ jobs:
           Set-StrictMode -Version 3.0
           $packages = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'nuget') -File)
           if ($packages.Count -ne 1) { throw 'Expected exactly one package artifact file.' }
-          ./tools/verify-nuget-package.ps1 -PackagePath $packages[0].FullName -ExpectedVersion $env:EXPECTED_VERSION -ExpectedRevision $env:EXPECTED_REVISION
+          ./tools/verify-release.ps1 -PackagePath $packages[0].FullName -ExpectedVersion $env:EXPECTED_VERSION -ExpectedRevision $env:EXPECTED_REVISION
           $hash = (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash
           "Package: $($packages[0].Name)`n`nSHA-256: $hash`n`nPublish requested: ${{ inputs.publish }}" |
             Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8NoBOM

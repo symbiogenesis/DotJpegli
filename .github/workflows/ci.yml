@@ -145,7 +145,7 @@ jobs:
       - name: Verify reproducible Release assembly and package
         if: matrix.target.library == 'net11.0'
         shell: pwsh
-        run: ./tools/verify-reproducibility.ps1
+        run: ./tools/verify-release.ps1 -Reproducibility
 
   deployment:
     name: Deployment (${{ matrix.os }}, ${{ matrix.framework }})
@@ -219,7 +219,7 @@ jobs:
           $packages = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'nuget') -Filter '*.nupkg' -File)
           if ($packages.Count -ne 1) { throw 'Expected exactly one NuGet package.' }
           $version = dotnet msbuild src/DotJpegli/DotJpegli.csproj -nologo -getProperty:PackageVersion
-          ./tools/verify-nuget-package.ps1 -PackagePath $packages[0].FullName -ExpectedVersion $version -ExpectedRevision $env:EXPECTED_REVISION
+          ./tools/verify-release.ps1 -PackagePath $packages[0].FullName -ExpectedVersion $version -ExpectedRevision $env:EXPECTED_REVISION
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nuget-${{ github.sha }}
