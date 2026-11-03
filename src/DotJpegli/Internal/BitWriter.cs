@@ -17,11 +17,13 @@ internal sealed class BitWriter
 {
     private readonly Stream output;
     private readonly byte[]? outputBuffer;
+    private readonly bool vectorStuffing;
     private int outputCount;
     private ulong buffer;
     private int bufferedBits;
 
-    public BitWriter(Stream output, bool buffered = false)
+    public BitWriter(Stream output, bool buffered = false,
+        KernelPreference stuffingKernel = KernelPreference.Automatic)
     {
         Guard.ThrowIfNull(output);
         if (!output.CanWrite)
@@ -31,6 +33,14 @@ internal sealed class BitWriter
 
         this.output = output;
         this.outputBuffer = buffered ? new byte[4096] : null;
+        // Automatic retains the measured control until a portable deployment
+        // rule is established. Explicit choices belong to this writer only.
+        this.vectorStuffing = stuffingKernel switch
+        {
+            KernelPreference.Automatic or KernelPreference.Original => false,
+            KernelPreference.Optimized => true,
+            _ => throw new ArgumentOutOfRangeException(nameof(stuffingKernel))
+        };
     }
 
     public void WriteBits(uint bits, int count)
@@ -275,13 +285,20 @@ internal sealed class BitWriter
         int offset = this.outputCount;
         if (offset <= destination.Length - 16)
         {
-            for (int shift = 56; shift >= 0; shift -= 8)
+            if (this.vectorStuffing)
             {
-                byte value = (byte)(word >> shift);
-                destination[offset++] = value;
-                if (value == 0xff)
+                offset += EntropyByteStuffing.StuffWord(word, destination.AsSpan(offset, 16));
+            }
+            else
+            {
+                for (int shift = 56; shift >= 0; shift -= 8)
                 {
-                    destination[offset++] = 0;
+                    byte value = (byte)(word >> shift);
+                    destination[offset++] = value;
+                    if (value == 0xff)
+                    {
+                        destination[offset++] = 0;
+                    }
                 }
             }
 

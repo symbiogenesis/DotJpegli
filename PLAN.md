@@ -71,6 +71,15 @@ completed work.
   releases storage early. Which scans remain cached can change with this policy.
 - Entropy words use a single capacity check for byte stuffing when sixteen
   output bytes remain; the boundary path retains per-byte drain behavior.
+- Portable SIMD byte stuffing expands eight-byte words into the existing
+  sixteen-byte reservation using an immutable 4 KiB shuffle table. Internal
+  per-encode preferences cover serial, restarted and unaligned parallel replay;
+  software and portable-library paths retain scalar expansion. The
+  [completed bounded comparison](docs/performance-evidence/2026-11-03-byte-stuffing/README.md)
+  favors SIMD in one valid direct-helper case but establishes no complete-encode
+  or portable deployment benefit. Automatic retains Original; no larger staging
+  batches are introduced. Exact bytes, padding, destination writes, partial
+  failures and cancellation have focused coverage.
 - Single-context entropy-token replay reuses its immutable prepared Huffman
   lookup directly, avoiding stack clearing and copying for that scan. Multiple
   contexts retain contiguous staging and strict fallback behavior.
@@ -170,16 +179,6 @@ prefixes. The interval proof and fallback-rate evidence remain open.
 [RLIBM's fast evaluation work](https://people.cs.rutgers.edu/~sn349/papers/cgo-2023-rlibm.pdf)
 and [RLIBM-PROG](https://arxiv.org/abs/2111.12852) motivate rounding-aware search;
 they do not prove parity for these adaptations.
-
-### SIMD byte stuffing and token packing
-
-Profile `BitWriter.WriteEntropyTokens` and `WriteWord` before adding larger
-staging batches. The current no-`FF` path already handles eight-byte words.
-Stuffed words also share a capacity check when their maximum sixteen bytes fit.
-Compare saved branches against staging, copying and insertion costs. Preserve
-bit order, padding, restart markers, cancellation and destination-failure
-prefixes. [PJRD](https://github.com/jstankowski/PJRD) supplies a reference approach
-to parallel encoding and SIMD stuffing, not measured DotJpegli gains.
 
 ## Architectural candidates
 

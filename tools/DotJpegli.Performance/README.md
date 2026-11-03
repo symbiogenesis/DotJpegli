@@ -10,6 +10,15 @@ existing dispersion/drift/order validity checks. The
 contains the interval proof, measurements and scope of the decision. This command
 does not change encoder dispatch or establish complete-encode performance.
 
+The separate `--byte-stuffing-experiment --corpus <Kodak-PPM-directory> --output
+<empty-directory>` command compares scalar and portable SIMD stuffing inside
+the existing word reservation. It measures four direct payload distributions,
+two actual token-replay workloads and eight representative complete JPEG cases,
+with fixed work counts and six balanced quartets. The same CI and timing-validity
+guards apply. Its [retained decision](../../docs/performance-evidence/2026-11-03-byte-stuffing/README.md)
+keeps Automatic on Original; valid helper gains do not establish encode gains,
+and every invalid comparison remains in the report.
+
 A normal push to `main` runs four targeted cases: `kodim01`, distance 1,
 444/420 and progression 0/2. It does not first run the 1,280-pair quality matrix
 or the 256-case performance matrix. The native executable and Kodak inputs are

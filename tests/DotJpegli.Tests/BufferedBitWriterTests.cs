@@ -33,13 +33,16 @@ public sealed class BufferedBitWriterTests
         Assert.Equal(1, output.SpanWrites);
     }
 
-    [Fact]
-    public void RandomWritesAndRestartMarkersMatchTheEagerWriterAcrossBufferBoundaries()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RandomWritesAndRestartMarkersMatchTheEagerWriterAcrossBufferBoundaries(bool vector)
     {
         using var expected = new MemoryStream();
         using var actual = new ObservedStream();
         var eager = new BitWriter(expected);
-        var buffered = new BitWriter(actual, buffered: true);
+        var buffered = new BitWriter(actual, buffered: true,
+            vector ? KernelPreference.Optimized : KernelPreference.Original);
         var random = new Random(713991);
         for (int index = 0; index < 10000; index++)
         {
@@ -118,15 +121,18 @@ public sealed class BufferedBitWriterTests
         Assert.Equal(0x7f, output.ToArray()[^1]);
     }
 
-    [Fact]
-    public void FullWordsAndEverySpillAlignmentMatchTheEagerBitStream()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FullWordsAndEverySpillAlignmentMatchTheEagerBitStream(bool vector)
     {
         for (int prefixBits = 0; prefixBits < 64; prefixBits++)
         {
             using var expected = new MemoryStream();
             using var actual = new MemoryStream();
             var eager = new BitWriter(expected);
-            var buffered = new BitWriter(actual, buffered: true);
+            var buffered = new BitWriter(actual, buffered: true,
+                vector ? KernelPreference.Optimized : KernelPreference.Original);
             for (int index = 0; index < prefixBits; index++)
             {
                 eager.WriteBits((uint)(index & 1), 1);
@@ -168,8 +174,10 @@ public sealed class BufferedBitWriterTests
         }
     }
 
-    [Fact]
-    public void EveryStuffingMaskPreservesBytesAndDrainBoundariesWithOneThroughSeventeenBytesFree()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void EveryStuffingMaskPreservesBytesAndDrainBoundariesWithOneThroughSeventeenBytesFree(bool vector)
     {
         for (int free = 1; free <= 17; free++)
         {
@@ -180,7 +188,8 @@ public sealed class BufferedBitWriterTests
                 byte[] word = CreateWord(mask);
                 byte[] expected = [.. stuffedPrefix, .. StuffBytes(word)];
                 using var actual = new ObservedStream();
-                var writer = new BitWriter(actual, buffered: true);
+                var writer = new BitWriter(actual, buffered: true,
+                    vector ? KernelPreference.Optimized : KernelPreference.Original);
                 WriteBytes(writer, prefix);
                 Assert.Equal(0, actual.Length);
                 WriteBytes(writer, word);
@@ -193,10 +202,13 @@ public sealed class BufferedBitWriterTests
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(int.MaxValue)]
-    public void StuffedWordFailuresPreserveTheSameWriteAndAcceptedPrefix(int acceptedBytes)
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    [InlineData(int.MaxValue, false)]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(int.MaxValue, true)]
+    public void StuffedWordFailuresPreserveTheSameWriteAndAcceptedPrefix(int acceptedBytes, bool vector)
     {
         for (int free = 1; free <= 17; free++)
         {
@@ -213,7 +225,8 @@ public sealed class BufferedBitWriterTests
                     Failure = new IOException("Injected partial entropy write failure."),
                     BytesAcceptedOnFailure = acceptedBytes,
                 };
-                var writer = new BitWriter(output, buffered: true);
+                var writer = new BitWriter(output, buffered: true,
+                    vector ? KernelPreference.Optimized : KernelPreference.Original);
                 WriteBytes(writer, prefix);
                 bool wordCompleted = false;
                 IOException error = Assert.Throws<IOException>(() =>

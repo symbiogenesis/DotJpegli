@@ -473,7 +473,7 @@ public static class JpegliEncoder
         cancellationToken.ThrowIfCancellationRequested();
         JpegMarkerWriter.WriteHeaders(output, width, height, sampling, tables, quantizationSelectors, dcTables, acTables,
             options, extendedXmp, cancellationToken, rgb: rgb);
-        var bits = new BitWriter(output, buffered: true);
+        var bits = new BitWriter(output, buffered: true, options.EntropyByteStuffingKernel);
         int lastRestartInterval = 0;
         void WriteRestartInterval(int interval)
         {
@@ -701,7 +701,7 @@ public static class JpegliEncoder
         JpegMarkerWriter.WriteHeaders(output, width, height, sampling, tables, quantizationSelectors,
             emptyTables, emptyTables, options, extendedXmp, cancellationToken, rgb: pixels.IsRgb,
             writeHuffmanTables: false, extendedHuffman: plan.RequiresExtendedSequential);
-        var bits = new BitWriter(output, buffered: true);
+        var bits = new BitWriter(output, buffered: true, options.EntropyByteStuffingKernel);
         int workerLimit = options.MaxDegreeOfParallelism == -1
             ? Environment.ProcessorCount : options.MaxDegreeOfParallelism;
         int lastRestartInterval = 0;
@@ -721,7 +721,8 @@ public static class JpegliEncoder
             JpegMarkerWriter.WriteScanHeader(output, scan, options.Progressive, pixels.IsRgb, coding.Selectors);
             if (tokenScans?[scanIndex] is { IsComplete: true } scanTokens)
             {
-                if (!scanTokens.TryReplayParallel(output, coding, workerLimit, cancellationToken))
+                if (!scanTokens.TryReplayParallel(output, coding, workerLimit, cancellationToken,
+                    stuffingKernel: options.EntropyByteStuffingKernel))
                 {
                     scanTokens.Replay(bits, coding, cancellationToken);
                 }

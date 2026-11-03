@@ -20,7 +20,8 @@ internal sealed partial class EntropyTokens
     // Restart ranges can be emitted independently; otherwise unaligned staging
     // merges exact bits through one caller-owned stuffing/padding writer.
     internal bool TryReplayParallel(Stream output, HuffmanCodingPlan.ScanCoding coding, int workerLimit,
-        CancellationToken cancellationToken, ArrayPool<byte>? pool = null)
+        CancellationToken cancellationToken, ArrayPool<byte>? pool = null,
+        KernelPreference stuffingKernel = KernelPreference.Automatic)
     {
         Guard.ThrowIfNull(output);
         Guard.ThrowIfNull(coding);
@@ -35,7 +36,7 @@ internal sealed partial class EntropyTokens
         }
         if (!this.hasRestart)
         {
-            return this.TryReplayUnaligned(output, coding, workerLimit, pool, cancellationToken);
+            return this.TryReplayUnaligned(output, coding, workerLimit, pool, stuffingKernel, cancellationToken);
         }
         if (!output.CanWrite)
         {
@@ -99,7 +100,7 @@ internal sealed partial class EntropyTokens
                     }
                     try
                     {
-                        var writer = new BitWriter(work.Output, buffered: true);
+                        var writer = new BitWriter(work.Output, buffered: true, stuffingKernel);
                         this.ReplayRangeWithLookups(writer, coding, lookups, lookupOffset,
                             work.Range.Start, work.Range.End, cancellationToken);
                         writer.Flush();
@@ -123,7 +124,7 @@ internal sealed partial class EntropyTokens
                     {
                         // A large segment or unexpectedly oversized pool bucket
                         // keeps the original bounded writer on the destination.
-                        var writer = new BitWriter(output, buffered: true);
+                        var writer = new BitWriter(output, buffered: true, stuffingKernel);
                         this.ReplayRangeWithLookups(writer, coding, lookups, lookupOffset,
                             work.Range.Start, work.Range.End, cancellationToken);
                         writer.Flush();

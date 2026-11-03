@@ -45,6 +45,10 @@ internal static class Program
             {
                 return await AcReciprocalCommand.Run(args);
             }
+            if (args.Contains("--byte-stuffing-experiment", StringComparer.Ordinal))
+            {
+                return await ByteStuffingExperiment.Run(args);
+            }
             if (args.SequenceEqual(["--revision-worker"]))
             {
                 return await RevisionWorker.Run();

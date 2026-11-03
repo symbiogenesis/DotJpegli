@@ -211,6 +211,24 @@ Focused tests cover every stuffing mask, one through seventeen bytes of free
 space, exact drains and partial destination failures. No staging buffer is added;
 the reduced checks still need CI latency measurements.
 
+An internal immutable per-encode stuffing preference also permits a portable
+128-bit SIMD expansion within that same sixteen-byte reservation. Equality
+extracts an eight-bit `FF` mask; one of 256 shuffle masks emits payload bytes
+and inserted zeros. Only the returned prefix is committed, although the store
+can touch all sixteen reserved bytes. The immutable table has 4 KiB of payload
+plus its array header. No per-word scratch or larger output batch is introduced.
+Every serial and parallel replay writer captures the preference, including
+restart overflow fallback and unaligned merging. .NET Standard and software
+execution retain scalar expansion. Original no-`FF` stores and boundary drains
+remain shared by both choices.
+
+The [bounded stuffing experiment](performance-evidence/2026-11-03-byte-stuffing/README.md)
+compares helper expansion, actual token replay and eight complete JPEG controls,
+retaining invalid timing rows. One valid helper case favors SIMD, but the
+complete-encode results do not justify a deployment guard. Automatic therefore
+keeps Original; the explicit choice exists for diagnostics, with no public API
+change or startup measurement.
+
 The optional [offline progressive scan search](../tools/DotJpegli.Parity/README.md#bounded-progressive-scan-search)
 uses explicit scan scripts and exact complete-JPEG sizes to choose among a bounded
 family of spectral splits, refinement depths, component orders and Huffman table

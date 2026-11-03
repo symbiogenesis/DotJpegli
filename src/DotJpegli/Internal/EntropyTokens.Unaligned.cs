@@ -14,7 +14,7 @@ internal sealed partial class EntropyTokens
     // resulting codes and suffixes with unstuffed bits. Their chunks do not
     // acquire padding, stuffing or independent byte alignment.
     private bool TryReplayUnaligned(Stream output, HuffmanCodingPlan.ScanCoding coding, int workerLimit,
-        ArrayPool<byte>? pool, CancellationToken cancellationToken)
+        ArrayPool<byte>? pool, KernelPreference stuffingKernel, CancellationToken cancellationToken)
     {
         long tokenCount = this.currentCount;
         for (int index = 0; index < this.segments.Count - 1; index++)
@@ -35,7 +35,7 @@ internal sealed partial class EntropyTokens
         ulong[] lookups = this.PrepareParallelLookups(coding, out int lookupOffset);
         var batch = new UnalignedWork?[workers];
         var cursor = new TokenPosition(0, 0);
-        var writer = new BitWriter(output, buffered: true);
+        var writer = new BitWriter(output, buffered: true, stuffingKernel);
         while (cursor.Segment < this.segments.Count)
         {
             cancellationToken.ThrowIfCancellationRequested();

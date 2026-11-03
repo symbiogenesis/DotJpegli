@@ -1,0 +1,20 @@
+{
+  "status": "invalid",
+  "valid": false,
+  "comparisons": 14,
+  "expectedComparisons": 14,
+  "invalidReasons": [
+    "word-no-ff: optimized: repeated legs within a quartet differ by over10%.",
+    "word-ff-one-in-eight: optimized: repeated legs within a quartet differ by over10%.",
+    "word-all-ff: original: repeated legs within a quartet differ by over10%.",
+    "word-all-ff: optimized: repeated legs within a quartet differ by over10%.",
+    "replay-canonical-mixed: original: repeated legs within a quartet differ by over10%.",
+    "replay-canonical-mixed: optimized: repeated legs within a quartet differ by over10%.",
+    "replay-raw-all-ff: original: repeated legs within a quartet differ by over10%.",
+    "replay-raw-all-ff: optimized: p90/p10 drift exceeds20%, including minority timing states.",
+    "replay-raw-all-ff: optimized: repeated legs within a quartet differ by over10%.",
+    "encode-kodim01-444-p0-d1: original: repeated legs within a quartet differ by over10%."
+  ],
+  "parity": "Every completed comparison produced identical bytes before and after every timed leg.",
+  "defaultPolicy": "Unchanged; measured evidence is diagnostic and host-specific."
+}

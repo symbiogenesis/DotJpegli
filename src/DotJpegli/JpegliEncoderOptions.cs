@@ -11,6 +11,7 @@ public sealed record JpegliEncoderOptions
     // public settings, process globals, or another concurrent encode's choices.
     internal KernelPreference FuzzyErosionKernel { get; init; }
     internal KernelPreference NarrowZigZagKernel { get; init; }
+    internal KernelPreference EntropyByteStuffingKernel { get; init; }
 
     // Focused regressions can force complete, mixed and uncached scan emission.
     internal long EntropyTokenBudgetBytes { get; init; } = EntropyTokenBudget.DefaultMaximumBytes;

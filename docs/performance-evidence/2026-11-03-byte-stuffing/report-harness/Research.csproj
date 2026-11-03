@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <TieredCompilation>false</TieredCompilation>
+    <AssemblyName>DotJpegli.Performance</AssemblyName>
+    <StartupObject>ResearchStartup</StartupObject>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="DotJpegli">
+      <HintPath>../../src/DotJpegli/bin/Release/net11.0/DotJpegli.dll</HintPath>
+    </Reference>
+    <None Include="../../tools/parity/corpus.json" Link="corpus.json" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="../../tools/DotJpegli.Performance/*.cs" Link="Performance/%(Filename)%(Extension)" />
+    <Compile Include="../../tools/DotJpegli.Parity/PpmImage.cs" Link="Shared/PpmImage.cs" />
+    <Compile Include="../../tools/DotJpegli.Parity/ControlledCorpus.cs" Link="Shared/ControlledCorpus.cs" />
+    <Compile Include="../../tools/DotJpegli.Parity/JpegStructure.cs" Link="Shared/JpegStructure.cs" />
+  </ItemGroup>
+</Project>
