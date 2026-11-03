@@ -140,6 +140,34 @@ internal sealed class HuffmanTable
     // canonical codes and allocating table arrays for each trial is unnecessary.
     internal static float EstimateOptimizedCost(ReadOnlySpan<long> frequencies)
     {
+        if (frequencies.Length != 256)
+            throw new ArgumentException("A frequency table must have 256 entries.", nameof(frequencies));
+        int symbols = 0;
+        long first = 0, second = 0;
+        foreach (long frequency in frequencies)
+        {
+            if (frequency < 0)
+                throw new ArgumentOutOfRangeException(nameof(frequencies), "Symbol frequencies cannot be negative.");
+            if (frequency == 0)
+                continue;
+            if (++symbols > 2)
+                return EstimateTreeCost(frequencies);
+            if (symbols == 1)
+                first = frequency;
+            else
+                second = frequency;
+        }
+        // The padding pseudo-symbol has weight one. Zero/singleton inputs use
+        // one real length-one code; two real symbols use lengths one and two,
+        // assigning the shorter code to the larger frequency. Include the
+        // selector, sixteen counts and one byte per emitted real symbol.
+        return symbols < 2
+            ? HistogramCost((UInt128)first + 144)
+            : HistogramCost((UInt128)Math.Max(first, second) + (UInt128)Math.Min(first, second) * 2 + 152);
+    }
+
+    private static float EstimateTreeCost(ReadOnlySpan<long> frequencies)
+    {
         Span<int> depth = stackalloc int[257];
         bool narrow = BuildCodeLengths(frequencies, depth);
         int symbolCount = 0;

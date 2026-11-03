@@ -39,6 +39,35 @@ public sealed class HuffmanTableOptimizationTests
     }
 
     [Fact]
+    public void TwoSymbolCostsPreservePseudoSymbolOverheadAndWideRounding()
+    {
+        foreach ((long first, long second) in new (long, long)[]
+        {
+            (1, 1), (1, 2), (2, 1), (uint.MaxValue, uint.MaxValue + 1L),
+            (long.MaxValue, 1), (1, long.MaxValue), (long.MaxValue, long.MaxValue)
+        })
+            foreach ((int low, int high) in new[] { (0, 1), (0, 255), (254, 255) })
+            {
+                long[] frequencies = new long[256];
+                frequencies[low] = first;
+                frequencies[high] = second;
+                AssertMatchesReference(frequencies);
+            }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void SparseCostPathsStillRejectLaterNegativeFrequencies(int symbols)
+    {
+        long[] frequencies = new long[256];
+        Array.Fill(frequencies, 1L, 0, symbols);
+        frequencies[255] = -1;
+        Assert.Throws<ArgumentOutOfRangeException>(() => HuffmanTable.EstimateOptimizedCost(frequencies));
+    }
+
+    [Fact]
     public void DenseAndSparseTiesPreserveExactCanonicalTables()
     {
         foreach (long frequency in new long[] { 1, 2, 65535, long.MaxValue })
