@@ -1,0 +1,85 @@
+using System;
+using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+
+static class Program
+{
+    static void Main()
+    {
+        var original = new Vector256<float>[8];
+        for (int row = 0; row < 8; row++)
+            original[row] = Vector256.Create(row * 8f, row * 8f + 1, row * 8f + 2, row * 8f + 3,
+                row * 8f + 4, row * 8f + 5, row * 8f + 6, row * 8f + 7);
+        var baseline = (Vector256<float>[])original.Clone();
+        var candidate = (Vector256<float>[])original.Clone();
+        Baseline(baseline);
+        Candidate(candidate);
+        for (int row = 0; row < 8; row++)
+            for (int lane = 0; lane < 8; lane++)
+                if (baseline[row][lane] != candidate[row][lane] || candidate[row][lane] != lane * 8f + row)
+                    throw new Exception("Transpose mismatch");
+        Console.WriteLine("Both transpose schedules match the independent lane map.");
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static void Baseline(Span<Vector256<float>> rows)
+    {
+        Vector256<float> r0 = rows[0], r1 = rows[1], r2 = rows[2], r3 = rows[3];
+        Vector256<float> r4 = rows[4], r5 = rows[5], r6 = rows[6], r7 = rows[7];
+        Vector128<float> a0 = r0.GetLower(), a1 = r1.GetLower(), a2 = r2.GetLower(), a3 = r3.GetLower();
+        Vector128<float> b0 = r0.GetUpper(), b1 = r1.GetUpper(), b2 = r2.GetUpper(), b3 = r3.GetUpper();
+        Vector128<float> c0 = r4.GetLower(), c1 = r5.GetLower(), c2 = r6.GetLower(), c3 = r7.GetLower();
+        Vector128<float> d0 = r4.GetUpper(), d1 = r5.GetUpper(), d2 = r6.GetUpper(), d3 = r7.GetUpper();
+        Transpose4x4(ref a0, ref a1, ref a2, ref a3);
+        Transpose4x4(ref b0, ref b1, ref b2, ref b3);
+        Transpose4x4(ref c0, ref c1, ref c2, ref c3);
+        Transpose4x4(ref d0, ref d1, ref d2, ref d3);
+        rows[0] = Vector256.Create(a0, c0);
+        rows[1] = Vector256.Create(a1, c1);
+        rows[2] = Vector256.Create(a2, c2);
+        rows[3] = Vector256.Create(a3, c3);
+        rows[4] = Vector256.Create(b0, d0);
+        rows[5] = Vector256.Create(b1, d1);
+        rows[6] = Vector256.Create(b2, d2);
+        rows[7] = Vector256.Create(b3, d3);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static void Transpose4x4(ref Vector128<float> r0, ref Vector128<float> r1,
+        ref Vector128<float> r2, ref Vector128<float> r3)
+    {
+        Vector128<float> t0 = Vector128.ZipLower(r0, r1), t1 = Vector128.ZipUpper(r0, r1);
+        Vector128<float> t2 = Vector128.ZipLower(r2, r3), t3 = Vector128.ZipUpper(r2, r3);
+        r0 = Vector128.ZipLower(t0.AsDouble(), t2.AsDouble()).AsSingle();
+        r1 = Vector128.ZipUpper(t0.AsDouble(), t2.AsDouble()).AsSingle();
+        r2 = Vector128.ZipLower(t1.AsDouble(), t3.AsDouble()).AsSingle();
+        r3 = Vector128.ZipUpper(t1.AsDouble(), t3.AsDouble()).AsSingle();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static void Candidate(Span<Vector256<float>> rows)
+    {
+        Vector256<float> r0 = rows[0], r1 = rows[1], r2 = rows[2], r3 = rows[3];
+        Vector256<float> r4 = rows[4], r5 = rows[5], r6 = rows[6], r7 = rows[7];
+        Vector256<float> t0 = Vector256.ZipLower(r0, r1), t1 = Vector256.ZipUpper(r0, r1);
+        Vector256<float> t2 = Vector256.ZipLower(r2, r3), t3 = Vector256.ZipUpper(r2, r3);
+        Vector256<float> t4 = Vector256.ZipLower(r4, r5), t5 = Vector256.ZipUpper(r4, r5);
+        Vector256<float> t6 = Vector256.ZipLower(r6, r7), t7 = Vector256.ZipUpper(r6, r7);
+        Vector256<float> u0 = Vector256.ZipLower(t0.AsDouble(), t2.AsDouble()).AsSingle();
+        Vector256<float> u1 = Vector256.ZipUpper(t0.AsDouble(), t2.AsDouble()).AsSingle();
+        Vector256<float> u2 = Vector256.ZipLower(t1.AsDouble(), t3.AsDouble()).AsSingle();
+        Vector256<float> u3 = Vector256.ZipUpper(t1.AsDouble(), t3.AsDouble()).AsSingle();
+        Vector256<float> u4 = Vector256.ZipLower(t4.AsDouble(), t6.AsDouble()).AsSingle();
+        Vector256<float> u5 = Vector256.ZipUpper(t4.AsDouble(), t6.AsDouble()).AsSingle();
+        Vector256<float> u6 = Vector256.ZipLower(t5.AsDouble(), t7.AsDouble()).AsSingle();
+        Vector256<float> u7 = Vector256.ZipUpper(t5.AsDouble(), t7.AsDouble()).AsSingle();
+        rows[0] = Vector256.Create(u0.GetLower(), u4.GetLower());
+        rows[1] = Vector256.Create(u0.GetUpper(), u4.GetUpper());
+        rows[2] = Vector256.Create(u1.GetLower(), u5.GetLower());
+        rows[3] = Vector256.Create(u1.GetUpper(), u5.GetUpper());
+        rows[4] = Vector256.Create(u2.GetLower(), u6.GetLower());
+        rows[5] = Vector256.Create(u2.GetUpper(), u6.GetUpper());
+        rows[6] = Vector256.Create(u3.GetLower(), u7.GetLower());
+        rows[7] = Vector256.Create(u3.GetUpper(), u7.GetUpper());
+    }
+}

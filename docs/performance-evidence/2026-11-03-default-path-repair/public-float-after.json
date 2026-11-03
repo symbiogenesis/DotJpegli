@@ -1,0 +1,70 @@
+[
+  {
+    "pattern": "exceptional-kind-3",
+    "progressive": false,
+    "sampling": 0,
+    "exception": "System.ArgumentException",
+    "Message": "Floating-point color and grayscale samples and their scaling to JPEG units must be finite. (Parameter \u0027pixels\u0027)",
+    "ParamName": "pixels",
+    "prefixLength": 0,
+    "prefixSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "pattern": "normalized-control",
+    "progressive": false,
+    "sampling": 0,
+    "length": 2009,
+    "sha256": "B16B943EC38C09E49957EE7D6082CB6830D2D50082136EA488C66B3E5D0340A4"
+  },
+  {
+    "pattern": "exceptional-kind-3",
+    "progressive": false,
+    "sampling": 2,
+    "exception": "System.ArgumentException",
+    "Message": "Floating-point color and grayscale samples and their scaling to JPEG units must be finite. (Parameter \u0027pixels\u0027)",
+    "ParamName": "pixels",
+    "prefixLength": 0,
+    "prefixSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "pattern": "normalized-control",
+    "progressive": false,
+    "sampling": 2,
+    "length": 1311,
+    "sha256": "C948C8806E8F59E23485D6B3804E1614AC9A675B664881665709185EF2DA2B8E"
+  },
+  {
+    "pattern": "exceptional-kind-3",
+    "progressive": true,
+    "sampling": 0,
+    "exception": "System.ArgumentException",
+    "Message": "Floating-point color and grayscale samples and their scaling to JPEG units must be finite. (Parameter \u0027pixels\u0027)",
+    "ParamName": "pixels",
+    "prefixLength": 0,
+    "prefixSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "pattern": "normalized-control",
+    "progressive": true,
+    "sampling": 0,
+    "length": 2225,
+    "sha256": "5BBDB6FA6987A7E0D83ED987FC4585073D4E15923B59BC627615B62F9A9A4797"
+  },
+  {
+    "pattern": "exceptional-kind-3",
+    "progressive": true,
+    "sampling": 2,
+    "exception": "System.ArgumentException",
+    "Message": "Floating-point color and grayscale samples and their scaling to JPEG units must be finite. (Parameter \u0027pixels\u0027)",
+    "ParamName": "pixels",
+    "prefixLength": 0,
+    "prefixSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "pattern": "normalized-control",
+    "progressive": true,
+    "sampling": 2,
+    "length": 1499,
+    "sha256": "AA8F4C6EF40E4684DBA627B0281F64BECF62095172F6E01096B21ED2A63A289D"
+  }
+]

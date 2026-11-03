@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <AssemblyName>DotJpegli.Tests</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <LangVersion>preview</LangVersion>
+    <DefineConstants>DOTJPEGLI_NET11_SIMD</DefineConstants>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <AssemblySearchPaths>{HintPathFromItem};{TargetFrameworkDirectory};{RawFileName}</AssemblySearchPaths>
+    <DotJpegliReference Condition="'$(DotJpegliReference)' == ''">../../../src/DotJpegli/bin/Release/net11.0/DotJpegli.dll</DotJpegliReference>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="BaselineAdaptiveQuantization.cs" />
+    <Compile Include="StencilAdaptiveQuantization.cs" />
+    <Reference Include="DotJpegli">
+      <HintPath>$(DotJpegliReference)</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>

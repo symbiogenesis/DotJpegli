@@ -132,6 +132,13 @@ or timing probes during encoding.
 | Sequential coefficient storage | Retain the existing bounded cache on accelerated 256-bit hosts without accelerated 512-bit vectors; other eligible sequential cases stream. Existing admission limits and fallbacks still apply. |
 | Sparse quantization and full-width transpose | Retain both schedules through the build properties above. Automatic gains a scenario rule only after CI establishes which settings favor each alternative. |
 
+The [historical default-path code-generation investigation](performance-evidence/2026-11-03-default-path-repair/README.md)
+retains the untimed probes, ARM64/x64 disassembly and provenance recovered from
+the retired repair branch. It documents experimental code shapes; its branch
+implementation was not adopted wholesale. The current selection policy is
+described above, and code size or instruction inspection alone does not
+establish encoding latency.
+
 AQ copies the preceding pre-erosion row when edge clamping selects the same
 four-pixel stencil again. This reuses the rounded result without new scratch
 storage and retains cancellation checks for every requested row. Retained
