@@ -1,0 +1,11 @@
+[
+  {
+    "id": "smooth-gradient",
+    "category": "controlled",
+    "sourcePath": "generated:smooth-gradient",
+    "ppmSha256": "26003243368c64add32030ce998c1fd82b69f747caf0ab9d38e6c153eaed4630",
+    "pixelsSha256": "460505161f6891eacdcac9f6529b039e34761cb3eedaff368bf465495f4233ec",
+    "width": 257,
+    "height": 193
+  }
+]

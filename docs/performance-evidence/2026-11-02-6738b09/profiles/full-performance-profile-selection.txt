@@ -1,0 +1,3 @@
+tiny-odd-edges 420 2 1
+smooth-gradient 444 0 1
+low-noise 444 0 4
