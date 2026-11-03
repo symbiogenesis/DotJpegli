@@ -93,8 +93,8 @@ compiler is still required when building that target from source.
 
 Repository automation requires PowerShell 7.6 LTS or newer (`pwsh`) and .NET.
 Scripts declare their minimum version, use strict mode 3.0 and stop on errors.
-Scripts invoking native tools also enable `$PSNativeCommandUseErrorActionPreference`
-so a failing Git, CMake or .NET command stops the operation immediately.
+Scripts invoking native tools enable `$PSNativeCommandUseErrorActionPreference`
+or check exit codes explicitly, so a failing Git, CMake or .NET command stops the operation immediately.
 Strict mode uses a fixed version so a future PowerShell update cannot silently
 change script behavior. Filesystem inputs use literal paths, JSON evidence keeps
 timestamp strings and array shapes, and text artifacts use UTF-8 without a BOM.
@@ -113,9 +113,15 @@ Install-PSResource -Name powershell-yaml -Version 0.4.12 -Scope CurrentUser -Tru
 ./tools/ci/analyze-powershell.ps1
 ```
 
-Corpus preparation and CI
-evidence processing require no additional scripting runtime. The corpus tool
-loads its lossless PNG decoder from C# source and verifies both the downloaded
+The compiled [`DotJpegli.Automation`](../tools/DotJpegli.Automation/) tool owns
+corpus preparation, InferSharp report validation, performance evidence processing,
+native provenance checks and release package inspection. Its PowerShell entry
+points retain their command-line parameters and handle process orchestration.
+The shared launcher builds the tool incrementally in Release with the pinned SDK
+and locked dependencies, then runs it using .NET 10 or a newer installed runtime.
+Build output is captured so profile selection emits only the selected cases.
+
+The corpus tool uses its lossless PNG decoder and verifies both the downloaded
 PNG hashes and canonical PPM hashes against the committed manifest:
 
 ```powershell
@@ -131,11 +137,13 @@ revision comparator locally with synthetic fixtures, without running benchmarks:
 ./tools/compare-performance-revisions.ps1 -SelfTest
 ./tools/ci/performance-evidence.ps1 -SelfTest
 ./tools/assert-infersharp.ps1 -SelfTest
+./tools/verify-release.ps1 -SelfTest
+./tools/Invoke-Automation.ps1 -CommandArguments @('native-reference', '--self-test')
 ```
 
 `tools/ci/performance-evidence.ps1` groups SIMD validation (`-AssertSimd`),
 profile selection (`-SelectProfiles`) and runtime reports (`-CompareRuntimes`).
-Its fixtures also verify the native reference's cached provenance checks.
+The native reference command has separate fixtures for cached provenance checks.
 
 ## Banned APIs
 

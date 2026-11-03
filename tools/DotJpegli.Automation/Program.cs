@@ -31,6 +31,15 @@ internal static class Program
                     options.Validate(["build-directory"], ["self-test"]);
                     NativeReferenceCommand.Run(options);
                     break;
+                case "compare-performance":
+                    options.Validate(["baseline", "current", "baseline-revision", "current-revision", "output", "summary"], ["self-test"]);
+                    PerformanceComparisonCommand.Run(options);
+                    break;
+                case "performance-evidence":
+                    options.Validate(["evidence", "architecture", "directory", "summary"],
+                        ["self-test", "assert-simd", "select-profiles", "compare-runtimes", "narrow", "full"], "evidence");
+                    PerformanceEvidenceCommand.Run(options);
+                    break;
                 default:
                     throw new ArgumentException($"Unknown command: {args[0]}");
             }
