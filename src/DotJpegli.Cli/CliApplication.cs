@@ -121,12 +121,12 @@ internal static class CliApplication
 
     private static string ResolveDirectory(DirectoryInfo directory)
     {
-        if (directory.Parent is null)
+        if (directory.Parent is not { } parent)
         {
             return directory.FullName;
         }
         // Resolve every ancestor: ResolveLinkTarget on a descendant does not resolve its parent links.
-        var resolved = new DirectoryInfo(Path.Combine(ResolveDirectory(directory.Parent), directory.Name));
+        var resolved = new DirectoryInfo(Path.Combine(ResolveDirectory(parent), directory.Name));
         FileSystemInfo? target = (resolved.Attributes & FileAttributes.ReparsePoint) != 0 ? resolved.ResolveLinkTarget(returnFinalTarget: true) : null;
         return target is null ? resolved.FullName : ResolveDirectory(new DirectoryInfo(target.FullName));
     }
