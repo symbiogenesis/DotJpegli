@@ -171,6 +171,38 @@ public sealed class HuffmanTableOptimizationTests
         }
     }
 
+    [Theory]
+    [InlineData(31, false)]
+    [InlineData(32, true)]
+    [InlineData(47, true)]
+    public void BoundedCostsPreserveTheLengthLimitRetryBoundary(int symbols, bool needsRetry)
+    {
+        long[] frequencies = new long[256];
+        long previous = 1, current = 1;
+        for (int index = 0; index < symbols; index++)
+        {
+            frequencies[255 - index] = previous;
+            (previous, current) = (current, previous + current);
+        }
+        ReferenceTable expected = BuildReference(frequencies);
+        Assert.Equal(needsRetry, expected.Retries != 0);
+        AssertMatchesReference(frequencies, expected);
+    }
+
+    [Fact]
+    public void PackedBoundedCostsMatchIndependentTreesAcrossWeightsAndSymbolPositions()
+    {
+        var random = new Random(41873);
+        for (int sample = 0; sample < 32; sample++)
+        {
+            long[] frequencies = new long[256];
+            for (int symbol = 0; symbol < frequencies.Length; symbol++)
+                frequencies[symbol] = random.Next(4) == 0 ? 0 : sample % 3 == 0 ? random.Next(1, 8)
+                    : sample % 3 == 1 ? random.NextInt64(1, (long)uint.MaxValue + 1) : 1L << random.Next(0, 32);
+            AssertMatchesReference(frequencies);
+        }
+    }
+
     [Fact]
     public void WideHistogramCostPreservesUInt128Rounding()
     {

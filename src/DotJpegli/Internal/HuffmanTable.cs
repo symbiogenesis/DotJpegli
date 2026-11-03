@@ -195,6 +195,74 @@ internal sealed class HuffmanTable
     }
 
     private static float EstimateTreeCost(ReadOnlySpan<long> frequencies)
+        => TryEstimateBoundedCost(frequencies, out ulong bits)
+            ? HistogramCost((UInt128)bits) : EstimateDepthCost(frequencies);
+
+    private static bool TryEstimateBoundedCost(ReadOnlySpan<long> frequencies, out ulong bits)
+    {
+        bits = 0;
+#if NETSTANDARD2_1
+        int symbols = 0;
+        foreach (long frequency in frequencies)
+        {
+            if (frequency < 0 || frequency > uint.MaxValue)
+                return false;
+            symbols += frequency == 0 ? 0 : 1;
+        }
+#else
+        if (frequencies.ContainsAnyExceptInRange(0L, (long)uint.MaxValue))
+            return false;
+        int symbols = frequencies.Length - frequencies.Count(0L);
+#endif
+        // Zero/singleton/two-symbol costs were handled before entering here.
+        int leaves = symbols + 1;
+        Span<ulong> nodes = stackalloc ulong[2 * leaves + 1];
+        Span<byte> heights = stackalloc byte[2 * leaves + 1];
+        int leaf = 0;
+        for (int symbol = 0; symbol < frequencies.Length; symbol++)
+            if (frequencies[symbol] != 0)
+                nodes[leaf++] = ((ulong)frequencies[symbol] << 9) | (uint)(256 - symbol);
+        nodes[leaf] = 1UL << 9;
+        // Integer keys sort first by weight, then by descending symbol. The
+        // padding symbol has the smallest unit-weight key and is always first.
+#if NETSTANDARD2_1
+        nodes[..leaves].Sort(static (left, right) => left.CompareTo(right));
+#else
+        nodes[..leaves].Sort();
+#endif
+        for (int index = 0; index < leaves; index++)
+            nodes[index] >>= 9;
+        heights[..leaves].Clear();
+        nodes[leaves] = nodes[leaves + 1] = ulong.MaxValue;
+        int leafIndex = 0, parentIndex = leaves + 1, paddingRoot = 0;
+        for (int merge = 1; merge < leaves; merge++)
+        {
+            int left = nodes[leafIndex] <= nodes[parentIndex] ? leafIndex++ : parentIndex++;
+            int right = nodes[leafIndex] <= nodes[parentIndex] ? leafIndex++ : parentIndex++;
+            int height = Math.Max(heights[left], heights[right]) + 1;
+            if (height > 16)
+                return false;
+            int parent = leaves + merge;
+            ulong weight = nodes[left] + nodes[right];
+            nodes[parent] = weight;
+            nodes[parent + 1] = ulong.MaxValue;
+            heights[parent] = (byte)height;
+            // Sum of internal weights is the external weighted path length.
+            // Remove one bit whenever the padding subtree acquires an ancestor,
+            // so only the real symbols contribute to the histogram cost.
+            bool containsPadding = left == paddingRoot || right == paddingRoot;
+            bits += weight - (containsPadding ? 1UL : 0UL);
+            if (containsPadding)
+                paddingRoot = parent;
+        }
+        // Even without the height check, 257 uint-weight leaves keep every
+        // merge sum and accumulated path cost below 2^49. A too-deep tree is
+        // rebuilt by the existing exact length-limit retry implementation.
+        bits += (uint)((17 + symbols) * 8);
+        return true;
+    }
+
+    private static float EstimateDepthCost(ReadOnlySpan<long> frequencies)
     {
         Span<int> depth = stackalloc int[257];
         bool narrow = BuildCodeLengths(frequencies, depth);
