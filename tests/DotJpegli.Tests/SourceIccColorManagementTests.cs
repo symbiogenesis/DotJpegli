@@ -959,6 +959,33 @@ public sealed class SourceIccColorManagementTests
         Assert.True(output.CanWrite);
     }
 
+    [Theory]
+    [InlineData(16)]
+    [InlineData(63)]
+    public void InvalidUncachedIccTailReleasesCachedRows(int invalidRow)
+    {
+        const int width = 64, height = 64;
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateLinearSrgbProfile(), JpegliIccProfiles.CreateSrgbProfile());
+        float[] pixels = new float[width * height * 3];
+        pixels[invalidRow * width * 3] = float.NaN;
+        var diagnostics = new EncoderCacheDiagnostics();
+        var budget = new EncoderCacheBudget(16384, diagnostics);
+        // Public float validation rejects NaN earlier. Supplying this internal
+        // fixture directly exercises the preflight helper's uncached-tail error
+        // and ownership, without a timing-sensitive cancellation race.
+        ArgumentException error = Assert.Throws<ArgumentException>(() => PreflightInvalidTail(pixels, transform, budget));
+        Assert.Equal("pixels", error.ParamName);
+        Assert.Equal(16, diagnostics.ConvertedSampleCachedRows);
+        Assert.Equal(height, diagnostics.ConvertedSampleTotalRows);
+        Assert.True(diagnostics.ConvertedSamplePeakBytes > 0);
+        Assert.Equal(0, diagnostics.CurrentBytes);
+        Assert.Equal(budget.MaximumBytes, budget.AvailableBytes);
+    }
+
+    private static void PreflightInvalidTail(float[] pixels, IccColorTransform transform, EncoderCacheBudget budget)
+        => new PixelSource(pixels, PixelComponentLayout.Rgb).WithColorTransform(transform)
+            .WithPreflightedColorPlanes(64, 64, 64 * 3, budget, Cancellation);
+
     private static byte[] LutProfile(string kind, bool reverse, int version) =>
         MakeProfile(version, [(reverse ? "B2A0" : "A2B0", Lut(kind, reverse, 50))]);
 

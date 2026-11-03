@@ -158,10 +158,19 @@ internal sealed class QuantizedImage : IDisposable
                     int firstRow = top / (vertical * 8) * factor.Vertical;
                     for (int row = 0; row < factor.Vertical && firstRow + row < cachedHeights[component]; row++)
                     {
+                        int y = firstRow + row;
+                        ReadOnlySpan<float> rowPlane = plane;
+                        int rowPlaneWidth = planeWidth, rowPlaneHeight = planeHeight, planeY = y * 8;
+                        bool compactChroma = sampling.Is420 && component != 0;
+                        if (rowPlane.IsEmpty && smoothingFactor == 0
+                            && ((factor.Horizontal == horizontal && factor.Vertical == vertical) || compactChroma))
+                        {
+                            rowPlane = pixels.GetConvertedPlaneSegment(component, y * 8, compactChroma,
+                                out rowPlaneWidth, out rowPlaneHeight, out planeY);
+                        }
                         for (int x = 0; x < widths[component]; x++)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
-                            int y = firstRow + row;
                             float strength = adaptive is null ? 0f : strengths[(row * adaptive.BlocksWide)
                                 + (x * horizontal / factor.Horizontal)];
                             Span<short> quantized = image.Block(component, x, y);
@@ -180,16 +189,16 @@ internal sealed class QuantizedImage : IDisposable
                             {
                                 parallelRows.CopyBlock(component, x, y, samples);
                             }
-                            else if (!plane.IsEmpty && (x * 8) + 8 <= planeWidth && (y * 8) + 8 <= planeHeight)
+                            else if (!rowPlane.IsEmpty && (x * 8) + 8 <= rowPlaneWidth && planeY + 8 <= rowPlaneHeight)
                             {
-                                ForwardDct.TransformQuantizePlane(plane, planeWidth, x * 8, y * 8,
+                                ForwardDct.TransformQuantizePlane(rowPlane, rowPlaneWidth, x * 8, planeY,
                                     quantizers[component], quantized, strength, zigZagOrdered);
                                 continue;
                             }
-                            else if (!plane.IsEmpty && zigZagOrdered)
+                            else if (!rowPlane.IsEmpty && zigZagOrdered)
                             {
-                                ForwardDct.TransformQuantizePaddedPlane(plane, planeWidth, planeHeight,
-                                    x * 8, y * 8, quantizers[component], quantized, strength);
+                                ForwardDct.TransformQuantizePaddedPlane(rowPlane, rowPlaneWidth, rowPlaneHeight,
+                                    x * 8, planeY, quantizers[component], quantized, strength);
                                 continue;
                             }
                             else

@@ -12,6 +12,8 @@ public sealed class ParallelDctRowsTests
     [InlineData(257, 129, 0)]
     [InlineData(257, 129, 1)]
     [InlineData(257, 129, 2)]
+    [InlineData(257, 129, 3)]
+    [InlineData(257, 129, 4)]
     public void ContiguousRangesAndSerialRowsMatchIndependentBlocks(int width, int height, int cache)
     {
         int stride = (width * 3) + 7;
@@ -22,12 +24,30 @@ public sealed class ParallelDctRowsTests
         {
             1 => original.WithConvertedPlanes(width, height, stride, TestContext.Current.CancellationToken),
             2 => original.WithConverted420Planes(width, height, stride, TestContext.Current.CancellationToken),
+            3 => original.WithConvertedPlanes(width, height, stride, TestContext.Current.CancellationToken,
+                new EncoderCacheBudget(128 * 1024), allowPartial: true),
+            4 => original.WithConverted420Planes(width, height, stride, TestContext.Current.CancellationToken,
+                new EncoderCacheBudget(64 * 1024), allowPartial: true),
             _ => original
         };
         using IDisposable? storage = prepared.ConvertedStorage;
+        if (cache is 3 or 4)
+        {
+            Assert.NotNull(storage);
+            Assert.False(prepared.HasCompleteConvertedPlanes);
+            Assert.InRange(prepared.ConvertedRows, 16, height - 1);
+        }
         var sampling = JpegSamplingFactors.FromSubsampling(ChromaSubsampling.Quarter);
         var rows = new ParallelDctRows(prepared, width, height, stride, sampling,
             smoothingFactor: 0, maxDegreeOfParallelism: 3, TestContext.Current.CancellationToken);
+        PixelSource oracle = original;
+        if (cache is 3 or 4)
+        {
+            // A partial converted prefix cannot replace the raw tail. Workers
+            // must own that tail even when compact-plane borrowing is enabled.
+            oracle = new PixelSource(bytes.ToArray(), PixelLayout.Rgb24);
+            Array.Clear(bytes);
+        }
         Span<float> samples = stackalloc float[64];
         Span<float> expected = stackalloc float[64];
         Span<float> actual = stackalloc float[64];
@@ -55,7 +75,7 @@ public sealed class ParallelDctRowsTests
                     {
                         for (int x = 0; x < blocksWide; x++)
                         {
-                            Downsampling.FillBlock(original, width, height, stride, component,
+                            Downsampling.FillBlock(oracle, width, height, stride, component,
                                 x, y, 2, 2, factor.Horizontal, factor.Vertical, samples);
                             ForwardDct.Transform(samples, expected);
                             rows.CopyBlock(component, x, y, actual);

@@ -26,6 +26,9 @@ internal sealed class EncoderCacheBudget
     internal long MaximumBytes { get; }
     internal long AvailableBytes => this.MaximumBytes - this.rentedBytes;
 
+    internal void RecordConvertedRows(int cachedRows, int totalRows)
+        => this.diagnostics?.RecordConvertedRows(cachedRows, totalRows);
+
     internal bool TryReserve(long bytes, EncoderCacheKind kind)
     {
         Debug.Assert(bytes >= 0);
@@ -59,6 +62,14 @@ internal sealed class EncoderCacheDiagnostics
     internal long ConvertedSamplePeakBytes { get; private set; }
     internal long CoefficientPeakBytes { get; private set; }
     internal long EntropyTokenPeakBytes { get; private set; }
+    internal int ConvertedSampleCachedRows { get; private set; }
+    internal int ConvertedSampleTotalRows { get; private set; }
+
+    internal void RecordConvertedRows(int cachedRows, int totalRows)
+    {
+        this.ConvertedSampleCachedRows = cachedRows;
+        this.ConvertedSampleTotalRows = totalRows;
+    }
 
     internal void Reserve(long bytes, EncoderCacheKind kind)
     {

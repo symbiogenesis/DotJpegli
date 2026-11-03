@@ -230,18 +230,7 @@ public static class JpegliEncoder
             // Preparing immutable planes also preflights every nonlinear source
             // conversion. Reuse those values instead of evaluating the transform
             // once for validation and again for the cached samples.
-            pixels = pixels.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget);
-            if (pixels.ConvertedStorage is null)
-            {
-                for (int row = 0; row < height; row++)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    for (int column = 0; column < width; column++)
-                    {
-                        _ = pixels.ReadSample((row * stride) + (column * pixels.ComponentsPerPixel), 0);
-                    }
-                }
-            }
+            pixels = pixels.WithPreflightedColorPlanes(width, height, stride, cacheBudget, cancellationToken);
         }
         using IDisposable? preflightStorage = pixels.ConvertedStorage;
         var extendedXmp = ExtendedXmpMetadata.Prepare(options, cancellationToken);
@@ -364,8 +353,8 @@ public static class JpegliEncoder
         int workerLimit = options.MaxDegreeOfParallelism == -1
             ? Environment.ProcessorCount : options.MaxDegreeOfParallelism;
         pixels = sampling.Is420 && options.SmoothingFactor == 0 && options.OptimizeHuffmanTables
-            ? pixels.WithConverted420Planes(width, height, stride, cancellationToken, cacheBudget)
-            : pixels.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget);
+            ? pixels.WithConverted420Planes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true)
+            : pixels.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true);
         using IDisposable? convertedStorage = preflightStorage is null ? pixels.ConvertedStorage : null;
         if (workerLimit > 1 && ParallelDctRows.ShouldCreate(width, height, sampling, grayscale))
         {
@@ -803,17 +792,25 @@ public static class JpegliEncoder
         ref readonly SequentialComponent info = ref source.Components[component];
         ReadOnlySpan<float> plane = info.UsePlane
             ? component == 0 ? source.Plane0 : component == 1 ? source.Plane1 : source.Plane2 : default;
+        int planeWidth = info.PlaneWidth, planeHeight = info.PlaneHeight, planeY = componentY * 8;
+        if (plane.IsEmpty && info.UsePlane)
+        {
+            bool compactChroma = component != 0
+                && (info.Horizontal != source.Horizontal || info.Vertical != source.Vertical);
+            plane = source.Pixels.GetConvertedPlaneSegment(component, componentY * 8, compactChroma,
+                out planeWidth, out planeHeight, out planeY);
+        }
         if (!plane.IsEmpty)
         {
-            if ((componentX * 8) + 8 <= info.PlaneWidth && (componentY * 8) + 8 <= info.PlaneHeight)
+            if ((componentX * 8) + 8 <= planeWidth && planeY + 8 <= planeHeight)
             {
-                ForwardDct.TransformQuantizePlane(plane, info.PlaneWidth, componentX * 8, componentY * 8,
+                ForwardDct.TransformQuantizePlane(plane, planeWidth, componentX * 8, planeY,
                     info.Quantizer, shortScratch.Slice(64, 64), strength);
             }
             else
             {
-                ForwardDct.TransformQuantizePaddedPlane(plane, info.PlaneWidth, info.PlaneHeight,
-                    componentX * 8, componentY * 8, info.Quantizer, shortScratch.Slice(64, 64), strength);
+                ForwardDct.TransformQuantizePaddedPlane(plane, planeWidth, planeHeight,
+                    componentX * 8, planeY, info.Quantizer, shortScratch.Slice(64, 64), strength);
             }
 
             return;

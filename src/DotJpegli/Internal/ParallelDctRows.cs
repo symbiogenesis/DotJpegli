@@ -151,18 +151,25 @@ internal sealed class ParallelDctRows
                     continue; // Dummy blocks retain the ordered consumer's DC predictor.
                 }
 
-                ReadOnlySpan<float> plane = this.smoothingFactor == 0
-                    && factor.Horizontal == this.sampling.MaxHorizontal && factor.Vertical == this.sampling.MaxVertical
-                    ? pixels.GetConvertedPlane(component) : default;
+                bool fullResolution = this.smoothingFactor == 0
+                    && factor.Horizontal == this.sampling.MaxHorizontal && factor.Vertical == this.sampling.MaxVertical;
+                bool compactChroma = this.smoothingFactor == 0 && this.sampling.Is420 && component != 0;
+                ReadOnlySpan<float> plane = fullResolution ? pixels.GetConvertedPlane(component) : default;
                 int planeWidth = this.width, planeHeight = this.height;
-                if (this.smoothingFactor == 0 && this.sampling.Is420 && component != 0)
+                int planeTop = blockY * 8;
+                if (compactChroma)
                 {
                     plane = pixels.GetConverted420ChromaPlane(component, out planeWidth, out planeHeight);
+                }
+                if (plane.IsEmpty && (fullResolution || compactChroma))
+                {
+                    plane = pixels.GetConvertedPlaneSegment(component, blockY * 8, compactChroma,
+                        out planeWidth, out planeHeight, out planeTop);
                 }
                 Span<float> destination = this.coefficients.AsSpan(block * 64, 64);
                 if (!plane.IsEmpty)
                 {
-                    int left = blockX * 8, top = blockY * 8;
+                    int left = blockX * 8, top = planeTop;
                     if (left + 8 <= planeWidth && top + 8 <= planeHeight)
                     {
                         ForwardDct.TransformPlane(plane, planeWidth, left, top, destination);

@@ -219,7 +219,9 @@ internal sealed class AdaptiveQuantization : IDisposable
     {
         Guard.ThrowIfDisposed(this.disposed, this);
         int mcuHeight = this.verticalSampling * 8;
-        IDisposable? storage = pixels.ConvertedStorage;
+        bool immutableNeighborhood = pixels.HasCompleteConvertedPlanes
+            || Math.Min(this.height, (long)top + mcuHeight + 5) <= pixels.ConvertedRows;
+        IDisposable? storage = immutableNeighborhood ? pixels.ConvertedStorage : null;
         bool reuseNeighborhood = storage is not null && ReferenceEquals(storage, this.previousStorage)
             && top == this.previousTop + mcuHeight && stride == this.previousStride && useVector == this.previousUseVector;
         // A failed or canceled invocation must never expose partially updated

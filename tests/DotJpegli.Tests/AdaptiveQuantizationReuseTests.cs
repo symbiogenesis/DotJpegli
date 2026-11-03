@@ -135,6 +135,33 @@ public sealed class AdaptiveQuantizationReuseTests
         AssertFresh(analysis, pixels, width, height, stride, 1, 8, true);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void PartialConvertedSourcesDoNotReuseMutableTailNeighborhoods(int sampling)
+    {
+        const int width = 19, height = 193, stride = 26;
+        byte[] samples = Pattern(width, height, stride, 0);
+        var budget = new EncoderCacheBudget(8192);
+        PixelSource pixels = new PixelSource(samples, PixelLayout.Gray8)
+            .WithConvertedPlanes(width, height, stride, TestContext.Current.CancellationToken,
+                budget, allowPartial: true);
+        using IDisposable? storage = pixels.ConvertedStorage;
+        Assert.NotNull(storage);
+        Assert.False(pixels.HasCompleteConvertedPlanes);
+        Assert.Equal(96, pixels.ConvertedRows);
+        foreach (bool vector in new[] { false, true })
+        {
+            using var analysis = new AdaptiveQuantization(width, height, sampling);
+            int top = pixels.ConvertedRows - (sampling * 8);
+            AssertFresh(analysis, pixels, width, height, stride, sampling, top, vector);
+            Pattern(width, height, stride, vector ? 91 : 173).CopyTo(samples, 0);
+            AssertFresh(analysis, pixels, width, height, stride, sampling, pixels.ConvertedRows, vector);
+        }
+    }
+
     private static void AssertFresh(AdaptiveQuantization analysis, PixelSource pixels, int width, int height,
         int stride, int sampling, int top, bool vector)
     {

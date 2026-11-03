@@ -65,15 +65,30 @@ internal readonly ref struct PixelSource
     internal ParallelDctRows? ParallelRows { get; }
     // The encode call owns this lease; worker snapshots only borrow its storage.
     internal IDisposable? ConvertedStorage => this.convertedPlanes;
+    internal int ConvertedRows => this.convertedPlanes?.CachedHeight ?? 0;
+    internal bool HasCompleteConvertedPlanes => this.convertedPlanes?.IsComplete == true;
     internal ReadOnlySpan<float> GetConvertedPlane(int component)
-        => this.convertedPlanes is null || (this.convertedPlanes.Is420 && component != 0)
+        => this.convertedPlanes is null || !this.convertedPlanes.IsContiguous || (this.convertedPlanes.Is420 && component != 0)
             ? default : this.convertedPlanes.GetPlane(component);
     internal ReadOnlySpan<float> GetConverted420ChromaPlane(int component, out int width, out int height)
     {
         width = this.convertedPlanes?.ChromaWidth ?? 0;
         height = this.convertedPlanes?.ChromaHeight ?? 0;
-        return this.convertedPlanes is not { Is420: true } || component is < 1 or > 2 ? default
+        return this.convertedPlanes is not { Is420: true, IsContiguous: true } || component is < 1 or > 2 ? default
             : this.convertedPlanes.GetPlane(component);
+    }
+
+    // Segments start at complete 16-row source boundaries (eight compact chroma
+    // rows). A DCT block therefore never straddles a cached segment boundary.
+    internal ReadOnlySpan<float> GetConvertedPlaneSegment(int component, int row, bool compact420,
+        out int width, out int height, out int localRow)
+    {
+        width = height = localRow = 0;
+        if (this.convertedPlanes is null || (component != 0 && this.convertedPlanes.Is420 != compact420))
+        {
+            return default;
+        }
+        return this.convertedPlanes.GetSegment(component, row, out width, out height, out localRow);
     }
     internal bool IsGrayscaleInput => this.ComponentsPerPixel == 1;
     internal bool CanManageSourceColor => !this.ycbcr && !this.xyb;
@@ -109,9 +124,34 @@ internal readonly ref struct PixelSource
     internal PixelSource WithColorTransform(IccColorTransform transform) => new(this, this.colorSpace,
         colorTransform: transform, discardConvertedPlanes: true);
 
+    // Conversion caches preflight their admitted prefix. Validate the remaining
+    // source before the caller writes headers, and own cleanup on every failure.
+    internal PixelSource WithPreflightedColorPlanes(int width, int height, int stride,
+        EncoderCacheBudget? cacheBudget, CancellationToken cancellationToken)
+    {
+        PixelSource converted = this.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true);
+        try
+        {
+            for (int row = converted.ConvertedRows; row < height; row++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                for (int column = 0; column < width; column++)
+                {
+                    _ = converted.ReadSample((row * stride) + (column * converted.ComponentsPerPixel), 0);
+                }
+            }
+            return converted;
+        }
+        catch
+        {
+            converted.ConvertedStorage?.Dispose();
+            throw;
+        }
+    }
+
     /// <summary>Converts each source pixel once for reuse by analysis and every encoding scan.</summary>
     internal PixelSource WithConvertedPlanes(int width, int height, int stride,
-        CancellationToken cancellationToken, EncoderCacheBudget? cacheBudget = null)
+        CancellationToken cancellationToken, EncoderCacheBudget? cacheBudget = null, bool allowPartial = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (this.convertedPlanes is not null)
@@ -120,7 +160,7 @@ internal readonly ref struct PixelSource
         }
         int components = this.IsGrayscale ? 1 : 3;
         var planes = ConvertedPlanes.TryCreate(width, height, stride, this.Length,
-            components, is420: false, transientBytes: 0, cacheBudget);
+            components, is420: false, transientBytes: 0, cacheBudget, allowPartial, cancellationToken);
         if (planes is null)
         {
             return this;
@@ -132,13 +172,12 @@ internal readonly ref struct PixelSource
                 && Vector<float>.Count is 4 or 8 && this.sourceType == SourceType.Byte
                 && !this.IsGrayscaleInput && !this.ycbcr && !this.xyb && this.colorTransform is null
                 && this.ColorSpace is JpegColorSpace.YCbCr or JpegColorSpace.Grayscale;
-            for (int y = 0; y < height; y++)
+            for (int y = 0; y < planes.CachedHeight; y++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                int destination = y * width;
-                this.ConvertRow(y * stride, planes.GetPlane(0).Slice(destination, width),
-                    components == 1 ? default : planes.GetPlane(1).Slice(destination, width),
-                    components == 1 ? default : planes.GetPlane(2).Slice(destination, width), vectorRgb);
+                this.ConvertRow(y * stride, planes.GetRow(0, y),
+                    components == 1 ? default : planes.GetRow(1, y),
+                    components == 1 ? default : planes.GetRow(2, y), vectorRgb);
             }
             return new PixelSource(this, this.colorSpace, convertedPlanes: planes);
         }
@@ -153,7 +192,7 @@ internal readonly ref struct PixelSource
     // exact ordered 2x2 chroma averages. Only two source rows of chroma scratch
     // are needed; no full-resolution Cb/Cr image is written or reread.
     internal PixelSource WithConverted420Planes(int width, int height, int stride,
-        CancellationToken cancellationToken, EncoderCacheBudget? cacheBudget = null)
+        CancellationToken cancellationToken, EncoderCacheBudget? cacheBudget = null, bool allowPartial = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (this.convertedPlanes is not null)
@@ -164,17 +203,15 @@ internal readonly ref struct PixelSource
         if (this.sourceType != SourceType.Byte || this.IsGrayscaleInput || this.ycbcr || this.xyb
             || this.colorTransform is not null || this.ColorSpace != JpegColorSpace.YCbCr)
         {
-            return this.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget);
+            return this.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget, allowPartial);
         }
 
-        int chromaWidth = checked((width + 15) / 16 * 8);
-        int chromaHeight = checked((height + 15) / 16 * 8);
         long scratchBytes = ConvertedPlanes.PooledBytes((long)width * 4);
         var planes = ConvertedPlanes.TryCreate(width, height, stride, this.Length,
-            3, is420: true, transientBytes: scratchBytes, cacheBudget);
+            3, is420: true, transientBytes: scratchBytes, cacheBudget, allowPartial, cancellationToken);
         if (planes is null)
         {
-            return this.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget);
+            return this.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget, allowPartial);
         }
 
         float[]? scratch = null;
@@ -189,20 +226,20 @@ internal readonly ref struct PixelSource
                 planes.Dispose();
                 ArrayPool<float>.Shared.Return(scratch);
                 scratch = null;
-                return this.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget);
+                return this.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget, allowPartial);
             }
             reservedScratchBytes = scratchBytes;
             Span<float> firstCb = scratch.AsSpan(0, width), firstCr = scratch.AsSpan(width, width);
             Span<float> secondCb = scratch.AsSpan(2 * width, width), secondCr = scratch.AsSpan(3 * width, width);
             bool vectorRgb = Vector.IsHardwareAccelerated && BitConverter.IsLittleEndian && Vector<float>.Count is 4 or 8;
             int chromaRow = 0;
-            for (int y = 0; y < height; y += 2, chromaRow++)
+            for (int y = 0; y < planes.CachedHeight; y += 2, chromaRow++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                this.ConvertRow(y * stride, planes.GetPlane(0).Slice(y * width, width), firstCb, firstCr, vectorRgb);
+                this.ConvertRow(y * stride, planes.GetRow(0, y), firstCb, firstCr, vectorRgb);
                 if (y + 1 < height)
                 {
-                    this.ConvertRow((y + 1) * stride, planes.GetPlane(0).Slice((y + 1) * width, width),
+                    this.ConvertRow((y + 1) * stride, planes.GetRow(0, y + 1),
                         secondCb, secondCr, vectorRgb);
                 }
                 else
@@ -211,26 +248,23 @@ internal readonly ref struct PixelSource
                     firstCr.CopyTo(secondCr);
                 }
                 DownsampleConvertedRow(firstCb, secondCb,
-                    planes.GetPlane(1).Slice(chromaRow * chromaWidth, chromaWidth));
+                    planes.GetRow(1, chromaRow));
                 DownsampleConvertedRow(firstCr, secondCr,
-                    planes.GetPlane(2).Slice(chromaRow * chromaWidth, chromaWidth));
+                    planes.GetRow(2, chromaRow));
             }
-            if (chromaRow < chromaHeight)
+            if (chromaRow < planes.CachedChromaHeight)
             {
                 // Pad source samples before averaging. For an even source
                 // height the last real average includes two different rows,
                 // whereas every padded row uses the final source row twice.
                 cancellationToken.ThrowIfCancellationRequested();
-                int chromaStart = chromaRow * chromaWidth;
-                DownsampleConvertedRow(secondCb, secondCb, planes.GetPlane(1).Slice(chromaStart, chromaWidth));
-                DownsampleConvertedRow(secondCr, secondCr, planes.GetPlane(2).Slice(chromaStart, chromaWidth));
-                for (int row = chromaRow + 1; row < chromaHeight; row++)
+                DownsampleConvertedRow(secondCb, secondCb, planes.GetRow(1, chromaRow));
+                DownsampleConvertedRow(secondCr, secondCr, planes.GetRow(2, chromaRow));
+                for (int row = chromaRow + 1; row < planes.CachedChromaHeight; row++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    planes.GetPlane(1).Slice(chromaStart, chromaWidth)
-                        .CopyTo(planes.GetPlane(1).Slice(row * chromaWidth, chromaWidth));
-                    planes.GetPlane(2).Slice(chromaStart, chromaWidth)
-                        .CopyTo(planes.GetPlane(2).Slice(row * chromaWidth, chromaWidth));
+                    planes.GetRow(1, chromaRow).CopyTo(planes.GetRow(1, row));
+                    planes.GetRow(2, chromaRow).CopyTo(planes.GetRow(2, row));
                 }
             }
             return new PixelSource(this, this.colorSpace, convertedPlanes: planes);
@@ -369,20 +403,25 @@ internal readonly ref struct PixelSource
 
 #endif
     private sealed class ConvertedPlanes(int width, int height, int sourceStride, int sourceLength,
-        bool is420, bool separate, EncoderCacheBudget? cacheBudget) : IDisposable
+        bool is420, bool separate, int cachedHeight, int segmentRows, EncoderCacheBudget? cacheBudget) : IDisposable
     {
         internal const long MaximumBytes = 64L * 1024 * 1024;
         private float[] samples = [];
         private float[]? cb;
         private float[]? cr;
+        private float[][][]? segments;
         internal int Width { get; } = width;
         internal int SourceStride { get; } = sourceStride;
         internal int SourceLength { get; } = sourceLength;
-        internal int PlaneLength { get; } = checked(width * height);
+        internal int PlaneLength { get; } = checked(width * cachedHeight);
+        internal int CachedHeight { get; } = cachedHeight;
+        internal bool IsComplete => this.CachedHeight == height;
+        internal bool IsContiguous => segmentRows == 0 && this.IsComplete;
         internal bool Is420 { get; } = is420;
         internal int ChromaWidth { get; } = is420 ? checked((width + 15) / 16 * 8) : width;
         internal int ChromaHeight { get; } = is420 ? checked((height + 15) / 16 * 8) : height;
-        internal int ChromaLength { get; } = is420 ? checked((width + 15) / 16 * 8 * ((height + 15) / 16 * 8)) : checked(width * height);
+        internal int CachedChromaHeight { get; } = is420 ? cachedHeight == height ? checked((height + 15) / 16 * 8) : cachedHeight / 2 : cachedHeight;
+        internal int ChromaLength => checked(this.ChromaWidth * this.CachedChromaHeight);
         internal long RentedBytes { get; private set; }
 
         internal Span<float> GetPlane(int component)
@@ -392,31 +431,102 @@ internal readonly ref struct PixelSource
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal float GetSample(int component, int index)
-            => separate && component != 0 ? (component == 1 ? this.cb! : this.cr!)[index]
+        {
+            if (this.segments is not null)
+            {
+                int segmentLength = component == 0 || !this.Is420 ? segmentRows * this.Width : segmentRows / 2 * this.ChromaWidth;
+                return this.segments[component][index / segmentLength][index % segmentLength];
+            }
+            return separate && component != 0 ? (component == 1 ? this.cb! : this.cr!)[index]
                 : this.samples[(component * this.PlaneLength) + index];
+        }
+
+        internal Span<float> GetRow(int component, int row)
+        {
+            Span<float> segment = this.GetSegment(component, row, out int rowWidth, out _, out int localRow);
+            return segment.Slice(localRow * rowWidth, rowWidth);
+        }
+
+        internal Span<float> GetSegment(int component, int row, out int rowWidth, out int rowCount, out int localRow)
+        {
+            rowWidth = component == 0 ? this.Width : this.ChromaWidth;
+            int cachedRows = component == 0 ? this.CachedHeight : this.CachedChromaHeight;
+            if ((uint)row >= (uint)cachedRows)
+            {
+                rowCount = localRow = 0;
+                return default;
+            }
+            if (this.segments is null)
+            {
+                rowCount = cachedRows;
+                localRow = row;
+                return this.GetPlane(component);
+            }
+            int rowsPerSegment = component != 0 && this.Is420 ? segmentRows / 2 : segmentRows;
+            int segment = row / rowsPerSegment;
+            localRow = row % rowsPerSegment;
+            rowCount = Math.Min(rowsPerSegment, cachedRows - (segment * rowsPerSegment));
+            return this.segments[component][segment].AsSpan(0, rowCount * rowWidth);
+        }
 
         internal static long PooledBytes(long count)
             => (long)Math.Max(16UL, BitOperations.RoundUpToPowerOf2((ulong)count)) * sizeof(float);
 
         internal static ConvertedPlanes? TryCreate(int width, int height, int sourceStride, int sourceLength,
-            int components, bool is420, long transientBytes, EncoderCacheBudget? cacheBudget)
+            int components, bool is420, long transientBytes, EncoderCacheBudget? cacheBudget,
+            bool allowPartial, CancellationToken cancellationToken)
         {
             long planeLength = (long)width * height;
             long chromaLength = is420 ? (long)((width + 15) / 16 * 8) * ((height + 15) / 16 * 8) : planeLength;
             long totalLength = planeLength + ((components - 1) * chromaLength);
             long availableBytes = Math.Min(MaximumBytes, cacheBudget?.AvailableBytes ?? MaximumBytes) - transientBytes;
             bool separate = PooledBytes(totalLength) > availableBytes;
+            int cachedHeight = height;
+            int segmentRows = 0;
             if (separate && PooledBytes(planeLength) + ((components - 1) * PooledBytes(chromaLength)) > availableBytes)
             {
-                return null;
+                if (!allowPartial)
+                {
+                    return null;
+                }
+                segmentRows = Math.Max(16, 65536 / width / 16 * 16);
+                int totalGroups = (height + 15) / 16;
+                int lower = 0, upper = totalGroups;
+                while (lower < upper)
+                {
+                    int middle = lower + ((upper - lower + 1) / 2);
+                    int rows = Math.Min(height, middle * 16);
+                    if (SegmentedBytes(width, height, rows, components, is420, segmentRows) <= availableBytes)
+                    {
+                        lower = middle;
+                    }
+                    else
+                    {
+                        upper = middle - 1;
+                    }
+                }
+                if (lower == 0)
+                {
+                    return null;
+                }
+                cachedHeight = Math.Min(height, lower * 16);
             }
 
             // Keep the ordinary single rental, but avoid rejecting useful planes
             // solely because their combined power-of-two bucket is too large.
-            var planes = new ConvertedPlanes(width, height, sourceStride, sourceLength, is420, separate, cacheBudget);
+            var planes = new ConvertedPlanes(width, height, sourceStride, sourceLength,
+                is420, separate, cachedHeight, segmentRows, cacheBudget);
             try
             {
-                if (!planes.TryRent(checked((int)(separate ? planeLength : totalLength)), transientBytes, out planes.samples)
+                if (segmentRows != 0)
+                {
+                    if (!planes.AllocateSegments(components, transientBytes, cancellationToken))
+                    {
+                        planes.Dispose();
+                        return null;
+                    }
+                }
+                else if (!planes.TryRent(checked((int)(separate ? planeLength : totalLength)), transientBytes, out planes.samples)
                     || (separate && components > 1
                         && (!planes.TryRent(checked((int)chromaLength), transientBytes, out planes.cb)
                             || !planes.TryRent(checked((int)chromaLength), transientBytes, out planes.cr))))
@@ -424,6 +534,7 @@ internal readonly ref struct PixelSource
                     planes.Dispose();
                     return null;
                 }
+                cacheBudget?.RecordConvertedRows(cachedHeight, height);
                 return planes;
             }
             catch
@@ -431,6 +542,49 @@ internal readonly ref struct PixelSource
                 planes.Dispose();
                 throw;
             }
+        }
+
+        private static long SegmentedBytes(int width, int height, int cachedHeight, int components, bool is420, int segmentRows)
+        {
+            long bytes = 0;
+            for (int component = 0; component < components; component++)
+            {
+                bool chroma = component != 0 && is420;
+                int rowWidth = chroma ? (width + 15) / 16 * 8 : width;
+                int rows = chroma ? cachedHeight == height ? (height + 15) / 16 * 8 : cachedHeight / 2 : cachedHeight;
+                int step = chroma ? segmentRows / 2 : segmentRows;
+                bytes += rows / step * PooledBytes((long)rowWidth * step);
+                if (rows % step != 0)
+                {
+                    bytes += PooledBytes((long)rowWidth * (rows % step));
+                }
+            }
+            return bytes;
+        }
+
+        private bool AllocateSegments(int components, long transientBytes, CancellationToken cancellationToken)
+        {
+            this.segments = new float[components][][];
+            for (int component = 0; component < components; component++)
+            {
+                bool chroma = component != 0 && this.Is420;
+                int rowWidth = chroma ? this.ChromaWidth : this.Width;
+                int rows = chroma ? this.CachedChromaHeight : this.CachedHeight;
+                int step = chroma ? segmentRows / 2 : segmentRows;
+                int count = (rows + step - 1) / step;
+                float[][] chunks = new float[count][];
+                this.segments[component] = chunks;
+                for (int index = 0; index < count; index++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    int length = checked(rowWidth * Math.Min(step, rows - (index * step)));
+                    if (!this.TryRent(length, transientBytes, out chunks[index]))
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
 
         private bool TryRent(int count, long transientBytes, out float[] buffer)
@@ -451,6 +605,24 @@ internal readonly ref struct PixelSource
 
         public void Dispose()
         {
+            if (this.segments is not null)
+            {
+                foreach (float[][]? component in this.segments)
+                {
+                    if (component is null)
+                    {
+                        continue;
+                    }
+                    foreach (float[]? chunk in component)
+                    {
+                        if (chunk is { Length: > 0 })
+                        {
+                            ArrayPool<float>.Shared.Return(chunk);
+                        }
+                    }
+                }
+                this.segments = null;
+            }
             if (this.samples.Length != 0)
             {
                 ArrayPool<float>.Shared.Return(this.samples);
@@ -500,11 +672,11 @@ internal readonly ref struct PixelSource
             // case preserves the source precision without a separate tag.
             this.samples = source.sourceType switch
             {
-                SourceType.Byte => (this.convertedPlanes is null || (this.convertedPlanes.Is420 && !borrowCompactPlanes))
+                SourceType.Byte => (this.convertedPlanes is not { IsComplete: true } || (this.convertedPlanes.Is420 && !borrowCompactPlanes))
                     ? Copy(source.bytes, length, cancellationToken) : [],
-                SourceType.UInt16 => this.convertedPlanes is null
+                SourceType.UInt16 => this.convertedPlanes is not { IsComplete: true }
                     ? Copy(source.words, length, cancellationToken) : [],
-                SourceType.Float => this.convertedPlanes is null
+                SourceType.Float => this.convertedPlanes is not { IsComplete: true }
                     ? Copy(source.floats, length, cancellationToken) : [],
                 _ => throw new InvalidOperationException("The source sample precision is invalid.")
             };
@@ -645,8 +817,11 @@ internal readonly ref struct PixelSource
         if (this.convertedPlanes is not null && (!this.convertedPlanes.Is420 || component == 0))
         {
             int row = offset / this.convertedPlanes.SourceStride;
-            int column = (offset - (row * this.convertedPlanes.SourceStride)) / this.ComponentsPerPixel;
-            return this.convertedPlanes.GetSample(component, (row * this.convertedPlanes.Width) + column);
+            if ((uint)row < (uint)this.convertedPlanes.CachedHeight)
+            {
+                int column = (offset - (row * this.convertedPlanes.SourceStride)) / this.ComponentsPerPixel;
+                return this.convertedPlanes.GetSample(component, (row * this.convertedPlanes.Width) + column);
+            }
         }
         if (this.colorTransform is not null)
         {
@@ -708,7 +883,8 @@ internal readonly ref struct PixelSource
 
     // The coordinate path avoids dividing an interleaved source offset for cached samples.
     internal float ReadSampleAt(int x, int y, int stride, int component)
-        => this.convertedPlanes is null || (this.convertedPlanes.Is420 && component != 0)
+        => this.convertedPlanes is null || (uint)y >= (uint)this.convertedPlanes.CachedHeight
+            || (this.convertedPlanes.Is420 && component != 0)
             ? this.ReadSample((y * stride) + (x * this.ComponentsPerPixel), component)
             : this.convertedPlanes.GetSample(component, (y * this.convertedPlanes.Width) + x);
 
@@ -770,7 +946,8 @@ internal readonly ref struct PixelSource
     internal void ReadRowScalar(int width, int height, int stride, int component,
         int x, int y, Span<float> samples)
     {
-        if (this.convertedPlanes is not null && (!this.convertedPlanes.Is420 || component == 0))
+        if (this.convertedPlanes is not null && (!this.convertedPlanes.Is420 || component == 0)
+            && Math.Clamp(y, 0, height - 1) < this.convertedPlanes.CachedHeight)
         {
             this.ReadConvertedRow(width, height, component, x, y, samples);
             return;
@@ -786,7 +963,8 @@ internal readonly ref struct PixelSource
     internal void ReadRowVector(int width, int height, int stride, int component,
         int x, int y, Span<float> samples)
     {
-        if (this.convertedPlanes is not null && (!this.convertedPlanes.Is420 || component == 0))
+        if (this.convertedPlanes is not null && (!this.convertedPlanes.Is420 || component == 0)
+            && Math.Clamp(y, 0, height - 1) < this.convertedPlanes.CachedHeight)
         {
             this.ReadConvertedRow(width, height, component, x, y, samples);
             return;
@@ -830,8 +1008,7 @@ internal readonly ref struct PixelSource
 
     private void ReadConvertedRow(int width, int height, int component, int x, int y, Span<float> samples)
     {
-        ReadOnlySpan<float> row = this.convertedPlanes!.GetPlane(component).Slice(
-            Math.Clamp(y, 0, height - 1) * width, width);
+        ReadOnlySpan<float> row = this.convertedPlanes!.GetRow(component, Math.Clamp(y, 0, height - 1));
         if (x < 0)
         {
             int prefix = (int)Math.Min(samples.Length, -(long)x);

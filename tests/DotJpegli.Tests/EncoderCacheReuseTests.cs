@@ -100,6 +100,33 @@ public sealed class EncoderCacheReuseTests
         Assert.Equal(0, diagnostics.CurrentBytes);
     }
 
+    [Theory]
+    [InlineData(JpegColorSpace.Rgb)]
+    [InlineData(JpegColorSpace.YCbCr)]
+    [InlineData(JpegColorSpace.Grayscale)]
+    [InlineData(JpegColorSpace.Xyb)]
+    public void PartialSourceIccPreflightPreservesCompleteJpegBytes(JpegColorSpace colorSpace)
+    {
+        const int width = 65, height = 67;
+        foreach (Array source in Sources(width, height))
+        {
+            JpegliEncoderOptions options = Options(colorSpace, 1) with
+            {
+                SourceIccProfile = JpegliIccProfiles.CreateLinearSrgbProfile()
+            };
+            byte[] expected = Encode(source, width, height, options with { MaxCacheBytes = 0 });
+            var diagnostics = new EncoderCacheDiagnostics();
+            Assert.Equal(expected, Encode(source, width, height, options with
+            {
+                MaxCacheBytes = colorSpace == JpegColorSpace.Grayscale ? 8192 : 32768,
+                CacheDiagnostics = diagnostics
+            }));
+            Assert.InRange(diagnostics.ConvertedSampleCachedRows, 16, height - 1);
+            Assert.Equal(height, diagnostics.ConvertedSampleTotalRows);
+            Assert.Equal(0, diagnostics.CurrentBytes);
+        }
+    }
+
     private static JpegliEncoderOptions Options(JpegColorSpace colorSpace, int mode) => new()
     {
         ColorSpace = colorSpace,

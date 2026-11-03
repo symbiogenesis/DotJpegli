@@ -406,8 +406,9 @@ same JPEG bytes as serial execution with the same settings. The option applies
 to every source precision, output color space, sampling scheme and scan script.
 
 Parallel execution shares cached converted samples, including compact 4:2:0
-chroma planes for unsmoothed 4:2:0, when available; otherwise
-it copies the consumed source storage once, including row padding and ignored
+chroma planes for unsmoothed 4:2:0. A complete converted cache avoids a source
+copy; a partial or missing cache copies the consumed source storage once for
+uncached reads, including row padding and ignored
 alpha but excluding trailing storage. It also buffers one MCU row of DCT
 coefficients. Its additional memory is proportional to image width and, when
 needed, the consumed source storage.
@@ -472,12 +473,20 @@ Optimized, unsmoothed RGB8-to-YCbCr 4:2:0 encoding without source
 ICC conversion retains full-resolution Y and compact chroma planes. Two rows of
 full-resolution chroma scratch share the converted-sample budget. Source edges
 are replicated before the ordered 2×2 averages. Other input/mode combinations
-use full converted planes or streaming recomputation.
+use full converted planes when possible. If whole-plane rental buckets exceed
+the limit, bounded row segments preserve converted samples without the bucket
+jump. Above the actual capacity, a complete prefix of source rows remains
+cached across all components, aligned to 16 source rows; analysis and encoding
+recompute only uncached neighborhoods and blocks. Compact 4:2:0 stores the
+matching luma/chroma prefix. A zero or insufficient cache budget retains
+on-demand conversion.
 
 Source-ICC conversion prepares reusable converted planes during input
 validation when the budget admits them, so encoding does not evaluate every
-nonlinear transform again. If those planes cannot fit, preflight validation
-still completes before output and later passes convert samples as needed.
+nonlinear transform again. A partial plane cache still preflights every
+uncached source row before output. Later passes reuse the cached prefix and
+convert the remaining rows as needed; a cache limit does not skip source
+validation.
 
 The byte-array overload stages output in a pooled buffer up to 1 MiB, then
 appends bounded 1 MiB ordinary segments. Large outputs avoid repeatedly copying
