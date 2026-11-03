@@ -1,0 +1,20 @@
+[
+  {
+    "id": "intermediate-64k",
+    "category": "kernel-diagnostic",
+    "sourcePath": "generated:intermediate-64k",
+    "ppmSha256": "bb8f771c6ae8e5a7d648e1225682b7e11abcccab7e9f64833b2b375ba57b6c41",
+    "pixelsSha256": "433539acdfc9b4cab2761f4ecf405b26d3dd17b63b55f779f4385493ae3c227a",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "id": "intermediate-128k",
+    "category": "kernel-diagnostic",
+    "sourcePath": "generated:intermediate-128k",
+    "ppmSha256": "9bde57ad508c8e27880531712080db23ad2290d270e2dfc814391f8641fab3cf",
+    "pixelsSha256": "c4d1a044c014e1d43827d2620ddf88b176ad732056a02ae39d334e274086c222",
+    "width": 512,
+    "height": 256
+  }
+]

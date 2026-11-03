@@ -85,9 +85,16 @@ directories retain both verdicts while preserving the 64-case limit per command.
 These six inputs are exclusive to kernel diagnostics; the native acceptance
 corpus and bounds remain fixed. The comparison retains
 JPEG hashes, allocations, balanced ABBA/BAAB quartets, drift and order-bias
-checks, including invalid and inconclusive results. These controls supply
-measurement coverage; their presence does not establish a crossover or justify
-changing the Automatic dispatch guard.
+checks, including invalid and inconclusive results. The
+[retained assessment of run 41592528894](performance-evidence/2026-11-03-kernel-guard-692a052/README.md)
+covers both selections on all four lanes. All 112 valid reachable Automatic
+rows on x64 favor the deployed policy by median; 83 also meet the stronger
+all-quartets preference rule. Sixteen reachable rows are invalid and 29 valid
+rows remain inconclusive under that rule. Every complete selection has invalid
+rows, so none establishes a stable aggregate timing verdict. The decision is
+to retain the conservative 32,768-pixel floor and existing fallbacks, without
+claiming a crossover or a benefit on every input. ARM64's Automatic rows select
+the same kernels and its forced narrow pairs are explicitly skipped.
 
 For a smaller development question, workflow dispatch accepts comma-separated
 `images`, `distances`, `samplings` and `progressions`, plus bounded `blocks`,

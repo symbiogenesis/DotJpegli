@@ -1,0 +1,162 @@
+[
+  {
+    "id": "intermediate-64k",
+    "width": 256,
+    "height": 256,
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-64k",
+    "width": 256,
+    "height": 256,
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-64k",
+    "width": 256,
+    "height": 256,
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-64k",
+    "width": 256,
+    "height": 256,
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-64k",
+    "width": 256,
+    "height": 256,
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-64k",
+    "width": 256,
+    "height": 256,
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-64k",
+    "width": 256,
+    "height": 256,
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-64k",
+    "width": 256,
+    "height": 256,
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-128k",
+    "width": 512,
+    "height": 256,
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-128k",
+    "width": 512,
+    "height": 256,
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-128k",
+    "width": 512,
+    "height": 256,
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-128k",
+    "width": 512,
+    "height": 256,
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-128k",
+    "width": 512,
+    "height": 256,
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-128k",
+    "width": 512,
+    "height": 256,
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-128k",
+    "width": 512,
+    "height": 256,
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  },
+  {
+    "id": "intermediate-128k",
+    "width": 512,
+    "height": 256,
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "kernel": "narrow-zigzag",
+    "reason": "The production pipeline does not reach the eight-lane narrow zigzag kernel on this vector configuration."
+  }
+]

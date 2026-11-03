@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 2,
+  "mode": "interleaved-kernel-comparison",
+  "startedAtUtc": "2026-11-03T06:58:02.676211+00:00",
+  "testedRevision": "692a052ead6561515e9a8908e2ad619dff46954b",
+  "githubRunId": "41592528894",
+  "managedEncoderSha256": "88cc0184ea9ae82a632d2ce0e0cb5d926daa410fda587258108bf2dbf5ce4129",
+  "managedRunnerSha256": "65d1db0ae665603269e21e3c439a517067624ecc02799a4aa6fe49fce1988b44",
+  "corpusManifestSha256": "6a529b1ae279c7f89998eb1f89f58237a5c1507ef53f502d71ea429d188dd8a5",
+  "selection": {
+    "images": [
+      "intermediate-64k",
+      "intermediate-128k"
+    ],
+    "distances": [
+      1,
+      4
+    ],
+    "samplings": [
+      444,
+      420
+    ],
+    "progressions": [
+      0,
+      2
+    ],
+    "policy": {
+      "warmups": 5,
+      "blocks": 6,
+      "minimumIterations": 20,
+      "maximumIterations": 20,
+      "targetBlockMilliseconds": 50,
+      "minimumBlockMilliseconds": 1,
+      "maximumRelativeMad": 0.1,
+      "maximumGroupGeometricMeanRatio": 1.05,
+      "maximumCaseRatio": 1.1,
+      "managedWorkers": 1
+    },
+    "expectedCases": 16
+  },
+  "expectedComparisons": 48,
+  "requestedComparisons": 48,
+  "includeAutomatic": true,
+  "narrowApplicable": true,
+  "environment": {
+    "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "affinity": "0",
+    "os": "Ubuntu 26.04.1 LTS",
+    "osArchitecture": 1,
+    "processArchitecture": 1,
+    "runtime": ".NET 11.0.0-rc.3.26522.148",
+    "runtimeVersion": "11.0.0",
+    "corelibInformationalVersion": "11.0.0-rc.3.26522.148\u002B5254d8bcf59917edc1e1abc33bdf2442b77b1c70",
+    "runtimeProductVersion": "11.0.0-rc.3.26522.148",
+    "encoderTargetFramework": ".NETCoreApp,Version=v11.0",
+    "explicitNet11Simd": true,
+    "logicalProcessors": 1,
+    "frequency": 1000000000,
+    "isHighResolution": true,
+    "isHardwareAccelerated": true,
+    "vectorFloatWidth": 8,
+    "vector128": true,
+    "vector256": true,
+    "vector512": false,
+    "serverGc": false,
+    "gcLatencyMode": "Interactive",
+    "dotnetTieredCompilation": "0",
+    "complusTieredCompilation": null,
+    "instrumentation": null,
+    "githubRunnerOs": "Linux",
+    "githubRunnerArchitecture": "X64"
+  },
+  "method": {
+    "scope": "Selected managed kernels only; no native comparison or full performance parity verdict",
+    "variants": "Forced pairs change one kernel Original/Optimized and hold the other Automatic; optional automatic-policy pair compares both Original against both Automatic; exact preferences retained per comparison",
+    "order": "Six quartets by default; require an even count, balanced ABBA/BAAB by comparison and block index; A=baseline, B=candidate",
+    "warmup": "Each leg receives the same untimed warmups; options are immutable and prepared outside the timer",
+    "iterations": "Fixed requested count, except inputs below1024 pixels use max(requested,100); actual iterations retained per comparison",
+    "calibration": "None; both variants use identical recorded iteration counts",
+    "latency": "Only complete public byte-array Encode calls timed; output equality checked after stopping each timer",
+    "ratio": "Each quartet uses geometric mean candidate / geometric mean baseline; primary statistic is median of those paired ratios",
+    "gc": "Natural GC included; no forced collections or no-GC region; per-leg allocations and collection counts retained",
+    "minimumLegMilliseconds": 1,
+    "maximumRelativeMad": 0.1,
+    "maximumWithinQuartetDrift": 1.1,
+    "maximumP90ToP10Drift": 1.2,
+    "maximumOrderBias": 1.1,
+    "evidencePreference": "Baseline or candidate variant name only when valid and every quartet ratio lies beyond1\u002B/-0.005 in the same direction; otherwise inconclusive",
+    "rawMeasurements": "raw-comparisons/*.json is updated after each completed quartet, before analysis; nonfinite raw values use named JSON strings"
+  }
+}

@@ -86,10 +86,12 @@ column 2x4 tiles; .NET 11 packs tiles with portable 64-bit Zip operations and
 let CI compare one kernel at a time without changing concurrent encodes.
 Automatic uses tiled ordering for x64 eight-lane, accelerated 256-bit execution
 without 512-bit acceleration when both source dimensions are at least eight and
-the image has at least 32,768 pixels. The size floor is a conservative deployment
-guard, not a measured crossover. Other configurations retain original narrow
-ordering; default wide-SIMD dispatch remains available. AQ keeps the original
-insertion kernel because no portable selection guard was established. Both
+the image has at least 32,768 pixels. The
+[threshold, tall-image and intermediate-size assessment](performance-evidence/2026-11-03-kernel-guard-692a052/README.md)
+supports retaining this conservative deployment floor on the measured x64
+hosts, without establishing a crossover. Other configurations retain original
+narrow ordering; default wide-SIMD dispatch remains available. AQ keeps the
+original insertion kernel because no portable selection guard was established. Both
 algorithms preserve the existing arithmetic; no runtime benchmarking is used.
 
 Optimized Huffman encoding shares one 64 MiB entropy-token rental budget across

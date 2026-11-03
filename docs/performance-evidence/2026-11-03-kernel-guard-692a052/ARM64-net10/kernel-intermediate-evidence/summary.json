@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 2,
+  "mode": "interleaved-kernel-comparison",
+  "status": "invalid",
+  "valid": false,
+  "parityVerdict": "not-evaluated",
+  "fullCoverageComplete": false,
+  "comparisons": 32,
+  "expectedComparisons": 32,
+  "skippedComparisons": 16,
+  "invalidReasons": [
+    "intermediate-64k/444/p0/d1/fuzzy-erosion: original: repeated legs within a quartet differ by over10%.",
+    "intermediate-128k/420/p0/d1/fuzzy-erosion: optimized: repeated legs within a quartet differ by over10%."
+  ]
+}

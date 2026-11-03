@@ -20,8 +20,11 @@ completed work.
 - Narrow transposed zigzag ordering retains original and tiled schedules.
   Automatic uses tiled ordering on x64 with accelerated 256-bit SIMD, eight
   float lanes, disabled 512-bit SIMD, both source dimensions at least eight and
-  at least 32,768 source pixels. The size floor is provisional. Other narrow
-  paths use Original; normal wide-SIMD dispatch remains available.
+  at least 32,768 source pixels. The
+  [retained threshold, tall-image and intermediate-size assessment](docs/performance-evidence/2026-11-03-kernel-guard-692a052/README.md)
+  supports keeping this conservative deployment floor on the measured x64
+  hosts; it is not a measured crossover. Other narrow paths use Original;
+  normal wide-SIMD dispatch remains available.
 - Kernel preferences are immutable per encode. There is no startup benchmark,
   shared mutable selector or timing-dependent JPEG output.
 - Scalar DCT uses fixed eight- and four-point schedules, preserving the original
@@ -74,13 +77,7 @@ the revision being delivered.
    latency, allocated bytes, retained rental capacity and peak working memory.
    Include sparse and noisy controls; check whether early-scan priority harms
    later scans. The 64 MiB token cap must remain fixed.
-2. Measure Automatic narrow ordering around the 32K-pixel guard, at intermediate
-   sizes and on unusually narrow/tall images. Compare the combined Automatic
-   policy as well as isolated forced kernels on .NET 10/11, x64 and ARM64.
-   The CI kernel comparison now supplies threshold, tall-image and 64K/128K
-   intermediate controls; assessment of retained results remains open.
-   Retain the original fallback where evidence remains inconclusive.
-3. Use interleaved same-host revision comparisons with identical inputs,
+2. Use interleaved same-host revision comparisons with identical inputs,
    runtime, CPU affinity, encoding policy and JPEG hashes. Detect minority
    timing states and order bias as well as MAD and drift; native drift alone
    cannot correct mixed timing regimes. Report invalid and inconclusive rows.

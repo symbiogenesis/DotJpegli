@@ -1,0 +1,74 @@
+[
+  {
+    "id": "kodim01",
+    "category": "natural",
+    "sourcePath": "kodim01.ppm",
+    "ppmSha256": "998ccf0be59a31ed12dfc2296a957f5363e35043e47ee232932ca5f1039e8628",
+    "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "low-contrast",
+    "category": "controlled",
+    "sourcePath": "generated:low-contrast",
+    "ppmSha256": "5c41553820198825825b9cc54d2083aa3bfd90a95339c1a18888ba39bd445c5c",
+    "pixelsSha256": "aaf923606635b8f32823911ec7445a9462cd1a116e7caf2d506470d544baae0f",
+    "width": 257,
+    "height": 193
+  },
+  {
+    "id": "low-noise",
+    "category": "controlled",
+    "sourcePath": "generated:low-noise",
+    "ppmSha256": "8a07ecfb883e0e02eb55f76af681e1d2e5b9e2e3afabc9836542d6950c62850d",
+    "pixelsSha256": "3b3f47c3cd069bcaae7baf8e73cbdc5562251ef6e356706079ea7b1873c9e2e9",
+    "width": 257,
+    "height": 193
+  },
+  {
+    "id": "tiny-odd-edges",
+    "category": "controlled",
+    "sourcePath": "generated:tiny-odd-edges",
+    "ppmSha256": "760a131a1e7ccf32c54ff53907ef094746b67504dce9aa4dd3f6ddb65931d8cc",
+    "pixelsSha256": "6b6e57355be38013f49728c2c208c9c2dd7b31edc84efc48997c418a08662660",
+    "width": 19,
+    "height": 17
+  },
+  {
+    "id": "guard-below-32k",
+    "category": "kernel-diagnostic",
+    "sourcePath": "generated:guard-below-32k",
+    "ppmSha256": "f95be6bbf6f311efcc162a3bda2a6ce3cd29b3113385f49d1c5627a68996b691",
+    "pixelsSha256": "5c154bbd03c5a93978f37b3a32af81b49cf58c28ebff254d13249c2309d3eb61",
+    "width": 255,
+    "height": 128
+  },
+  {
+    "id": "guard-at-32k",
+    "category": "kernel-diagnostic",
+    "sourcePath": "generated:guard-at-32k",
+    "ppmSha256": "e29e772c902bcb1d812fffe63da86686afb59834c2744f889d5d46e2752dfe4a",
+    "pixelsSha256": "30d741731efe9bed5d5490895fd8856a48d9acc3a212b02d05d89a62c19629d3",
+    "width": 256,
+    "height": 128
+  },
+  {
+    "id": "guard-above-32k",
+    "category": "kernel-diagnostic",
+    "sourcePath": "generated:guard-above-32k",
+    "ppmSha256": "e70d1aff153d58e3f771ff130a22187aa30efff87186b2cf0ffea0bfac244b57",
+    "pixelsSha256": "e0420497a5cb03248e3947855a0bd59bb4e7bfc139842c430a0a8c864f350c9c",
+    "width": 257,
+    "height": 128
+  },
+  {
+    "id": "narrow-tall",
+    "category": "kernel-diagnostic",
+    "sourcePath": "generated:narrow-tall",
+    "ppmSha256": "8188fcf19c7dca55aa8cc4dca7b29dc31894bee3b12ec9e46c8ff8dabe3f292c",
+    "pixelsSha256": "b9450b2bfb6d7f00ba4f12b73d51e42fbf36afee3b9a72f9114b39b7972c378b",
+    "width": 8,
+    "height": 4096
+  }
+]

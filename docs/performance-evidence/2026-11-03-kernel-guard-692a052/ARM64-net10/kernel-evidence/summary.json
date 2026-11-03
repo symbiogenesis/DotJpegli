@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "mode": "interleaved-kernel-comparison",
+  "status": "invalid",
+  "valid": false,
+  "parityVerdict": "not-evaluated",
+  "fullCoverageComplete": false,
+  "comparisons": 128,
+  "expectedComparisons": 128,
+  "skippedComparisons": 64,
+  "invalidReasons": [
+    "kodim01/444/p2/d1/automatic-policy: automatic: repeated legs within a quartet differ by over10%.",
+    "tiny-odd-edges/444/p0/d1/fuzzy-erosion: optimized: repeated legs within a quartet differ by over10%.",
+    "tiny-odd-edges/444/p0/d1/automatic-policy: automatic: repeated legs within a quartet differ by over10%.",
+    "tiny-odd-edges/444/p0/d4/fuzzy-erosion: original: repeated legs within a quartet differ by over10%.",
+    "tiny-odd-edges/444/p0/d4/automatic-policy: automatic: repeated legs within a quartet differ by over10%.",
+    "tiny-odd-edges/420/p0/d1/automatic-policy: original: repeated legs within a quartet differ by over10%.",
+    "tiny-odd-edges/420/p0/d4/fuzzy-erosion: original: repeated legs within a quartet differ by over10%.",
+    "guard-below-32k/420/p0/d1/fuzzy-erosion: original: repeated legs within a quartet differ by over10%.",
+    "guard-at-32k/444/p2/d1/automatic-policy: automatic: repeated legs within a quartet differ by over10%.",
+    "guard-above-32k/420/p2/d4/fuzzy-erosion: original: repeated legs within a quartet differ by over10%.",
+    "narrow-tall/420/p0/d1/fuzzy-erosion: optimized: repeated legs within a quartet differ by over10%."
+  ]
+}

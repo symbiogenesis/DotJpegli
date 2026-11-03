@@ -118,8 +118,10 @@ The commands run sequentially with separate evidence directories, preserving
 the 64-configuration limit per invocation. The intermediate selection still runs
 if the initial timings are invalid, and each command retains its own verdict.
 Only selected controls are generated; the eight fixed acceptance controls and
-native parity matrix are unchanged. These inputs add coverage above the
-provisional guard without changing it or establishing a measured crossover.
+native parity matrix are unchanged. The
+[retained assessment](../../docs/performance-evidence/2026-11-03-kernel-guard-692a052/README.md)
+supports keeping the conservative guard on the measured x64 hosts. It retains
+invalid and inconclusive rows and does not establish a measured crossover.
 
 Use `--self-test-kernel-comparison` locally to check synthetic statistics without
 timing any encoding. It also checks control dimensions, deterministic content,
