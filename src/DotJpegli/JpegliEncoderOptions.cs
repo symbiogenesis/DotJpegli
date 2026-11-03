@@ -570,99 +570,6 @@ public sealed record JpegliEncoderOptions
         return markers;
     }
 
-    internal JpegliEncoderOptions ResolveProgressiveLevel(JpegSamplingFactors sampling)
-    {
-        if (this.ProgressiveLevel is not int level)
-        {
-            return this;
-        }
-
-        if (level == 0)
-        {
-            return this with { Progressive = false };
-        }
-        // SetDefaultScanScript, lib/jpegli/encode.cc, pinned revision
-        // 031a0077f5799a6041004267fc12b956c1f52a20. All levels >= 2 share a script.
-        return this with
-        {
-            Progressive = true,
-            ProgressiveInterleaveDc = sampling.MaxHorizontal == 1 && sampling.MaxVertical == 1,
-            ProgressiveAcScanEnds = level == 1 ? [63] : [2, 63],
-            ProgressiveAcRefinementBits = level == 1 ? [1] : [0, 2]
-        };
-    }
-
-    internal int[] PrepareProgressiveAcScanEnds()
-    {
-        if (this.ProgressiveAcScanEnds is not { } ends)
-        {
-            return [63];
-        }
-
-        if (!this.Progressive)
-        {
-            throw new ArgumentException("AC scan bands require progressive encoding.", nameof(this.ProgressiveAcScanEnds));
-        }
-
-        int count = ends.Count;
-        if (count is < 1 or > 63)
-        {
-            throw new ArgumentException("AC scan ends must contain between 1 and 63 positions.", nameof(this.ProgressiveAcScanEnds));
-        }
-
-        int[] snapshot = new int[count];
-        int previous = 0;
-        for (int index = 0; index < count; index++)
-        {
-            int end = ends[index];
-            if (end <= previous || end > 63)
-            {
-                throw new ArgumentException("AC scan ends must be strictly increasing positions from 1 to 63.", nameof(this.ProgressiveAcScanEnds));
-            }
-
-            snapshot[index] = end;
-            previous = end;
-        }
-        if (previous != 63)
-        {
-            throw new ArgumentException("The final AC scan end must be 63.", nameof(this.ProgressiveAcScanEnds));
-        }
-
-        return snapshot;
-    }
-
-    [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly", Justification = "Option validation identifies the invalid ProgressiveAcRefinementBits property in ParamName.")]
-    internal int[] PrepareProgressiveAcRefinementBits(int bandCount)
-    {
-        int[] snapshot = new int[bandCount];
-        if (this.ProgressiveAcRefinementBits is not { } depths)
-        {
-            Array.Fill(snapshot, this.ProgressiveRefinementBits);
-            return snapshot;
-        }
-        if (!this.Progressive)
-        {
-            throw new ArgumentException("AC refinement depths require progressive encoding.", nameof(this.ProgressiveAcRefinementBits));
-        }
-
-        if (depths.Count != bandCount)
-        {
-            throw new ArgumentException("AC refinement depths must contain one value per AC scan band.", nameof(this.ProgressiveAcRefinementBits));
-        }
-
-        for (int index = 0; index < bandCount; index++)
-        {
-            int depth = depths[index];
-            if (depth is < 0 or > 10)
-            {
-                throw new ArgumentOutOfRangeException(nameof(this.ProgressiveAcRefinementBits), "AC refinement depths must be between 0 and 10.");
-            }
-
-            snapshot[index] = depth;
-        }
-        return snapshot;
-    }
-
     internal void Validate()
     {
         if (!StandardEnum.IsDefined(this.ColorRenderingIntent))
@@ -814,6 +721,16 @@ public sealed record JpegliEncoderOptions
         if (!this.ProgressiveInterleaveDc && !this.Progressive)
         {
             throw new ArgumentException("Separate DC scans require progressive encoding.", nameof(this.ProgressiveInterleaveDc));
+        }
+
+        if (this.ProgressiveAcScanEnds is not null && !progressiveOutput)
+        {
+            throw new ArgumentException("AC scan bands require progressive encoding.", nameof(this.ProgressiveAcScanEnds));
+        }
+
+        if (this.ProgressiveAcRefinementBits is not null && !progressiveOutput)
+        {
+            throw new ArgumentException("AC refinement depths require progressive encoding.", nameof(this.ProgressiveAcRefinementBits));
         }
 
         if (this.RestartInterval is < 0 or > 65535)

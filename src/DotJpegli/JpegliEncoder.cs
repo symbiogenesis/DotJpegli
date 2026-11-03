@@ -249,20 +249,20 @@ public static class JpegliEncoder
         bool rgb = pixels.IsRgb;
         bool xyb = pixels.IsXyb;
         int componentCount = grayscale ? 1 : 3;
-        JpegScan[]? scanScript = null;
-        if (options.ScanScript is { } requestedScript)
-        {
-            scanScript = JpegScanScript.Prepare(requestedScript, componentCount, cancellationToken, out bool progressive);
-            options = options with { Progressive = progressive };
-        }
+        var scanConfiguration = JpegScanConfiguration.FromOptions(options);
+        JpegScanConfiguration.Prepared? preparedScript = scanConfiguration.PrepareScript(componentCount, cancellationToken);
         ushort[][]? customTables = options.PrepareQuantizationTables(componentCount);
         JpegSamplingFactors sampling = grayscale
             ? JpegSamplingFactors.FromSubsampling(ChromaSubsampling.None)
             : options.SamplingFactors ?? (xyb ? new JpegSamplingFactors(new(2, 2), new(2, 2), new(1, 1))
                 : JpegSamplingFactors.FromSubsampling(rgb ? ChromaSubsampling.None : options.Subsampling));
-        options = options.ResolveProgressiveLevel(sampling);
-        bool interleaveInitialScan = grayscale || (options.Progressive
-            ? options.ProgressiveInterleaveDc : options.SequentialInterleaveComponents);
+        JpegScanConfiguration.Prepared scanSettings = scanConfiguration.Prepare(sampling, grayscale, preparedScript);
+        JpegScan[]? scanScript = scanSettings.Script;
+        if (options.Progressive != scanSettings.Progressive)
+        {
+            options = options with { Progressive = scanSettings.Progressive };
+        }
+        bool interleaveInitialScan = scanSettings.InterleaveInitialScan;
         int mcuWidth = 8 * sampling.MaxHorizontal;
         int interleavedRestartInterval = options.ResolveRestartInterval((width + mcuWidth - 1) / mcuWidth);
         int[] componentRestartIntervals = new int[componentCount];
@@ -271,9 +271,9 @@ public static class JpegliEncoder
             int blocksWide = ((width * sampling[component].Horizontal) + mcuWidth - 1) / mcuWidth;
             componentRestartIntervals[component] = options.ResolveRestartInterval(blocksWide);
         }
-        int[] acScanEnds = options.PrepareProgressiveAcScanEnds();
-        int[] acRefinementBits = options.PrepareProgressiveAcRefinementBits(acScanEnds.Length);
-        int maxRefinementBits = Math.Max(options.ProgressiveRefinementBits, acRefinementBits.Max());
+        int[] acScanEnds = scanSettings.AcScanEnds;
+        int[] acRefinementBits = scanSettings.AcRefinementBits;
+        int maxRefinementBits = scanSettings.MaxRefinementBits;
         // Quantization's sampling arguments select the upstream 4:2:0 table
         // compensation. Asymmetric schemes use uncompensated tables even when
         // the luma factors are 2x2.
@@ -368,8 +368,7 @@ public static class JpegliEncoder
 
         if (options.OptimizeHuffmanTables && !rgb)
         {
-            JpegScan[] scans = scanScript ?? CreateDefaultScanScript(options, componentCount,
-                interleaveInitialScan, acScanEnds, acRefinementBits, maxRefinementBits);
+            JpegScan[] scans = scanScript ?? scanSettings.CreateDefaultScript(componentCount);
             EncodeOptimizedScans(pixels, width, height, stride, sampling, tables, quantizationSelectors,
                 distance, options, extendedXmp, adaptive, adaptiveMultipliers, scans,
                 interleavedRestartInterval, componentRestartIntervals, output, cancellationToken);
@@ -407,7 +406,7 @@ public static class JpegliEncoder
                 ProcessBlocks(pixels, width, height, stride, sampling,
                     tables, distance, options.SmoothingFactor, interleavedRestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
                     null, dcFrequencies, acFrequencies, cancellationToken, dcOnly: options.Progressive,
-                    successiveLow: options.ProgressiveRefinementBits);
+                    successiveLow: scanSettings.DcRefinementBits);
             }
             else
             {
@@ -416,7 +415,7 @@ public static class JpegliEncoder
                     ProcessComponentBlocks(pixels, width, height, stride, sampling,
                         tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
                         component, acTables, null, acFrequencies, aggregateEobRuns: false, cancellationToken,
-                        successiveLow: options.ProgressiveRefinementBits, dcOnly: options.Progressive,
+                        successiveLow: scanSettings.DcRefinementBits, dcOnly: options.Progressive,
                         dcTables: dcTables, dcFrequencies: dcFrequencies, sequential: !options.Progressive);
                 }
             }
@@ -506,11 +505,11 @@ public static class JpegliEncoder
         {
             WriteRestartInterval(interleavedRestartInterval);
             JpegMarkerWriter.WriteScanHeader(output, componentCount, options.Progressive,
-                successiveLow: options.ProgressiveRefinementBits, rgb: rgb);
+                successiveLow: scanSettings.DcRefinementBits, rgb: rgb);
             ProcessBlocks(pixels, width, height, stride, sampling,
                 tables, distance, options.SmoothingFactor, interleavedRestartInterval, adaptive, adaptiveMultipliers, dcTables, acTables,
                 bits, null, null, cancellationToken, dcOnly: options.Progressive,
-                successiveLow: options.ProgressiveRefinementBits);
+                successiveLow: scanSettings.DcRefinementBits);
             bits.Flush();
         }
         else
@@ -520,11 +519,11 @@ public static class JpegliEncoder
                 cancellationToken.ThrowIfCancellationRequested();
                 WriteRestartInterval(componentRestartIntervals[component]);
                 JpegMarkerWriter.WriteScanHeader(output, componentCount, options.Progressive,
-                    successiveLow: options.ProgressiveRefinementBits, rgb: rgb, singleComponent: component);
+                    successiveLow: scanSettings.DcRefinementBits, rgb: rgb, singleComponent: component);
                 ProcessComponentBlocks(pixels, width, height, stride, sampling,
                     tables, distance, options.SmoothingFactor, componentRestartIntervals[component], adaptive, adaptiveMultipliers,
                     component, acTables, bits, null, aggregateEobRuns: false, cancellationToken,
-                    successiveLow: options.ProgressiveRefinementBits, dcOnly: options.Progressive,
+                    successiveLow: scanSettings.DcRefinementBits, dcOnly: options.Progressive,
                     dcTables: dcTables, sequential: !options.Progressive);
                 bits.Flush();
             }
@@ -554,9 +553,9 @@ public static class JpegliEncoder
             for (int low = maxRefinementBits - 1; low >= 0; low--)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (options.ProgressiveRefinementBits > low)
+                if (scanSettings.DcRefinementBits > low)
                 {
-                    if (options.ProgressiveInterleaveDc || grayscale)
+                    if (interleaveInitialScan)
                     {
                         WriteRestartInterval(interleavedRestartInterval);
                         JpegMarkerWriter.WriteScanHeader(output, componentCount, true,
@@ -610,62 +609,6 @@ public static class JpegliEncoder
         cancellationToken.ThrowIfCancellationRequested();
         output.WriteByte(0xff);
         output.WriteByte(0xd9);
-    }
-
-    private static JpegScan[] CreateDefaultScanScript(JpegliEncoderOptions options, int componentCount,
-        bool interleaveInitialScan, int[] acScanEnds, int[] acRefinementBits, int maxRefinementBits)
-    {
-        var scans = new List<JpegScan>();
-        int[] components = Enumerable.Range(0, componentCount).ToArray();
-        void AddDc(int high, int low)
-        {
-            if (interleaveInitialScan)
-            {
-                scans.Add(new(components, 0, options.Progressive ? 0 : 63, high, low));
-            }
-            else
-            {
-                foreach (int component in components)
-                {
-                    scans.Add(new([component], 0, options.Progressive ? 0 : 63, high, low));
-                }
-            }
-        }
-        AddDc(0, options.ProgressiveRefinementBits);
-        if (!options.Progressive)
-        {
-            return scans.ToArray();
-        }
-
-        for (int band = 0; band < acScanEnds.Length; band++)
-        {
-            foreach (int component in components)
-            {
-                scans.Add(new([component], band == 0 ? 1 : acScanEnds[band - 1] + 1,
-                    acScanEnds[band], 0, acRefinementBits[band]));
-            }
-        }
-
-        for (int low = maxRefinementBits - 1; low >= 0; low--)
-        {
-            if (options.ProgressiveRefinementBits > low)
-            {
-                AddDc(low + 1, low);
-            }
-
-            for (int band = 0; band < acScanEnds.Length; band++)
-            {
-                if (acRefinementBits[band] > low)
-                {
-                    foreach (int component in components)
-                    {
-                        scans.Add(new([component], band == 0 ? 1 : acScanEnds[band - 1] + 1,
-                            acScanEnds[band], low + 1, low));
-                    }
-                }
-            }
-        }
-        return scans.ToArray();
     }
 
     private static void EncodeOptimizedScans(PixelSource pixels, int width, int height, int stride,
