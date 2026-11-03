@@ -1,8 +1,7 @@
-// Shared build-time API policy for the library, tests and tools.
+// Repository-wide build-time API policy. The library, tests and tools use this same list.
 // Adapted from https://github.com/symbiogenesis/JetDatabaseWriter/blob/main/BannedSymbols.txt
 // Entries are documentation comment IDs followed by a diagnostic and an alternative.
 // RS0030 fails builds through TreatWarningsAsErrors. Keep exceptions narrowly justified.
-// Library-only restrictions are in BannedSymbols.Library.txt.
 
 // Blocking and sync-over-async APIs.
 M:System.Threading.Thread.Join;Use async coordination and cancellation instead of blocking a thread.

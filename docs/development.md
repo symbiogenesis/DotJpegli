@@ -78,18 +78,18 @@ compiler is still required when building that target from source.
 ## Banned APIs
 
 All projects reference `Microsoft.CodeAnalysis.BannedApiAnalyzers` as a private
-build dependency. The shared [`BannedSymbols.txt`](../BannedSymbols.txt) policy
+build dependency. A single [`BannedSymbols.txt`](../BannedSymbols.txt) applies the
+same policy to the library, tests and tools. It
 rejects unsafe/native interop, CPU-specific intrinsics, runtime code generation,
 blocking task waits, dangerous serialization, weak cryptography, implicit byte
 order/encoding and process-wide mutation. Each entry explains the alternative;
 `RS0030` diagnostics fail builds through `TreatWarningsAsErrors`. The analyzer
 does not become a runtime or transitive package dependency for consumers.
 
-The encoder also applies [`BannedSymbols.Library.txt`](../BannedSymbols.Library.txt)
-to keep filesystem, process, console and network access in callers, and to prevent
-ambient clocks and randomness from affecting encoded bytes. Tests and validation
-tools retain the host APIs needed for independent decoding, native process
-comparisons and evidence files while still following the shared policy.
+The encoder has no uses of filesystem, process, console, network, clock or random
+APIs. These are not blanket bans: tests and validation tools legitimately use files,
+native process comparisons, evidence timestamps and explicitly seeded test data.
+Those projects follow the same banned API list without project-wide exclusions.
 
 Portable SIMD, bounded `MemoryMarshal.Cast`/`AsBytes`, integer/floating-point bit
 conversions and explicitly seeded test randomness remain available. MD5 is allowed

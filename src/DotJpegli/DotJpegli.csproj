@@ -24,7 +24,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <AdditionalFiles Include="../../BannedSymbols.Library.txt" Link="BannedSymbols.Library.txt" />
     <InternalsVisibleTo Include="DotJpegli.Tests" />
     <InternalsVisibleTo Include="DotJpegli.Performance" />
     <None Include="../../LICENSE;../../LICENSE.jpegli;../../THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" Pack="true" PackagePath="" />
