@@ -599,7 +599,7 @@ jobs:
         timeout-minutes: 3
         working-directory: ${{ runner.temp }}
         run: dotnet tool install dotnet-trace --version 10.0.750501 --tool-path "${{ runner.temp }}/diagnostic-tools" 2>&1 | tee "${{ runner.temp }}/full-performance-profile-install.log"
-      - name: Profile worst cases from three distinct images (instrumented diagnostic only)
+      - name: Profile worst images and failing smallest input (instrumented diagnostic only)
         if: failure() && steps.performance.outcome == 'failure' && steps.full_profiler.outcome == 'success'
         continue-on-error: true
         timeout-minutes: 5
@@ -614,14 +614,23 @@ jobs:
           import json, os
           from pathlib import Path
           cases = json.loads((Path(os.environ['RUNNER_TEMP']) / 'performance-evidence/cases.json').read_text())
+          sources = json.loads((Path(os.environ['RUNNER_TEMP']) / 'performance-evidence/sources.json').read_text())
           selected = set()
+          profiles = []
           for case in sorted(cases, key=lambda item: item['medianRatio'], reverse=True):
               if case['id'] in selected:
                   continue
-              print(case['id'], case['sampling'], case['progressiveLevel'], case['distance'])
+              profiles.append(case)
               selected.add(case['id'])
               if len(selected) == 3:
                   break
+          smallest = min(sources, key=lambda item: item['width'] * item['height'])['id']
+          if smallest not in selected:
+              case = max((item for item in cases if item['id'] == smallest), key=lambda item: item['medianRatio'])
+              if case['medianRatio'] > 1.10:
+                  profiles.append(case)
+          for case in profiles:
+              print(case['id'], case['sampling'], case['progressiveLevel'], case['distance'])
           PY
           while read -r image sampling progression distance; do
             if ! taskset -c "$cpu" "${{ runner.temp }}/diagnostic-tools/dotnet-trace" collect --profile dotnet-sampled-thread-time --format Speedscope --show-child-io --output "${{ runner.temp }}/full-performance-profile-$image.nettrace" -- dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/net11.0/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/full-performance-profile-evidence-$image" --diagnostic --images "$image" --distances "$distance" --samplings "$sampling" --progressions "$progression" --blocks 7 --iterations 100 --warmups 5 2>&1 | tee "${{ runner.temp }}/full-performance-profile-$image.log"; then

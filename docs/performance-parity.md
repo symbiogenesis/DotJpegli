@@ -98,7 +98,9 @@ follow-up with `profile=false`.
 
 A failed full latency comparison collects separate profiles for the worst case
 from each of the three highest-ratio distinct images, using seven blocks and
-100 iterations to provide more samples for tiny inputs. Installation is bounded
+100 iterations to provide more samples for tiny inputs. If the smallest input
+also exceeds the individual limit and is not already selected, its worst case
+is profiled too, giving at most four distinct images. Installation is bounded
 to three minutes and collection to five minutes. These marked instrumented
 diagnostics are retained in `performance-profile-<revision>` and cannot change
 the original unprofiled acceptance verdict. `profile=false` also disables them

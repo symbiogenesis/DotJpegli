@@ -70,7 +70,9 @@ The thresholds and per-case timing method remain unchanged.
 After a full latency failure, the same job profiles the worst case from each of
 the three highest-ratio distinct images with pinned `dotnet-trace`, seven blocks,
 100 iterations and five warmups. Installation has a three-minute limit and
-collection a five-minute limit. The separate `performance-profile-<revision>`
+collection a five-minute limit. A failing smallest input is also selected if
+absent from those three, giving at most four profiles and retaining setup
+diagnostics when larger images have higher ratios. The separate `performance-profile-<revision>`
 artifact retains the marked instrumented evidence, traces and logs. Profiling
 cannot replace the unprofiled verdict; manual full dispatch can disable it with
 `profile=false`.
