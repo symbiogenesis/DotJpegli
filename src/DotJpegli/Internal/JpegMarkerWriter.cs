@@ -51,14 +51,26 @@ internal static class JpegMarkerWriter
         }
         Marker(output, 0xdb);
         Word(output, quantizationLength);
+        // A complete selector and its zigzag quantizers fit in this bounded
+        // scratch buffer. Submit each table once instead of dispatching a stream
+        // write for every byte; sixteen-bit quantizers retain network order.
+        Span<byte> tableBytes = stackalloc byte[129];
         for (int component = 0; component < tableCount; component++)
         {
-            output.WriteByte((byte)((wideTables[component] ? 0x10 : 0) | component));
+            tableBytes[0] = (byte)((wideTables[component] ? 0x10 : 0) | component);
+            int length = 1;
             foreach (int naturalIndex in JpegConstants.ZigZag)
+            {
+                ushort value = quantization[component][naturalIndex];
                 if (wideTables[component])
-                    Word(output, quantization[component][naturalIndex]);
+                {
+                    tableBytes[length++] = (byte)(value >> 8);
+                    tableBytes[length++] = (byte)value;
+                }
                 else
-                    output.WriteByte(checked((byte)quantization[component][naturalIndex]));
+                    tableBytes[length++] = checked((byte)value);
+            }
+            output.Write(tableBytes[..length]);
         }
 
         Marker(output, options.Progressive ? (byte)0xc2 : baseline ? (byte)0xc0 : (byte)0xc1);
