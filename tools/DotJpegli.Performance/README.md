@@ -63,7 +63,7 @@ native ratios expose possible drift; these diagnostics do not change the
 current revision's acceptance bounds or establish full parity. This uses the
 single planned automatic run and requires no additional workflow dispatch.
 
-To compare retained evidence without running encodes, use PowerShell 7:
+To compare retained evidence without running encodes, use PowerShell 7.6 or newer:
 
 ```powershell
 ./tools/compare-performance-revisions.ps1 -Baseline /absolute/baseline-evidence -Current /absolute/current-evidence -BaselineRevision <full-baseline-sha> -CurrentRevision <full-current-sha> -Output /absolute/comparison

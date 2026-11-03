@@ -1,24 +1,59 @@
-#requires -Version 7.0
+#requires -Version 7.6
 <#
 .SYNOPSIS
 Compare retained CI performance diagnostics without running benchmarks.
 .DESCRIPTION
 Output is a file prefix: reports are written to PREFIX.md and PREFIX.json.
 SelfTest validates the comparator with synthetic evidence only.
+.PARAMETER Baseline
+Literal path to the baseline CI evidence directory.
+.PARAMETER Current
+Literal path to the current CI evidence directory.
+.PARAMETER BaselineRevision
+Full lowercase Git commit ID of the baseline revision.
+.PARAMETER CurrentRevision
+Full lowercase Git commit ID of the current revision.
+.PARAMETER Output
+Literal file prefix for the Markdown and JSON reports.
+.PARAMETER Summary
+Optional literal path to a Markdown summary to append to.
+.PARAMETER SelfTest
+Validate comparison and reporting with synthetic data without running benchmarks.
+.EXAMPLE
+./tools/compare-performance-revisions.ps1 -SelfTest
 #>
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName = 'Compare')]
 param(
+    [Parameter(Mandatory, ParameterSetName = 'Compare')]
+    [ValidateNotNullOrWhiteSpace()]
     [string] $Baseline,
+
+    [Parameter(Mandatory, ParameterSetName = 'Compare')]
+    [ValidateNotNullOrWhiteSpace()]
     [string] $Current,
+
+    [Parameter(Mandatory, ParameterSetName = 'Compare')]
+    [ValidatePattern('\A[0-9a-f]{40}\z', Options = 'None')]
     [string] $BaselineRevision,
+
+    [Parameter(Mandatory, ParameterSetName = 'Compare')]
+    [ValidatePattern('\A[0-9a-f]{40}\z', Options = 'None')]
     [string] $CurrentRevision,
+
+    [Parameter(Mandatory, ParameterSetName = 'Compare')]
+    [ValidateNotNullOrWhiteSpace()]
     [string] $Output,
+
+    [Parameter(ParameterSetName = 'Compare')]
+    [ValidateNotNullOrWhiteSpace()]
     [string] $Summary,
+
+    [Parameter(Mandatory, ParameterSetName = 'SelfTest')]
     [switch] $SelfTest
 )
 
 $ErrorActionPreference = 'Stop'
-Set-StrictMode -Version Latest
+Set-StrictMode -Version 3.0
 $Invariant = [Globalization.CultureInfo]::InvariantCulture
 $HostFields = @(
     'cpu', 'affinity', 'os', 'osArchitecture', 'processArchitecture',
@@ -33,7 +68,7 @@ function Assert-Valid([bool] $Condition, [string] $Message) {
     if (-not $Condition) { throw $Message }
 }
 
-function Assert-Fields($Value, [string[]] $Names) {
+function Assert-FieldPresence($Value, [string[]] $Names) {
     Assert-Valid ($Value -is [Collections.IDictionary]) 'Expected a JSON object'
     foreach ($name in $Names) {
         Assert-Valid ($Value.Contains($name)) "Missing evidence field: $name"
@@ -73,11 +108,13 @@ function Test-JsonEqual($Left, $Right) {
     }
     if ($Left -is [string]) { return $Right -is [string] -and $Left -ceq $Right }
     if ($Right -is [string] -or $Right -is [Collections.IDictionary] -or $Right -is [array]) { return $false }
+    if ($Left -is [bool]) { return $Right -is [bool] -and $Left -eq $Right }
+    if ($Right -is [bool]) { return $false }
     return $Left -eq $Right
 }
 
 function Get-CaseKey($Case) {
-    Assert-Fields $Case @('id', 'sampling', 'progressiveLevel', 'distance')
+    Assert-FieldPresence $Case @('id', 'sampling', 'progressiveLevel', 'distance')
     Assert-Valid ($Case.id -is [string] -and $Case.id.Length -gt 0) 'Missing case image ID'
     Assert-Valid ((Test-Integer $Case.sampling) -and (Test-Integer $Case.progressiveLevel)) 'Invalid case sampling/progression'
     Assert-PositiveNumber $Case.distance 'Case distance'
@@ -97,7 +134,7 @@ function Get-Index($Items, [scriptblock] $Key, [string] $Label) {
     return ,$result
 }
 
-function Test-SameKeys($Left, $Right) {
+function Test-SameKeySet($Left, $Right) {
     if ($Left.Count -ne $Right.Count) { return $false }
     foreach ($key in $Left.Keys) {
         if (-not $Right.ContainsKey($key)) { return $false }
@@ -106,12 +143,12 @@ function Test-SameKeys($Left, $Right) {
 }
 
 function Get-AllocatedPerEncode($Case, [long] $BlockCount) {
-    Assert-Fields $Case @('iterations', 'blocks')
+    Assert-FieldPresence $Case @('iterations', 'blocks')
     Assert-Valid ((Test-Integer $Case.iterations) -and $Case.iterations -gt 0) 'Invalid encode iteration count'
     Assert-Valid ($Case.blocks -is [array] -and $Case.blocks.Count -eq $BlockCount) 'Allocation blocks do not match the evidence policy'
     $total, $correction = 0.0, 0.0
     foreach ($block in $Case.blocks) {
-        Assert-Fields $block @('allocatedManagedBytes')
+        Assert-FieldPresence $block @('allocatedManagedBytes')
         Assert-Valid ((Test-Integer $block.allocatedManagedBytes) -and $block.allocatedManagedBytes -ge 0) 'Allocated bytes must be nonnegative integers'
         # Compensate summation to limit rounding when allocation totals differ.
         $adjusted = ($block.allocatedManagedBytes / $Case.iterations) - $correction
@@ -125,11 +162,11 @@ function Get-AllocatedPerEncode($Case, [long] $BlockCount) {
 function Compare-Evidence($Before, $After, [string] $BeforeRevision, [string] $AfterRevision) {
     foreach ($pair in @(@($Before, $BeforeRevision), @($After, $AfterRevision))) {
         $evidence, $revision = $pair
-        Assert-Fields $evidence @('run', 'summary', 'cases', 'sources')
+        Assert-FieldPresence $evidence @('run', 'summary', 'cases', 'sources')
         $run, $status = $evidence.run, $evidence.summary
-        Assert-Fields $status @('valid', 'mode', 'testedRevision', 'selectedCoverageComplete', 'cases')
-        Assert-Fields $run @('testedRevision', 'expectedCases', 'environment', 'policy', 'githubRunId', 'upstreamPin', 'managedEncoderSha256', 'managedRunnerSha256', 'nativeExecutableSha256', 'corpusManifestSha256')
-        Assert-Fields $run.environment $HostFields
+        Assert-FieldPresence $status @('valid', 'mode', 'testedRevision', 'selectedCoverageComplete', 'cases')
+        Assert-FieldPresence $run @('testedRevision', 'expectedCases', 'environment', 'policy', 'githubRunId', 'upstreamPin', 'managedEncoderSha256', 'managedRunnerSha256', 'nativeExecutableSha256', 'corpusManifestSha256')
+        Assert-FieldPresence $run.environment $HostFields
         Assert-Valid ($status.valid -is [bool] -and $status.valid) 'Both comparisons require stable matched evidence'
         Assert-Valid ($status.mode -ceq 'diagnostic') 'Expected selected-case diagnostic evidence'
         Assert-Valid ($run.testedRevision -ceq $revision -and $status.testedRevision -ceq $revision) 'Tested revision mismatch'
@@ -142,7 +179,7 @@ function Compare-Evidence($Before, $After, [string] $BeforeRevision, [string] $A
     }
     $left, $right = $Before.run, $After.run
     Assert-Valid (Test-JsonEqual $left.policy $right.policy) 'Evidence policy mismatch'
-    Assert-Fields $left.policy @('blocks')
+    Assert-FieldPresence $left.policy @('blocks')
     $blockCount = $left.policy.blocks
     Assert-Valid ((Test-Integer $blockCount) -and $blockCount -gt 0) 'Invalid policy block count'
     Assert-Valid ($left.githubRunId -and (Test-JsonEqual $left.githubRunId $right.githubRunId)) 'Comparisons must belong to the same CI run'
@@ -154,18 +191,18 @@ function Compare-Evidence($Before, $After, [string] $BeforeRevision, [string] $A
     }
     Assert-Valid ([string]$left.environment.affinity -cmatch '\A[0-9]+\z') 'Comparisons must be pinned to one CPU'
 
-    $old = Get-Index $Before.cases { param($item) Get-CaseKey $item } 'baseline cases'
-    $new = Get-Index $After.cases { param($item) Get-CaseKey $item } 'current cases'
-    Assert-Valid ((Test-SameKeys $old $new) -and $old.Count -eq $left.expectedCases -and $new.Count -eq $right.expectedCases) 'Selected-case mismatch'
-    $sourceKey = { param($item) Assert-Fields $item @('id'); return $item.id }
-    $oldSources = Get-Index $Before.sources $sourceKey 'baseline sources'
-    $newSources = Get-Index $After.sources $sourceKey 'current sources'
+    $old = Get-Index -Items $Before.cases -Key { param($item) Get-CaseKey $item } -Label 'baseline cases'
+    $new = Get-Index -Items $After.cases -Key { param($item) Get-CaseKey $item } -Label 'current cases'
+    Assert-Valid ((Test-SameKeySet $old $new) -and $old.Count -eq $left.expectedCases -and $new.Count -eq $right.expectedCases) 'Selected-case mismatch'
+    $sourceKey = { param($item) Assert-FieldPresence $item @('id'); return $item.id }
+    $oldSources = Get-Index -Items $Before.sources -Key $sourceKey -Label 'baseline sources'
+    $newSources = Get-Index -Items $After.sources -Key $sourceKey -Label 'current sources'
     $selectedSources = [Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
     foreach ($case in $old.Values) { $selectedSources[$case.id] = $null }
-    Assert-Valid ((Test-SameKeys $oldSources $newSources) -and (Test-SameKeys $oldSources $selectedSources)) 'Selected source-image mismatch'
+    Assert-Valid ((Test-SameKeySet $oldSources $newSources) -and (Test-SameKeySet $oldSources $selectedSources)) 'Selected source-image mismatch'
     foreach ($imageId in $oldSources.Keys) {
         foreach ($source in $oldSources[$imageId], $newSources[$imageId]) {
-            Assert-Fields $source @('category', 'width', 'height', 'ppmSha256', 'pixelsSha256')
+            Assert-FieldPresence $source @('category', 'width', 'height', 'ppmSha256', 'pixelsSha256')
         }
         foreach ($field in 'category', 'width', 'height', 'ppmSha256', 'pixelsSha256') {
             Assert-Valid (Test-JsonEqual $oldSources[$imageId][$field] $newSources[$imageId][$field]) "Source-image mismatch: $imageId/$field"
@@ -189,14 +226,14 @@ function Compare-Evidence($Before, $After, [string] $BeforeRevision, [string] $A
     foreach ($a in $ordered) {
         $key = Get-CaseKey $a
         $b = $old[$key]
-        foreach ($case in $b, $a) { Assert-Fields $case @('managedJpegSha256', 'nativeJpegSha256', 'managed', 'native') }
+        foreach ($case in $b, $a) { Assert-FieldPresence $case @('managedJpegSha256', 'nativeJpegSha256', 'managed', 'native') }
         foreach ($field in 'managedJpegSha256', 'nativeJpegSha256') {
             Assert-Sha256 $b[$field] $field
             Assert-Valid (Test-JsonEqual $b[$field] $a[$field]) "JPEG bytes changed: $key/$field"
         }
         foreach ($case in $b, $a) {
-            Assert-Fields $case.managed @('median')
-            Assert-Fields $case.native @('median')
+            Assert-FieldPresence $case.managed @('median')
+            Assert-FieldPresence $case.native @('median')
         }
         $bm, $am, $bn, $an = $b.managed.median, $a.managed.median, $b.native.median, $a.native.median
         Assert-PositiveNumber $bm 'Baseline managed median'
@@ -234,28 +271,37 @@ function Format-Markdown($Result) {
 }
 
 function Read-Evidence([string] $Directory) {
+    $fullDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Directory)
     $evidence = @{}
     foreach ($name in 'run', 'summary', 'cases', 'sources') {
-        $evidence[$name] = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText([IO.Path]::Combine($Directory, "$name.json"))) -AsHashtable -NoEnumerate
+        $evidence[$name] = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText([IO.Path]::Combine($fullDirectory, "$name.json"))) -AsHashtable -NoEnumerate -DateKind String
     }
     return $evidence
 }
 
-function Save-Reports($Result, [string] $Prefix, [string] $SummaryPath) {
+function Save-Report($Result, [string] $Prefix, [string] $SummaryPath) {
     $report = Format-Markdown $Result
-    $fullPrefix = [IO.Path]::GetFullPath($Prefix)
+    $fullPrefix = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Prefix)
     [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($fullPrefix))
     [IO.File]::WriteAllText("$fullPrefix.md", $report, [Text.UTF8Encoding]::new($false))
     [IO.File]::WriteAllText("$fullPrefix.json", (ConvertTo-Json -InputObject $Result -Depth 100) + "`n", [Text.UTF8Encoding]::new($false))
-    if ($SummaryPath) { [IO.File]::AppendAllText($SummaryPath, $report, [Text.UTF8Encoding]::new($false)) }
+    if ($SummaryPath) {
+        $fullSummaryPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($SummaryPath)
+        [IO.File]::AppendAllText($fullSummaryPath, $report, [Text.UTF8Encoding]::new($false))
+    }
     return $report
 }
 
 function Copy-Json($Value) {
-    return ConvertFrom-Json -InputObject (ConvertTo-Json -InputObject $Value -Depth 100) -AsHashtable -NoEnumerate
+    return ConvertFrom-Json -InputObject (ConvertTo-Json -InputObject $Value -Depth 100) -AsHashtable -NoEnumerate -DateKind String
 }
 
 function Invoke-SelfTest {
+    foreach ($boolean in $true, $false) {
+        Assert-Valid ((Test-JsonEqual $boolean $boolean) -and
+            -not (Test-JsonEqual $boolean ([int]$boolean)) -and
+            -not (Test-JsonEqual ([int]$boolean) $boolean)) 'Boolean/numeric JSON equality self-test failed'
+    }
     $beforeRevision, $afterRevision = ('1' * 40), ('2' * 40)
     $environment = @{}
     foreach ($field in $HostFields) { $environment[$field] = $null }
@@ -263,7 +309,8 @@ function Invoke-SelfTest {
     $environment.vector128 = $true; $environment.vector256 = $true; $environment.vector512 = $false
     $before = @{
         run = @{ testedRevision = $beforeRevision; expectedCases = 1; policy = @{ blocks = 3 }
-            githubRunId = 'synthetic'; upstreamPin = '3' * 40; environment = $environment }
+            githubRunId = 'synthetic'; upstreamPin = '3' * 40; environment = $environment
+            recordedAt = '2026-11-02T00:00:00Z' }
         summary = @{ valid = $true; mode = 'diagnostic'; testedRevision = $beforeRevision; selectedCoverageComplete = $true; cases = 1 }
         sources = @(@{ id = 'synthetic'; category = 'controlled'; width = 8; height = 8; ppmSha256 = 'b' * 64; pixelsSha256 = 'c' * 64 })
         cases = @(@{ id = 'synthetic'; sampling = 420; progressiveLevel = 0; distance = 1
@@ -275,7 +322,7 @@ function Invoke-SelfTest {
     $after.run.testedRevision = $after.summary.testedRevision = $afterRevision
     $after.cases[0].iterations = 10; $after.cases[0].managed.median = 80
     $after.cases[0].blocks = @(@{ allocatedManagedBytes = 3000 }, @{ allocatedManagedBytes = 3300 }, @{ allocatedManagedBytes = 3600 })
-    $result = Compare-Evidence $before $after $beforeRevision $afterRevision
+    $result = Compare-Evidence -Before $before -After $after -BeforeRevision $beforeRevision -AfterRevision $afterRevision
     $item = $result.comparisons[0]
     Assert-Valid ($item.managedRatio -eq 0.8 -and $item.nativeRatio -eq 1 -and $item.baselineAllocatedBytesPerEncode -eq 440 -and $item.currentAllocatedBytesPerEncode -eq 330) 'Allocation/ratio normalization self-test failed'
     $mutations = @(
@@ -294,6 +341,7 @@ function Invoke-SelfTest {
         { param($e) $e.cases[0].iterations = 0 },
         { param($e) $e.cases[0].blocks[0].allocatedManagedBytes = -1 },
         { param($e) $e.run.environment.vector128 = -not $e.run.environment.vector128 },
+        { param($e) $e.run.environment.vector128 = 1 },
         { param($e) $e.run.environment.vector256 = -not $e.run.environment.vector256 },
         { param($e) $e.run.environment.vector512 = -not $e.run.environment.vector512 },
         { param($e) $e.run.environment.affinity = '0-1' },
@@ -314,7 +362,7 @@ function Invoke-SelfTest {
         $invalid = Copy-Json $after
         & $mutate $invalid
         $rejected = $false
-        try { $null = Compare-Evidence $before $invalid $beforeRevision $afterRevision }
+        try { $null = Compare-Evidence -Before $before -After $invalid -BeforeRevision $beforeRevision -AfterRevision $afterRevision }
         catch { $rejected = $true }
         Assert-Valid $rejected 'Mismatch rejection self-test failed'
     }
@@ -323,26 +371,32 @@ function Invoke-SelfTest {
     $equivalent.cases[0].distance = 1.0
     $before.run.policy.warmups = $equivalent.run.policy.warmups = 5
     $equivalent.run.policy = [ordered]@{ warmups = 5; blocks = 3 }
-    $null = Compare-Evidence $before $equivalent $beforeRevision $afterRevision
+    $null = Compare-Evidence -Before $before -After $equivalent -BeforeRevision $beforeRevision -AfterRevision $afterRevision
 
     $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
-    $testRoot = [IO.Path]::Combine($tempRoot, 'jpegli-comparator-' + [guid]::NewGuid().ToString('N'))
+    $testRoot = [IO.Path]::Combine($tempRoot, 'jpegli-comparator-' + [guid]::NewGuid().ToString('N') + '[synthetic]')
     $previousCulture = [Globalization.CultureInfo]::CurrentCulture
     try {
         [void][IO.Directory]::CreateDirectory($testRoot)
         foreach ($name in 'run', 'summary', 'cases', 'sources') {
             [IO.File]::WriteAllText([IO.Path]::Combine($testRoot, "$name.json"), (ConvertTo-Json -InputObject $after[$name] -Depth 100), [Text.UTF8Encoding]::new($true))
         }
-        $loaded = Read-Evidence $testRoot
-        Assert-Valid (Test-JsonEqual $loaded $after) 'BOM/array evidence reading self-test failed'
         [Globalization.CultureInfo]::CurrentCulture = [Globalization.CultureInfo]::GetCultureInfo('de-DE')
         $summaryPath = [IO.Path]::Combine($testRoot, 'summary.md')
         [IO.File]::WriteAllText($summaryPath, "Existing summary`n")
         $prefix = [IO.Path]::Combine($testRoot, 'reports', 'comparison')
-        $report = Save-Reports $result $prefix $summaryPath
+        Push-Location -LiteralPath $testRoot
+        try {
+            $loaded = Read-Evidence '.'
+            Assert-Valid (Test-JsonEqual $loaded $after) 'BOM/array/timestamp evidence reading self-test failed'
+            $report = Save-Report -Result $result -Prefix './reports/comparison' -SummaryPath './summary.md'
+        }
+        finally {
+            Pop-Location
+        }
         Assert-Valid ($report.Contains('0.800000') -and $report.Contains('440.0')) 'Invariant report number formatting self-test failed'
         Assert-Valid ([IO.File]::ReadAllText($summaryPath) -ceq "Existing summary`n$report") 'Summary append self-test failed'
-        $roundTrip = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText("$prefix.json")) -AsHashtable -NoEnumerate
+        $roundTrip = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText("$prefix.json")) -AsHashtable -NoEnumerate -DateKind String
         Assert-Valid (Test-JsonEqual $result $roundTrip) 'Report JSON schema self-test failed'
     }
     finally {
@@ -358,16 +412,9 @@ function Invoke-SelfTest {
 
 try {
     if ($SelfTest) { Invoke-SelfTest; return }
-    foreach ($name in 'Baseline', 'Current', 'BaselineRevision', 'CurrentRevision', 'Output') {
-        Assert-Valid (-not [string]::IsNullOrEmpty((Get-Variable -Name $name -ValueOnly))) "-$name is required"
-    }
-    foreach ($revision in $BaselineRevision, $CurrentRevision) {
-        Assert-Valid ($revision -cmatch '\A[0-9a-f]{40}\z') 'Revision arguments must be full lowercase Git SHA-1 IDs'
-    }
-    $result = Compare-Evidence (Read-Evidence $Baseline) (Read-Evidence $Current) $BaselineRevision $CurrentRevision
-    Write-Output (Save-Reports $result $Output $Summary)
+    $result = Compare-Evidence -Before (Read-Evidence $Baseline) -After (Read-Evidence $Current) -BeforeRevision $BaselineRevision -AfterRevision $CurrentRevision
+    Write-Output (Save-Report -Result $result -Prefix $Output -SummaryPath $Summary)
 }
 catch {
-    [Console]::Error.WriteLine("Performance revision comparison invalid: $($_.Exception.Message)")
-    exit 1
+    throw [InvalidOperationException]::new("Performance revision comparison invalid: $($_.Exception.Message)", $_.Exception)
 }
