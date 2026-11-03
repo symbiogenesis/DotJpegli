@@ -29,6 +29,10 @@ internal static class Program
             {
                 return QuantizationTableSearchCommand.Run(args[1..]);
             }
+            if (args.Length > 0 && args[0] == "--search-rate-distortion")
+            {
+                return RateDistortionSearchCommand.Run(args[1..]);
+            }
             var options = Options.Parse(args);
             string native = options.Native, corpus = options.Corpus, output = options.Output;
             string[] naturalFiles = ValidateCorpus(corpus);

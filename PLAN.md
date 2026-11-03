@@ -87,6 +87,15 @@ completed work.
   surrogate costs, exact trials, rejections, hashes and operation counts. This is
   a bounded offline experiment, without a global optimum, visual-quality or
   corpus-wide compression claim.
+- The opt-in [offline rate-distortion quantization search](tools/DotJpegli.Parity/README.md#bounded-rate-distortion-quantization-search)
+  compares 25 complete baseline JPEGs across five distances and five AC search
+  weights, retaining the unchanged AQ/optimized-Huffman control. A bounded
+  dynamic program chooses each original AC value, one step toward zero or zero
+  using squared DCT error and standard-table run/category costs, including ZRL
+  and EOB; DC stays fixed. Complete encodes relearn optimized Huffman tables.
+  Reports retain decoded PSNR/SSIM, matched-size and matched-quality curves,
+  unsupported ranges, hashes and search-work counts. Default bytes and public
+  APIs are unchanged; corpus compression and latency remain unmeasured.
 
 These mechanisms have focused numerical, byte-parity, ownership and failure-path
 regressions. They do not establish a latency or peak-working-memory benefit for
@@ -183,10 +192,6 @@ without source ICC do not establish a benefit.
 
 ## Optional compression and tuning experiments
 
-- **Rate-distortion optimized quantization:** Begin baseline-only with bounded
-  AC coefficient searches over distortion plus estimated run/category cost.
-  Use current AQ and optimized Huffman coding as the control. Compare matched
-  quality and matched size with multiple metrics; account for added CPU work.
 - **Faster offline perceptual objectives:** Screen candidates with reusable
   reference features or faster metrics, then validate finalists with the
   reference perceptual metric and existing PSNR/SSIM checks. Faster metric

@@ -182,3 +182,66 @@ Focused local checks use `QuantizationTableSearchTests` and
 `QuantizationTableSearchCommandTests`, with small correctness fixtures and an
 independent managed decoder in tests. Native-decoder corpus results remain
 CI-only.
+
+## Bounded rate-distortion quantization search
+
+Use the opt-in offline experiment with the pinned native wrapper as the common
+RGB8 decoder:
+
+```text
+dotnet DotJpegli.Parity.dll --search-rate-distortion --input /absolute/image.ppm --output /absolute/new-search-directory --native /absolute/jpegli-parity-native --sampling 420
+```
+
+Input is binary P6 RGB8, sampling is 444 or 420, and the output directory must
+not exist. The command compares 25 complete baseline sequential YCbCr JPEGs:
+distances 0.5, 1, 2, 4 and 8 crossed with weights 0, 1, 16, 256 and 4096. AQ,
+optimized Huffman coding, baseline quantizers and one encoder worker are fixed.
+Weight zero uses the original encoder path, with the distance-1 control first.
+This adds no public API; corpus and performance experiments run only on CI.
+
+Each positive-weight trial starts with the encoder's normal AQ coefficients.
+For each real block, a dynamic program chooses each original AC value, one step
+toward zero or zero, removing duplicate choices and keeping DC fixed. Its
+objective is unweighted squared DCT reconstruction error plus weight times
+estimated AC entropy bits. The estimate uses fixed standard luma/chroma Huffman
+lengths, signed-amplitude categories, zero runs, ZRL and EOB. It excludes DC,
+stuffing, padding and headers; complete output rebuilds optimized Huffman tables.
+The model therefore guides the search without predicting complete JPEG size.
+Ties prefer fewer changed coefficients, then deterministic traversal order.
+There are at most 6,048 candidate/state evaluations per block and fixed stack
+scratch. The existing 64 MiB coefficient-cache cap remains fixed; the experiment
+rejects images that cannot fit instead of silently skipping coefficient search.
+
+Every candidate is encoded completely, independently decoded and measured against
+the source. For each positive weight and each metric (RGB PSNR and local luma
+SSIM), the report compares its five-distance nondominated curve with the
+unchanged five-distance control curve. Five common interior byte targets give
+matched-size quality deltas; five common interior quality targets give
+matched-quality size ratios. Interpolation is linear in quality and logarithmic
+in bytes. There is no extrapolation; constant, insufficient or disjoint ranges
+are retained as unsupported, with their reasons. These sampled comparisons do
+not establish a corpus-wide compression gain or perceptual equivalence.
+
+The winner is the smallest actual complete JPEG meeting both decoded scores of
+the distance-1 unchanged control. Equal sizes keep the earlier trial; the control
+is always eligible. `winner.jpg` stores that output. `search.json` (schema 1)
+retains all candidate distances and weights, trial sizes, JPEG and decoded hashes,
+quality scores, eligibility, curve points, matched comparisons, unsupported
+ranges and source/encoder/runner/decoder identities. `report.md` lists every trial
+and comparison. Reproduce a trial using the recorded sampling, distance and
+internal weight with the same encoder revision; the weight is deliberately not
+a public encoder setting.
+
+Reports charge all 25 complete encodes and decodes, 25 logical histogram passes
+and 25 emission/replay passes. Positive weights add one bounded search per real
+block; exact candidate/state evaluations and changed AC coefficients are retained
+per trial and in aggregate, including discarded work. These are algorithmic work
+counts, not CPU time, allocations, rental capacity or peak-memory measurements.
+The search keeps only the current and winning JPEG plus bounded trial metadata.
+It makes no latency, global optimum or human visual-quality claim.
+
+Focused correctness fixtures use `RateDistortionQuantizationTests`,
+`EncoderRateDistortionTests`, `RateDistortionSearchTests` and
+`RateDistortionSearchCommandTests`. They compare against exhaustive block choices,
+independent entropy histograms, parsed JPEG coefficients and a managed decoder.
+Full suites and native-decoder corpus measurements remain CI-only.

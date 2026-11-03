@@ -29,5 +29,8 @@
     <Compile Include="../../tools/DotJpegli.Parity/QuantizationTableSearch.cs" Link="Parity/QuantizationTableSearch.cs" />
     <Compile Include="../../tools/DotJpegli.Parity/QuantizationTableSearchCommand.cs" Link="Parity/QuantizationTableSearchCommand.cs" />
     <Compile Include="../../tools/DotJpegli.Parity/QualityMetrics.cs" Link="Parity/QualityMetrics.cs" />
+    <Compile Include="../../tools/DotJpegli.Parity/RateDistortion.cs" Link="Parity/RateDistortion.cs" />
+    <Compile Include="../../tools/DotJpegli.Parity/RateDistortionSearch.cs" Link="Parity/RateDistortionSearch.cs" />
+    <Compile Include="../../tools/DotJpegli.Parity/RateDistortionSearchCommand.cs" Link="Parity/RateDistortionSearchCommand.cs" />
   </ItemGroup>
 </Project>

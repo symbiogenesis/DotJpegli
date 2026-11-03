@@ -155,6 +155,29 @@ cached costs against an independent cosine-DCT oracle and reproduce every exact
 finalist with an independent managed decoder. This tool adds no public API or
 runtime dependency; corpus measurements and all benchmarks remain CI-only.
 
+The optional [offline rate-distortion quantization search](../tools/DotJpegli.Parity/README.md#bounded-rate-distortion-quantization-search)
+starts with the original AQ coefficients and changes only AC values through an
+internal baseline-only control. A bounded dynamic program considers each
+original coefficient, one step toward zero and zero; its objective combines
+squared DCT reconstruction error with standard-table run/category, amplitude,
+ZRL and EOB bit costs. Complete candidate encodes rebuild optimized Huffman
+tables from the searched coefficients. Histogram collection and emission share
+the same bounded coefficient cache, including token-cache fallback. The
+experiment rejects images exceeding the unchanged 64 MiB coefficient-cache
+limit before writing output. The default fused path and public API are unchanged.
+
+The offline grid contains five distances and five weights, including five
+unchanged controls. Every one of the 25 complete JPEGs is decoded and scored
+with RGB PSNR and local luma SSIM. Reports retain per-metric nondominated curves,
+matched-size and matched-quality interpolation without extrapolation, and
+unsupported ranges. The distance-1 control sets both measured quality floors
+for choosing a winning complete JPEG. Search counts include every real block,
+candidate/state transition and changed AC coefficient, as well as all complete
+encodes, decodes and logical histogram/emission passes. These counts do not
+measure CPU time, allocations or peak working memory. Exhaustive small-block
+oracles, independent entropy histograms, coefficient parsing, decoder checks and
+failure-path fixtures validate the experiment; corpus measurements remain CI-only.
+
 ## Build
 
 The library targets `netstandard2.1`, `net10.0` and `net11.0`; tests and tools run
