@@ -26,5 +26,7 @@
     <Compile Include="../../tools/DotJpegli.Parity/ProgressiveScanSearchCommand.cs" Link="Parity/ProgressiveScanSearchCommand.cs" />
     <Compile Include="../../tools/DotJpegli.Parity/JpegStructure.cs" Link="Parity/JpegStructure.cs" />
     <Compile Include="../../tools/DotJpegli.Parity/PpmImage.cs" Link="Parity/PpmImage.cs" />
+    <Compile Include="../../tools/DotJpegli.Parity/QuantizationTableSearch.cs" Link="Parity/QuantizationTableSearch.cs" />
+    <Compile Include="../../tools/DotJpegli.Parity/QualityMetrics.cs" Link="Parity/QualityMetrics.cs" />
   </ItemGroup>
 </Project>
