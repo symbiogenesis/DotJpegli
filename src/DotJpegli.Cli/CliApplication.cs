@@ -70,9 +70,13 @@ internal static class CliApplication
         string? temporaryPath = null;
         try
         {
-            string sourcePath = Path.GetFullPath(inputPath);
-            string destinationPath = Path.GetFullPath(outputPath);
-            if (string.Equals(sourcePath, destinationPath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            string sourcePath = ResolveFileDirectory(Path.GetFullPath(inputPath));
+            string destinationPath = ResolveFileDirectory(Path.GetFullPath(outputPath));
+            StringComparison pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            var source = new FileInfo(sourcePath);
+            FileSystemInfo? sourceTarget = (source.Attributes & FileAttributes.ReparsePoint) != 0 ? source.ResolveLinkTarget(returnFinalTarget: true) : null;
+            if (string.Equals(sourcePath, destinationPath, pathComparison)
+                || (sourceTarget is not null && string.Equals(ResolveFileDirectory(sourceTarget.FullName), destinationPath, pathComparison)))
             {
                 throw new IOException("Input and output must be different files.");
             }
@@ -110,6 +114,21 @@ internal static class CliApplication
                 catch (UnauthorizedAccessException) { }
             }
         }
+    }
+
+    private static string ResolveFileDirectory(string path) =>
+        Path.Combine(ResolveDirectory(new DirectoryInfo(Path.GetDirectoryName(path)!)), Path.GetFileName(path));
+
+    private static string ResolveDirectory(DirectoryInfo directory)
+    {
+        if (directory.Parent is null)
+        {
+            return directory.FullName;
+        }
+        // Resolve every ancestor: ResolveLinkTarget on a descendant does not resolve its parent links.
+        var resolved = new DirectoryInfo(Path.Combine(ResolveDirectory(directory.Parent), directory.Name));
+        FileSystemInfo? target = (resolved.Attributes & FileAttributes.ReparsePoint) != 0 ? resolved.ResolveLinkTarget(returnFinalTarget: true) : null;
+        return target is null ? resolved.FullName : ResolveDirectory(new DirectoryInfo(target.FullName));
     }
 
     private static ImageResult ReadImage(string path)
