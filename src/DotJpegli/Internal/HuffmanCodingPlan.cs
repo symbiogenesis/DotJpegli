@@ -58,7 +58,7 @@ internal sealed class HuffmanCodingPlan
         HuffmanTable[] acTables = ac.Histograms.Select(histogram => HuffmanTable.CreateOptimized(histogram)).ToArray();
         HuffmanTable unused = UnusedTable.Value;
         int nextAcDefinition = Math.Min(4, acTables.Length);
-        var firstDefinitions = new List<Definition>();
+        var firstDefinitions = new List<Definition>(dcTables.Length + nextAcDefinition);
         for (int index = 0; index < dcTables.Length; index++)
             firstDefinitions.Add(new(dcTables[index], dc.Slots[index]));
         for (int index = 0; index < nextAcDefinition; index++)
@@ -69,10 +69,14 @@ internal sealed class HuffmanCodingPlan
         for (int scanIndex = 0; scanIndex < scans.Count; scanIndex++)
         {
             JpegScan scan = scans[scanIndex];
-            var scanDc = Enumerable.Repeat(unused, componentCount).ToArray();
-            var scanAc = Enumerable.Repeat(unused, componentCount).ToArray();
+            var scanDc = new HuffmanTable[componentCount];
+            var scanAc = new HuffmanTable[componentCount];
+            Array.Fill(scanDc, unused);
+            Array.Fill(scanAc, unused);
             var selectors = new byte[componentCount];
-            var definitions = scanIndex == 0 ? firstDefinitions : new List<Definition>();
+            // Most progressive scans reuse previously defined tables. Avoid
+            // allocating an empty list until a later scan actually evicts one.
+            List<Definition>? definitions = scanIndex == 0 ? firstDefinitions : null;
             foreach (int component in scan.Components)
             {
                 int dcSlot = 0, acSlot = 0;
@@ -96,7 +100,7 @@ internal sealed class HuffmanCodingPlan
                         // slot. Clustering never reuses an evicted histogram.
                         while (nextAcDefinition <= cluster)
                         {
-                            definitions.Add(new(acTables[nextAcDefinition], 0x10 | ac.Slots[nextAcDefinition]));
+                            (definitions ??= []).Add(new(acTables[nextAcDefinition], 0x10 | ac.Slots[nextAcDefinition]));
                             nextAcDefinition++;
                         }
                     }
@@ -104,7 +108,7 @@ internal sealed class HuffmanCodingPlan
                 selectors[component] = (byte)((dcSlot << 4) | acSlot);
                 extendedSequential |= !progressive && (dcSlot > 1 || acSlot > 1);
             }
-            coding[scanIndex] = new(scanDc, scanAc, selectors, definitions.ToArray());
+            coding[scanIndex] = new(scanDc, scanAc, selectors, definitions?.ToArray() ?? []);
         }
         return new(coding, extendedSequential);
     }
