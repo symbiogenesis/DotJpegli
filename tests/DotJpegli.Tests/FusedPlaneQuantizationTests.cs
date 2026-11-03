@@ -122,6 +122,56 @@ public sealed class FusedPlaneQuantizationTests
     }
 
     [Fact]
+    public void NarrowOrderingRetainsDcAndEveryIsolatedAcPosition()
+    {
+        foreach (short dc in new short[] { short.MinValue, -23456, -1, 0, 1, short.MaxValue })
+        {
+            short[] transposed = new short[64];
+            transposed[0] = dc;
+            AssertNarrowOrdering(transposed);
+            foreach (short value in new short[] { -1023, 1, 1023 })
+                for (int position = 1; position < 64; position++)
+                {
+                    transposed[position] = value;
+                    AssertNarrowOrdering(transposed);
+                    transposed[position] = 0;
+                }
+        }
+    }
+
+    [Fact]
+    public void FlatPlanesPreserveDcRoundingAndOutputSentinels()
+    {
+        foreach (bool adaptive in new[] { false, true })
+            foreach (ushort divisor in new ushort[] { 1, 3, 255 })
+                foreach (float sample in new[] { 0f, 127.5f, 128f, 128.5f, 255f })
+                {
+                    var table = Quantization.PreparedTable.Create(Enumerable.Repeat(divisor, 64).ToArray(),
+                        0, 4f, adaptiveQuantization: adaptive,
+                        adaptiveMultipliers: Enumerable.Repeat(0.5f, 64).ToArray());
+                    float[] plane = Enumerable.Repeat(sample, 64).ToArray();
+                    short[] expected = Enumerable.Repeat((short)-23456, 72).ToArray(), actual = (short[])expected.Clone();
+                    Original(plane, 8, 0, 0, table, expected, 0.625f, ordered: true);
+                    ForwardDct.TransformQuantizePlane(plane, 8, 0, 0, table, actual, 0.625f);
+                    Assert.Equal(expected, actual);
+                    Assert.All(actual.AsSpan(1, 63).ToArray(), value => Assert.Equal((short)0, value));
+                }
+    }
+
+    private static void AssertNarrowOrdering(short[] transposed)
+    {
+        short[] expected = JpegConstants.ZigZag.ToArray()
+            .Select(index => transposed[(index % 8) * 8 + index / 8]).ToArray();
+        short[] actual = Enumerable.Repeat((short)-23456, 72).ToArray();
+        Quantization.StoreTransposedZigZag128(Vector128.Create(transposed.AsSpan(0, 8)), Vector128.Create(transposed.AsSpan(8, 8)),
+            Vector128.Create(transposed.AsSpan(16, 8)), Vector128.Create(transposed.AsSpan(24, 8)),
+            Vector128.Create(transposed.AsSpan(32, 8)), Vector128.Create(transposed.AsSpan(40, 8)),
+            Vector128.Create(transposed.AsSpan(48, 8)), Vector128.Create(transposed.AsSpan(56, 8)), actual);
+        Assert.Equal(expected, actual[..64]);
+        Assert.All(actual[64..], value => Assert.Equal((short)-23456, value));
+    }
+
+    [Fact]
     public void BothPortableOrderingNetworksPreserveEverySignedShortBitPattern()
     {
         for (int shift = 0; shift < 1024; shift++)

@@ -646,6 +646,17 @@ internal static class Quantization
         Vector128<short> q2, Vector128<short> q3, Vector128<short> q4, Vector128<short> q5,
         Vector128<short> q6, Vector128<short> q7, Span<short> output)
     {
+        // The narrow ordering network needs forty byte shuffles. A DC-only
+        // block can bypass all of them after quantization has validated every
+        // coefficient. Keep partial-buffer behavior on the ordinary path.
+        Vector128<short> ac = ((q0.WithElement(0, (short)0) | q1) | (q2 | q3))
+            | ((q4 | q5) | (q6 | q7));
+        if (output.Length >= 64 && Vector128.EqualsAll(ac, Vector128<short>.Zero))
+        {
+            output[..64].Clear();
+            output[0] = q0.GetElement(0);
+            return;
+        }
         (Vector128.Shuffle(q0.AsByte(), TransposedZigZagMasks.M00)
             | Vector128.Shuffle(q1.AsByte(), TransposedZigZagMasks.M01)
             | Vector128.Shuffle(q2.AsByte(), TransposedZigZagMasks.M02)
