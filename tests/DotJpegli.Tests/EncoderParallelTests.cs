@@ -26,9 +26,8 @@ public sealed class EncoderParallelTests
     [MemberData(nameof(SequentialSamplingModes))]
     public void StreamingSequentialMatchesCachedPreparationAcrossSamplingAndEdges(int precision, ChromaSubsampling sampling)
     {
-        // A forced worker always retains a coefficient image. Single-worker
-        // preparation selects streaming or a bounded cache for its SIMD width;
-        // both must preserve the same MCU predictors, padding and entropy bytes.
+        // Small requests retain serial preparation even when workers are
+        // requested. Both choices preserve MCU predictors and entropy bytes.
         foreach ((int width, int height, int smoothing, int interval, int rows, bool adaptive) in new[]
         {
             (1, 1, 0, 0, 0, true), (1, 33, 0, 1, 0, true),
@@ -167,7 +166,8 @@ public sealed class EncoderParallelTests
     {
         // Several MCU rows plus odd edges exercise real, replicated and wholly
         // padded blocks, including predictors crossing row/restart boundaries.
-        const int width = 37, height = 35;
+        int width = mode is 6 or 11 ? 513 : 257;
+        const int height = 129;
         PixelComponentLayout layout = Layout(mode);
         int stride = (width * Components(layout)) + 11;
         Array pixels = Pattern(precision, width, height, layout, stride, trailing: 7);
@@ -259,7 +259,7 @@ public sealed class EncoderParallelTests
     [InlineData(2)]
     public void NonSeekableDestinationsReceiveOrderedWritesOnTheCallingThread(int precision)
     {
-        const int width = 37, height = 35;
+        const int width = 257, height = 129;
         Array pixels = Pattern(precision, width, height, PixelComponentLayout.Rgb);
         var options = new JpegliEncoderOptions { RestartRows = 1 };
         byte[] expected = Encode(pixels, width, height, PixelComponentLayout.Rgb, options);
@@ -280,7 +280,7 @@ public sealed class EncoderParallelTests
     [InlineData(2)]
     public void CancellationDuringOutputPreservesTokenAndOrderedPrefix(int precision)
     {
-        const int width = 37, height = 35;
+        const int width = 257, height = 129;
         Array pixels = Pattern(precision, width, height, PixelComponentLayout.Rgb);
         var options = new JpegliEncoderOptions
         {
@@ -314,7 +314,7 @@ public sealed class EncoderParallelTests
     [InlineData(2)]
     public void DestinationFailuresRemainUnwrappedAndLeaveTheStreamOpen(int precision)
     {
-        const int width = 37, height = 35;
+        const int width = 257, height = 129;
         Array pixels = Pattern(precision, width, height, PixelComponentLayout.Rgb);
         var options = new JpegliEncoderOptions { MaxDegreeOfParallelism = 3, RestartRows = 1 };
         byte[] complete = Encode(pixels, width, height, PixelComponentLayout.Rgb, options);
@@ -392,7 +392,7 @@ public sealed class EncoderParallelTests
     {
         // Public float preflight rejects these samples before scheduling. Use
         // the internal row processor to exercise its worker-error boundary.
-        const int width = 37, height = 35;
+        const int width = 257, height = 129;
         float[] samples = Enumerable.Repeat(float.MaxValue, width * height * 3).ToArray();
         PixelSource pixels = new PixelSource(samples, PixelComponentLayout.Rgb).WithColorSpace(JpegColorSpace.Xyb);
         var rows = new ParallelDctRows(pixels, width, height, width * 3,
@@ -404,7 +404,7 @@ public sealed class EncoderParallelTests
     [Fact]
     public async Task IndependentConcurrentEncodesPreserveBytesWithReusableOptions()
     {
-        const int width = 37, height = 35;
+        const int width = 257, height = 129;
         var options = new JpegliEncoderOptions
         {
             MaxDegreeOfParallelism = 3,

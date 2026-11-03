@@ -363,11 +363,11 @@ public static class JpegliEncoder
         }
         int workerLimit = options.MaxDegreeOfParallelism == -1
             ? Environment.ProcessorCount : options.MaxDegreeOfParallelism;
-        pixels = workerLimit == 1 && sampling.Is420 && options.SmoothingFactor == 0 && options.OptimizeHuffmanTables
+        pixels = sampling.Is420 && options.SmoothingFactor == 0 && options.OptimizeHuffmanTables
             ? pixels.WithConverted420Planes(width, height, stride, cancellationToken, cacheBudget)
             : pixels.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget);
         using IDisposable? convertedStorage = preflightStorage is null ? pixels.ConvertedStorage : null;
-        if (workerLimit > 1)
+        if (workerLimit > 1 && ParallelDctRows.ShouldCreate(width, height, sampling, grayscale))
         {
             pixels = pixels.WithParallelRows(new ParallelDctRows(pixels, width, height, stride,
                 sampling, options.SmoothingFactor, workerLimit, cancellationToken));

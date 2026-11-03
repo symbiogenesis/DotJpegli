@@ -5,6 +5,8 @@ using System.Runtime.ExceptionServices;
 /// <summary>Parallel sample conversion and DCT with a single bounded MCU row of results.</summary>
 internal sealed class ParallelDctRows
 {
+    private const int MinimumBlocksPerWorker = 32;
+    private const int MinimumImagePixels = 128 * 128;
     private readonly PixelSource.Snapshot source;
     private readonly int width;
     private readonly int height;
@@ -17,6 +19,12 @@ internal sealed class ParallelDctRows
     private readonly int[] blocksHigh;
     private readonly float[] coefficients;
     private readonly ExceptionDispatchInfo?[] errors;
+    private readonly ParallelOptions parallelOptions;
+    private readonly Action<int> prepareRange;
+    private int firstPreparedBlock;
+    private int preparedBlockCount;
+    private int rangeCount;
+    private int mcuRow;
     private int preparedTop = -1;
     private int preparedComponents;
 
@@ -30,6 +38,8 @@ internal sealed class ParallelDctRows
         this.sampling = sampling;
         this.smoothingFactor = smoothingFactor;
         this.maxDegreeOfParallelism = maxDegreeOfParallelism;
+        this.parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism };
+        this.prepareRange = this.PrepareRange;
         int componentCount = pixels.IsGrayscale ? 1 : 3;
         this.blockOffsets = new int[componentCount + 1];
         this.blocksWide = new int[componentCount];
@@ -46,7 +56,27 @@ internal sealed class ParallelDctRows
         this.coefficients = new float[checked(this.blockOffsets[^1] * 64)];
         this.errors = new ExceptionDispatchInfo?[this.blockOffsets[^1]];
         int length = checked(((height - 1) * stride) + (width * pixels.ComponentsPerPixel));
-        this.source = new PixelSource.Snapshot(pixels, length, cancellationToken);
+        this.source = new PixelSource.Snapshot(pixels, length, cancellationToken,
+            borrowCompactPlanes: sampling.Is420 && smoothingFactor == 0);
+    }
+
+    // Avoid a source snapshot and row scheduling when the image cannot supply
+    // two useful ranges. Requested workers still apply to entropy replay.
+    internal static bool ShouldCreate(int width, int height, JpegSamplingFactors sampling, bool grayscale)
+    {
+        if ((long)width * height < MinimumImagePixels)
+        {
+            return false;
+        }
+        int blocks = 0;
+        int mcuWidth = 8 * sampling.MaxHorizontal;
+        for (int component = 0; component < (grayscale ? 1 : 3); component++)
+        {
+            JpegComponentSampling factor = sampling[component];
+            int componentWidth = ((width * factor.Horizontal) + mcuWidth - 1) / mcuWidth;
+            blocks += componentWidth * factor.Vertical;
+        }
+        return blocks >= 2 * MinimumBlocksPerWorker;
     }
 
     internal void PrepareRow(int top, CancellationToken cancellationToken, int singleComponent = -1)
@@ -67,45 +97,24 @@ internal sealed class ParallelDctRows
         int firstBlock = singleComponent < 0 ? 0 : this.blockOffsets[singleComponent];
         int endBlock = singleComponent < 0 ? this.blockOffsets[^1] : this.blockOffsets[singleComponent + 1];
         Array.Clear(this.errors, firstBlock, endBlock - firstBlock);
-        int mcuRow = top / (8 * this.sampling.MaxVertical);
+        this.firstPreparedBlock = firstBlock;
+        this.preparedBlockCount = endBlock - firstBlock;
+        this.rangeCount = Math.Max(1, Math.Min(this.maxDegreeOfParallelism,
+            this.preparedBlockCount / MinimumBlocksPerWorker));
+        this.mcuRow = top / (8 * this.sampling.MaxVertical);
+        this.parallelOptions.CancellationToken = cancellationToken;
         // Each invocation joins all workers before exposing the row to the
-        // ordered consumer. No workers survive cancellation or an output error.
-        _ = Parallel.For(firstBlock, endBlock, new ParallelOptions
+        // ordered consumer. Coarse contiguous ranges amortize scheduling and
+        // reconstruct the source only once per range. Short component rows
+        // execute directly without a Parallel.For allocation or worker join.
+        if (this.rangeCount == 1)
         {
-            CancellationToken = cancellationToken,
-            MaxDegreeOfParallelism = Math.Min(this.maxDegreeOfParallelism, endBlock - firstBlock)
-        }, block =>
+            this.PrepareRange(0);
+        }
+        else
         {
-            try
-            {
-                int component = 0;
-                while (block >= this.blockOffsets[component + 1])
-                {
-                    component++;
-                }
-
-                JpegComponentSampling factor = this.sampling[component];
-                int localBlock = block - this.blockOffsets[component];
-                int blockX = localBlock % this.blocksWide[component];
-                int blockY = (mcuRow * factor.Vertical) + (localBlock / this.blocksWide[component]);
-                if (blockY >= this.blocksHigh[component])
-                {
-                    return; // Dummy blocks retain the ordered consumer's DC predictor.
-                }
-
-                Span<float> samples = stackalloc float[64];
-                Downsampling.FillBlock(this.source.GetPixels(), this.width, this.height, this.stride, component,
-                    blockX, blockY, this.sampling.MaxHorizontal, this.sampling.MaxVertical,
-                    factor.Horizontal, factor.Vertical, samples, this.smoothingFactor);
-                ForwardDct.Transform(samples, this.coefficients.AsSpan(block * 64, 64));
-            }
-            catch (Exception error)
-            {
-                // Preserve the public exception type rather than exposing a
-                // Parallel.For AggregateException. Slots retain deterministic order.
-                this.errors[block] = ExceptionDispatchInfo.Capture(error);
-            }
-        });
+            _ = Parallel.For(0, this.rangeCount, this.parallelOptions, this.prepareRange);
+        }
         cancellationToken.ThrowIfCancellationRequested();
         for (int block = firstBlock; block < endBlock; block++)
         {
@@ -114,6 +123,75 @@ internal sealed class ParallelDctRows
 
         this.preparedTop = top;
         this.preparedComponents |= componentMask;
+    }
+
+    private void PrepareRange(int range)
+    {
+        int firstBlock = this.firstPreparedBlock + (int)((long)this.preparedBlockCount * range / this.rangeCount);
+        int endBlock = this.firstPreparedBlock + (int)((long)this.preparedBlockCount * (range + 1) / this.rangeCount);
+        PixelSource pixels = this.source.GetPixels();
+        Span<float> samples = stackalloc float[64];
+        int component = 0;
+        for (int block = firstBlock; block < endBlock; block++)
+        {
+            this.parallelOptions.CancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                while (block >= this.blockOffsets[component + 1])
+                {
+                    component++;
+                }
+
+                JpegComponentSampling factor = this.sampling[component];
+                int localBlock = block - this.blockOffsets[component];
+                int blockX = localBlock % this.blocksWide[component];
+                int blockY = (this.mcuRow * factor.Vertical) + (localBlock / this.blocksWide[component]);
+                if (blockY >= this.blocksHigh[component])
+                {
+                    continue; // Dummy blocks retain the ordered consumer's DC predictor.
+                }
+
+                ReadOnlySpan<float> plane = this.smoothingFactor == 0
+                    && factor.Horizontal == this.sampling.MaxHorizontal && factor.Vertical == this.sampling.MaxVertical
+                    ? pixels.GetConvertedPlane(component) : default;
+                int planeWidth = this.width, planeHeight = this.height;
+                if (this.smoothingFactor == 0 && this.sampling.Is420 && component != 0)
+                {
+                    plane = pixels.GetConverted420ChromaPlane(component, out planeWidth, out planeHeight);
+                }
+                Span<float> destination = this.coefficients.AsSpan(block * 64, 64);
+                if (!plane.IsEmpty)
+                {
+                    int left = blockX * 8, top = blockY * 8;
+                    if (left + 8 <= planeWidth && top + 8 <= planeHeight)
+                    {
+                        ForwardDct.TransformPlane(plane, planeWidth, left, top, destination);
+                        continue;
+                    }
+                    for (int row = 0; row < 8; row++)
+                    {
+                        int sourceRow = Math.Min(top + row, planeHeight - 1) * planeWidth;
+                        for (int column = 0; column < 8; column++)
+                        {
+                            samples[(row * 8) + column] = plane[sourceRow + Math.Min(left + column, planeWidth - 1)] - 128f;
+                        }
+                    }
+                }
+                else
+                {
+                    Downsampling.FillBlock(pixels, this.width, this.height, this.stride, component,
+                        blockX, blockY, this.sampling.MaxHorizontal, this.sampling.MaxVertical,
+                        factor.Horizontal, factor.Vertical, samples, this.smoothingFactor);
+                }
+                ForwardDct.Transform(samples, destination);
+            }
+            catch (Exception error)
+            {
+                // Preserve the public exception type rather than exposing a
+                // Parallel.For AggregateException. Slots retain deterministic order.
+                this.errors[block] = ExceptionDispatchInfo.Capture(error);
+            }
+        }
     }
 
     internal void CopyBlock(int component, int blockX, int blockY, Span<float> destination)
