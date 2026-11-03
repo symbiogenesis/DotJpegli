@@ -26,8 +26,17 @@ internal sealed class QuantizedImage : IDisposable
     internal static QuantizedImage? Create(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor,
         AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, CancellationToken cancellationToken,
-        bool zigZagOrdered = false, KernelPreference narrowZigZagKernel = KernelPreference.Automatic)
+        bool zigZagOrdered = false, KernelPreference narrowZigZagKernel = KernelPreference.Automatic,
+        double rateDistortionLambda = 0, RateDistortionDiagnostics? rateDistortionDiagnostics = null)
     {
+        if (!double.IsFinite(rateDistortionLambda) || rateDistortionLambda < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(rateDistortionLambda));
+        }
+        if (rateDistortionLambda > 0 && !zigZagOrdered)
+        {
+            throw new ArgumentException("The offline rate-distortion experiment requires zigzag-ordered cache blocks.", nameof(zigZagOrdered));
+        }
         int[] widths = new int[tables.Length];
         int[] heights = new int[tables.Length];
         long rentedBytes = 0;
@@ -62,7 +71,9 @@ internal sealed class QuantizedImage : IDisposable
                     imageWidth: width, imageHeight: height);
             }
             Span<float> samples = stackalloc float[64];
+            Span<float> searchCoefficients = rateDistortionLambda > 0 ? stackalloc float[64] : default;
             Span<short> naturalOrder = stackalloc short[64];
+            Span<short> searchOriginal = rateDistortionLambda > 0 ? stackalloc short[64] : default;
             int horizontal = sampling.MaxHorizontal;
             int vertical = sampling.MaxVertical;
             Span<float> strengths = adaptive is null ? default : adaptive.Strengths;
@@ -93,6 +104,32 @@ internal sealed class QuantizedImage : IDisposable
                             float strength = adaptive is null ? 0f : strengths[(row * adaptive.BlocksWide)
                                 + (x * horizontal / factor.Horizontal)];
                             Span<short> quantized = image.Block(component, x, y);
+                            if (rateDistortionLambda > 0)
+                            {
+                                // Retain the original AQ decisions as candidate values, then
+                                // search AC only. Histogram collection and emission both read
+                                // this same completed cache; the default fused path is unchanged.
+                                Downsampling.FillBlock(pixels, width, height, stride, component, x, y,
+                                    horizontal, vertical, factor.Horizontal, factor.Vertical, samples, smoothingFactor);
+                                ForwardDct.Transform(samples, searchCoefficients);
+                                Quantization.QuantizePrepared(searchCoefficients, quantizers[component], naturalOrder,
+                                    adaptiveStrength: strength);
+                                EntropyEncoder.ValidateAc(naturalOrder);
+                                ZigZagOrdering.Reorder(naturalOrder, quantized);
+                                quantized.CopyTo(searchOriginal);
+                                int evaluations = RateDistortionQuantization.Optimize(searchCoefficients, tables[component],
+                                    quantized, rateDistortionLambda, chroma: component != 0);
+                                int changes = 0;
+                                for (int coefficient = 1; coefficient < 64; coefficient++)
+                                {
+                                    if (quantized[coefficient] != searchOriginal[coefficient])
+                                    {
+                                        changes++;
+                                    }
+                                }
+                                rateDistortionDiagnostics?.RecordBlock(evaluations, changes);
+                                continue;
+                            }
                             if (pixels.ParallelRows is { } parallelRows)
                             {
                                 parallelRows.CopyBlock(component, x, y, samples);

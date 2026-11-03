@@ -19,6 +19,11 @@ public sealed record JpegliEncoderOptions
     // DC and AC tables. Zero retains the normal cost/slot-redefinition policy.
     internal int HuffmanTableLimit { get; init; }
 
+    // Explicit offline baseline experiment only. Zero keeps the default path.
+    // The search tool supplies a fresh, exclusively owned sink for each encode.
+    internal double RateDistortionLambda { get; init; }
+    internal RateDistortionDiagnostics? RateDistortionDiagnostics { get; init; }
+
     /// <summary>
     /// Color space stored in the JPEG. Automatic (the default) writes grayscale
     /// for grayscale input, XYB for scaled XYB input, and YCbCr for other color input,
@@ -576,6 +581,20 @@ public sealed record JpegliEncoderOptions
 
     internal void Validate()
     {
+        if (!double.IsFinite(this.RateDistortionLambda) || this.RateDistortionLambda < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.RateDistortionLambda));
+        }
+        if (this.RateDistortionLambda > 0 && (!this.ForceBaseline || !this.OptimizeHuffmanTables
+            || !this.AdaptiveQuantization || this.MaxDegreeOfParallelism != 1
+            || this.ColorSpace != JpegColorSpace.YCbCr || this.ScanScript is not null
+            || (this.ProgressiveLevel is int rdLevel ? rdLevel != 0 : this.Progressive)
+            || !this.SequentialInterleaveComponents || this.SamplingFactors is not null
+            || this.Subsampling is not (ChromaSubsampling.None or ChromaSubsampling.Quarter)))
+        {
+            throw new ArgumentException("Rate-distortion search requires baseline YCbCr, default 4:4:4 or 4:2:0 sampling, AQ, optimized Huffman coding and one worker.",
+                nameof(this.RateDistortionLambda));
+        }
         if (this.HuffmanTableLimit is not (0 or 1 or 2 or 4))
         {
             throw new ArgumentOutOfRangeException(nameof(this.HuffmanTableLimit));

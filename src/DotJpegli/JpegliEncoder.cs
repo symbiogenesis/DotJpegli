@@ -630,9 +630,15 @@ public static class JpegliEncoder
 #if !NETSTANDARD2_1
         cacheSequential = Vector256.IsHardwareAccelerated && !Vector512.IsHardwareAccelerated;
 #endif
-        using QuantizedImage? quantizedImage = streamSequential && !cacheSequential ? null : QuantizedImage.Create(pixels, width, height, stride,
+        using QuantizedImage? quantizedImage = streamSequential && !cacheSequential && options.RateDistortionLambda == 0 ? null : QuantizedImage.Create(pixels, width, height, stride,
             sampling, tables, distance, options.SmoothingFactor, adaptive, adaptiveMultipliers, cancellationToken,
-            zigZagOrdered: true, narrowZigZagKernel: options.NarrowZigZagKernel);
+            zigZagOrdered: true, narrowZigZagKernel: options.NarrowZigZagKernel,
+            rateDistortionLambda: options.RateDistortionLambda, rateDistortionDiagnostics: options.RateDistortionDiagnostics);
+        if (options.RateDistortionLambda > 0 && quantizedImage is null)
+        {
+            throw new ArgumentException("The offline rate-distortion experiment requires a coefficient cache within its unchanged 64 MiB limit.",
+                nameof(options));
+        }
         streamSequential &= quantizedImage is null;
         using EntropyTokenScans? tokenScans = streamSequential || quantizedImage is not null
             ? new(scans, options.Progressive, options.EntropyTokenBudgetBytes) : null;
