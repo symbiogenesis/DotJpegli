@@ -125,9 +125,18 @@ internal static class QuantizationTableSearch
         double[] distortion = new double[18], rate = new double[18];
         Span<float> samples = stackalloc float[64];
         Span<float> coefficients = stackalloc float[64];
+        Span<ushort> quantizers = stackalloc ushort[3 * 64];
         long blocks = 0;
         for (int component = 0; component < 3; component++)
         {
+            // Scaling depends only on the component table, not the source block.
+            for (int scale = 0; scale < 3; scale++)
+            {
+                for (int natural = 0; natural < 64; natural++)
+                {
+                    quantizers[(scale * 64) + natural] = ScaleQuantizer(baseTables[component][natural], Scales[scale]);
+                }
+            }
             int sampleSize = component > 0 && subsampling == ChromaSubsampling.Quarter ? 2 : 1;
             int columns = (image.Width + (8 * sampleSize) - 1) / (8 * sampleSize);
             int rows = (image.Height + (8 * sampleSize) - 1) / (8 * sampleSize);
@@ -151,7 +160,7 @@ internal static class QuantizationTableSearch
                             for (int scale = 0; scale < 3; scale++)
                             {
                                 int index = CostIndex(group, band, scale);
-                                ushort quantizer = ScaleQuantizer(baseTables[component][natural], Scales[scale]);
+                                ushort quantizer = quantizers[(scale * 64) + natural];
                                 double rounded = Math.Round(coefficient / quantizer, MidpointRounding.AwayFromZero);
                                 double error = coefficient - (rounded * quantizer);
                                 distortion[index] += error * error;
