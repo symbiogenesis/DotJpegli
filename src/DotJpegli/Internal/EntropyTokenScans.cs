@@ -1,26 +1,32 @@
 namespace DotJpegli.Internal;
 
-/// <summary>Divides one fixed token budget across every scan and owns their rentals.</summary>
+using System.Buffers;
+
+/// <summary>Shares one fixed token budget across every scan and owns their rentals.</summary>
 internal sealed class EntropyTokenScans : IDisposable
 {
+    // Histogram collection visits scans in script order. Earlier scans retain
+    // their complete sequences first; abandoning one refunds its rentals for
+    // later scans. The budget has one encode owner and needs no synchronization.
     private readonly EntropyTokens[] scans;
 
-    internal EntropyTokenScans(int count)
+    internal EntropyTokenScans(int count, long maximumBytes = EntropyTokenBudget.DefaultMaximumBytes, ArrayPool<uint>? pool = null)
     {
         Guard.ThrowIfNegativeOrZero(count);
-        long budgetPerScan = 64L * 1024 * 1024 / count;
+        var budget = new EntropyTokenBudget(maximumBytes);
         this.scans = new EntropyTokens[count];
         for (int index = 0; index < count; index++)
         {
-            this.scans[index] = new EntropyTokens(budgetPerScan);
+            this.scans[index] = new EntropyTokens(budget, pool: pool);
         }
     }
 
-    internal EntropyTokenScans(IReadOnlyList<JpegScan> script, bool progressive)
+    internal EntropyTokenScans(IReadOnlyList<JpegScan> script, bool progressive,
+        long maximumBytes = EntropyTokenBudget.DefaultMaximumBytes, ArrayPool<uint>? pool = null)
     {
         Guard.ThrowIfNull(script);
         Guard.ThrowIfNegativeOrZero(script.Count);
-        long budgetPerScan = 64L * 1024 * 1024 / script.Count;
+        var budget = new EntropyTokenBudget(maximumBytes);
         this.scans = new EntropyTokens[script.Count];
         for (int index = 0; index < this.scans.Length; index++)
         {
@@ -33,7 +39,7 @@ internal sealed class EntropyTokenScans : IDisposable
                 mask |= selectedContexts << (component * 2);
             }
 
-            this.scans[index] = new EntropyTokens(budgetPerScan, mask);
+            this.scans[index] = new EntropyTokens(budget, mask, pool);
         }
     }
 

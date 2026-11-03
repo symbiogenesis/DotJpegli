@@ -22,24 +22,31 @@ internal sealed class EntropyTokens : IDisposable
     private const uint RawBitsContext = 6U << ContextShift;
     private const uint RestartContext = 7U << ContextShift;
     private readonly List<uint[]> segments = [];
-    private readonly long maximumBytes;
+    private readonly EntropyTokenBudget budget;
+    private readonly ArrayPool<uint> pool;
     private readonly int huffmanContextMask;
     private int nextSegmentLength;
     private uint[]? current;
     private int currentCount;
     private long rentedBytes;
 
-    internal EntropyTokens(long maximumBytes = 64L * 1024 * 1024, int huffmanContextMask = 63)
+    internal EntropyTokens(long maximumBytes = EntropyTokenBudget.DefaultMaximumBytes, int huffmanContextMask = 63)
+        : this(new EntropyTokenBudget(maximumBytes), huffmanContextMask)
     {
-        Guard.ThrowIfNegative(maximumBytes);
+    }
+
+    internal EntropyTokens(EntropyTokenBudget budget, int huffmanContextMask = 63, ArrayPool<uint>? pool = null)
+    {
+        Guard.ThrowIfNull(budget);
         if ((uint)huffmanContextMask > 63)
         {
             throw new ArgumentOutOfRangeException(nameof(huffmanContextMask));
         }
 
         this.huffmanContextMask = huffmanContextMask;
-        this.maximumBytes = Math.Min(maximumBytes, 64L * 1024 * 1024);
-        uint available = (uint)Math.Min(DefaultSegmentLength, this.maximumBytes / sizeof(uint));
+        this.budget = budget;
+        this.pool = pool ?? ArrayPool<uint>.Shared;
+        uint available = (uint)Math.Min(DefaultSegmentLength, budget.MaximumBytes / sizeof(uint));
         // Shared-pool buckets start at sixteen elements. Smaller budgets simply
         // abandon on the first add; no allocation is needed for empty scans.
         this.nextSegmentLength = available < 16 ? 0 : 1 << BitOperations.Log2(available);
@@ -126,7 +133,7 @@ internal sealed class EntropyTokens : IDisposable
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void AddSegment(uint token)
     {
-        uint available = (uint)Math.Min(MaximumSegmentLength, (this.maximumBytes - this.rentedBytes) / sizeof(uint));
+        uint available = (uint)Math.Min(MaximumSegmentLength, this.budget.AvailableBytes / sizeof(uint));
         if (this.nextSegmentLength == 0 || available < 16)
         {
             this.Dispose();
@@ -136,15 +143,25 @@ internal sealed class EntropyTokens : IDisposable
         // Growing segments use fewer rentals for larger scans, while the final
         // power-of-two request still fits the remaining actual-storage budget.
         int segmentLength = Math.Min(this.nextSegmentLength, 1 << BitOperations.Log2(available));
-        uint[] next = ArrayPool<uint>.Shared.Rent(segmentLength);
-        if (this.rentedBytes + ((long)next.Length * sizeof(uint)) > this.maximumBytes)
+        uint[] next = this.pool.Rent(segmentLength);
+        long bytes = (long)next.Length * sizeof(uint);
+        if (!this.budget.TryReserve(bytes))
         {
-            ArrayPool<uint>.Shared.Return(next);
+            this.pool.Return(next);
             this.Dispose();
             return;
         }
-        this.segments.Add(next);
-        this.rentedBytes += (long)next.Length * sizeof(uint);
+        try
+        {
+            this.segments.Add(next);
+        }
+        catch
+        {
+            this.budget.Release(bytes);
+            this.pool.Return(next);
+            throw;
+        }
+        this.rentedBytes += bytes;
         this.nextSegmentLength = Math.Min(MaximumSegmentLength, next.Length * 2);
         this.current = next;
         next[0] = token;
@@ -278,12 +295,13 @@ internal sealed class EntropyTokens : IDisposable
         this.IsComplete = false;
         this.current = null;
         this.currentCount = 0;
-        this.rentedBytes = 0;
         foreach (uint[] segment in this.segments)
         {
-            ArrayPool<uint>.Shared.Return(segment);
+            this.pool.Return(segment);
         }
 
         this.segments.Clear();
+        this.budget.Release(this.rentedBytes);
+        this.rentedBytes = 0;
     }
 }
