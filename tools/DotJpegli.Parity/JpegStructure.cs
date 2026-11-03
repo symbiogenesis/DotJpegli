@@ -214,6 +214,7 @@ internal sealed record JpegStructure(int FrameMarker, int Precision, int Width, 
         JpegStructure a = Read(managed), b = Read(native);
         var differences = new List<string>();
         int expectedFrame = progression == 0 ? 0xc0 : 0xc2;
+        FrameComponent[] expected = [new(1, sampling == 420 ? 2 : 1, sampling == 420 ? 2 : 1, 0), new(2, 1, 1, 1), new(3, 1, 1, 2)];
         foreach ((string? encoder, JpegStructure? jpeg) in new[] { ("managed", a), ("native", b) })
         {
             if (jpeg.Width != source.Width || jpeg.Height != source.Height || jpeg.Precision != 8 || jpeg.FrameMarker != expectedFrame)
@@ -221,7 +222,6 @@ internal sealed record JpegStructure(int FrameMarker, int Precision, int Width, 
                 differences.Add($"{encoder} frame contradicts the requested dimensions/precision/progression");
             }
 
-            FrameComponent[] expected = [new(1, sampling == 420 ? 2 : 1, sampling == 420 ? 2 : 1, 0), new(2, 1, 1, 1), new(3, 1, 1, 2)];
             if (!jpeg.Components.SequenceEqual(expected))
             {
                 differences.Add($"{encoder} component ids, factors or quantization selectors contradict YCbCr {sampling}");
