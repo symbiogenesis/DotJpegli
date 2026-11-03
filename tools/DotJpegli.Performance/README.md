@@ -48,15 +48,26 @@ success never establishes full parity or the full protocol's group bounds.
 Count/selection overrides require `--diagnostic`; they cannot change acceptance.
 
 An automatic push whose final commit message includes `[compare-baseline]` also
-builds revision `60835e6ad1613627fe852bd7678a5ef165ec3b43` in a temporary lane.
-The same performance job measures that baseline after the current four-case
-comparison, serially on the same CPU, runtime, corpus and native executable.
+builds revision `2ef3d5fcc12a804c7cd707446091eb74fa9c6476` in a temporary lane.
+This selects `kodim01`, `low-noise`, `low-contrast` and `tiny-odd-edges`, both
+distances, both sampling modes and both progressions: 32 cases. Other ordinary
+pushes retain the four-case default. The same performance job measures the
+baseline with identical selections after the current comparison, serially on
+the same CPU, runtime, corpus and native executable.
 The `performance-baseline-<revision>` artifact retains both the baseline evidence
-and a report of current/baseline managed and native latency ratios. JPEG hashes
-must match. Code revisions run serially rather than interleaved, so the retained
+and a report of current/baseline managed and native latency ratios plus mean
+allocated bytes per encode. Both sets of measurements must be valid and JPEG
+hashes must match. Allocated bytes exclude retained pool capacity and are not a
+peak-memory measurement. Code revisions run serially rather than interleaved, so the retained
 native ratios expose possible drift; these diagnostics do not change the
 current revision's acceptance bounds or establish full parity. This uses the
 single planned automatic run and requires no additional workflow dispatch.
+
+The same job repeats these selections serially with `DOTNET_EnableAVX512F=0`
+for both managed revisions. This exercises narrow zigzag ordering even when the
+runner supports AVX-512. Separate `baseline-avx2-comparison` reports and raw
+`avx2-current-evidence` / `avx2-baseline-evidence` directories record this
+diagnostic; it does not replace the normal hardware-dispatch acceptance result.
 
 ## Full acceptance protocol
 

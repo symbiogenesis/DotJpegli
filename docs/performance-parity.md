@@ -64,6 +64,17 @@ automatic CI run. This replaces the targeted comparison for that revision,
 including its optional baseline comparison. Reuse the automatic run instead of
 dispatching another workflow for the same revision.
 
+Include `[compare-baseline]` instead for the current optimization batch's
+same-host development comparison against `2ef3d5f`. That automatic run selects
+32 cases: `kodim01`, low noise, low contrast and tiny odd edges, both distances,
+sampling modes and progressions. It measures the current revision first and
+the baseline second in the same performance job, checks matching JPEG hashes,
+and reports managed/native drift and allocated bytes per encode. A separate
+serial pair disables managed AVX-512 for both revisions to exercise narrow
+coefficient ordering. Revisions are not interleaved; these remain selected-case
+diagnostics. The [runner guide](../tools/DotJpegli.Performance/README.md) describes
+the retained evidence. Ordinary pushes without either marker retain four cases.
+
 For a smaller development question, workflow dispatch accepts comma-separated
 `images`, `distances`, `samplings` and `progressions`, plus bounded `blocks`,
 `warmups` and optional fixed `iterations`. For example, this selects one image
