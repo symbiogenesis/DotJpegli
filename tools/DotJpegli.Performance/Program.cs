@@ -33,7 +33,22 @@ internal static class Program
                 Console.WriteLine("Kernel comparison self-test passed (synthetic samples only; no benchmark executed).");
                 return 0;
             }
+            if (args.SequenceEqual(["--self-test-revision-comparison"]))
+            {
+                RevisionWorker.SelfTest();
+                RevisionComparison.SelfTest();
+                Console.WriteLine("Revision comparison self-test passed (synthetic samples only; no benchmark executed).");
+                return 0;
+            }
             RequireCi();
+            if (args.SequenceEqual(["--revision-worker"]))
+            {
+                return await RevisionWorker.Run();
+            }
+            if (args.Contains("--compare-revisions", StringComparer.Ordinal))
+            {
+                return await RevisionComparison.Run(args);
+            }
             if (args.Contains("--compare-kernels", StringComparer.Ordinal))
             {
                 return await KernelComparison.Run(args);

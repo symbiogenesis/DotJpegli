@@ -500,7 +500,7 @@ internal static class KernelComparison
         return invalid.Distinct().ToArray();
     }
 
-    private static Analysis Analyze(Quartet[] quartets, int iterations, Policy policy, int comparisonIndex,
+    internal static Analysis Analyze(Quartet[] quartets, int iterations, Policy policy, int comparisonIndex,
         string candidateVariant = "optimized")
     {
         string[] invalid = Validate(quartets, iterations, policy, comparisonIndex, candidateVariant);

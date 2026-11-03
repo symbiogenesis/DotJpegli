@@ -51,19 +51,46 @@ An automatic push whose final commit message includes `[compare-baseline]` also
 builds revision `2ef3d5fcc12a804c7cd707446091eb74fa9c6476` in a temporary lane.
 This selects `kodim01`, `low-noise`, `low-contrast` and `tiny-odd-edges`, both
 distances, both sampling modes and both progressions: 32 cases. Other ordinary
-pushes retain the four-case default. The same performance job measures the
-baseline with identical selections after the current comparison, serially on
-the same CPU, runtime, corpus and native executable.
-The `performance-baseline-<revision>` artifact retains both the baseline evidence
-and a report of current/baseline managed and native latency ratios plus mean
-allocated bytes per encode. Both sets of measurements must be valid and JPEG
-hashes must match. Allocated bytes exclude retained pool capacity and are not a
-peak-memory measurement. Code revisions run serially rather than interleaved, so the retained
-native ratios expose possible drift; these diagnostics do not change the
-current revision's acceptance bounds or establish full parity. This uses the
-single planned automatic run and requires no additional workflow dispatch.
+pushes retain the four-case default. After the managed/native diagnostic, the
+same job starts two persistent workers with identical runner binaries, replacing
+only the baseline worker's dependency-free encoder assembly. Each worker owns
+its JIT, heap and pools. Only one receives measurement work at a time; both
+inherit the parent's single-CPU affinity, runtime and environment.
 
-To compare retained evidence without running encodes, use PowerShell 7.6 or newer:
+The revision comparison interleaves six balanced ABBA/BAAB quartets per case,
+with five untimed warmups and 20 encodes per leg (100 for inputs below 1,024
+pixels). Both revisions use exactly the same counts, source pixels and encoding
+policy. Worker startup, IPC, input loading, settings and hash checks are outside
+the timer. Each complete public byte-array Encode call is timed separately;
+natural GC remains included, and every output must match the case's JPEG hash.
+
+The `performance-baseline-<revision>` artifact retains worker and source
+identities, raw quartets, hashes, allocations and row-level validity and
+preference reports. Validation checks MAD, within-quartet repeated-leg drift,
+p90/p10 minority timing states and ABBA/BAAB order bias with the same limits as
+the kernel comparison below. Invalid rows retain reasons; valid rows favor a
+revision only when every paired ratio exceeds the 0.5% preference margin in
+the same direction. Other rows are inconclusive. Native drift is not used to
+correct mixed managed timing regimes. Allocated bytes exclude retained pool
+capacity and peak working memory. This diagnostic does not change native
+acceptance bounds or establish full parity.
+
+Invoke this mode directly with `dotnet /absolute/DotJpegli.Performance.dll`;
+the workers reuse that dotnet host. Its CI-only arguments are
+`--compare-revisions --baseline-runner
+/absolute/baseline-worker/DotJpegli.Performance.dll --baseline-revision
+<full-baseline-sha> --current-revision <full-current-sha> --corpus
+/absolute/corpus --output /absolute/empty-evidence`, plus the existing selection
+flags. Blocks must be four or six; defaults are six blocks, five warmups and
+20 iterations. The baseline directory must contain the identical runner build
+with only DotJpegli.dll replaced by the named revision's same-target assembly.
+The harness verifies runner hashes, encoder revision metadata, runtime, single
+CPU affinity and measurement environment before starting. Synthetic protocol,
+identity and statistics checks run locally with
+`--self-test-revision-comparison`, without encoding or reading clocks.
+
+To inspect older, separately measured evidence without running encodes, use
+PowerShell 7.6 or newer:
 
 ```powershell
 ./tools/compare-performance-revisions.ps1 -Baseline /absolute/baseline-evidence -Current /absolute/current-evidence -BaselineRevision <full-baseline-sha> -CurrentRevision <full-current-sha> -Output /absolute/comparison
@@ -73,11 +100,12 @@ To compare retained evidence without running encodes, use PowerShell 7.6 or newe
 appends the Markdown to a CI summary file. `-SelfTest` checks synthetic evidence
 and mismatch rejection locally.
 
-The same job repeats these selections serially with `DOTNET_EnableAVX512=0`
-for both managed revisions. This exercises narrow zigzag ordering even when the
-runner supports AVX-512. Separate `baseline-avx2-comparison` reports and raw
-`avx2-current-evidence` / `avx2-baseline-evidence` directories record this
-diagnostic; it does not replace the normal hardware-dispatch acceptance result.
+The same job then repeats the interleaved selection with
+`DOTNET_EnableAVX512=0` for both workers, retaining a separate
+`baseline-avx2-comparison` directory. The harness verifies that both workers
+report eight float lanes, accelerated 256-bit SIMD and disabled 512-bit SIMD.
+This exercises narrow ordering even when the host supports AVX-512. Both
+selections belong to the single planned automatic run.
 
 ## Interleaved kernel selection diagnostics
 

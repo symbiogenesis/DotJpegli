@@ -235,6 +235,18 @@ revision comparator locally with synthetic fixtures, without running benchmarks:
 profile selection (`-SelectProfiles`) and runtime reports (`-CompareRuntimes`).
 The native reference command has separate fixtures for cached provenance checks.
 
+The CI-only revision comparison uses two persistent processes running identical
+measurement-worker binaries against separately built encoder assemblies. The
+baseline lane copies the current runner output and replaces only DotJpegli.dll;
+the library has no runtime dependencies. Handshakes verify assembly commit
+metadata, runner hashes and identical measurement environments before encoding.
+Only one worker receives work at a time. Balanced ABBA/BAAB quartets share the
+kernel comparison's timing validation; raw samples survive invalid or
+inconclusive results. The [runner guide](../tools/DotJpegli.Performance/README.md)
+describes timing scope and CI selection. Run its
+`--self-test-revision-comparison` locally for synthetic protocol and statistical
+checks; timed measurements remain CI-only.
+
 ## Banned APIs
 
 All projects reference `Microsoft.CodeAnalysis.BannedApiAnalyzers` as a private

@@ -67,13 +67,16 @@ dispatching another workflow for the same revision.
 Include `[compare-baseline]` instead for the current optimization batch's
 same-host development comparison against `2ef3d5f`. That automatic run selects
 32 cases: `kodim01`, low noise, low contrast and tiny odd edges, both distances,
-sampling modes and progressions. It measures the current revision first and
-the baseline second in the same performance job, checks matching JPEG hashes,
-and reports managed/native drift and allocated bytes per encode. A separate
-serial pair disables managed AVX-512 for both revisions to exercise narrow
-coefficient ordering. Revisions are not interleaved; these remain selected-case
-diagnostics. The [runner guide](../tools/DotJpegli.Performance/README.md) describes
-the retained evidence. Ordinary pushes without either marker retain four cases.
+sampling modes and progressions. After the current managed/native diagnostic,
+the same performance job interleaves six balanced ABBA/BAAB quartets per case in
+two persistent workers. The worker runner binaries, inputs, policies, iteration
+counts, runtime and CPU affinity match; JPEG hashes must agree. MAD, minority
+timing states, within-quartet drift and order bias invalidate affected rows,
+which remain in the report alongside inconclusive results. A second sequential
+selection interleaves both revisions with managed AVX-512 disabled to exercise
+narrow coefficient ordering. These are selected-case diagnostics. The
+[runner guide](../tools/DotJpegli.Performance/README.md) describes their method
+and retained evidence. Ordinary pushes without either marker retain four cases.
 
 Include `[compare-kernels]` to collect interleaved forced-kernel and combined
 Automatic-policy comparisons on x64 and ARM64, for both .NET 10 and .NET 11, in
