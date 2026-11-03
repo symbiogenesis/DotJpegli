@@ -1,5 +1,9 @@
 namespace DotJpegli.Internal;
 
+#if !NETSTANDARD2_1
+using System.Numerics;
+#endif
+
 /// <summary>Bounded offline AC search; never selected by default encoding.</summary>
 internal static class RateDistortionQuantization
 {
@@ -157,12 +161,7 @@ internal static class RateDistortionQuantization
 
     private static int NonzeroBits(short value, int run, ReadOnlySpan<byte> lengths)
     {
-        int magnitude = Math.Abs((int)value), category = 0;
-        while (magnitude != 0)
-        {
-            category++;
-            magnitude >>= 1;
-        }
+        int category = 32 - BitOperations.LeadingZeroCount((uint)Math.Abs((int)value));
         return (run / 16 * lengths[0xf0]) + lengths[((run % 16) << 4) | category] + category;
     }
 
