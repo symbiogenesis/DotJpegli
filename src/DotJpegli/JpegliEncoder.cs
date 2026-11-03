@@ -1019,7 +1019,19 @@ public static class JpegliEncoder
         Span<short> ordered = quantizedImage?.IsZigZagOrdered == true && !cacheComplete ? stackalloc short[64] : default;
         Span<float> strengths = adaptive is null || cacheComplete
             ? default : adaptive.Strengths;
-        for (int top = 0; top < height; top += mcuHeight)
+        int scanComponentCount = scanComponents.IsEmpty ? tables.Length : scanComponents.Length;
+        Span<(int Component, int Width, int Height, int RealWidth, int RealHeight, int Table)> scanGeometry
+            = stackalloc (int, int, int, int, int, int)[3];
+        for (int scanIndex = 0; scanIndex < scanComponentCount; scanIndex++)
+        {
+            int component = scanComponents.IsEmpty ? scanIndex : scanComponents[scanIndex];
+            JpegComponentSampling factor = sampling[component];
+            scanGeometry[scanIndex] = (component, factor.Horizontal, factor.Vertical,
+                ((width * factor.Horizontal) + mcuWidth - 1) / mcuWidth,
+                ((height * factor.Vertical) + mcuHeight - 1) / mcuHeight,
+                contextByComponent ? component : pixels.IsRgb || component == 0 ? 0 : 1);
+        }
+        for (int top = 0, mcuY = 0; top < height; top += mcuHeight, mcuY++)
         {
             bool cachedRow = cacheComplete || quantizedImage?.ContainsMcuRow(top) == true;
             if (!cachedRow)
@@ -1032,7 +1044,7 @@ public static class JpegliEncoder
                 adaptive.ComputeRow(pixels, stride, top, tables[pixels.AnalysisComponent][1], strengths!, cancellationToken);
             }
 
-            for (int left = 0; left < width; left += mcuWidth)
+            for (int left = 0, mcuX = 0; left < width; left += mcuWidth, mcuX++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (restartInterval != 0 && mcusRemaining == 0)
@@ -1050,21 +1062,16 @@ public static class JpegliEncoder
                     restartIndex = (restartIndex + 1) & 7;
                     mcusRemaining = restartInterval;
                 }
-                int scanComponentCount = scanComponents.IsEmpty ? tables.Length : scanComponents.Length;
                 for (int scanIndex = 0; scanIndex < scanComponentCount; scanIndex++)
                 {
-                    int component = scanComponents.IsEmpty ? scanIndex : scanComponents[scanIndex];
-                    JpegComponentSampling factor = sampling[component];
-                    int blocksWide = factor.Horizontal;
-                    int blocksHigh = factor.Vertical;
-                    int realBlocksWide = ((width * blocksWide) + mcuWidth - 1) / mcuWidth;
-                    int realBlocksHigh = ((height * blocksHigh) + mcuHeight - 1) / mcuHeight;
+                    (int component, int blocksWide, int blocksHigh,
+                        int realBlocksWide, int realBlocksHigh, int tableIndex) = scanGeometry[scanIndex];
                     for (int blockY = 0; blockY < blocksHigh; blockY++)
                     {
                         for (int blockX = 0; blockX < blocksWide; blockX++)
                         {
-                            int componentX = (left / mcuWidth * blocksWide) + blockX;
-                            int componentY = (top / mcuHeight * blocksHigh) + blockY;
+                            int componentX = (mcuX * blocksWide) + blockX;
+                            int componentY = (mcuY * blocksHigh) + blockY;
                             scoped ReadOnlySpan<short> encoded;
                             if (componentX >= realBlocksWide || componentY >= realBlocksHigh)
                             {
@@ -1113,7 +1120,6 @@ public static class JpegliEncoder
                                     encoded = quantized;
                                 }
                             }
-                            int tableIndex = contextByComponent ? component : pixels.IsRgb || component == 0 ? 0 : 1;
                             if (dcOnly)
                             {
                                 if (refine)
