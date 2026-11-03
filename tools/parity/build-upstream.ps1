@@ -41,12 +41,7 @@ function Get-NativeExecutable([string] $Directory) {
 }
 
 if ($VerifyOnly) {
-    $metadata = Get-Content -LiteralPath (Join-Path $BuildDirectory 'provenance.json') -Raw | ConvertFrom-Json
-    if ($metadata.sourceUnmodified -isnot [bool] -or -not $metadata.sourceUnmodified -or $metadata.revision -cne $pin) {
-        throw 'Native reference provenance does not match the unmodified pinned source.'
-    }
-    $hash = (Get-FileHash -LiteralPath (Get-NativeExecutable $BuildDirectory) -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($hash -cne $metadata.executableSha256) { throw 'Native reference executable hash mismatch.' }
+    & (Join-Path $PSScriptRoot '../Invoke-Automation.ps1') -CommandArguments @('native-reference', '--build-directory', $BuildDirectory)
     return
 }
 

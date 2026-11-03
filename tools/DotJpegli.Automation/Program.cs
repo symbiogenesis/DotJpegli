@@ -27,6 +27,10 @@ internal static class Program
                     options.Validate(["package", "version", "revision", "first-artifacts", "second-artifacts", "hashes"], ["self-test"]);
                     ReleaseCommand.Run(options);
                     break;
+                case "native-reference":
+                    options.Validate(["build-directory"], ["self-test"]);
+                    NativeReferenceCommand.Run(options);
+                    break;
                 default:
                     throw new ArgumentException($"Unknown command: {args[0]}");
             }
