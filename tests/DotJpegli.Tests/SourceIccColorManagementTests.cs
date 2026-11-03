@@ -42,6 +42,45 @@ public sealed class SourceIccColorManagementTests
     }
 
     [Theory]
+    [InlineData(0, 0)]
+    [InlineData(0, 1)]
+    [InlineData(1, 0)]
+    [InlineData(1, 1)]
+    [InlineData(1, 2)]
+    public void SharedAndDistinctRgbCurvesRetainTheirChannelExponents(int greenCurve, int blueCurve)
+    {
+        byte[] shared = JpegliIccProfiles.CreateGammaSrgbProfile(2);
+        byte[] profile = new byte[shared.Length + 32];
+        shared.CopyTo(profile, 0);
+        int[] offsets = [Tag(shared, "rTRC"u8), shared.Length, shared.Length + 16];
+        for (int curve = 1; curve < offsets.Length; curve++)
+        {
+            shared.AsSpan(offsets[0], 16).CopyTo(profile.AsSpan(offsets[curve]));
+            Write32(profile, offsets[curve] + 12, (uint)((curve + 2) * 65536));
+        }
+        Write32(profile, 0, (uint)profile.Length);
+        int count = checked((int)BinaryPrimitives.ReadUInt32BigEndian(profile.AsSpan(128, 4)));
+        for (int index = 0; index < count; index++)
+        {
+            int entry = 132 + (index * 12);
+            if (profile.AsSpan(entry, 4).SequenceEqual("gTRC"u8))
+            {
+                Write32(profile, entry + 4, (uint)offsets[greenCurve]);
+            }
+            else if (profile.AsSpan(entry, 4).SequenceEqual("bTRC"u8))
+            {
+                Write32(profile, entry + 4, (uint)offsets[blueCurve]);
+            }
+        }
+
+        byte[] linear = JpegliIccProfiles.CreateLinearSrgbProfile();
+        AssertConversion(Transform(profile, linear), 0.2f, 0.4f, 0.6f,
+            Math.Pow(0.2f, 2), Math.Pow(0.4f, greenCurve + 2), Math.Pow(0.6f, blueCurve + 2), 0.000001);
+        AssertConversion(Transform(linear, profile), 0.2f, 0.4f, 0.6f,
+            Math.Pow(0.2f, 0.5), Math.Pow(0.4f, 1d / (greenCurve + 2)), Math.Pow(0.6f, 1d / (blueCurve + 2)), 0.000001);
+    }
+
+    [Theory]
     [InlineData(0.15f, 0.3f, 0.5f)]
     [InlineData(0.6f, 0.25f, 0.4f)]
     [InlineData(0.95f, 0.05f, 0.2f)]

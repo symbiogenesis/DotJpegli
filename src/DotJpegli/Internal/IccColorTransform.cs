@@ -302,17 +302,28 @@ internal sealed class IccColorTransform
                 throw this.Error("An RGB matrix/TRC profile requires an XYZ PCS or a supported LUT transform.");
             }
 
-            Curve[] curves = [this.ReadCurve(this.Required("rTRC"), out _),
-                this.ReadCurve(this.Required("gTRC"), out _), this.ReadCurve(this.Required("bTRC"), out _)];
+            // RGB profiles commonly share one tag among channels. Curves own
+            // immutable data, so shared tags need only be decoded once.
+            Tag redTag = this.Required("rTRC");
+            Curve red = this.ReadCurve(redTag, out _);
+            Tag greenTag = this.Required("gTRC");
+            Curve green = greenTag == redTag ? red : this.ReadCurve(greenTag, out _);
+            Tag blueTag = this.Required("bTRC");
+            Curve blue = blueTag == redTag ? red
+                : blueTag == greenTag ? green : this.ReadCurve(blueTag, out _);
+            Curve[] curves = [red, green, blue];
             Triple r = this.ReadXyz(this.Required("rXYZ")), g = this.ReadXyz(this.Required("gXYZ")), b = this.ReadXyz(this.Required("bXYZ"));
             Matrix matrix = new([r.X, g.X, b.X, r.Y, g.Y, b.Y, r.Z, g.Z, b.Z, 0, 0, 0]);
             Triple inverseMinimum = default, inverseMaximum = default;
             if (!toPcs)
             {
                 matrix = matrix.Inverse(this.parameter);
-                (double redMinimum, double redMaximum) = curves[0].ValidateInverse(this.parameter, this.cancellationToken);
-                (double greenMinimum, double greenMaximum) = curves[1].ValidateInverse(this.parameter, this.cancellationToken);
-                (double blueMinimum, double blueMaximum) = curves[2].ValidateInverse(this.parameter, this.cancellationToken);
+                (double redMinimum, double redMaximum) = red.ValidateInverse(this.parameter, this.cancellationToken);
+                (double greenMinimum, double greenMaximum) = ReferenceEquals(green, red)
+                    ? (redMinimum, redMaximum) : green.ValidateInverse(this.parameter, this.cancellationToken);
+                (double blueMinimum, double blueMaximum) = ReferenceEquals(blue, red)
+                    ? (redMinimum, redMaximum) : ReferenceEquals(blue, green)
+                        ? (greenMinimum, greenMaximum) : blue.ValidateInverse(this.parameter, this.cancellationToken);
                 inverseMinimum = new(redMinimum, greenMinimum, blueMinimum);
                 inverseMaximum = new(redMaximum, greenMaximum, blueMaximum);
             }
