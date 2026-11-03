@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 2,
+  "mode": "interleaved-revision-comparison",
+  "startedAtUtc": "2026-11-03T15:45:24.7281241+00:00",
+  "baselineRevision": "74ae25d8a9d8ed5718466a3905131c37845706d3",
+  "currentRevision": "74ae25d8a9d8ed5718466a3905131c37845706d3",
+  "githubRunId": "41664306969",
+  "baseline": {
+    "encoderSha256": "39c4ee0fa9a021b47805bc3918cc859f3eed27dd2ddbc0d359d45fe64f05bad8",
+    "runnerSha256": "365cc17933ca70f855ef3ed9e91f1bff26464e6a7a710f97f531db4b049b5302",
+    "testedRevision": "74ae25d8a9d8ed5718466a3905131c37845706d3",
+    "environment": {
+      "cpu": "AMD EPYC 7763 64-Core Processor",
+      "affinity": "0",
+      "os": "Ubuntu 26.04.1 LTS",
+      "osArchitecture": 1,
+      "processArchitecture": 1,
+      "runtime": ".NET 11.0.0-rc.3.26522.148",
+      "runtimeVersion": "11.0.0",
+      "corelibInformationalVersion": "11.0.0-rc.3.26522.148\u002B5254d8bcf59917edc1e1abc33bdf2442b77b1c70",
+      "runtimeProductVersion": "11.0.0-rc.3.26522.148",
+      "encoderTargetFramework": ".NETCoreApp,Version=v11.0",
+      "explicitNet11Simd": true,
+      "logicalProcessors": 1,
+      "frequency": 1000000000,
+      "isHighResolution": true,
+      "isHardwareAccelerated": true,
+      "vectorFloatWidth": 8,
+      "vector128": true,
+      "vector256": true,
+      "vector512": false,
+      "serverGc": false,
+      "gcLatencyMode": "Interactive",
+      "dotnetTieredCompilation": "0",
+      "complusTieredCompilation": null,
+      "instrumentation": null,
+      "githubRunnerOs": "Linux",
+      "githubRunnerArchitecture": "X64"
+    },
+    "assemblyInformationalVersion": "2.0.0\u002B74ae25d8a9d8ed5718466a3905131c37845706d3"
+  },
+  "current": {
+    "encoderSha256": "aa05856d947b7c199b9285e6460ef824f9834460c3376afd0da25d8e157b807f",
+    "runnerSha256": "365cc17933ca70f855ef3ed9e91f1bff26464e6a7a710f97f531db4b049b5302",
+    "testedRevision": "74ae25d8a9d8ed5718466a3905131c37845706d3",
+    "environment": {
+      "cpu": "AMD EPYC 7763 64-Core Processor",
+      "affinity": "0",
+      "os": "Ubuntu 26.04.1 LTS",
+      "osArchitecture": 1,
+      "processArchitecture": 1,
+      "runtime": ".NET 11.0.0-rc.3.26522.148",
+      "runtimeVersion": "11.0.0",
+      "corelibInformationalVersion": "11.0.0-rc.3.26522.148\u002B5254d8bcf59917edc1e1abc33bdf2442b77b1c70",
+      "runtimeProductVersion": "11.0.0-rc.3.26522.148",
+      "encoderTargetFramework": ".NETCoreApp,Version=v11.0",
+      "explicitNet11Simd": true,
+      "logicalProcessors": 1,
+      "frequency": 1000000000,
+      "isHighResolution": true,
+      "isHardwareAccelerated": true,
+      "vectorFloatWidth": 8,
+      "vector128": true,
+      "vector256": true,
+      "vector512": false,
+      "serverGc": false,
+      "gcLatencyMode": "Interactive",
+      "dotnetTieredCompilation": "0",
+      "complusTieredCompilation": null,
+      "instrumentation": null,
+      "githubRunnerOs": "Linux",
+      "githubRunnerArchitecture": "X64"
+    },
+    "assemblyInformationalVersion": "2.0.0\u002B74ae25d8a9d8ed5718466a3905131c37845706d3"
+  },
+  "corpusManifestSha256": "6a529b1ae279c7f89998eb1f89f58237a5c1507ef53f502d71ea429d188dd8a5",
+  "selection": {
+    "images": [
+      "kodim01",
+      "kodim02",
+      "kodim04",
+      "kodim22",
+      "low-noise",
+      "low-contrast",
+      "full-noise",
+      "tiny-odd-edges"
+    ],
+    "distances": [
+      1,
+      4
+    ],
+    "samplings": [
+      444,
+      420
+    ],
+    "progressions": [
+      0,
+      2
+    ],
+    "policy": {
+      "warmups": 5,
+      "blocks": 6,
+      "minimumIterations": 20,
+      "maximumIterations": 20,
+      "targetBlockMilliseconds": 50,
+      "minimumBlockMilliseconds": 1,
+      "maximumRelativeMad": 0.1,
+      "maximumGroupGeometricMeanRatio": 1.05,
+      "maximumCaseRatio": 1.1,
+      "managedWorkers": 1
+    },
+    "expectedCases": 64
+  },
+  "expectedComparisons": 64,
+  "method": {
+    "scope": "Selected managed revision diagnostics; no native or full performance parity verdict",
+    "order": "Balanced alternating ABBA/BAAB quartets by case and block index; A=baseline, B=current",
+    "workers": "Two persistent processes using identical runner bytes and statically built encoder libraries; only one worker encodes at a time",
+    "latency": "Complete public byte-array Encode calls; process startup, input loading, warmups and JPEG hash checks excluded",
+    "iterations": "Identical fixed iterations and warmups for both revisions; inputs below1024 pixels use max(requested,100)",
+    "ratio": "Median of per-quartet geometric-mean current/baseline ratios",
+    "validation": "Relative MAD \u003C=10%, repeated legs within each quartet \u003C=10% drift, p90/p10 \u003C=1.20 and ABBA/BAAB order bias \u003C=10%",
+    "preference": "Valid rows require every quartet beyond1\u002B/-0.005 in the same direction; other valid rows are inconclusive",
+    "gc": "Natural collections included; no forced GC or no-GC region; allocations and collections retained per leg",
+    "memory": "Allocated bytes do not measure retained pool capacity or peak working memory",
+    "rawMeasurements": "raw-comparisons/*.json updated after every completed quartet, before analysis; every attempt has a separate raw file",
+    "retryPolicy": "One attempt per case; selected diagnostics do not retry",
+    "maximumAttempts": 1
+  }
+}

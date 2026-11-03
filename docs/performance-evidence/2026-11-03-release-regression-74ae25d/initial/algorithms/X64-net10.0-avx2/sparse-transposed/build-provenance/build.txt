@@ -1,0 +1,11 @@
+Comparison: current default versus retained sparse-transposed algorithm
+Source for both workers: 74ae25d8a9d8ed5718466a3905131c37845706d3
+Framework: net10.0; SIMD lane: avx2; CPU affinity: 0
+Baseline flags: DotJpegliSparseTransposedQuantization=false; DotJpegliFullWidthTranspose=false
+Candidate flags: DotJpegliSparseTransposedQuantization=true; DotJpegliFullWidthTranspose=false
+Selection: kodim01,kodim02,kodim04,kodim22,low-noise,low-contrast,full-noise,tiny-odd-edges; distances1/4; sampling444/420; progression0/2
+Method: six balanced quartets, 20 encodes per leg (100 for tiny input), five warmups; no timing retries in this selected diagnostic
+1977b2670f1ea02bd12e3976b7132f91e10f086e3e9b628f10d69117807e8d71  /home/runner/work/_temp/algorithm-default-worker/DotJpegli.dll
+2acd367ecaaee2d63915cfec8e27176002f69f87dc1dbd46b37288f7e98d2ff7  /home/runner/work/_temp/algorithm-sparse-transposed-worker/DotJpegli.dll
+21482d95886a0525f450ae4e9d0bdfc6a11509296c0fbe974858cb83c55c908d  /home/runner/work/_temp/algorithm-default-worker/DotJpegli.Performance.dll
+21482d95886a0525f450ae4e9d0bdfc6a11509296c0fbe974858cb83c55c908d  /home/runner/work/_temp/algorithm-sparse-transposed-worker/DotJpegli.Performance.dll
