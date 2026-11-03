@@ -129,72 +129,35 @@ for coverage.
 
 ## Performance
 
-The latest complete same-host comparison against released **1.0.0** tests
-revision `0104778`, after the cache and hot-path changes, on **November 3, 2026**
-in [CI run 41695349570](https://github.com/symbiogenesis/DotJpegli/actions/runs/41695349570).
-It **fails two of six release regression gates** across .NET 10/11 x64 and
-ARM64: 110 of 1,536 selected cases consistently favor 1.0.0, 1,310 favor the
-current encoder and 116 are inconclusive. The largest selected median uses
-**14.64% more time**. All selected cases pass the timing guards and all paired
-JPEG bytes match.
-
-The [complete release evidence](docs/performance-evidence/2026-11-03-0104778/release/README.md)
-retains every selected case, host identity and all 130 earlier invalid trials.
-The first stable trial is selected for each case; these results do not describe
-the latency distribution of all attempts or establish speed on untested hosts.
-
-### Latest full native comparison
-
-The same run completes all 256 comparisons against **native Google Jpegli**,
-but one sequential 4:2:0 photograph case fails the timing-noise guard. The full
-native verdict is therefore **invalid**. Valid photograph groups have these
-geometric mean encoding-time differences on the measured AMD EPYC 7763 host:
-
-| Encoding mode | Time relative to native |
-| --- | ---: |
-| Sequential, 4:4:4 | 16.7% more |
-| Sequential, 4:2:0 | Invalid timing evidence |
-| Progressive level 2, 4:4:4 | 10.3% less |
-| Progressive level 2, 4:2:0 | 11.1% less |
-
-Both progressive photograph groups pass the fixed timing bounds; sequential
-4:4:4 photographs and all control groups fail. The
-[latest full measurements](docs/performance-evidence/2026-11-03-0104778/README.md)
-retain every valid and invalid case. These group results do not establish full
-performance parity or isolate revision speedups across separate runs.
-
-### Complete valid chart reference
-
-The native comparison charts below retain the last complete valid snapshot.
 Compare DotJpegli with **native Google Jpegli** on all 24 Kodak photographs.
-The charts use measurements from **November 3, 2026**,
+The charts retain the last complete valid snapshot, measured **November 3, 2026**
+at revision `b07eb5d` in
 [CI run 41690962313](https://github.com/symbiogenesis/DotJpegli/actions/runs/41690962313),
-testing revision `b07eb5d`, before the later partial converted-plane change.
-Compression and time differences are relative to native; zero means equal
-file size or encoding time.
+before the later cache changes. Compression and time differences are relative
+to native; zero means equal file size or encoding time.
 
-#### Compression efficiency
+### Compression efficiency
 
-JPEG sizes are nearly identical at the same measured quality. Photograph group
-means differ from native by **at most 0.002%** across all four encoding modes at
-matched PSNR and SSIM. The summary rounds the largest absolute difference up to
-the next 0.001%; exact group values are linked below.
+Photograph group mean JPEG sizes differ from native by **at most 0.002%** across
+all four encoding modes at matched PSNR and SSIM.
 
 ![Photograph group mean JPEG file-size differences from native Google Jpegli are at most 0.002% across all four encoding modes at matched PSNR and SSIM.](docs/images/performance/compression.svg)
 
-#### Encoding wall time
+### Encoding wall time
 
 On the measured AMD EPYC 7763 host, progressive photograph encoding used
 **7.0–9.8% less time** than native; sequential encoding used **18.0–24.1% more**.
-Bars show the percentage change in encoding time, with photographs and controls
-paired under each encoding mode. Left of zero means less time; right means more.
-
-Separately collected runs do not isolate the effect of encoder changes, even
-when their reported CPU models match.
+Left of zero means less time; right means more.
 
 ![Percentage encoding-time differences from native Google Jpegli, pairing Kodak photographs and deterministic controls for each encoding mode.](docs/images/performance/wall-time.svg)
 
-#### Managed allocations
+The newer [measurements at `0104778`](docs/performance-evidence/2026-11-03-0104778/README.md)
+show progressive photograph groups using **10.3–11.1% less time** than native
+and sequential 4:4:4 using **16.7% more**. One sequential 4:2:0 case fails the
+timing-noise guard, making that full comparison **invalid**. Separate runs do
+not isolate revision speedups.
+
+### Managed allocations
 
 Each bar shows average managed allocations per complete encode, including the
 returned JPEG. Native allocations were not measured. Retained pool capacity
@@ -202,26 +165,17 @@ and peak memory are outside this measurement.
 
 ![DotJpegli managed allocations in KiB per encode for Kodak photographs, grouped by sampling and sequential or progressive encoding.](docs/images/performance/allocations.svg)
 
-The time and allocation comparison uses distances 1/4, both sampling modes,
-one worker and tiered compilation disabled. The complete 256-case comparison
-includes eight deterministic controls; full performance parity remains
-unestablished. Both progressive photograph groups pass the fixed bounds, but
-sequential photographs and the control groups fail. See the
-[retained measurements](docs/performance-evidence/2026-11-03-b07eb5d/README.md),
-[chart values](docs/images/performance/metrics.json) and
-[reproducible protocol](docs/performance-parity.md) for the host, runtime,
-raw samples and individual regressions.
+The charts use distances 1/4, both sampling modes, one worker and tiered
+compilation disabled. The [retained measurements](docs/performance-evidence/2026-11-03-b07eb5d/README.md),
+[chart values](docs/images/performance/metrics.json) and [protocol](docs/performance-parity.md)
+cover all 256 cases, including eight deterministic controls. Full native
+performance parity remains unestablished.
 
-### Large-image cache boundaries
-
-The later [workload snapshot at `0104778`](docs/performance-evidence/2026-11-03-0104778-workloads/README.md)
-completes 26 scenarios on both x64 and ARM64 after segmented/partial
-converted-plane caching. Above-to-below median encoding-time ratios across the
-converted-plane cache boundaries are **1.098/1.068 for 4:4:4** and
-**1.021/1.027 for 4:2:0**, in x64/ARM64 order. All these boundary rows pass the
-workload dispersion checks. These instrumented observations do not establish
-before/after speedups across separate hosts and runs, native parity or service
-latency bounds.
+Against released **1.0.0**, the [latest same-host comparison](docs/performance-evidence/2026-11-03-0104778/release/README.md)
+favors the current encoder in 1,310 of 1,536 selected cases, but 110 regress:
+**two of six release gates fail**, with a worst selected median of **14.64% more time**.
+Separate [large-image workload observations](docs/performance-evidence/2026-11-03-0104778-workloads/README.md)
+cover cache boundaries, memory and concurrency.
 
 ## Documentation
 
