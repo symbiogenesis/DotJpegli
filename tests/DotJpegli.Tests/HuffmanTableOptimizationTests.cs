@@ -153,6 +153,23 @@ public sealed class HuffmanTableOptimizationTests
         AssertMatchesReference(frequencies, expected);
     }
 
+    [Theory]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(8)]
+    [InlineData(17)]
+    [InlineData(255)]
+    public void ActiveLeafStoragePreservesSparseTreesAndSentinelBoundaries(int symbols)
+    {
+        foreach (long maximum in new[] { (long)uint.MaxValue, long.MaxValue })
+        {
+            long[] frequencies = new long[256];
+            for (int index = 0; index < symbols; index++)
+                frequencies[255 - index] = index % 3 == 0 ? maximum : index % 3 == 1 ? 1 : maximum / 2;
+            AssertMatchesReference(frequencies);
+        }
+    }
+
     [Fact]
     public void WideHistogramCostPreservesUInt128Rounding()
     {

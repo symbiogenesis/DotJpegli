@@ -5,6 +5,7 @@
 #if NETSTANDARD2_1
 using UInt128 = System.Numerics.BigInteger;
 #endif
+using System.Runtime.InteropServices;
 
 namespace DotJpegli.Internal;
 
@@ -192,35 +193,6 @@ internal sealed class HuffmanTable
         return HistogramCost(bits + (uint)((17 + symbolCount) * 8));
     }
 
-    private static void InitializeCounts(ReadOnlySpan<long> frequencies, Span<UInt128> counts)
-    {
-        if (frequencies.Length != 256)
-        {
-            throw new ArgumentException("A frequency table must have 256 entries.", nameof(frequencies));
-        }
-
-        bool hasSymbol = false;
-        for (int symbol = 0; symbol < 256; symbol++)
-        {
-            if (frequencies[symbol] < 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(frequencies), "Symbol frequencies cannot be negative.");
-            }
-
-            counts[symbol] = (UInt128)frequencies[symbol];
-            hasSymbol |= frequencies[symbol] != 0;
-        }
-
-        if (!hasSymbol)
-        {
-            counts[0] = 1;
-        }
-
-        // Removing the pseudo-symbol leaves unused code space, preventing
-        // an all-ones code from being assigned to any real symbol.
-        counts[256] = 1;
-    }
-
     public void WriteSymbol(BitWriter writer, int symbol)
     {
         if ((uint)symbol >= 256 || lengths[symbol] == 0)
@@ -292,43 +264,50 @@ internal sealed class HuffmanTable
         if (frequencies.Length != 256)
             throw new ArgumentException("A frequency table must have 256 entries.", nameof(frequencies));
 
-        Span<ulong> narrowCounts = stackalloc ulong[257];
-        bool narrow = true, hasSymbol = false;
+#if NETSTANDARD2_1
+        bool narrow = true;
+        int symbols = 0;
         for (int symbol = 0; symbol < frequencies.Length; symbol++)
         {
             long frequency = frequencies[symbol];
             if (frequency < 0)
                 throw new ArgumentOutOfRangeException(nameof(frequencies), "Symbol frequencies cannot be negative.");
-            narrowCounts[symbol] = (ulong)frequency;
             narrow &= frequency <= uint.MaxValue;
-            hasSymbol |= frequency != 0;
+            symbols += frequency == 0 ? 0 : 1;
         }
+#else
+        bool narrow = !frequencies.ContainsAnyExceptInRange(0L, (long)uint.MaxValue);
+        if (!narrow && frequencies.ContainsAnyInRange(long.MinValue, -1L))
+            throw new ArgumentOutOfRangeException(nameof(frequencies), "Symbol frequencies cannot be negative.");
+        int symbols = frequencies.Length - frequencies.Count(0L);
+#endif
+        int leaves = Math.Max(1, symbols) + 1;
         if (narrow)
         {
-            if (!hasSymbol)
-                narrowCounts[0] = 1;
-            narrowCounts[256] = 1;
             // At the uint bound, every retry reaches uniform weights by the
             // time minimumCount reaches uint.MaxValue. All 257 leaf weights
             // and their merged sum remain below 2^41; a 16-bit code cost is
             // below 2^45. Neither can collide with the ulong sentinel.
-            Span<Node<ulong>> narrowTree = stackalloc Node<ulong>[2 * 257 + 1];
-            BuildCodeLengths<ulong, NarrowArithmetic>(narrowCounts, depth, narrowTree);
+            // Positive long and ulong weights have identical representations;
+            // read the validated histogram directly instead of copying it.
+            Span<Node<ulong>> narrowTree = stackalloc Node<ulong>[2 * leaves + 1];
+            BuildCodeLengths<ulong, NarrowArithmetic>(MemoryMarshal.Cast<long, ulong>(frequencies), depth, narrowTree);
             return true;
         }
 
         Span<UInt128> counts =
 #if NETSTANDARD2_1
-            new UInt128[257];
+            new UInt128[256];
 #else
-            stackalloc UInt128[257];
+            stackalloc UInt128[256];
 #endif
-        InitializeCounts(frequencies, counts);
+        for (int symbol = 0; symbol < frequencies.Length; symbol++)
+            counts[symbol] = (UInt128)frequencies[symbol];
         Span<Node<UInt128>> tree =
 #if NETSTANDARD2_1
-            new Node<UInt128>[2 * 257 + 1];
+            new Node<UInt128>[2 * leaves + 1];
 #else
-            stackalloc Node<UInt128>[2 * 257 + 1];
+            stackalloc Node<UInt128>[2 * leaves + 1];
 #endif
         BuildCodeLengths<UInt128, WideArithmetic>(counts, depth, tree);
         return false;
@@ -345,6 +324,9 @@ internal sealed class HuffmanTable
         // bounded ulong counts and for the exact UInt128/BigInteger fallback.
         TArithmetic arithmetic = default;
         T minimumCount = default;
+        // Every retry writes the same active symbols. Inactive depths need
+        // clearing only once, rather than zeroing the full array per retry.
+        depth.Clear();
         while (true)
         {
             int leafCount = 0;
@@ -356,6 +338,12 @@ internal sealed class HuffmanTable
                     tree[leafCount++] = new Node<T>(count.CompareTo(minimumCount) >= 0 ? count : minimumCount, -1, symbol);
                 }
             }
+            T pseudoCount = arithmetic.One.CompareTo(minimumCount) >= 0 ? arithmetic.One : minimumCount;
+            if (leafCount == 0)
+                tree[leafCount++] = new Node<T>(pseudoCount, -1, 0);
+            // Removing this padding symbol leaves unused code space, keeping
+            // all-ones codes unavailable to real symbols, as in the wide tree.
+            tree[leafCount++] = new Node<T>(pseudoCount, -1, frequencies.Length);
 
             tree[..leafCount].Sort(static (left, right) =>
             {
@@ -377,7 +365,6 @@ internal sealed class HuffmanTable
                 tree[leafCount + merge + 1] = sentinel;
             }
 
-            depth.Clear();
             SetDepth<T>(tree, 2 * leafCount - 1, depth, 0);
             if (!depth.ContainsAnyInRange(17, int.MaxValue))
             {
@@ -405,6 +392,7 @@ internal sealed class HuffmanTable
 
     private interface ITreeArithmetic<T>
     {
+        T One { get; }
         T Sentinel { get; }
         T Add(T left, T right);
         T NextMinimum(T minimum);
@@ -412,6 +400,7 @@ internal sealed class HuffmanTable
 
     private readonly struct NarrowArithmetic : ITreeArithmetic<ulong>
     {
+        public ulong One => 1;
         public ulong Sentinel => ulong.MaxValue;
         public ulong Add(ulong left, ulong right) => left + right;
         public ulong NextMinimum(ulong minimum) => minimum == 0 ? 1 : minimum * 2 + 1;
@@ -419,6 +408,7 @@ internal sealed class HuffmanTable
 
     private readonly struct WideArithmetic : ITreeArithmetic<UInt128>
     {
+        public UInt128 One => 1;
         public UInt128 Sentinel =>
 #if NETSTANDARD2_1
             (UInt128.One << 128) - 1;
