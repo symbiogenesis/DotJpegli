@@ -96,6 +96,8 @@ public sealed class AdditionalGrayscaleIccProfileTests
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(3)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms",
+        Justification = "ICC profile IDs require MD5; this test verifies format compatibility, not cryptographic security.")]
     public void ProfileIdIsTheIndependentIccMd5Digest(int kind)
     {
         byte[] profile = Create(kind), id = profile[84..100];

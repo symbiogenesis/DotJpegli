@@ -757,6 +757,8 @@ public sealed class CustomChromaticityIccProfileTests
         return tags;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms",
+        Justification = "ICC profile IDs require MD5; this test verifies format compatibility, not cryptographic security.")]
     private static void AssertProfileId(byte[] profile)
     {
         byte[] hashed = profile.ToArray();

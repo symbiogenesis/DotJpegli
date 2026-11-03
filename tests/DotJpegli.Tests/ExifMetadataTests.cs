@@ -381,13 +381,13 @@ public sealed class ExifMetadataTests
             if (U16(bytes, offset) != tag)
                 continue;
             ushort type = U16(bytes, offset + 2);
-            int size = type switch { 1 or 2 or 6 or 7 => 1, 3 or 8 => 2, 4 or 9 or 11 => 4, 5 or 10 or 12 => 8, _ => throw new Exception("Invalid field type.") };
+            int size = type switch { 1 or 2 or 6 or 7 => 1, 3 or 8 => 2, 4 or 9 or 11 => 4, 5 or 10 or 12 => 8, _ => throw new Xunit.Sdk.XunitException("Invalid field type.") };
             uint valueCount = U32(bytes, offset + 4);
             int length = checked((int)valueCount * size);
             int valueOffset = length <= 4 ? offset + 8 : (int)U32(bytes, offset + 8);
             return ((ExifFieldType)type, valueCount, bytes.AsSpan(valueOffset, length).ToArray());
         }
-        throw new Exception($"Missing tag {tag:X4}.");
+        throw new Xunit.Sdk.XunitException($"Missing tag {tag:X4}.");
     }
 
     private static IEnumerable<ushort> Tags(byte[] bytes, int directory)

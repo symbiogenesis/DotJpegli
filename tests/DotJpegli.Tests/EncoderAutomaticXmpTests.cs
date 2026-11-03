@@ -337,6 +337,8 @@ public sealed class EncoderAutomaticXmpTests
         JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1, options: options, cancellationToken: token);
 
     // Decode marker lengths, digest fields and offsets independently of the encoder.
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms",
+        Justification = "Extended XMP requires MD5 identifiers; this test verifies format compatibility, not cryptographic security.")]
     private static byte[] AssertAutomaticPacket(byte[] jpeg)
     {
         List<Segment> segments = ReadHeaders(jpeg);

@@ -319,9 +319,9 @@ public sealed class SimdQuantizationTests
                 Assert.Equal("distance", Assert.Throws<ArgumentOutOfRangeException>(() =>
                     path(coefficients, table, output, 0, distance, false, false, 0, [], 0, false, false)).ParamName);
             Assert.Equal("coefficients", Assert.Throws<ArgumentException>(() =>
-                Invoke(path, coefficients[..63], table, output)).ParamName);
+                Invoke(path, coefficients.AsSpan(0, 63), table, output)).ParamName);
             Assert.Equal("table", Assert.Throws<ArgumentException>(() =>
-                Invoke(path, coefficients, table[..63], output)).ParamName);
+                Invoke(path, coefficients, table.AsSpan(0, 63), output)).ParamName);
             Assert.Equal("output", Assert.Throws<ArgumentException>(() =>
                 Invoke(path, coefficients, table, output.AsSpan(0, 63))).ParamName);
             foreach (float strength in new[] { -float.Epsilon, float.NaN, float.PositiveInfinity })
@@ -329,7 +329,7 @@ public sealed class SimdQuantizationTests
                     Invoke(path, coefficients, table, output, adaptive: true,
                         strength: strength, multipliers: multipliers)).ParamName);
             Assert.Equal("adaptiveMultipliers", Assert.Throws<ArgumentException>(() =>
-                Invoke(path, coefficients, table, output, adaptive: true, multipliers: multipliers[..63])).ParamName);
+                Invoke(path, coefficients, table, output, adaptive: true, multipliers: multipliers.AsSpan(0, 63))).ParamName);
             Assert.All(output, value => Assert.Equal((short)-23456, value));
             // Disabled AQ deliberately ignores its optional inputs.
             Invoke(path, coefficients, table, output, strength: float.NaN, multipliers: [float.NaN]);

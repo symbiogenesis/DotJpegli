@@ -93,6 +93,8 @@ public sealed class SrgbIccProfileTests
     }
 
     [Fact]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms",
+        Justification = "ICC profile IDs require MD5; this test verifies format compatibility, not cryptographic security.")]
     public void ProfileIdIsTheIndependentIccMd5Digest()
     {
         byte[] profile = JpegliIccProfiles.CreateSrgbProfile();

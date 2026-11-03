@@ -85,6 +85,8 @@ public sealed class RenderingIntentIccProfileTests
 
     [Theory]
     [MemberData(nameof(ProfileFactories))]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms",
+        Justification = "ICC profile IDs require MD5; this test verifies format compatibility, not cryptographic security.")]
     public void HeaderDescriptionsAndIdsMatchTheSelectedIntentWithoutChangingTransforms(
         string name, string description)
     {

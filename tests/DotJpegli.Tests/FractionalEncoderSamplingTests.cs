@@ -7,10 +7,10 @@ namespace DotJpegli.Tests;
 
 // StbImageSharp stores its failure reason in a process-wide static field.
 // Exact rejection assertions must not overlap decoder calls in other tests.
-[CollectionDefinition(nameof(StbFailureReasonCollection), DisableParallelization = true)]
-public sealed class StbFailureReasonCollection;
+[CollectionDefinition("StbFailureReasonCollection", DisableParallelization = true)]
+public sealed class StbFailureReasonTestGroup;
 
-[Collection(nameof(StbFailureReasonCollection))]
+[Collection("StbFailureReasonCollection")]
 public sealed class FractionalEncoderSamplingTests
 {
     public static TheoryData<int, int, int, int, int, int> SamplingModes => new()

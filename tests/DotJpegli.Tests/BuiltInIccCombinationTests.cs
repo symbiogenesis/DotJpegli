@@ -204,6 +204,8 @@ public sealed class BuiltInIccCombinationTests
         PixelAssert.Equal(original, source);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms",
+        Justification = "ICC profile IDs require MD5; this test verifies format compatibility, not cryptographic security.")]
     private static void ValidateStructure(byte[] profile, Case item)
     {
         Assert.Equal(profile.Length, Int32(profile, 0));

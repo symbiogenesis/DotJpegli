@@ -58,7 +58,7 @@ public sealed class JpegliMetadataTests
         Assert.Equal("1", Property(xml, Exif + "ColorSpace").Value);
         Assert.Equal("300/1", Property(xml, Tiff + "XResolution").Value);
         Assert.Equal("150/1", Property(xml, Tiff + "YResolution").Value);
-        Assert.Equal(expectedUnit.ToString(), Property(xml, Tiff + "ResolutionUnit").Value);
+        Assert.Equal(expectedUnit.ToString(System.Globalization.CultureInfo.InvariantCulture), Property(xml, Tiff + "ResolutionUnit").Value);
         XElement creator = Property(xml, Dc + "creator");
         Assert.Equal("Ada", Assert.Single(creator.Element(Rdf + "Seq")!.Elements(Rdf + "li")).Value);
         AssertLocalized(xml, "rights", "Copyright 2026");

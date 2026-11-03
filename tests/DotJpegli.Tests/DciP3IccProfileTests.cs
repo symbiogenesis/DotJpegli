@@ -17,6 +17,8 @@ public sealed class DciP3IccProfileTests
     private const string NativeProfileId = "CFF4D77412057A38BA87E9CC1ED826FD";
 
     [Fact]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms",
+        Justification = "ICC profile IDs require MD5; this test verifies format compatibility, not cryptographic security.")]
     public void CompleteProfileMatchesTheNativeFixtureAndReturnsIndependentStorage()
     {
         byte[] first = JpegliIccProfiles.CreateDciP3Profile();

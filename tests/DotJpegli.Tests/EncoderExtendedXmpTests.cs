@@ -382,6 +382,8 @@ public sealed class EncoderExtendedXmpTests
     private static string SplitUnicodePacket() =>
         new string('a', ExtendedChunkBytes - 1) + "😀" + new string('b', ExtendedChunkBytes - 4) + "é";
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms",
+        Justification = "Extended XMP requires MD5 identifiers; this test verifies format compatibility, not cryptographic security.")]
     private static string Digest(string packet) => Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(packet)));
 
     private static string LinkedStandard(string digest) =>
@@ -410,6 +412,8 @@ public sealed class EncoderExtendedXmpTests
         return bytes;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms",
+        Justification = "Extended XMP requires MD5 identifiers; this test verifies format compatibility, not cryptographic security.")]
     private static List<Segment> AssertExtendedPacket(List<Segment> segments, string packet)
     {
         byte[] expected = Encoding.UTF8.GetBytes(packet);

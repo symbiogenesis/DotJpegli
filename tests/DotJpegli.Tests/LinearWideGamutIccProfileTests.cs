@@ -29,6 +29,8 @@ public sealed class LinearWideGamutIccProfileTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms",
+        Justification = "ICC profile IDs require MD5; this test verifies format compatibility, not cryptographic security.")]
     public void FactoriesReturnIndependentDeterministicStorageWithTheIccMd5Id(bool rec2020)
     {
         byte[] first = Create(rec2020), second = Create(rec2020);
