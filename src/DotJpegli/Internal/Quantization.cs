@@ -667,9 +667,9 @@ internal static class Quantization
         Vector128<short> q2, Vector128<short> q3, Vector128<short> q4, Vector128<short> q5,
         Vector128<short> q6, Vector128<short> q7, Span<short> output)
     {
-        // The narrow ordering network needs forty byte shuffles. A DC-only
-        // block can bypass all of them after quantization has validated every
-        // coefficient. Keep partial-buffer behavior on the ordinary path.
+        // A DC-only block can bypass the ordering network after quantization
+        // has validated every coefficient. Keep partial-buffer behavior on
+        // the ordinary path.
         Vector128<short> ac = ((q0.WithElement(0, (short)0) | q1) | (q2 | q3))
             | ((q4 | q5) | (q6 | q7));
         if (output.Length >= 64 && Vector128.EqualsAll(ac, Vector128<short>.Zero))
@@ -678,47 +678,59 @@ internal static class Quantization
             output[0] = q0.GetElement(0);
             return;
         }
-        (Vector128.Shuffle(q0.AsByte(), TransposedZigZagMasks.M00)
-            | Vector128.Shuffle(q1.AsByte(), TransposedZigZagMasks.M01)
-            | Vector128.Shuffle(q2.AsByte(), TransposedZigZagMasks.M02)
-            | Vector128.Shuffle(q3.AsByte(), TransposedZigZagMasks.M03)).AsInt16().CopyTo(output.Slice(0, 8));
-        (Vector128.Shuffle(q0.AsByte(), TransposedZigZagMasks.M10)
-            | Vector128.Shuffle(q1.AsByte(), TransposedZigZagMasks.M11)
-            | Vector128.Shuffle(q2.AsByte(), TransposedZigZagMasks.M12)
-            | Vector128.Shuffle(q3.AsByte(), TransposedZigZagMasks.M13)
-            | Vector128.Shuffle(q4.AsByte(), TransposedZigZagMasks.M14)
-            | Vector128.Shuffle(q5.AsByte(), TransposedZigZagMasks.M15)).AsInt16().CopyTo(output.Slice(8, 8));
-        (Vector128.Shuffle(q0.AsByte(), TransposedZigZagMasks.M20)
-            | Vector128.Shuffle(q1.AsByte(), TransposedZigZagMasks.M21)
-            | Vector128.Shuffle(q2.AsByte(), TransposedZigZagMasks.M22)
-            | Vector128.Shuffle(q3.AsByte(), TransposedZigZagMasks.M23)
-            | Vector128.Shuffle(q4.AsByte(), TransposedZigZagMasks.M24)).AsInt16().CopyTo(output.Slice(16, 8));
-        (Vector128.Shuffle(q3.AsByte(), TransposedZigZagMasks.M33)
-            | Vector128.Shuffle(q4.AsByte(), TransposedZigZagMasks.M34)
-            | Vector128.Shuffle(q5.AsByte(), TransposedZigZagMasks.M35)
-            | Vector128.Shuffle(q6.AsByte(), TransposedZigZagMasks.M36)
-            | Vector128.Shuffle(q7.AsByte(), TransposedZigZagMasks.M37)).AsInt16().CopyTo(output.Slice(24, 8));
-        (Vector128.Shuffle(q0.AsByte(), TransposedZigZagMasks.M40)
-            | Vector128.Shuffle(q1.AsByte(), TransposedZigZagMasks.M41)
-            | Vector128.Shuffle(q2.AsByte(), TransposedZigZagMasks.M42)
-            | Vector128.Shuffle(q3.AsByte(), TransposedZigZagMasks.M43)
-            | Vector128.Shuffle(q4.AsByte(), TransposedZigZagMasks.M44)).AsInt16().CopyTo(output.Slice(32, 8));
-        (Vector128.Shuffle(q3.AsByte(), TransposedZigZagMasks.M53)
-            | Vector128.Shuffle(q4.AsByte(), TransposedZigZagMasks.M54)
-            | Vector128.Shuffle(q5.AsByte(), TransposedZigZagMasks.M55)
-            | Vector128.Shuffle(q6.AsByte(), TransposedZigZagMasks.M56)
-            | Vector128.Shuffle(q7.AsByte(), TransposedZigZagMasks.M57)).AsInt16().CopyTo(output.Slice(40, 8));
-        (Vector128.Shuffle(q2.AsByte(), TransposedZigZagMasks.M62)
-            | Vector128.Shuffle(q3.AsByte(), TransposedZigZagMasks.M63)
-            | Vector128.Shuffle(q4.AsByte(), TransposedZigZagMasks.M64)
-            | Vector128.Shuffle(q5.AsByte(), TransposedZigZagMasks.M65)
-            | Vector128.Shuffle(q6.AsByte(), TransposedZigZagMasks.M66)
-            | Vector128.Shuffle(q7.AsByte(), TransposedZigZagMasks.M67)).AsInt16().CopyTo(output.Slice(48, 8));
-        (Vector128.Shuffle(q4.AsByte(), TransposedZigZagMasks.M74)
-            | Vector128.Shuffle(q5.AsByte(), TransposedZigZagMasks.M75)
-            | Vector128.Shuffle(q6.AsByte(), TransposedZigZagMasks.M76)
-            | Vector128.Shuffle(q7.AsByte(), TransposedZigZagMasks.M77)).AsInt16().CopyTo(output.Slice(56, 8));
+        // Pack adjacent columns into 2 by 4 tiles before applying the JPEG
+        // permutation. Each output group now draws from two to four tiles,
+        // reducing the byte shuffles from 40 to 26 and ORs from 32 to 18.
+        // The eight half-vector packs use 64-bit lanes without arithmetic.
+        Vector128<byte> t0 = PackLowerHalves(q0, q1), t1 = PackUpperHalves(q0, q1);
+        Vector128<byte> t2 = PackLowerHalves(q2, q3), t3 = PackUpperHalves(q2, q3);
+        Vector128<byte> t4 = PackLowerHalves(q4, q5), t5 = PackUpperHalves(q4, q5);
+        Vector128<byte> t6 = PackLowerHalves(q6, q7), t7 = PackUpperHalves(q6, q7);
+        (Vector128.Shuffle(t0, TransposedZigZagMasks.M00)
+            | Vector128.Shuffle(t2, TransposedZigZagMasks.M02)).AsInt16().CopyTo(output.Slice(0, 8));
+        (Vector128.Shuffle(t0, TransposedZigZagMasks.M10)
+            | Vector128.Shuffle(t1, TransposedZigZagMasks.M11)
+            | Vector128.Shuffle(t2, TransposedZigZagMasks.M12)
+            | Vector128.Shuffle(t4, TransposedZigZagMasks.M14)).AsInt16().CopyTo(output.Slice(8, 8));
+        (Vector128.Shuffle(t1, TransposedZigZagMasks.M21)
+            | Vector128.Shuffle(t2, TransposedZigZagMasks.M22)
+            | Vector128.Shuffle(t3, TransposedZigZagMasks.M23)
+            | Vector128.Shuffle(t4, TransposedZigZagMasks.M24)).AsInt16().CopyTo(output.Slice(16, 8));
+        (Vector128.Shuffle(t2, TransposedZigZagMasks.M32)
+            | Vector128.Shuffle(t4, TransposedZigZagMasks.M34)
+            | Vector128.Shuffle(t6, TransposedZigZagMasks.M36)).AsInt16().CopyTo(output.Slice(24, 8));
+        (Vector128.Shuffle(t1, TransposedZigZagMasks.M41)
+            | Vector128.Shuffle(t3, TransposedZigZagMasks.M43)
+            | Vector128.Shuffle(t5, TransposedZigZagMasks.M45)).AsInt16().CopyTo(output.Slice(32, 8));
+        (Vector128.Shuffle(t3, TransposedZigZagMasks.M53)
+            | Vector128.Shuffle(t4, TransposedZigZagMasks.M54)
+            | Vector128.Shuffle(t5, TransposedZigZagMasks.M55)
+            | Vector128.Shuffle(t6, TransposedZigZagMasks.M56)).AsInt16().CopyTo(output.Slice(40, 8));
+        (Vector128.Shuffle(t3, TransposedZigZagMasks.M63)
+            | Vector128.Shuffle(t5, TransposedZigZagMasks.M65)
+            | Vector128.Shuffle(t6, TransposedZigZagMasks.M66)
+            | Vector128.Shuffle(t7, TransposedZigZagMasks.M67)).AsInt16().CopyTo(output.Slice(48, 8));
+        (Vector128.Shuffle(t5, TransposedZigZagMasks.M75)
+            | Vector128.Shuffle(t7, TransposedZigZagMasks.M77)).AsInt16().CopyTo(output.Slice(56, 8));
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector128<byte> PackLowerHalves(Vector128<short> left, Vector128<short> right)
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        => Vector128.ZipLower(left.AsInt64(), right.AsInt64()).AsByte();
+#else
+        => Vector128.ConditionalSelect(Vector128.Create(-1L, 0L), left.AsInt64(),
+            Vector128.Shuffle(right.AsInt64(), Vector128.Create(0L, 0L))).AsByte();
+#endif
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector128<byte> PackUpperHalves(Vector128<short> left, Vector128<short> right)
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        => Vector128.ZipUpper(left.AsInt64(), right.AsInt64()).AsByte();
+#else
+        => Vector128.ConditionalSelect(Vector128.Create(-1L, 0L),
+            Vector128.Shuffle(left.AsInt64(), Vector128.Create(1L, 1L)), right.AsInt64()).AsByte();
+#endif
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void StoreTransposedZigZag512(Vector128<short> q0, Vector128<short> q1,
@@ -736,44 +748,30 @@ internal static class Quantization
     private static class TransposedZigZagMasks
     {
         internal static readonly Vector128<byte> M00 = CreateMask(0, 0);
-        internal static readonly Vector128<byte> M01 = CreateMask(0, 1);
         internal static readonly Vector128<byte> M02 = CreateMask(0, 2);
-        internal static readonly Vector128<byte> M03 = CreateMask(0, 3);
         internal static readonly Vector128<byte> M10 = CreateMask(1, 0);
         internal static readonly Vector128<byte> M11 = CreateMask(1, 1);
         internal static readonly Vector128<byte> M12 = CreateMask(1, 2);
-        internal static readonly Vector128<byte> M13 = CreateMask(1, 3);
         internal static readonly Vector128<byte> M14 = CreateMask(1, 4);
-        internal static readonly Vector128<byte> M15 = CreateMask(1, 5);
-        internal static readonly Vector128<byte> M20 = CreateMask(2, 0);
         internal static readonly Vector128<byte> M21 = CreateMask(2, 1);
         internal static readonly Vector128<byte> M22 = CreateMask(2, 2);
         internal static readonly Vector128<byte> M23 = CreateMask(2, 3);
         internal static readonly Vector128<byte> M24 = CreateMask(2, 4);
-        internal static readonly Vector128<byte> M33 = CreateMask(3, 3);
+        internal static readonly Vector128<byte> M32 = CreateMask(3, 2);
         internal static readonly Vector128<byte> M34 = CreateMask(3, 4);
-        internal static readonly Vector128<byte> M35 = CreateMask(3, 5);
         internal static readonly Vector128<byte> M36 = CreateMask(3, 6);
-        internal static readonly Vector128<byte> M37 = CreateMask(3, 7);
-        internal static readonly Vector128<byte> M40 = CreateMask(4, 0);
         internal static readonly Vector128<byte> M41 = CreateMask(4, 1);
-        internal static readonly Vector128<byte> M42 = CreateMask(4, 2);
         internal static readonly Vector128<byte> M43 = CreateMask(4, 3);
-        internal static readonly Vector128<byte> M44 = CreateMask(4, 4);
+        internal static readonly Vector128<byte> M45 = CreateMask(4, 5);
         internal static readonly Vector128<byte> M53 = CreateMask(5, 3);
         internal static readonly Vector128<byte> M54 = CreateMask(5, 4);
         internal static readonly Vector128<byte> M55 = CreateMask(5, 5);
         internal static readonly Vector128<byte> M56 = CreateMask(5, 6);
-        internal static readonly Vector128<byte> M57 = CreateMask(5, 7);
-        internal static readonly Vector128<byte> M62 = CreateMask(6, 2);
         internal static readonly Vector128<byte> M63 = CreateMask(6, 3);
-        internal static readonly Vector128<byte> M64 = CreateMask(6, 4);
         internal static readonly Vector128<byte> M65 = CreateMask(6, 5);
         internal static readonly Vector128<byte> M66 = CreateMask(6, 6);
         internal static readonly Vector128<byte> M67 = CreateMask(6, 7);
-        internal static readonly Vector128<byte> M74 = CreateMask(7, 4);
         internal static readonly Vector128<byte> M75 = CreateMask(7, 5);
-        internal static readonly Vector128<byte> M76 = CreateMask(7, 6);
         internal static readonly Vector128<byte> M77 = CreateMask(7, 7);
         internal static readonly Vector512<ushort> W00 = CreateWideMask(0, 0);
         internal static readonly Vector512<ushort> W01 = CreateWideMask(0, 1);
@@ -786,7 +784,9 @@ internal static class Quantization
             for (int lane = 0; lane < 8; lane++)
             {
                 int natural = JpegConstants.ZigZag[outputGroup * 8 + lane];
-                int source = natural % 8 == sourceGroup ? natural / 8 : -1;
+                int x = natural % 8, y = natural / 8;
+                int tile = (x / 2) * 2 + y / 4;
+                int source = tile == sourceGroup ? (x % 2) * 4 + y % 4 : -1;
                 mask[lane * 2] = source >= 0 ? (byte)(source * 2) : byte.MaxValue;
                 mask[lane * 2 + 1] = source >= 0 ? (byte)(source * 2 + 1) : byte.MaxValue;
             }

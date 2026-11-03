@@ -162,13 +162,29 @@ public sealed class FusedPlaneQuantizationTests
     {
         short[] expected = JpegConstants.ZigZag.ToArray()
             .Select(index => transposed[(index % 8) * 8 + index / 8]).ToArray();
-        short[] actual = Enumerable.Repeat((short)-23456, 72).ToArray();
+        short[] actual = Enumerable.Repeat((short)-23456, 80).ToArray();
         Quantization.StoreTransposedZigZag128(Vector128.Create(transposed.AsSpan(0, 8)), Vector128.Create(transposed.AsSpan(8, 8)),
             Vector128.Create(transposed.AsSpan(16, 8)), Vector128.Create(transposed.AsSpan(24, 8)),
             Vector128.Create(transposed.AsSpan(32, 8)), Vector128.Create(transposed.AsSpan(40, 8)),
-            Vector128.Create(transposed.AsSpan(48, 8)), Vector128.Create(transposed.AsSpan(56, 8)), actual);
-        Assert.Equal(expected, actual[..64]);
-        Assert.All(actual[64..], value => Assert.Equal((short)-23456, value));
+            Vector128.Create(transposed.AsSpan(48, 8)), Vector128.Create(transposed.AsSpan(56, 8)), actual.AsSpan(3, 72));
+        Assert.Equal(expected, actual.AsSpan(3, 64).ToArray());
+        Assert.All(actual[..3], value => Assert.Equal((short)-23456, value));
+        Assert.All(actual[67..], value => Assert.Equal((short)-23456, value));
+    }
+
+    [Fact]
+    public void PortableNarrowOrderingPreservesEveryInputBitAtItsJpegPosition()
+    {
+        // Independent one-bit inputs expose dropped, duplicated or mixed bytes
+        // at every tile boundary, including the sign bit of each coefficient.
+        short[] transposed = new short[64];
+        for (int position = 0; position < transposed.Length; position++)
+            for (int bit = 0; bit < 16; bit++)
+            {
+                transposed[position] = unchecked((short)(1 << bit));
+                AssertNarrowOrdering(transposed);
+                transposed[position] = 0;
+            }
     }
 
     [Fact]
