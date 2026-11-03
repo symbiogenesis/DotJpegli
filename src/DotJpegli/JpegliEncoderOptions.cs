@@ -6,6 +6,11 @@ namespace DotJpegli;
 /// <summary>Reusable settings for the managed JPEG encoder.</summary>
 public sealed record JpegliEncoderOptions
 {
+    // Internal per-encode controls let CI compare exact kernels without changing
+    // public settings, process globals, or another concurrent encode's choices.
+    internal KernelPreference FuzzyErosionKernel { get; init; }
+    internal KernelPreference NarrowZigZagKernel { get; init; }
+
     /// <summary>
     /// Color space stored in the JPEG. Automatic (the default) writes grayscale
     /// for grayscale input, XYB for scaled XYB input, and YCbCr for other color input,

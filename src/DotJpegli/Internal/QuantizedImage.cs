@@ -24,7 +24,7 @@ internal sealed class QuantizedImage : IDisposable
     internal static QuantizedImage? Create(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor,
         AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, CancellationToken cancellationToken,
-        bool zigZagOrdered = false)
+        bool zigZagOrdered = false, KernelPreference narrowZigZagKernel = KernelPreference.Automatic)
     {
         var widths = new int[tables.Length];
         var heights = new int[tables.Length];
@@ -54,7 +54,7 @@ internal sealed class QuantizedImage : IDisposable
                 quantizers[component] = Quantization.PreparedTable.Create(tables[component], component, distance,
                     grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
                     adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                    rgb: pixels.IsRgb);
+                    rgb: pixels.IsRgb, narrowZigZagKernel: narrowZigZagKernel);
             }
             Span<float> samples = stackalloc float[64];
             Span<short> naturalOrder = stackalloc short[64];

@@ -237,7 +237,8 @@ public static class JpegliEncoder
         bool useAdaptiveQuantization = options.AdaptiveQuantization
             && analysisFactor.Horizontal == sampling.MaxHorizontal && analysisFactor.Vertical == sampling.MaxVertical;
         using var adaptive = useAdaptiveQuantization
-            ? new AdaptiveQuantization(width, height, sampling.MaxVertical, ArrayPool<float>.Shared) : null;
+            ? new AdaptiveQuantization(width, height, sampling.MaxVertical, ArrayPool<float>.Shared,
+                options.FuzzyErosionKernel) : null;
         float[][]? adaptiveMultipliers = useAdaptiveQuantization
             ? Quantization.CreateAdaptiveZeroBiasMultipliers(tables, quantizationSampling, quantizationSampling, grayscale,
                 cicpTransferFunction: transferFunction, rgb: rgb, quantizationSelectors: quantizationSelectors,
@@ -547,7 +548,7 @@ public static class JpegliEncoder
 #endif
         using QuantizedImage? quantizedImage = streamSequential && !cacheSequential ? null : QuantizedImage.Create(pixels, width, height, stride,
             sampling, tables, distance, options.SmoothingFactor, adaptive, adaptiveMultipliers, cancellationToken,
-            zigZagOrdered: true);
+            zigZagOrdered: true, narrowZigZagKernel: options.NarrowZigZagKernel);
         streamSequential &= quantizedImage is null;
         using EntropyTokenScans? tokenScans = streamSequential || quantizedImage is not null ? new(scans, options.Progressive) : null;
         var dcFrequencies = new long[componentCount][];
@@ -577,7 +578,8 @@ public static class JpegliEncoder
             if (streamSequential)
                 ProcessSequentialInterleaved(pixels, width, height, stride, sampling, tables, distance,
                     options.SmoothingFactor, interval, adaptive, adaptiveMultipliers, cancellationToken,
-                    scanTokens, dcFrequencies, acFrequencies[scanIndex]);
+                    scanTokens, dcFrequencies, acFrequencies[scanIndex],
+                    narrowZigZagKernel: options.NarrowZigZagKernel);
             else
                 ProcessScan(pixels, width, height, stride, sampling, tables, distance,
                     options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
@@ -612,7 +614,7 @@ public static class JpegliEncoder
             else if (streamSequential)
                 ProcessSequentialInterleaved(pixels, width, height, stride, sampling, tables, distance,
                     options.SmoothingFactor, interval, adaptive, adaptiveMultipliers, cancellationToken,
-                    null, null, null, bits, coding);
+                    null, null, null, bits, coding, options.NarrowZigZagKernel);
             else
                 ProcessScan(pixels, width, height, stride, sampling, tables, distance,
                     options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
@@ -672,7 +674,8 @@ public static class JpegliEncoder
         JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor, int restartInterval,
         AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, CancellationToken cancellationToken,
         EntropyTokens? tokens, long[][]? dcFrequencies, long[][]? acFrequencies,
-        BitWriter? writer = null, HuffmanCodingPlan.ScanCoding? coding = null)
+        BitWriter? writer = null, HuffmanCodingPlan.ScanCoding? coding = null,
+        KernelPreference narrowZigZagKernel = KernelPreference.Automatic)
     {
         // This path is entered only for a validated full three-component scan,
         // whose component order is 0,1,2. Hoist immutable component state out of
@@ -697,7 +700,8 @@ public static class JpegliEncoder
             JpegComponentSampling factor = sampling[component];
             var quantizer = Quantization.PreparedTable.Create(tables[component], component, distance,
                 adaptiveQuantization: adaptive is not null,
-                adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component]);
+                adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
+                narrowZigZagKernel: narrowZigZagKernel);
             components[component] = new(factor.Horizontal, factor.Vertical,
                 (width * factor.Horizontal + mcuWidth - 1) / mcuWidth,
                 (height * factor.Vertical + mcuHeight - 1) / mcuHeight,
