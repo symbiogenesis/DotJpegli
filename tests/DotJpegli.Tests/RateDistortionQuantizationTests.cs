@@ -134,20 +134,20 @@ public sealed class RateDistortionQuantizationTests
         short[] original = (short[])block.Clone();
         foreach (double lambda in new[] { -1, double.NaN, double.PositiveInfinity, double.NegativeInfinity })
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => RateDistortionQuantization.Optimize(natural, table, block, lambda, false));
+            _ = Assert.Throws<ArgumentOutOfRangeException>(() => RateDistortionQuantization.Optimize(natural, table, block, lambda, false));
             Assert.Equal(original, block);
         }
         foreach (float invalid in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
         {
             natural[63] = invalid;
-            Assert.Throws<ArgumentException>(() => RateDistortionQuantization.Optimize(natural, table, block, 1, false));
+            _ = Assert.Throws<ArgumentException>(() => RateDistortionQuantization.Optimize(natural, table, block, 1, false));
             Assert.Equal(original, block);
         }
         natural[63] = 0;
         foreach (ushort invalid in new ushort[] { 0, 256, ushort.MaxValue })
         {
             table[63] = invalid;
-            Assert.Throws<ArgumentException>(() => RateDistortionQuantization.Optimize(natural, table, block, 1, false));
+            _ = Assert.Throws<ArgumentException>(() => RateDistortionQuantization.Optimize(natural, table, block, 1, false));
             Assert.Equal(original, block);
         }
         table[63] = 1;
@@ -155,15 +155,15 @@ public sealed class RateDistortionQuantizationTests
         {
             block[63] = invalid;
             short[] before = (short[])block.Clone();
-            Assert.Throws<ArgumentException>(() => RateDistortionQuantization.Optimize(natural, table, block, 1, false));
-            Assert.Throws<ArgumentException>(() => RateDistortionQuantization.EstimateAcBits(block, false));
+            _ = Assert.Throws<ArgumentException>(() => RateDistortionQuantization.Optimize(natural, table, block, 1, false));
+            _ = Assert.Throws<ArgumentException>(() => RateDistortionQuantization.EstimateAcBits(block, false));
             Assert.Equal(before, block);
         }
         block[63] = 3;
-        Assert.Throws<ArgumentException>(() => RateDistortionQuantization.Optimize(natural.AsSpan(0, 63), table, block, 1, false));
-        Assert.Throws<ArgumentException>(() => RateDistortionQuantization.Optimize(natural, table.AsSpan(0, 63), block, 1, false));
-        Assert.Throws<ArgumentException>(() => RateDistortionQuantization.Optimize(natural, table, block.AsSpan(0, 63), 1, false));
-        Assert.Throws<ArgumentException>(() => RateDistortionQuantization.EstimateAcBits(block.AsSpan(0, 63), false));
+        _ = Assert.Throws<ArgumentException>(() => RateDistortionQuantization.Optimize(natural.AsSpan(0, 63), table, block, 1, false));
+        _ = Assert.Throws<ArgumentException>(() => RateDistortionQuantization.Optimize(natural, table.AsSpan(0, 63), block, 1, false));
+        _ = Assert.Throws<ArgumentException>(() => RateDistortionQuantization.Optimize(natural, table, block.AsSpan(0, 63), 1, false));
+        _ = Assert.Throws<ArgumentException>(() => RateDistortionQuantization.EstimateAcBits(block.AsSpan(0, 63), false));
         Assert.Equal(original, block);
     }
 

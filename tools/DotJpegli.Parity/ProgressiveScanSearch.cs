@@ -8,7 +8,7 @@ using System.Security.Cryptography;
 // runtime do not perform this search, and candidates share no coefficient state.
 internal static class ProgressiveScanSearch
 {
-    private static IReadOnlyList<int> AllComponents { get; } = Array.AsReadOnly<int>([0, 1, 2]);
+    private static IReadOnlyList<int> AllComponents { get; } = Array.AsReadOnly([0, 1, 2]);
 
     internal sealed record ScanCandidate(string Id, IReadOnlyList<JpegScan>? Script, bool OptimizeHuffmanTables,
         int HuffmanTableLimit = 0)
@@ -123,7 +123,7 @@ internal static class ProgressiveScanSearch
             {
                 foreach (int component in order)
                 {
-                    script.Add(new(Array.AsReadOnly<int>([component]), start, end, high, low));
+                    script.Add(new(Array.AsReadOnly([component]), start, end, high, low));
                 }
                 start = end + 1;
             }
