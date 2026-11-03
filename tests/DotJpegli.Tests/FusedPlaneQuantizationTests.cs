@@ -252,6 +252,25 @@ public sealed class FusedPlaneQuantizationTests
             }
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void ForcedNarrowTablePreferencesPreserveQuantizedCoefficients(int preference)
+    {
+        ushort[] divisors = Enumerable.Range(0, 64).Select(index => (ushort)(index % 17 + 1)).ToArray();
+        float[] coefficients = Enumerable.Range(0, 64)
+            .Select(index => (index % 2 == 0 ? -1f : 1f) * (index * 15f + 0.5f) * divisors[index]).ToArray();
+        foreach (bool adaptive in new[] { false, true })
+        {
+            var table = Quantization.PreparedTable.Create(divisors, 0, 4f,
+                adaptiveQuantization: adaptive,
+                adaptiveMultipliers: Enumerable.Range(0, 64).Select(index => index * 0.1875f).ToArray(),
+                narrowZigZagKernel: (KernelPreference)preference);
+            foreach (float strength in new[] { 0f, 0.625f, 4f })
+                AssertTransposed(coefficients, table, strength);
+        }
+    }
+
     [Fact]
     public void ConservativeAcSuppressionPreservesDivisionBoundariesForEveryDivisor()
     {

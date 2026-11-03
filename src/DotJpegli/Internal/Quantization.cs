@@ -599,7 +599,9 @@ internal static class Quantization
             table.AcOffset, adaptiveStrength, adaptive, dc: false, ref valid);
         if (!valid)
             return false;
-        if (Vector512.IsHardwareAccelerated)
+        // Explicit narrow-kernel diagnostics must exercise their selected
+        // network even when this host can use the automatic wide path.
+        if (Vector512.IsHardwareAccelerated && table.NarrowZigZagKernel == KernelPreference.Automatic)
             StoreTransposedZigZag512(q0, q1, q2, q3, q4, q5, q6, q7, output);
         else
             StoreTransposedZigZag128(q0, q1, q2, q3, q4, q5, q6, q7, output, table.NarrowZigZagKernel);
