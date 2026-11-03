@@ -186,12 +186,12 @@ public sealed class IptcMetadata
             }
         }
 
-        if (!utf8 && values.Count != 0 && this.datasets.Any(entry => entry.Record == 8))
+        if (!utf8 && this.datasets.Any(entry => entry.Record == 8))
         {
             throw new InvalidOperationException("Adding a character-set designation could relabel existing object-record data.");
         }
         // All copying and validation precede mutation so failed text edits are atomic.
-        if (!utf8 && values.Count != 0)
+        if (!utf8)
         {
             this.SetValues(1, 90, [(ReadOnlyMemory<byte>)Utf8Designation.ToArray()]);
         }
@@ -206,18 +206,22 @@ public sealed class IptcMetadata
 
     private bool GetTextEncoding()
     {
-        Dataset[] designations = this.datasets.Where(entry => entry.Record == 1 && entry.Number == 90).ToArray();
-        if (designations.Length == 0)
+        bool found = false;
+        foreach (Dataset entry in this.datasets)
         {
-            return false;
-        }
+            if (entry.Record != 1 || entry.Number != 90)
+            {
+                continue;
+            }
 
-        if (designations.Length != 1 || !designations[0].Value.Span.SequenceEqual(Utf8Designation))
-        {
-            throw new InvalidOperationException("IPTC text requires one ESC % G UTF-8 designation, or no designation for ASCII.");
-        }
+            if (found || !entry.Value.Span.SequenceEqual(Utf8Designation))
+            {
+                throw new InvalidOperationException("IPTC text requires one ESC % G UTF-8 designation, or no designation for ASCII.");
+            }
 
-        return true;
+            found = true;
+        }
+        return found;
     }
 
     private static string DecodeText(ReadOnlySpan<byte> value, bool utf8)
