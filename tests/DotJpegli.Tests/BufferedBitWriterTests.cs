@@ -168,6 +168,69 @@ public sealed class BufferedBitWriterTests
         }
     }
 
+    [Fact]
+    public void EveryStuffingMaskPreservesBytesAndDrainBoundariesWithOneThroughSeventeenBytesFree()
+    {
+        for (int free = 1; free <= 17; free++)
+        {
+            byte[] prefix = CreatePrefix(4096 - free);
+            byte[] stuffedPrefix = StuffBytes(prefix);
+            for (int mask = 0; mask < 256; mask++)
+            {
+                byte[] word = CreateWord(mask);
+                byte[] expected = [.. stuffedPrefix, .. StuffBytes(word)];
+                using var actual = new ObservedStream();
+                var writer = new BitWriter(actual, buffered: true);
+                WriteBytes(writer, prefix);
+                Assert.Equal(0, actual.Length);
+                WriteBytes(writer, word);
+                Assert.Equal(FirstWordDrainLength(stuffedPrefix.Length, word), actual.Length);
+                writer.Flush();
+                Assert.Equal(expected, actual.ToArray());
+                Assert.Equal(0, actual.ByteWrites);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(int.MaxValue)]
+    public void StuffedWordFailuresPreserveTheSameWriteAndAcceptedPrefix(int acceptedBytes)
+    {
+        for (int free = 1; free <= 17; free++)
+        {
+            byte[] prefix = CreatePrefix(4096 - free);
+            byte[] stuffedPrefix = StuffBytes(prefix);
+            foreach (int mask in new int[] { 0, 1, 0x80, 0x55, 0xfe, 0xff })
+            {
+                byte[] word = CreateWord(mask);
+                byte[] expected = [.. stuffedPrefix, .. StuffBytes(word)];
+                int drainLength = FirstWordDrainLength(stuffedPrefix.Length, word);
+                int failedLength = drainLength == 0 ? expected.Length : drainLength;
+                using var output = new ObservedStream
+                {
+                    Failure = new IOException("Injected partial entropy write failure."),
+                    BytesAcceptedOnFailure = acceptedBytes,
+                };
+                var writer = new BitWriter(output, buffered: true);
+                WriteBytes(writer, prefix);
+                bool wordCompleted = false;
+                IOException error = Assert.Throws<IOException>(() =>
+                {
+                    WriteBytes(writer, word);
+                    wordCompleted = true;
+                    writer.Flush();
+                });
+                Assert.Same(output.Failure, error);
+                Assert.Equal(drainLength == 0, wordCompleted);
+                Assert.Equal(expected.AsSpan(0, failedLength).ToArray(), output.FailedWrite);
+                Assert.Equal(expected.AsSpan(0, Math.Min(acceptedBytes, failedLength)).ToArray(), output.ToArray());
+                Assert.True(output.CanWrite);
+            }
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -194,6 +257,75 @@ public sealed class BufferedBitWriterTests
         Assert.True(output.CanWrite);
     }
 
+    private static byte[] CreatePrefix(int stuffedLength)
+    {
+        // Complete words keep the bit accumulator empty. Stuffing in the first
+        // word selects every final output-buffer offset without a flush.
+        int extraBytes = stuffedLength & 7;
+        byte[] prefix = new byte[stuffedLength - extraBytes];
+        prefix.AsSpan().Fill(0x42);
+        prefix.AsSpan(0, extraBytes).Fill(0xff);
+        return prefix;
+    }
+
+    private static byte[] CreateWord(int mask)
+    {
+        byte[] word = [0xfe, 0, 0x7f, 0x80, 1, 0xfe, 0, 0x42];
+        for (int index = 0; index < word.Length; index++)
+        {
+            if ((mask & (1 << index)) != 0)
+            {
+                word[index] = 0xff;
+            }
+        }
+
+        return word;
+    }
+
+    private static byte[] StuffBytes(byte[] bytes)
+        => bytes.SelectMany(value => value == 0xff ? new byte[] { 0xff, 0 } : [value]).ToArray();
+
+    private static void WriteBytes(BitWriter writer, byte[] bytes)
+    {
+        foreach (byte value in bytes)
+        {
+            writer.WriteBits(value, 8);
+        }
+    }
+
+    private static int FirstWordDrainLength(int prefixLength, byte[] word)
+    {
+        if (!word.Contains((byte)0xff))
+        {
+            // The established whole-word path reserves eight bytes at once.
+            if (prefixLength > 4096 - 8)
+            {
+                return prefixLength;
+            }
+
+            return prefixLength + 8 == 4096 ? 4096 : 0;
+        }
+
+        // The established stuffing boundary reserves a possible byte pair
+        // before each byte, and drains immediately when the buffer is full.
+        int count = prefixLength;
+        foreach (byte value in word)
+        {
+            if (count > 4096 - 2)
+            {
+                return count;
+            }
+
+            count += value == 0xff ? 2 : 1;
+            if (count == 4096)
+            {
+                return count;
+            }
+        }
+
+        return 0;
+    }
+
     private sealed class ObservedStream : Stream
     {
         private readonly MemoryStream destination = new();
@@ -202,6 +334,8 @@ public sealed class BufferedBitWriterTests
         internal int Flushes { get; private set; }
         internal int MaximumWrite { get; private set; }
         internal IOException? Failure { get; init; }
+        internal int BytesAcceptedOnFailure { get; init; }
+        internal byte[]? FailedWrite { get; private set; }
         public override bool CanRead => false;
         public override bool CanSeek => false;
         public override bool CanWrite => this.destination.CanWrite;
@@ -216,6 +350,8 @@ public sealed class BufferedBitWriterTests
         {
             if (this.Failure is not null)
             {
+                this.FailedWrite = buffer.ToArray();
+                this.destination.Write(buffer[..Math.Min(this.BytesAcceptedOnFailure, buffer.Length)]);
                 throw this.Failure;
             }
 

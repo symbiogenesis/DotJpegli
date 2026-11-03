@@ -68,6 +68,14 @@ Independent encodes own independent budgets. This policy preserves JPEG bytes
 but can change which scans are cached; it does not establish lower latency or
 peak working memory for every image.
 
+Buffered entropy output checks capacity once for a stuffed eight-byte word when
+at least sixteen bytes remain. It writes directly into the existing buffer with
+a local index. Near the boundary it retains the per-byte reservation and drain
+rules, including complete stuffing pairs and destination-failure prefixes.
+Focused tests cover every stuffing mask, one through seventeen bytes of free
+space, exact drains and partial destination failures. No staging buffer is added;
+the reduced checks still need CI latency measurements.
+
 ## Build
 
 The library targets `netstandard2.1`, `net10.0` and `net11.0`; tests and tools run

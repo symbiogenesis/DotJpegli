@@ -33,6 +33,8 @@ completed work.
   accepted rental lengths. Earlier scans acquire capacity first. Abandoning a
   scan refunds its rentals without invalidating siblings; successful replay
   releases storage early. Which scans remain cached can change with this policy.
+- Entropy words use a single capacity check for byte stuffing when sixteen
+  output bytes remain; the boundary path retains per-byte drain behavior.
 - Converted planes, fused DCT/quantization, prepared quantizers, coefficient and
   token caches, histogram planning and buffered entropy emission already have
   optimized paths. New proposals must be compared against the current encoder.
@@ -99,6 +101,7 @@ they do not prove parity for these adaptations.
 
 Profile `BitWriter.WriteEntropyTokens` and `WriteWord` before adding larger
 staging batches. The current no-`FF` path already handles eight-byte words.
+Stuffed words also share a capacity check when their maximum sixteen bytes fit.
 Compare saved branches against staging, copying and insertion costs. Preserve
 bit order, padding, restart markers, cancellation and destination-failure
 prefixes. [PJRD](https://github.com/jstankowski/PJRD) supplies a reference approach

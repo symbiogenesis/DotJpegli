@@ -263,7 +263,32 @@ internal sealed class BitWriter
             return;
         }
 
-        // The rare stuffing path retains the existing capacity and pair rules.
+        // A stuffed word needs at most sixteen bytes. When all of them fit,
+        // keep the index local and check capacity once for the complete word.
+        // The boundary path below retains the byte/pair drain rules.
+        byte[] destination = this.outputBuffer!;
+        int offset = this.outputCount;
+        if (offset <= destination.Length - 16)
+        {
+            for (int shift = 56; shift >= 0; shift -= 8)
+            {
+                byte value = (byte)(word >> shift);
+                destination[offset++] = value;
+                if (value == 0xff)
+                {
+                    destination[offset++] = 0;
+                }
+            }
+
+            this.outputCount = offset;
+            if (offset == destination.Length)
+            {
+                this.DrainOutput();
+            }
+
+            return;
+        }
+
         this.WriteByte((byte)(word >> 56));
         this.WriteByte((byte)(word >> 48));
         this.WriteByte((byte)(word >> 40));
