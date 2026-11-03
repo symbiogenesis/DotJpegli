@@ -57,6 +57,12 @@ completed work.
 - Progressive refinement correction bits fill up to 24 bits per cached raw token.
   Direct emission retains its existing grouping; fewer token records can keep
   more corrections within the unchanged shared rental budget.
+- Opt-in parallel encoding replays complete cached-token scans at existing
+  restart boundaries using the scan's global Huffman tables. At most 32 segments
+  use 4 MiB of accepted pooled staging plus bounded worker scratch. Segments
+  exceeding that budget and uncached scans retain serial emission. Destination
+  writes remain on the caller's thread in their original order and sizes;
+  no restart markers are added. Latency and peak memory remain unmeasured.
 - Kernel diagnostics include deterministic controls below, at and above the
   32,768-pixel guard, an 8-by-4,096 tall image and 64K/128K intermediate images.
   They run in bounded sequential selections within the optional CI kernel
@@ -169,14 +175,9 @@ to parallel encoding and SIMD stuffing, not measured DotJpegli gains.
 
 ## Architectural candidates
 
-### Parallel entropy coding
+### Entropy parallelism without restart boundaries
 
-Start with restart boundaries already requested by the caller: build global
-Huffman tables, encode independent segments into bounded pooled buffers and
-concatenate in order. Preserve bytes for identical restart settings and account
-for additional buffers. Adding restarts solely for threading can increase size.
-
-A later baseline-only design could emit unstuffed bit chunks, merge at bit
+A baseline-only design could emit unstuffed bit chunks, merge at bit
 boundaries and stuff bytes without new restarts. Correct preceding DC predictors
 are required. Progressive EOB runs and correction-bit dependencies need a
 separate design.

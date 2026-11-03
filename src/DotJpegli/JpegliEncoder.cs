@@ -702,6 +702,8 @@ public static class JpegliEncoder
             emptyTables, emptyTables, options, extendedXmp, cancellationToken, rgb: pixels.IsRgb,
             writeHuffmanTables: false, extendedHuffman: plan.RequiresExtendedSequential);
         var bits = new BitWriter(output, buffered: true);
+        int workerLimit = options.MaxDegreeOfParallelism == -1
+            ? Environment.ProcessorCount : options.MaxDegreeOfParallelism;
         int lastRestartInterval = 0;
         for (int scanIndex = 0; scanIndex < scans.Length; scanIndex++)
         {
@@ -719,7 +721,10 @@ public static class JpegliEncoder
             JpegMarkerWriter.WriteScanHeader(output, scan, options.Progressive, pixels.IsRgb, coding.Selectors);
             if (tokenScans?[scanIndex] is { IsComplete: true } scanTokens)
             {
-                scanTokens.Replay(bits, coding, cancellationToken);
+                if (!scanTokens.TryReplayParallel(output, coding, workerLimit, cancellationToken))
+                {
+                    scanTokens.Replay(bits, coding, cancellationToken);
+                }
                 scanTokens.Dispose();
             }
             else if (streamSequential)

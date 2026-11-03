@@ -355,12 +355,15 @@ public sealed record JpegliEncoderOptions
     public bool OptimizeHuffmanTables { get; init; } = true;
 
     /// <summary>
-    /// Maximum concurrent workers for pixel conversion, downsampling and the DCT.
+    /// Maximum concurrent workers for pixel conversion, downsampling, the DCT and
+    /// cached optimized-Huffman entropy segments separated by requested restarts.
     /// One (the default) keeps serial execution; -1 uses
     /// the processor count, and positive values set a worker limit. Zero and values
     /// below -1 are invalid. Parallel execution shares cached converted samples or
     /// copies the consumed source storage once, and buffers one MCU row of DCT coefficients. Adaptive analysis,
-    /// quantization and entropy output remain ordered, preserving serial JPEG bytes.
+    /// quantization and destination writes remain ordered, preserving serial JPEG bytes.
+    /// Parallel entropy replay uses bounded pooled staging; uncached scans and
+    /// oversized segments retain serial emission. No restart markers are added.
     /// Encoding is synchronous and all workers finish before it returns.
     /// </summary>
     public int MaxDegreeOfParallelism { get; init; } = 1;

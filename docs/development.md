@@ -104,6 +104,27 @@ Independent encodes own independent budgets. This policy preserves JPEG bytes
 but can change which scans are cached; it does not establish lower latency or
 peak working memory for every image.
 
+With `MaxDegreeOfParallelism` greater than one, complete cached-token scans can
+replay independent segments at caller-requested restart boundaries in parallel.
+The histogram pass still builds global Huffman tables before emission, and
+progressive EOB runs and correction bits stop at each restart. Workers use
+private buffered bit writers, preserving the serial padding and byte stuffing.
+The caller concatenates their output and emits the original restart markers.
+Workers record each bit-writer drain, so destination writes retain their original
+sizes, order and calling thread, including destination-failure prefixes.
+
+A batch has at most 32 segment slots and 4 MiB of accepted pooled staging,
+accounting actual rental lengths, in addition to at most 32 private 4 KiB writer
+buffers, at most 12 KiB of additional lookup staging and fixed batch metadata.
+Oversized rentals are immediately returned; oversized segments use serial
+replay. The range cursor crosses token rentals
+without allocating an image-sized restart index. Uncached scans and scans
+without restarts retain serial replay. All workers finish before emission or
+cleanup, and rentals are returned on success, cancellation and failure. This
+resolves parallel coding at existing restart boundaries; it does not establish
+a latency or peak-memory improvement. Parallel coding without restarts remains
+separate work.
+
 Single-context entropy-token replay reads the table's immutable prepared lookup
 directly, avoiding a stack clear and copy for that scan. Bulk and strict replay
 use the same context-relative index; raw bits and restart markers retain their

@@ -8,7 +8,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 
 /// <summary>Bounded pooled entropy decisions retained between histogram collection and emission.</summary>
-internal sealed class EntropyTokens : IDisposable
+internal sealed partial class EntropyTokens : IDisposable
 {
     // Preserve the original 32KB initial and 512KB maximum rental sizes.
     private const int DefaultSegmentLength = 8192;
@@ -29,6 +29,7 @@ internal sealed class EntropyTokens : IDisposable
     private uint[]? current;
     private int currentCount;
     private long rentedBytes;
+    private bool hasRestart;
 
     internal EntropyTokens(long maximumBytes = EntropyTokenBudget.DefaultMaximumBytes, int huffmanContextMask = 63)
         : this(new EntropyTokenBudget(maximumBytes), huffmanContextMask)
@@ -108,6 +109,7 @@ internal sealed class EntropyTokens : IDisposable
     internal void AddRestart(int index)
     {
         Debug.Assert((uint)index < 8);
+        this.hasRestart = true;
         this.Add(RestartContext | (uint)index);
     }
 
@@ -227,12 +229,20 @@ internal sealed class EntropyTokens : IDisposable
 
     private void ReplayWithLookups(BitWriter writer, HuffmanCodingPlan.ScanCoding coding,
         ReadOnlySpan<ulong> lookups, int lookupOffset, CancellationToken cancellationToken)
+        => this.ReplayRangeWithLookups(writer, coding, lookups, lookupOffset,
+            default, new TokenPosition(this.segments.Count, 0), cancellationToken);
+
+    private void ReplayRangeWithLookups(BitWriter writer, HuffmanCodingPlan.ScanCoding coding,
+        ReadOnlySpan<ulong> lookups, int lookupOffset, TokenPosition start, TokenPosition endPosition,
+        CancellationToken cancellationToken)
     {
-        for (int segmentIndex = 0; segmentIndex < this.segments.Count; segmentIndex++)
+        for (int segmentIndex = start.Segment; segmentIndex < this.segments.Count && segmentIndex <= endPosition.Segment; segmentIndex++)
         {
             uint[] segment = this.segments[segmentIndex];
-            int length = segmentIndex == this.segments.Count - 1 ? this.currentCount : segment.Length;
-            for (int chunk = 0; chunk < length; chunk += 256)
+            int length = segmentIndex == endPosition.Segment ? endPosition.Offset
+                : segmentIndex == this.segments.Count - 1 ? this.currentCount : segment.Length;
+            int first = segmentIndex == start.Segment ? start.Offset : 0;
+            for (int chunk = first; chunk < length; chunk += 256)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 int end = Math.Min(chunk + 256, length);
