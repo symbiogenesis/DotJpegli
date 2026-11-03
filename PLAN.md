@@ -20,8 +20,9 @@ dependency-free runtime contract. It covers three bounded changes:
 3. Reuse bounded adaptive-quantization workspace and row strengths, with clear
    ownership and cleanup on success, cancellation and exceptions.
 
-These three implementation tasks are complete locally. The focused checks below
-pass; measured performance remains pending the single planned automatic CI run.
+These three implementation tasks are complete. Focused local checks and the
+first automatic run's full tests pass. Normal-dispatch measurements are recorded
+below; corrected narrow-SIMD validation is pending its automatic push run.
 Larger architectural changes and quality-changing experiments remain pending.
 
 ## Evidence and constraints
@@ -308,10 +309,30 @@ cancellation and I/O errors. No local benchmark or full suite was run.
 
 ### CI measurement
 
-Pending: the final `[compare-baseline]` commit requests the expanded 32-case
-comparison in its normal automatic push workflow. Both normal dispatch and the
-AVX2-limited pair use baseline `2ef3d5f`, matching JPEG hashes and allocation
-normalization. Full suites, fallback checks, deployment and reproducibility stay
-in their existing CI jobs. Results must distinguish fewer operations and lower
-allocations from measured wall-time improvement, and distinguish baseline gains
-from existing native-performance acceptance failures.
+[Automatic run 41578440598](https://github.com/symbiogenesis/DotJpegli/actions/runs/41578440598)
+tests `2fa9afe`. All six Windows/Linux full-suite lanes, fallback checks,
+deployment and reproducibility checks pass. Normal-dispatch evidence on AMD
+EPYC 9V45 / .NET 11 RC3 covers all 32 selected cases, with matching baseline and
+current JPEG hashes. Allocated bytes per encode fall in every case, by about
+4.1-47.7% relative to `2ef3d5f`.
+
+Latency is mixed. Low-contrast, low-noise and tiny-image groups use roughly
+1.1-1.4% less time by geometric mean. The Kodak01 group is about 8.5% slower:
+two progressive 4:2:0 cases are 42-47% slower while their native comparisons
+also drift 27-33%. This noninterleaved diagnostic does not establish a uniform
+speed improvement or isolate which change affects an individual case.
+Existing managed/native latency bounds still fail.
+
+The run's intended narrow-SIMD pair actually retained AVX-512. The guard rejected
+that report correctly: `DOTNET_EnableAVX512F` is an obsolete switch name for
+this runtime. The correction uses .NET 11's documented `DOTNET_EnableAVX512=0`
+and still requires actual accelerated 256-bit SIMD, disabled 512-bit SIMD, and
+eight float lanes in both evidence sets. Its next automatic `[compare-baseline]`
+push run is required before claiming measured narrow-ordering improvement; no
+manual duplicate workflow is dispatched.
+
+The `performance-baseline-2fa9afe53325be785bd638c7c4448598d308cb9f` artifact
+retains raw baseline evidence, both attempted narrow evidence sets and the normal
+comparison report. The normal current evidence is in the corresponding
+`performance-targeted` artifact. Allocation totals exclude retained pool capacity
+and do not establish lower peak working memory.
