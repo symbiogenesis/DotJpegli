@@ -682,35 +682,17 @@ internal static class ProgressiveEntropyEncoder
     private static void WriteReservedCorrectionBits(ReadOnlySpan<byte> corrections, Span<uint> destination, ref int count)
     {
         const uint rawContext = 6U << 24;
-        while (corrections.Length >= 32)
+        while (corrections.Length >= 24)
         {
-            uint packed = (PackCorrectionByte(corrections) << 24)
-                | (PackCorrectionByte(corrections[8..]) << 16)
-                | (PackCorrectionByte(corrections[16..]) << 8)
-                | PackCorrectionByte(corrections[24..]);
-            // AddBits stores a 32-bit correction group as these same two
-            // records. Retain its exact prefix and pooled-budget behavior.
-            destination[count++] = rawContext | (24U << 27) | (packed >> 8);
-            destination[count++] = rawContext | (8U << 27) | (packed & 255U);
-            corrections = corrections[32..];
-        }
-        while (corrections.Length >= 8)
-        {
-            destination[count++] = rawContext | (8U << 27) | PackCorrectionByte(corrections);
-            corrections = corrections[8..];
+            destination[count++] = rawContext | (24U << 27) | PackCorrection24(corrections);
+            corrections = corrections[24..];
         }
         if (corrections.IsEmpty)
         {
             return;
         }
 
-        uint remainder = 0;
-        foreach (byte correction in corrections)
-        {
-            remainder = (remainder << 1) | correction;
-        }
-
-        destination[count++] = rawContext | ((uint)corrections.Length << 27) | remainder;
+        destination[count++] = rawContext | ((uint)corrections.Length << 27) | PackCorrectionRemainder(corrections);
     }
 
     private static void ClassifyOrderedCoefficients(ReadOnlySpan<short> coefficients, int successiveLow,
@@ -821,8 +803,24 @@ internal static class ProgressiveEntropyEncoder
 
     private static void WriteCorrectionBits(BitWriter? writer, ReadOnlySpan<byte> corrections, EntropyTokens? tokens = null)
     {
-        if (writer is null && tokens?.IsComplete != true)
+        if (writer is null)
         {
+            if (tokens?.IsComplete == true)
+            {
+                // Raw records hold 24 payload bits. Fill each record directly
+                // instead of splitting 32-bit groups into 24+8 and recording
+                // the remaining whole bytes separately. Both token paths use
+                // the same partition; the direct writer keeps its grouping.
+                while (corrections.Length >= 24)
+                {
+                    tokens.AddBits(PackCorrection24(corrections), 24);
+                    corrections = corrections[24..];
+                }
+                if (!corrections.IsEmpty)
+                {
+                    tokens.AddBits(PackCorrectionRemainder(corrections), corrections.Length);
+                }
+            }
             return;
         }
         // Eight bytes containing one bit each can be gathered with a multiply.
@@ -834,12 +832,12 @@ internal static class ProgressiveEntropyEncoder
                 | (PackCorrectionByte(corrections[8..]) << 16)
                 | (PackCorrectionByte(corrections[16..]) << 8)
                 | PackCorrectionByte(corrections[24..]);
-            WriteRawBits(writer, tokens, packed, 32);
+            writer.WriteBits(packed, 32);
             corrections = corrections[32..];
         }
         while (corrections.Length >= 8)
         {
-            WriteRawBits(writer, tokens, PackCorrectionByte(corrections), 8);
+            writer.WriteBits(PackCorrectionByte(corrections), 8);
             corrections = corrections[8..];
         }
         if (corrections.IsEmpty)
@@ -852,19 +850,27 @@ internal static class ProgressiveEntropyEncoder
         {
             remainder = (remainder << 1) | correction;
         }
-        WriteRawBits(writer, tokens, remainder, corrections.Length);
+        writer.WriteBits(remainder, corrections.Length);
     }
 
-    private static void WriteRawBits(BitWriter? writer, EntropyTokens? tokens, uint bits, int count)
+    private static uint PackCorrection24(ReadOnlySpan<byte> corrections)
+        => (PackCorrectionByte(corrections) << 16)
+            | (PackCorrectionByte(corrections[8..]) << 8)
+            | PackCorrectionByte(corrections[16..]);
+
+    private static uint PackCorrectionRemainder(ReadOnlySpan<byte> corrections)
     {
-        if (writer is not null)
+        uint packed = 0;
+        while (corrections.Length >= 8)
         {
-            writer.WriteBits(bits, count);
+            packed = (packed << 8) | PackCorrectionByte(corrections);
+            corrections = corrections[8..];
         }
-        else
+        foreach (byte correction in corrections)
         {
-            tokens!.AddBits(bits, count);
+            packed = (packed << 1) | correction;
         }
+        return packed;
     }
 
     private static uint PackCorrectionByte(ReadOnlySpan<byte> corrections)
