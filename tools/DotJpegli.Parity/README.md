@@ -121,3 +121,64 @@ Focused local validation is available through the `ProgressiveScanSearchTests`,
 `ProgressiveScanSearchCommandTests` and `HuffmanTableLimitTests` test classes.
 These use small correctness fixtures without timing measurements; full suites
 and corpus measurements remain CI-only.
+
+## Bounded quantization-table search
+
+Use the opt-in offline search with the pinned native wrapper as the common RGB8
+decoder:
+
+```text
+dotnet DotJpegli.Parity.dll --search-quantization-tables --input /absolute/image.ppm --output /absolute/new-search-directory --native /absolute/jpegli-parity-native --distance 1 --sampling 420
+```
+
+The input is binary P6 RGB8, distance is finite and greater than zero through 25,
+sampling is 444 or 420, and the output directory must not exist. This command
+searches baseline sequential YCbCr with AQ, optimized Huffman coding, baseline
+quantizers and one encoder worker. It adds no public encoder API. Run corpus
+compression and performance experiments only on CI.
+
+The family starts from the existing distance-derived Y, Cb and Cr tables. DC
+entries stay fixed. Three AC bands, in JPEG zigzag order, cover positions 1..5,
+6..20 and 21..63. Each band independently scales by 0.8, 1 or 1.25 for luma and
+for chroma together, rounding and clamping entries to 1..255. Cb and Cr retain
+their distinct starting tables. The six choices give 729 joint configurations.
+
+A single traversal of real component blocks computes DCT coefficients and caches
+18 group/band/scale costs. Screening uses squared coefficient reconstruction
+error and an estimated magnitude/nonzero bit cost. These are surrogates: they
+omit AQ thresholds, run lengths, optimized Huffman assignments, stuffing and
+headers. Candidate costs combine cached band costs; the search does not encode
+729 images or retain an image-sized coefficient workspace.
+
+The shortlist includes the unchanged default encoding first, followed by up to
+four best candidates for each of four normalized distortion/rate weights
+(0.25, 0.5, 1 and 2), with duplicates removed. At most 17 complete JPEGs are encoded
+and decoded serially. For distortion cost D, rate cost R and weight lambda,
+the screening score is D/max(Dcontrol,1) + lambda*R/max(Rcontrol,1). Stable
+candidate enumeration resolves equal scores. Every finalist runs the real
+encoder, including AQ and its table-derived thresholds, Huffman optimization,
+entropy coding and headers.
+Ranking uses actual complete JPEG bytes. A finalist is eligible only if both
+decoded RGB PSNR and luma SSIM meet the default control's scores. The first
+minimum wins ties. The selected JPEG therefore never exceeds the control's size
+and meets both measured quality floors with this decoder; these checks do not
+establish perceptual equivalence, a global optimum or a corpus-wide gain.
+
+`winner.jpg` contains the selected output. `search.json` (schema 1) retains the
+source/pixel, encoder and decoder identities, base tables, cached costs, every
+joint configuration's tables and screening scores, all exact trials including
+quality rejections, JPEG/decoded hashes and the winner. `report.md` gives the
+exact finalists and selection rule. Source DCT block counts, cached costs,
+screened combinations, complete encodes/decodes and logical entropy passes
+include discarded work. They are operation counts, not latency, allocation,
+rental-capacity or peak-memory measurements. Only the current and winning JPEG
+are retained during the serial search, alongside bounded candidate metadata.
+
+Reproduce a finalist using its three natural-order tables with
+`JpegliEncoderOptions.QuantizationTables` and the report's fixed settings. The
+control uses the default distance-derived tables. There is no target-byte API
+or promised output size; every reported finalist size comes from a real encode.
+Focused local checks use `QuantizationTableSearchTests` and
+`QuantizationTableSearchCommandTests`, with small correctness fixtures and an
+independent managed decoder in tests. Native-decoder corpus results remain
+CI-only.

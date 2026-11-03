@@ -142,6 +142,19 @@ and selectors. All candidate encodes and logical histogram/emission/replay scan
 passes are counted, including discarded candidates. These counts exclude
 coefficient preparation and do not establish CPU time or peak working memory.
 
+The optional [offline quantization-table search](../tools/DotJpegli.Parity/README.md#bounded-quantization-table-search)
+caches independent per-band coefficient costs in one bounded DCT traversal and
+screens 729 joint Y/chroma table configurations. DC is fixed; three AC bands
+vary independently for Y and paired Cb/Cr, retaining distinct chroma base tables.
+The surrogate omits AQ and coupled entropy costs. At most 17 finalists use
+complete default-policy baseline AQ/Huffman encodes and a common pinned native
+decoder. Only outputs meeting the default control's RGB PSNR and local luma SSIM
+scores can replace it, and actual complete JPEG size decides the winner.
+Reports retain all costs, tables, exact trials and hashes. Focused tests check
+cached costs against an independent cosine-DCT oracle and reproduce every exact
+finalist with an independent managed decoder. This tool adds no public API or
+runtime dependency; corpus measurements and all benchmarks remain CI-only.
+
 ## Build
 
 The library targets `netstandard2.1`, `net10.0` and `net11.0`; tests and tools run

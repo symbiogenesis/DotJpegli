@@ -78,6 +78,15 @@ completed work.
   final real coefficients fixed, includes the existing level-2 control, retains
   every candidate's size, script and table selectors, and charges all encode and
   logical entropy passes. It makes no global optimum or latency claim.
+- The opt-in [offline quantization-table search](tools/DotJpegli.Parity/README.md#bounded-quantization-table-search)
+  caches 18 band-option costs in one DCT traversal and screens 729 joint
+  luma/chroma table configurations. At most 17 finalists are completely encoded
+  with AQ and optimized Huffman coding and decoded by the pinned native wrapper.
+  The smallest complete JPEG meeting both control PSNR and SSIM scores wins,
+  with the unchanged default control included first. Reports retain all tables,
+  surrogate costs, exact trials, rejections, hashes and operation counts. This is
+  a bounded offline experiment, without a global optimum, visual-quality or
+  corpus-wide compression claim.
 
 These mechanisms have focused numerical, byte-parity, ownership and failure-path
 regressions. They do not establish a latency or peak-working-memory benefit for
@@ -178,13 +187,6 @@ without source ICC do not establish a benefit.
   AC coefficient searches over distortion plus estimated run/category cost.
   Use current AQ and optimized Huffman coding as the control. Compare matched
   quality and matched size with multiple metrics; account for added CPU work.
-- **Offline quantization-table optimization:** Cache per-band candidate costs,
-  search luma/chroma tables jointly and exact-encode finalists. Run lengths,
-  Huffman tables, AQ, stuffing and headers are not separable. A target-bytes API
-  would require a separate opt-in design and actual-size verification.
-  [RDOEA](https://www.sciencedirect.com/science/article/pii/S0950705122002143) and
-  [RDOEA_FR](https://www.sciencedirect.com/science/article/pii/S1568494626001456)
-  provide candidate search techniques.
 - **Faster offline perceptual objectives:** Screen candidates with reusable
   reference features or faster metrics, then validate finalists with the
   reference perceptual metric and existing PSNR/SSIM checks. Faster metric
