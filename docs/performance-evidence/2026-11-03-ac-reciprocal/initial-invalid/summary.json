@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "completed": true,
+  "rows": 14,
+  "validRows": 0,
+  "originalPreferred": 0,
+  "candidatePreferred": 0,
+  "decision": "Retain production division. Assess only valid rows; invalid/inconclusive rows establish no speed result. This bounded prototype does not reject every possible reciprocal algorithm.",
+  "acceptanceVerdict": "not-evaluated"
+}

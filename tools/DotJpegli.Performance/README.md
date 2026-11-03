@@ -1,5 +1,15 @@
 # Targeted performance development and full acceptance evidence
 
+The bounded `--ac-reciprocal-experiment --photograph <absolute-PPM> --output
+<empty-directory>` command researches AC quantization with prepared reciprocal
+intervals. It runs after the normal CI guard, separately from native acceptance.
+It retains machine and executable identities, exact input hashes, scalar and
+portable SIMD fallback counts, six balanced ABBA/BAAB timing quartets and the
+existing dispersion/drift/order validity checks. The
+[retained investigation](../../docs/performance-evidence/2026-11-03-ac-reciprocal/README.md)
+contains the interval proof, measurements and scope of the decision. This command
+does not change encoder dispatch or establish complete-encode performance.
+
 A normal push to `main` runs four targeted cases: `kodim01`, distance 1,
 444/420 and progression 0/2. It does not first run the 1,280-pair quality matrix
 or the 256-case performance matrix. The native executable and Kodak inputs are

@@ -57,6 +57,14 @@ completed work.
 - Parametric ICC curves prepare the exact reciprocal exponent and type 1/2
   branch threshold once. Per-pixel evaluation reuses these immutable values
   without changing power evaluation, clipping or rounding.
+- The bounded [AC reciprocal-interval investigation](docs/performance-evidence/2026-11-03-ac-reciprocal/README.md)
+  derives adjacent reciprocal bounds for every supported divisor, certifies
+  suppression and ties-to-even agreement, and retains exact scalar/SIMD division
+  for ambiguous intervals. Focused regressions verify boundaries, exceptional
+  values and output prefixes. All fourteen valid prepared-kernel comparisons on
+  the measured ARM64 host favor division despite rare fallback on image-derived
+  samples. This prototype is rejected for deployment; production division is
+  unchanged. The result does not reject every possible reciprocal algorithm.
 - Entropy-token scans share one encode-owned 64 MiB budget, accounting actual
   accepted rental lengths. Earlier scans acquire capacity first. Abandoning a
   scan refunds its rentals without invalidating siblings; successful replay
@@ -152,15 +160,9 @@ baseline/progressive output and dedicated cache-pressure workloads as relevant.
 
 ## Bounded speed and memory candidates
 
-### Rounding-aware numerical fast paths
+### AQ rounding-aware numerical fast paths
 
-Research AC quantization reciprocal intervals before changing production
-division. Derive a bound containing the existing rounded quotient, accept a
-fast result only when both bounds preserve bias comparisons and final integer
-rounding, and use exact division for ambiguous boundaries and exceptional cases.
-Measure fallback frequency and the cost of interval checks before deployment.
-
-AQ rational functions, `FastLog2` and `FastPow2` require equivalent care:
+AQ rational functions, `FastLog2` and `FastPow2` require rounding-aware equivalence:
 correctly rounded mathematical functions need not match the existing
 approximations. Preserve numerical ordering, saturation, validation and output
 prefixes. The interval proof and fallback-rate evidence remain open.

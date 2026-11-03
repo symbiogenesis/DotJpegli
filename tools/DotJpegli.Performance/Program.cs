@@ -41,6 +41,10 @@ internal static class Program
                 return 0;
             }
             RequireCi();
+            if (args.Contains("--ac-reciprocal-experiment", StringComparer.Ordinal))
+            {
+                return await AcReciprocalCommand.Run(args);
+            }
             if (args.SequenceEqual(["--revision-worker"]))
             {
                 return await RevisionWorker.Run();

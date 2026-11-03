@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "startedAtUtc": "2026-11-03T09:36:57.7564919+00:00",
+  "scope": "Prepared scalar and portable SIMD AC kernels only; no JPEG/latency/parity acceptance verdict",
+  "runtime": ".NET 11.0.0-rc.3.26522.148",
+  "architecture": "Arm64",
+  "operatingSystem": "Microsoft Windows 10.0.26300",
+  "processorCount": 18,
+  "processorAffinity": 131072,
+  "vectorLanes": 4,
+  "vectorAccelerated": true,
+  "stopwatchFrequency": 10000000,
+  "processPriority": "AboveNormal",
+  "encoderSha256": "6dfab53fb794e9d68d30cf7fbeca4d8c5ded3806d0984ed6107e1b6a0bec5a11",
+  "runnerSha256": "7b514002d23cd99f566dcafe1851eab2085c5234e3951ec0779af4fa6e53010f",
+  "policy": {
+    "warmups": 5,
+    "blocks": 6,
+    "minimumIterations": 3,
+    "maximumIterations": 16384,
+    "targetBlockMilliseconds": 50,
+    "minimumBlockMilliseconds": 1,
+    "maximumRelativeMad": 0.1,
+    "maximumGroupGeometricMeanRatio": 1.05,
+    "maximumCaseRatio": 1.1,
+    "managedWorkers": 1
+  },
+  "preCalibrationWarmupsPerVariant": 64,
+  "calibrationTargetMultiplier": 4,
+  "calibrationTargetMilliseconds": 200,
+  "preparation": "16384 deterministic AC samples per source, RGB-to-Y luminance DCT, edge replication; both distances and luma 444/420 tables; representative nonadaptive and AQ thresholds, not measured AQ strengths",
+  "timed": "finite/range validation, two endpoint products, strict suppression agreement, ties-to-even agreement and exact-division fallback; SIMD falls back a whole ambiguous batch; preparation, diagnostics and parity checks excluded",
+  "notMeasured": "DC, coefficient demotion/stores into zigzag, complete encoding, actual AQ-derived fallback distributions, allocations/peak memory, other CPUs/runtimes",
+  "inputs": [
+    {
+      "id": "photograph",
+      "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273",
+      "kernelInputSha256": "9384ac6bfd28f9d32da6b06d3dd3d582b2d30f77a5b0cdc30d2d634b1dc22680"
+    },
+    {
+      "id": "smooth-gradient",
+      "pixelsSha256": "460505161f6891eacdcac9f6529b039e34761cb3eedaff368bf465495f4233ec",
+      "kernelInputSha256": "7d344e76b65dab54156de1b745fa4fd48376ecbe123d414c6997a877207c57b7"
+    },
+    {
+      "id": "low-contrast",
+      "pixelsSha256": "aaf923606635b8f32823911ec7445a9462cd1a116e7caf2d506470d544baae0f",
+      "kernelInputSha256": "d5a7317f2262ca177f1faa75427c7ec1ce793d8d3809020d601079819b146d39"
+    },
+    {
+      "id": "low-noise",
+      "pixelsSha256": "3b3f47c3cd069bcaae7baf8e73cbdc5562251ef6e356706079ea7b1873c9e2e9",
+      "kernelInputSha256": "ea1dbcbbd72318f1a472d6dd6c4e49480bea536570793e30bc5d356e15416de1"
+    },
+    {
+      "id": "full-noise",
+      "pixelsSha256": "fbba89852b7caef21e82a30d899489fb91468608ed4ca1eb9040e902227045f3",
+      "kernelInputSha256": "778bd3e846f8c4b5150faaad2011b982e3ee86f6fc7972681a26c813ed77b6f5"
+    },
+    {
+      "id": "tiny-odd-edges",
+      "pixelsSha256": "6b6e57355be38013f49728c2c208c9c2dd7b31edc84efc48997c418a08662660",
+      "kernelInputSha256": "f6d8b5943b6dbc5aef35418afbe4c13cb6efaeb1030534b7a8a3c61baa615b75"
+    },
+    {
+      "id": "adversarial-boundaries",
+      "pixelsSha256": "generated",
+      "kernelInputSha256": "abb09565e4671fa75a0ca34817a03a0bb312c98983bef9dd0bee1f7e518bd765"
+    }
+  ]
+}

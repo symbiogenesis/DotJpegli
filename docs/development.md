@@ -20,6 +20,15 @@ use scalar fallbacks. Paths preserve scalar evaluation order,
 fused multiply-add rounding, sample normalization, averaging order and
 quantization thresholds and rounding.
 
+The offline AC reciprocal study prepares adjacent binary32 reciprocal endpoints
+using an exact binary64 product with each integer divisor. Scalar and portable
+SIMD prototypes accept only matching suppression and ties-to-even results at
+both endpoints, with original division for ambiguity. The
+[retained proof and measurements](performance-evidence/2026-11-03-ac-reciprocal/README.md)
+reject this prototype for deployment: its guard costs more than division on the
+measured host even when fallback is absent. Production quantization is unchanged;
+the research kernels live only in the performance tool and focused regressions.
+
 Eight-lane SIMD batches adaptive modulation across neighboring blocks while
 preserving each block's addition order. Complete converted-plane blocks combine
 DCT, prepared quantization, AC validation and zigzag ordering without a final
