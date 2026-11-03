@@ -227,45 +227,74 @@ internal sealed class AdaptiveQuantization
     {
         const float gammaOffset = (float)(0.019 / InputScaling);
         float maskingScale = MathF.Sqrt((float)(211.50759899638012f * 1e8));
-        for (int dy = 0; dy < 4; dy++)
-        {
-            int middle = (firstRow + dy) * lumaStride + 1;
-            int x = 0;
-            if (useVector)
-                for (; x <= paddedWidth - Vector<float>.Count; x += Vector<float>.Count)
-                {
-                    int index = middle + x;
-                    Vector<float> value = new(luma, index);
-                    Vector<float> baseValue = new Vector<float>(0.25f)
-                        * ((new Vector<float>(luma, index + 1) + new Vector<float>(luma, index - 1))
-                        + (new Vector<float>(luma, index - lumaStride) + new Vector<float>(luma, index + lumaStride)));
-                    Vector<float> diff = DerivativeRatio(value + new Vector<float>(gammaOffset), invert: false)
-                        * (value - baseValue);
-                    diff = Vector.Min(diff * diff, new Vector<float>(0.2f));
-                    diff = new Vector<float>(0.25f) * Vector.SquareRoot(diff * new Vector<float>(maskingScale) + new Vector<float>(28f));
-                    if (dy != 0)
-                        diff = new Vector<float>(difference, x) + diff;
-                    diff.CopyTo(difference, x);
-                }
-            for (; x < paddedWidth; x++)
+        int middle = firstRow * lumaStride + 1;
+        int x = 0;
+        if (useVector)
+            for (; x <= paddedWidth - Vector<float>.Count; x += Vector<float>.Count)
             {
                 int index = middle + x;
-                float value = luma[index];
-                float baseValue = 0.25f * ((luma[index + 1] + luma[index - 1])
-                    + (luma[index - lumaStride] + luma[index + lumaStride]));
-                float diff = DerivativeRatio(value + gammaOffset, invert: false) * (value - baseValue);
-                diff = MathF.Min(diff * diff, 0.2f);
-                diff = 0.25f * MathF.Sqrt(diff * maskingScale + 28f);
-                difference[x] = dy == 0 ? diff : difference[x] + diff;
+                Vector<float> above = new(luma, index - lumaStride);
+                Vector<float> current = new(luma, index);
+                Vector<float> below = new(luma, index + lumaStride);
+                Vector<float> sum = PreErosionDifference(current, new(luma, index - 1), new(luma, index + 1),
+                    above, below, gammaOffset, maskingScale);
+                // Each following pixel row reuses the two vertical neighbors
+                // already loaded. Retain the original left-to-right dy sum,
+                // but keep it in a vector instead of rereading scratch per row.
+                above = current; current = below;
+                below = new(luma, index + 2 * lumaStride);
+                sum += PreErosionDifference(current, new(luma, index + lumaStride - 1),
+                    new(luma, index + lumaStride + 1), above, below, gammaOffset, maskingScale);
+                above = current; current = below;
+                below = new(luma, index + 3 * lumaStride);
+                sum += PreErosionDifference(current, new(luma, index + 2 * lumaStride - 1),
+                    new(luma, index + 2 * lumaStride + 1), above, below, gammaOffset, maskingScale);
+                above = current; current = below;
+                below = new(luma, index + 4 * lumaStride);
+                sum += PreErosionDifference(current, new(luma, index + 3 * lumaStride - 1),
+                    new(luma, index + 3 * lumaStride + 1), above, below, gammaOffset, maskingScale);
+                sum.CopyTo(difference, x);
             }
+        for (; x < paddedWidth; x++)
+        {
+            int index = middle + x;
+            float sum = PreErosionDifference(luma[index], luma[index - 1], luma[index + 1],
+                luma[index - lumaStride], luma[index + lumaStride], gammaOffset, maskingScale);
+            for (int dy = 1; dy < 4; dy++)
+            {
+                int next = index + dy * lumaStride;
+                sum += PreErosionDifference(luma[next], luma[next - 1], luma[next + 1],
+                    luma[next - lumaStride], luma[next + lumaStride], gammaOffset, maskingScale);
+            }
+            difference[x] = sum;
         }
         int output = outputRow * preStride;
-        for (int x = 0; x < preStride; x++)
+        for (x = 0; x < preStride; x++)
         {
             int offset = x * 4;
             preErosion[output + x] = (difference[offset] + difference[offset + 1]
                 + difference[offset + 2] + difference[offset + 3]) * 0.25f;
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector<float> PreErosionDifference(Vector<float> value, Vector<float> left, Vector<float> right,
+        Vector<float> above, Vector<float> below, float gammaOffset, float maskingScale)
+    {
+        Vector<float> baseValue = new Vector<float>(0.25f) * ((right + left) + (above + below));
+        Vector<float> diff = DerivativeRatio(value + new Vector<float>(gammaOffset), invert: false) * (value - baseValue);
+        diff = Vector.Min(diff * diff, new Vector<float>(0.2f));
+        return new Vector<float>(0.25f) * Vector.SquareRoot(diff * new Vector<float>(maskingScale) + new Vector<float>(28f));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float PreErosionDifference(float value, float left, float right, float above, float below,
+        float gammaOffset, float maskingScale)
+    {
+        float baseValue = 0.25f * ((right + left) + (above + below));
+        float diff = DerivativeRatio(value + gammaOffset, invert: false) * (value - baseValue);
+        diff = MathF.Min(diff * diff, 0.2f);
+        return 0.25f * MathF.Sqrt(diff * maskingScale + 28f);
     }
 
     private void ComputeFuzzyErosion(int row, int output, bool useVector)
