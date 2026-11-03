@@ -336,7 +336,7 @@ jobs:
       - name: Interleave original and optimized encodes on one CPU (CI only)
         run: |
           cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
-          taskset -c "$cpu" dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll" --compare-kernels --include-automatic --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/kernel-evidence" --images kodim01,low-noise,low-contrast,tiny-odd-edges --distances 1,4 --samplings 444,420 --progressions 0,2 --blocks 6 --warmups 5 --iterations 20
+          taskset -c "$cpu" dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll" --compare-kernels --include-automatic --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/kernel-evidence" --images kodim01,low-noise,low-contrast,tiny-odd-edges,guard-below-32k,guard-at-32k,guard-above-32k,narrow-tall --distances 1,4 --samplings 444,420 --progressions 0,2 --blocks 6 --warmups 5 --iterations 20
       - name: Check actual comparison capabilities
         if: always()
         shell: pwsh

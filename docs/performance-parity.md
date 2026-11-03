@@ -75,6 +75,17 @@ coefficient ordering. Revisions are not interleaved; these remain selected-case
 diagnostics. The [runner guide](../tools/DotJpegli.Performance/README.md) describes
 the retained evidence. Ordinary pushes without either marker retain four cases.
 
+Include `[compare-kernels]` to collect interleaved forced-kernel and combined
+Automatic-policy comparisons on x64 and ARM64, for both .NET 10 and .NET 11, in
+the same automatic run. The selected photographs and controls include matching
+255-by-128, 256-by-128 and 257-by-128 textures around the 32,768-pixel guard, plus
+an 8-by-4,096 tall texture. These four inputs are exclusive to kernel diagnostics;
+the native acceptance corpus and bounds remain fixed. The comparison retains
+JPEG hashes, allocations, balanced ABBA/BAAB quartets, drift and order-bias
+checks, including invalid and inconclusive results. These controls supply
+measurement coverage; their presence does not establish a crossover or justify
+changing the Automatic dispatch guard.
+
 For a smaller development question, workflow dispatch accepts comma-separated
 `images`, `distances`, `samplings` and `progressions`, plus bounded `blocks`,
 `warmups` and optional fixed `iterations`. For example, this selects one image

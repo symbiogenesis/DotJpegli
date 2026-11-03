@@ -30,6 +30,13 @@ assembly. No CPU-specific intrinsics are used. Smoothing and nonlinear
 RGB-to-XYB conversion use scalar paths. These implementation choices do not
 establish speed parity; see the [performance measurements and protocol](performance-parity.md).
 
+Scalar AQ modulation computes high-frequency and gamma sums in one traversal
+of each 8-by-8 block. The accumulators keep their original raster order, and
+high-frequency modulation is applied before gamma modulation. An independent
+two-pass regression checks result bits across strided blocks, low-contrast
+inputs, impulses and exceptional values. Reusing sample loads is not evidence
+of an end-to-end latency improvement.
+
 The scalar DCT specializes the same fixed eight- and four-point stages as the
 vector path. It keeps the recursive port's arithmetic and fused multiply-adds
 while avoiding recursive calls and per-stage scratch spans. A retained recursive
@@ -67,6 +74,13 @@ recomputes abandoned ones; successful replay releases that scan's storage early.
 Independent encodes own independent budgets. This policy preserves JPEG bytes
 but can change which scans are cached; it does not establish lower latency or
 peak working memory for every image.
+
+Progressive refinement fills each cached raw correction token with up to 24 bits,
+matching the token payload width. Both reserved and ordinary token construction
+use the same packing; direct bit-writer emission retains its existing grouping.
+This reduces correction-token records without adding scratch storage or changing
+the shared rental cap. Actual rented capacity depends on pool bucket sizes;
+fewer records alone do not establish lower allocations or peak working memory.
 
 Buffered entropy output checks capacity once for a stuffed eight-byte word when
 at least sixteen bytes remain. It writes directly into the existing buffer with

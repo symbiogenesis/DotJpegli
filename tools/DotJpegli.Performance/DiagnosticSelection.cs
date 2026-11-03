@@ -6,7 +6,7 @@ internal sealed record DiagnosticSelection(string[] Images, float[] Distances, i
 {
     public int ExpectedCases => this.Images.Length * this.Distances.Length * this.Samplings.Length * this.Progressions.Length;
 
-    public static DiagnosticSelection Parse(IReadOnlyDictionary<string, string> values)
+    public static DiagnosticSelection Parse(IReadOnlyDictionary<string, string> values, IEnumerable<string>? additionalImageIds = null)
     {
         string[] allowed = ["--images", "--distances", "--samplings", "--progressions", "--blocks", "--iterations", "--warmups"];
         if (values.Keys.Any(key => !allowed.Contains(key, StringComparer.Ordinal)))
@@ -15,9 +15,10 @@ internal sealed record DiagnosticSelection(string[] Images, float[] Distances, i
         }
 
         string[] images = List(values.GetValueOrDefault("--images", "kodim01"));
-        if (images.Any(id => !Evidence.ImageIds("natural").Concat(Evidence.ControlledIds).Contains(id, StringComparer.Ordinal)))
+        IEnumerable<string> supportedImages = Evidence.ImageIds("natural").Concat(Evidence.ControlledIds).Concat(additionalImageIds ?? []);
+        if (images.Any(id => !supportedImages.Contains(id, StringComparer.Ordinal)))
         {
-            throw new ArgumentException("Diagnostic images must name pinned Kodak images (kodim01..kodim24) or fixed controlled inputs.");
+            throw new ArgumentException("Diagnostic images must name pinned Kodak images (kodim01..kodim24) or generated inputs supported by this mode.");
         }
 
         float[] distances = List(values.GetValueOrDefault("--distances", "1")).Select(value => float.Parse(value, CultureInfo.InvariantCulture)).ToArray();

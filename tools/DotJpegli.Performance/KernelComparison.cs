@@ -116,6 +116,7 @@ internal static class KernelComparison
             await WriteJson(output, "summary.json", new
             { schemaVersion = 2, mode = "interleaved-kernel-comparison", status = "incomplete", valid = false, expectedComparisons });
             foreach ((string? id, string? category, string? sourcePath, PpmImage? image) in Program.ReadCorpus(options.Corpus)
+                .Concat(KernelDiagnosticInputs.Create(selection.Images))
                 .Where(image => selection.Images.Contains(image.Id, StringComparer.Ordinal)))
             {
                 string inputPath = Path.Combine(output, "inputs", id + ".ppm");
@@ -303,7 +304,7 @@ internal static class KernelComparison
         _ = values.Remove("--output");
         _ = values.TryAdd("--iterations", "20");
         _ = values.TryAdd("--blocks", "6");
-        var selection = DiagnosticSelection.Parse(values);
+        var selection = DiagnosticSelection.Parse(values, KernelDiagnosticInputs.Ids);
         RequireEvenBlocks(selection.Policy.Blocks);
         return new(corpus, output, selection, includeAutomatic);
     }
@@ -568,8 +569,50 @@ internal static class KernelComparison
     private static Task WriteJson<T>(string output, string name, T value)
         => File.WriteAllTextAsync(Path.Combine(output, name), JsonSerializer.Serialize(value, JsonOptions) + "\n");
 
+    private static void CheckDiagnosticInputs()
+    {
+        (string Id, string Category, string SourcePath, PpmImage Image)[] inputs = KernelDiagnosticInputs.Create(KernelDiagnosticInputs.Ids).ToArray();
+        (string Id, string Category, string SourcePath, PpmImage Image)[] repeated = KernelDiagnosticInputs.Create(KernelDiagnosticInputs.Ids).ToArray();
+        (int Width, int Height)[] dimensions = [(255, 128), (256, 128), (257, 128), (8, 4096)];
+        Check(inputs.Length == dimensions.Length && inputs.Select(input => input.Id).Distinct(StringComparer.Ordinal).Count() == inputs.Length,
+            "Kernel controls must have four unique identities.");
+        for (int index = 0; index < inputs.Length; index++)
+        {
+            PpmImage image = inputs[index].Image;
+            Check((image.Width, image.Height) == dimensions[index] && image.Pixels.Length == image.Width * image.Height * 3,
+                "Kernel control dimensions or pixel lengths changed.");
+            Check(Hash(image.Pixels) == Hash(repeated[index].Image.Pixels), "Kernel inputs must be deterministic.");
+            Check(KernelPolicy.UseTiledZigZagForConfiguration(image.Width, image.Height, true, 8, true, false, true) == (index != 0),
+                "Kernel controls no longer straddle the Automatic size guard.");
+            Check(inputs[index].Category == "kernel-diagnostic" && inputs[index].SourcePath == "generated:" + inputs[index].Id,
+                "Kernel control provenance is ambiguous.");
+        }
+        for (int y = 0; y < dimensions[0].Height; y++)
+        {
+            ReadOnlySpan<byte> below = inputs[0].Image.Pixels.AsSpan(y * dimensions[0].Width * 3, dimensions[0].Width * 3);
+            Check(below.SequenceEqual(inputs[1].Image.Pixels.AsSpan(y * dimensions[1].Width * 3, below.Length))
+                && below.SequenceEqual(inputs[2].Image.Pixels.AsSpan(y * dimensions[2].Width * 3, below.Length)),
+                "Neighboring guard inputs must preserve their common pixels.");
+        }
+        Check(!KernelDiagnosticInputs.Create(["kodim01"]).Any(), "Unselected kernel controls must not be generated.");
+        Check(KernelDiagnosticInputs.Create(["guard-at-32k"]).Select(input => input.Id).SequenceEqual(["guard-at-32k"]),
+            "Kernel generation must honor the selected image list.");
+        string[] ids = ["kodim01", "low-noise", "low-contrast", "tiny-odd-edges", .. KernelDiagnosticInputs.Ids];
+        var selectionValues = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["--images"] = string.Join(',', ids),
+            ["--distances"] = "1,4"
+        };
+        var selection = DiagnosticSelection.Parse(selectionValues, KernelDiagnosticInputs.Ids);
+        Check(selection.ExpectedCases == 64, "Kernel controls must fit the existing bounded diagnostic selection.");
+        RejectArguments(() => DiagnosticSelection.Parse(selectionValues));
+        Check(Evidence.ControlledIds.Length == 8 && !Evidence.ControlledIds.Intersect(KernelDiagnosticInputs.Ids).Any(),
+            "Kernel controls must not change the fixed acceptance corpus.");
+    }
+
     internal static void SelfTest()
     {
+        CheckDiagnosticInputs();
         (bool includeAutomatic, Dictionary<string, string> values) = ParseValues(["--compare-kernels", "--iterations", "20"]);
         Check(!includeAutomatic && values["--iterations"] == "20",
             "Automatic policy comparisons must be disabled by default.");
@@ -579,9 +622,9 @@ internal static class KernelComparison
         RejectArguments(() => ParseValues(["--compare-kernels", "--include-automatic", "--include-automatic"]));
         RejectArguments(() => ParseValues(["--compare-kernels", "--include-automatic", "false"]));
         RejectArguments(() => ParseValues(["--include-automatic"]));
-        Check(ExpectedComparisons(32, true, false) == 64 && ExpectedComparisons(32, false, false) == 32,
+        Check(ExpectedComparisons(64, true, false) == 128 && ExpectedComparisons(64, false, false) == 64,
             "Default forced-pair comparison counts changed.");
-        Check(ExpectedComparisons(32, true, true) == 96 && ExpectedComparisons(32, false, true) == 64,
+        Check(ExpectedComparisons(64, true, true) == 192 && ExpectedComparisons(64, false, true) == 128,
             "Automatic comparisons must add one measured pair per case even without a reachable new kernel.");
         Check(PreferenceName(new JpegliEncoderOptions
         {

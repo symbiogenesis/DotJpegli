@@ -97,14 +97,26 @@ The same count applies to both variants. Raw samples and actual counts are kept.
 `--include-automatic` adds a pair comparing both Original preferences with both
 Automatic preferences. The automatic workflow enables it to measure the actual
 deployment policy. Exact preference maps identify each pair, and schema 2 uses
-neutral baseline/candidate statistics and hash names. The default 32 selected
-configurations therefore produce 96 comparisons on eight-lane x64, or 64 on
-ARM64 where the 32 narrow-ordering pairs are explicitly skipped. A policy pair
+neutral baseline/candidate statistics and hash names. The default 64 selected
+configurations therefore produce 192 comparisons on eight-lane x64, or 128 on
+ARM64 where the 64 narrow-ordering pairs are explicitly skipped. A policy pair
 is measured even if it selects no new kernel; it must not be described as a
 forced optimized-kernel result.
 
+The automatic kernel comparison retains `kodim01`, `low-noise`, `low-contrast`
+and `tiny-odd-edges`, and adds four controls accepted only by `--compare-kernels`:
+`guard-below-32k` (255 x 128), `guard-at-32k` (256 x 128), `guard-above-32k`
+(257 x 128) and `narrow-tall` (8 x 4096). Their coordinate-based texture preserves
+common pixels across the three guard sizes. The first three bracket Automatic's
+32,768-pixel minimum; the tall control exercises its eight-pixel dimension floor.
+They use both distances, sampling modes and progressions. Only selected controls
+are generated; the eight fixed acceptance controls and native parity matrix are
+unchanged. These inputs add coverage for the provisional guard without changing
+it or establishing a measured crossover.
+
 Use `--self-test-kernel-comparison` locally to check synthetic statistics without
-timing any encoding. The actual mode requires Release and GitHub Actions.
+timing any encoding. It also checks control dimensions, deterministic content,
+guard coverage and selection isolation. The actual mode requires Release and GitHub Actions.
 Guards retain the 1 ms minimum and 10% MAD limit, and additionally reject
 within-quartet drift, minority timing states and order bias. Both orders must
 be balanced. Evidence preferences remain inconclusive unless every paired ratio
