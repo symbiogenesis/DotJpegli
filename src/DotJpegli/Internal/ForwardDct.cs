@@ -75,6 +75,46 @@ internal static class ForwardDct
         Quantization.PreparedTable table, Span<short> output, float adaptiveStrength = 0f, bool zigZagOrdered = true)
     {
         ValidatePlane(plane, stride, left, top);
+        TransformQuantizeCore(plane[(top * stride + left)..], stride, centerInput: true,
+            table, output, adaptiveStrength, zigZagOrdered);
+    }
+
+    /// <summary>Transforms and quantizes already centered samples without materializing float coefficients.</summary>
+    internal static void TransformQuantizeBlock(ReadOnlySpan<float> samples,
+        Quantization.PreparedTable table, Span<short> output, float adaptiveStrength = 0f, bool zigZagOrdered = true)
+    {
+        if (samples.Length != 64)
+            throw new ArgumentException("An 8 by 8 block requires exactly 64 samples.", nameof(samples));
+        TransformQuantizeCore(samples, 8, centerInput: false, table, output, adaptiveStrength, zigZagOrdered);
+    }
+
+    /// <summary>Replicates a partial plane block's edges before using the fused transform and quantizer.</summary>
+    internal static void TransformQuantizePaddedPlane(ReadOnlySpan<float> plane, int width, int height, int left, int top,
+        Quantization.PreparedTable table, Span<short> output, float adaptiveStrength = 0f)
+    {
+        Guard.ThrowIfNegativeOrZero(width);
+        Guard.ThrowIfNegativeOrZero(height);
+        if ((uint)left >= (uint)width)
+            throw new ArgumentOutOfRangeException(nameof(left));
+        if ((uint)top >= (uint)height)
+            throw new ArgumentOutOfRangeException(nameof(top));
+        if ((long)width * height > plane.Length)
+            throw new ArgumentException("The plane must contain every image row.", nameof(plane));
+        Span<float> padded = stackalloc float[64];
+        int copied = Math.Min(8, width - left);
+        for (int row = 0; row < 8; row++)
+        {
+            Span<float> destination = padded.Slice(row * 8, 8);
+            plane.Slice(Math.Min(top + row, height - 1) * width + left, copied).CopyTo(destination);
+            destination[copied..].Fill(destination[copied - 1]);
+        }
+        TransformQuantizeCore(padded, 8, centerInput: true, table, output, adaptiveStrength, zigZagOrdered: true);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TransformQuantizeCore(ReadOnlySpan<float> samples, int stride, bool centerInput,
+        Quantization.PreparedTable table, Span<short> output, float adaptiveStrength, bool zigZagOrdered)
+    {
         if (output.Length < 64)
             throw new ArgumentException("A quantized block requires 64 values.", nameof(output));
         Guard.ThrowIfNull(table);
@@ -83,7 +123,7 @@ internal static class ForwardDct
             && (!table.AdaptiveQuantization || (float.IsFinite(adaptiveStrength) && adaptiveStrength >= 0f)))
         {
             Quantization.TransposedTable transposed = table.GetTransposed();
-            TransformEightLaneTransposed(plane[(top * stride + left)..], stride, centerInput: true,
+            TransformEightLaneTransposed(samples, stride, centerInput,
                 out Vector<float> r0, out Vector<float> r1, out Vector<float> r2, out Vector<float> r3,
                 out Vector<float> r4, out Vector<float> r5, out Vector<float> r6, out Vector<float> r7);
             if (Quantization.TryQuantizeTransposed(r0.AsVector256(), r1.AsVector256(), r2.AsVector256(), r3.AsVector256(),
@@ -91,16 +131,19 @@ internal static class ForwardDct
                 return;
         }
 #endif
-        TransformQuantizePlaneFallback(plane, stride, left, top, table, output, adaptiveStrength, zigZagOrdered);
+        TransformQuantizeFallback(samples, stride, centerInput, table, output, adaptiveStrength, zigZagOrdered);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void TransformQuantizePlaneFallback(ReadOnlySpan<float> plane, int stride, int left, int top,
+    private static void TransformQuantizeFallback(ReadOnlySpan<float> samples, int stride, bool centerInput,
         Quantization.PreparedTable table, Span<short> output, float adaptiveStrength, bool zigZagOrdered)
     {
         Span<float> coefficients = stackalloc float[64];
         Span<short> temporary = stackalloc short[64];
-        TransformPlane(plane, stride, left, top, coefficients);
+        if (centerInput)
+            TransformPlane(samples, stride, 0, 0, coefficients);
+        else
+            Transform(samples, coefficients);
         Span<short> natural = zigZagOrdered ? temporary : output;
         Quantization.QuantizePrepared(coefficients, table, natural, adaptiveStrength);
         EntropyEncoder.ValidateAc(natural[..64]);

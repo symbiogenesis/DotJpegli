@@ -640,29 +640,21 @@ public static class JpegliEncoder
         ref readonly SequentialComponent info = ref source.Components[component];
         ReadOnlySpan<float> plane = info.UsePlane
             ? component == 0 ? source.Plane0 : component == 1 ? source.Plane1 : source.Plane2 : default;
-        Span<float> coefficients = floatScratch.Slice(64, 64);
-        if (!plane.IsEmpty && componentX * 8 + 8 <= info.PlaneWidth && componentY * 8 + 8 <= info.PlaneHeight)
+        if (!plane.IsEmpty)
         {
-            if (Vector.IsHardwareAccelerated && Vector<float>.Count == 8)
-            {
+            if (componentX * 8 + 8 <= info.PlaneWidth && componentY * 8 + 8 <= info.PlaneHeight)
                 ForwardDct.TransformQuantizePlane(plane, info.PlaneWidth, componentX * 8, componentY * 8,
                     info.Quantizer, shortScratch.Slice(64, 64), strength);
-                return;
-            }
-            ForwardDct.TransformPlane(plane, info.PlaneWidth, componentX * 8, componentY * 8, coefficients);
+            else
+                ForwardDct.TransformQuantizePaddedPlane(plane, info.PlaneWidth, info.PlaneHeight,
+                    componentX * 8, componentY * 8, info.Quantizer, shortScratch.Slice(64, 64), strength);
+            return;
         }
-        else
-        {
-            Span<float> samples = floatScratch[..64];
-            Downsampling.FillBlock(source.Pixels, source.Width, source.Height, source.Stride, component,
-                componentX, componentY, source.Horizontal, source.Vertical, info.Horizontal, info.Vertical,
-                samples, source.SmoothingFactor);
-            ForwardDct.Transform(samples, coefficients);
-        }
-        Span<short> quantized = shortScratch[..64];
-        Quantization.QuantizePrepared(coefficients, info.Quantizer, quantized, adaptiveStrength: strength);
-        EntropyEncoder.ValidateAc(quantized);
-        ZigZagOrdering.Reorder(quantized, shortScratch.Slice(64, 64));
+        Span<float> samples = floatScratch[..64];
+        Downsampling.FillBlock(source.Pixels, source.Width, source.Height, source.Stride, component,
+            componentX, componentY, source.Horizontal, source.Vertical, info.Horizontal, info.Vertical,
+            samples, source.SmoothingFactor);
+        ForwardDct.TransformQuantizeBlock(samples, info.Quantizer, shortScratch.Slice(64, 64), strength);
     }
 
     private static void ProcessSequentialInterleaved(PixelSource pixels, int width, int height, int stride,
@@ -706,7 +698,7 @@ public static class JpegliEncoder
 
         var source = new SequentialBlockSource(pixels, width, height, stride, horizontal, vertical, smoothingFactor,
             components, plane0, plane1, plane2);
-        Span<float> floatScratch = stackalloc float[128];
+        Span<float> floatScratch = stackalloc float[64];
         Span<short> shortScratch = stackalloc short[128];
         Span<short> quantized = shortScratch[..64], ordered = shortScratch.Slice(64, 64);
         Span<int> previousDc = stackalloc int[3];
