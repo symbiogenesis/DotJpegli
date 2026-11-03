@@ -90,6 +90,7 @@ jobs:
           ./tools/compare-performance-revisions.ps1 -SelfTest
           ./tools/ci/performance-evidence.ps1 -SelfTest
           ./tools/assert-infersharp.ps1 -SelfTest
+          ./tools/verify-release.ps1 -SelfTest
 
   test:
     name: Tests (${{ matrix.os }}, ${{ matrix.target.library }} on ${{ matrix.target.framework }})

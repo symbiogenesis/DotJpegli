@@ -23,6 +23,10 @@ internal static class Program
                     options.Validate(["output", "source", "manifest"], ["self-test"]);
                     await CorpusCommand.Run(options);
                     break;
+                case "release":
+                    options.Validate(["package", "version", "revision", "first-artifacts", "second-artifacts", "hashes"], ["self-test"]);
+                    ReleaseCommand.Run(options);
+                    break;
                 default:
                     throw new ArgumentException($"Unknown command: {args[0]}");
             }
