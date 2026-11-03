@@ -289,7 +289,7 @@ replacements require format/decoder changes and are outside this JPEG scope.
 ### Local validation
 
 The pinned SDK `11.0.100-rc.3.26522.148` was temporarily installed under ignored
-`artifacts/tooling`, after checking its SHA512 against official release metadata.
+`.artifacts/tooling`, after checking its SHA512 against official release metadata.
 Local Release builds passed without warnings for all three library targets.
 Focused regressions passed on Windows ARM64:
 
