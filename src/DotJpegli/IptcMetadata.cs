@@ -166,7 +166,9 @@ public sealed class IptcMetadata
                 throw new ArgumentException($"IPTC dataset 2:{dataset} text must not exceed {maximum} UTF-8 bytes.", nameof(values));
             }
 
-            _ = DecodeText(encoded[index].Span, true);
+            // Strict encoding has already validated Unicode; only the IPTC
+            // character-set controls need checking on these newly encoded bytes.
+            ValidateCharacterSetControls(encoded[index].Span);
             if (dataset is 80 or 116 or 120 && values[index].Any(character => char.IsControl(character) &&
                 !(dataset == 120 && character is '\r' or '\n')))
             {
@@ -220,15 +222,7 @@ public sealed class IptcMetadata
 
     private static string DecodeText(ReadOnlySpan<byte> value, bool utf8)
     {
-        // Escape and shift control functions can change legacy character sets,
-        // so even ASCII bytes containing them cannot safely be relabeled UTF-8.
-        const byte escape = 0x1b;
-        const byte shiftOut = 0x0e;
-        const byte shiftIn = 0x0f;
-        if (value.ContainsAny(escape, shiftOut, shiftIn))
-        {
-            throw new InvalidOperationException("IPTC text containing character-set escape or shift functions is unsupported.");
-        }
+        ValidateCharacterSetControls(value);
 
         if (!utf8)
         {
@@ -246,6 +240,19 @@ public sealed class IptcMetadata
         catch (DecoderFallbackException error)
         {
             throw new InvalidOperationException("IPTC text does not match its UTF-8 designation.", error);
+        }
+    }
+
+    private static void ValidateCharacterSetControls(ReadOnlySpan<byte> value)
+    {
+        // Escape and shift control functions can change legacy character sets,
+        // so even ASCII bytes containing them cannot safely be relabeled UTF-8.
+        const byte escape = 0x1b;
+        const byte shiftOut = 0x0e;
+        const byte shiftIn = 0x0f;
+        if (value.ContainsAny(escape, shiftOut, shiftIn))
+        {
+            throw new InvalidOperationException("IPTC text containing character-set escape or shift functions is unsupported.");
         }
     }
 
