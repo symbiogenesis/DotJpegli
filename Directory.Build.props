@@ -7,7 +7,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>15.0</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <AnalysisLevel>latest</AnalysisLevel>
+    <!-- Apply recommended SDK rules to every target, including .NET Standard. -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <DotJpegliNet11Simd Condition="'$(DotJpegliNet11Simd)' == ''">true</DotJpegliNet11Simd>
     <DefineConstants Condition="'$(DotJpegliNet11Simd)' == 'true'">$(DefineConstants);DOTJPEGLI_NET11_SIMD</DefineConstants>

@@ -56,6 +56,17 @@ runtime and analyzer improvements, then validate all three library targets.
 All projects use C# 15 explicitly, including when compiling older framework
 targets, so the pinned compiler provides a consistent language version.
 
+All projects explicitly enable the SDK's .NET analyzers, including the
+`netstandard2.1` library, and use `AnalysisLevel=latest-recommended`.
+`TreatWarningsAsErrors` makes analyzer findings build failures; code-style
+analysis also runs during builds via `EnforceCodeStyleInBuild`. The pinned SDK
+keeps the rule set consistent locally and on CI. Fix findings or justify
+exceptions at the smallest scope: format-mandated ICC/XMP MD5, standard Exif
+type names, compatibility adapters and validation helpers that report public
+argument or option names have local suppressions. Only test sources exempt
+`CA1861`, so expected vectors can stay beside their assertions and each test
+can own fresh input arrays. Production code still enforces that allocation rule.
+
 Prefer framework span APIs for buffer searches, validation and counting, and
 span splitting when substrings do not need to be retained. Use collection
 expressions, records and primary constructors where they simplify the code.
