@@ -21,8 +21,8 @@ public sealed class AcReciprocalExperimentTests
                 Assert.Equal(interval.Lower, interval.Upper);
             }
         }
-        Assert.Throws<ArgumentOutOfRangeException>(() => AcReciprocalExperiment.Interval.Create(0));
-        Assert.Throws<ArgumentOutOfRangeException>(() => AcReciprocalExperiment.Interval.Create(32768));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => AcReciprocalExperiment.Interval.Create(0));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => AcReciprocalExperiment.Interval.Create(32768));
     }
 
     [Fact]
