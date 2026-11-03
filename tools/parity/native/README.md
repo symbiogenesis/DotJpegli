@@ -7,13 +7,15 @@ CMake target. Both the build script and CMake reject a different or modified
 tracked source checkout. The script initializes and verifies Highway, skcms and
 libjpeg-turbo at the Git submodule revisions in that upstream commit.
 
-Ubuntu CI requires Git, CMake, Ninja, a C/C++17 toolchain and PowerShell:
+Ubuntu CI requires Git, CMake, Ninja, a C/C++17 toolchain and PowerShell 7.6 or newer:
 
 ```powershell
-pwsh tools/parity/build-upstream.ps1 `
-    -SourceDirectory /absolute/temp/path/upstream `
-    -BuildDirectory /absolute/temp/path/native-build `
-    -Generator Ninja
+$build = @{
+    SourceDirectory = '/absolute/temp/path/upstream'
+    BuildDirectory = '/absolute/temp/path/native-build'
+    Generator = 'Ninja'
+}
+./tools/parity/build-upstream.ps1 @build
 ```
 
 The resulting `/absolute/temp/path/native-build/jpegli-parity-native` supports:
