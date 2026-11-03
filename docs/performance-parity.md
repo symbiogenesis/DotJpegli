@@ -81,6 +81,14 @@ These profiling timings cannot establish latency acceptance; the original
 unprofiled comparison remains the job's result. Manual dispatch can disable this
 follow-up with `profile=false`.
 
+A failed full latency comparison collects separate profiles for the worst case
+from each of the three highest-ratio distinct images, using seven blocks and
+100 iterations to provide more samples for tiny inputs. Installation is bounded
+to three minutes and collection to five minutes. These marked instrumented
+diagnostics are retained in `performance-profile-<revision>` and cannot change
+the original unprofiled acceptance verdict. `profile=false` also disables them
+in a manual full run.
+
 ## Optional .NET 11 runtime and portable SIMD API comparison
 
 The workflow's `compare_net11=true` input runs one Kodak01 4:2:0 sequential case

@@ -67,6 +67,14 @@ complete quality matrix followed by the fixed performance acceptance protocol.
 Both reports appear in the job summary and their existing evidence artifacts.
 The thresholds and per-case timing method remain unchanged.
 
+After a full latency failure, the same job profiles the worst case from each of
+the three highest-ratio distinct images with pinned `dotnet-trace`, seven blocks,
+100 iterations and five warmups. Installation has a three-minute limit and
+collection a five-minute limit. The separate `performance-profile-<revision>`
+artifact retains the marked instrumented evidence, traces and logs. Profiling
+cannot replace the unprofiled verdict; manual full dispatch can disable it with
+`profile=false`.
+
 Inspect existing runs for the intended commit and reuse its automatic run.
 Workflow dispatch with `mode=full` remains available when no automatic run
 covers the intended comparison; reuse queued, running or successful runs and

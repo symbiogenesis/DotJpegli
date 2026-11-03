@@ -37,7 +37,7 @@ on:
         description: 'Targeted fixed iterations per block (3..100); blank uses 50ms calibration'
         default: ''
       profile:
-        description: 'Collect one instrumented CPU diagnostic after a targeted comparison fails'
+        description: 'Collect bounded instrumented CPU diagnostics after a latency comparison fails'
         type: boolean
         default: true
       compare_net11:
@@ -565,6 +565,7 @@ jobs:
       - name: Verify performance statistics and acceptance policy
         run: dotnet run --project tools/DotJpegli.Performance -c Release -f net11.0 --no-build -- --self-test
       - name: Compare steady-state encoding latency (CI only)
+        id: performance
         env:
           DOTJPEGLI_PERFORMANCE_REVISION: ${{ github.sha }}
           DOTNET_TieredCompilation: '0'
@@ -591,3 +592,47 @@ jobs:
               echo >> "$GITHUB_STEP_SUMMARY"
             fi
           done
+      - name: Install pinned CPU diagnostics after full latency failure
+        id: full_profiler
+        if: failure() && steps.performance.outcome == 'failure' && (github.event_name == 'push' || inputs.profile)
+        continue-on-error: true
+        timeout-minutes: 3
+        working-directory: ${{ runner.temp }}
+        run: dotnet tool install dotnet-trace --version 10.0.750501 --tool-path "${{ runner.temp }}/diagnostic-tools" 2>&1 | tee "${{ runner.temp }}/full-performance-profile-install.log"
+      - name: Profile worst cases from three distinct images (instrumented diagnostic only)
+        if: failure() && steps.performance.outcome == 'failure' && steps.full_profiler.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 5
+        working-directory: ${{ runner.temp }}
+        env:
+          DOTJPEGLI_PERFORMANCE_REVISION: ${{ github.sha }}
+          DOTNET_TieredCompilation: '0'
+          DOTJPEGLI_PERFORMANCE_INSTRUMENTATION: 'dotnet-trace 10.0.750501; dotnet-sampled-thread-time; profiling timings are not acceptance evidence'
+        run: |
+          cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
+          python3 - <<'PY' > "${{ runner.temp }}/full-performance-profile-selection.txt"
+          import json, os
+          from pathlib import Path
+          cases = json.loads((Path(os.environ['RUNNER_TEMP']) / 'performance-evidence/cases.json').read_text())
+          selected = set()
+          for case in sorted(cases, key=lambda item: item['medianRatio'], reverse=True):
+              if case['id'] in selected:
+                  continue
+              print(case['id'], case['sampling'], case['progressiveLevel'], case['distance'])
+              selected.add(case['id'])
+              if len(selected) == 3:
+                  break
+          PY
+          while read -r image sampling progression distance; do
+            if ! taskset -c "$cpu" "${{ runner.temp }}/diagnostic-tools/dotnet-trace" collect --profile dotnet-sampled-thread-time --format Speedscope --show-child-io --output "${{ runner.temp }}/full-performance-profile-$image.nettrace" -- dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/net11.0/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/full-performance-profile-evidence-$image" --diagnostic --images "$image" --distances "$distance" --samplings "$sampling" --progressions "$progression" --blocks 7 --iterations 100 --warmups 5 2>&1 | tee "${{ runner.temp }}/full-performance-profile-$image.log"; then
+              echo "Profiler or instrumented comparison returned nonzero; diagnostic evidence retained."
+            fi
+          done < "${{ runner.temp }}/full-performance-profile-selection.txt"
+      - name: Retain separate full-run instrumented CPU diagnostics
+        if: always() && steps.full_profiler.outcome != 'skipped'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: performance-profile-${{ github.sha }}
+          path: ${{ runner.temp }}/full-performance-profile*
+          retention-days: 30
+          if-no-files-found: warn
