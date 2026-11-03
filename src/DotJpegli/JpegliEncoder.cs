@@ -548,10 +548,15 @@ public static class JpegliEncoder
         for (int scanIndex = 0; scanIndex < scans.Length; scanIndex++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            JpegScan scan = scans[scanIndex];
             acFrequencies[scanIndex] = new long[componentCount][];
             for (int component = 0; component < componentCount; component++)
-                acFrequencies[scanIndex][component] = new long[256];
-            JpegScan scan = scans[scanIndex];
+                acFrequencies[scanIndex][component] = [];
+            // DC scans emit no AC symbols; other scans collect AC histograms
+            // only for their participating components, including refinement.
+            if (scan.SpectralEnd > 0)
+                foreach (int component in scan.Components)
+                    acFrequencies[scanIndex][component] = new long[256];
             EntropyTokens? scanTokens = tokenScans?[scanIndex];
             // DC refinement has no histogram, but its raw bits can be replayed.
             if (scan.SpectralEnd == 0 && scan.SuccessiveHigh != 0 && scanTokens is not { IsComplete: true })
