@@ -31,10 +31,13 @@ RGB-to-XYB conversion use scalar paths. These implementation choices do not
 establish speed parity; see the [performance measurements and protocol](performance-parity.md).
 
 Scalar AQ modulation computes high-frequency and gamma sums in one traversal
-of each 8-by-8 block. The accumulators keep their original raster order, and
+of each 8-by-8 block, carrying each horizontal neighbor into the next column.
+The final column is handled separately without a horizontal difference. The
+accumulators keep their original raster order, and
 high-frequency modulation is applied before gamma modulation. An independent
 two-pass regression checks result bits across strided blocks, low-contrast
-inputs, impulses and exceptional values. Reusing sample loads is not evidence
+inputs, impulses and exceptional values, including minimally sized slices that
+end at the final sample. Reusing sample loads is not evidence
 of an end-to-end latency improvement.
 
 Eight-block SIMD AQ modulation carries each horizontal neighbor into the next

@@ -30,7 +30,9 @@ completed work.
   strengths-row reuse across passes. Identical clamped pre-erosion rows reuse
   their rounded results at image boundaries.
 - Scalar AQ modulation shares one block traversal for high-frequency and gamma
-  analysis, retaining independent raster-order sums and the original rounding.
+  analysis, carrying horizontal neighbors through the first seven columns and
+  handling the final column separately. Independent raster-order sums and the
+  original rounding are retained without additional scratch.
 - Eight-block SIMD AQ modulation carries each horizontal neighbor into the next
   column and handles the final column separately, preserving each lane's
   high-frequency and gamma accumulation order without additional scratch.

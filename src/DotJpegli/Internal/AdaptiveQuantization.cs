@@ -760,17 +760,19 @@ internal sealed class AdaptiveQuantization : IDisposable
         {
             int row = dy * stride;
             int next = dy == 7 ? row : row + stride;
-            for (int dx = 0; dx < 8; dx++)
+            float sample = samples[row];
+            for (int dx = 0; dx < 7; dx++)
             {
-                float sample = samples[row + dx];
-                if (dx != 7)
-                {
-                    sum += MathF.Abs(sample - samples[row + dx + 1]);
-                }
-
+                float nextSample = samples[row + dx + 1];
+                sum += MathF.Abs(sample - nextSample);
                 sum += MathF.Abs(sample - samples[next + dx]);
                 ratio += DerivativeRatio(sample + (0.16f / InputScaling), invert: true);
+                sample = nextSample;
             }
+            // The final column has no horizontal difference. Carrying each
+            // neighbor above preserves both raster-order sums without rereads.
+            sum += MathF.Abs(sample - samples[next + 7]);
+            ratio += DerivativeRatio(sample + (0.16f / InputScaling), invert: true);
         }
         // Share sample loads while retaining two independent raster-order sums.
         // Apply HF before gamma, exactly as the previous two scalar traversals did.

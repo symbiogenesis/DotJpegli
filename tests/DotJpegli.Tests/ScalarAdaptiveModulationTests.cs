@@ -28,6 +28,31 @@ public sealed class ScalarAdaptiveModulationTests
         }
     }
 
+    [Theory]
+    [InlineData(8)]
+    [InlineData(9)]
+    [InlineData(31)]
+    [InlineData(128)]
+    public void MinimalStridedSlicePreservesOriginalTwoPassBits(int stride)
+    {
+        // End the slice at the final sample, so a neighbor read past the last
+        // column or row cannot silently consume padding outside the block.
+        float[] storage = Enumerable.Repeat(float.NaN, (stride * 7) + 13).ToArray();
+        Span<float> samples = storage.AsSpan(5);
+        for (int row = 0; row < 8; row++)
+        {
+            for (int column = 0; column < 8; column++)
+            {
+                samples[(row * stride) + column] = ((row * 17) + (column * 31)) % 256;
+            }
+        }
+
+        const float value = -0.125f;
+        float expected = ModulateOriginal(samples, stride, value);
+        float actual = AdaptiveQuantization.ModulateScalar(samples, stride, value);
+        Assert.Equal(BitConverter.SingleToInt32Bits(expected), BitConverter.SingleToInt32Bits(actual));
+    }
+
     private static IEnumerable<float[]> SampleBlocks()
     {
         yield return new float[64];
