@@ -4,6 +4,7 @@ internal static class SelfTest
 {
     public static void Run()
     {
+        KernelComparison.SelfTest();
         var policy = new Policy();
         Assert(Program.RuntimeProductVersion("11.0.0-rc.2.26504.105+abcdef1234") == "11.0.0-rc.2.26504.105",
             "Runtime identity must retain the exact prerelease build rather than only Environment.Version's numeric prefix.");

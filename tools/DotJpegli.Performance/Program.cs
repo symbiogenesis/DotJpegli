@@ -27,7 +27,15 @@ internal static class Program
                 Console.WriteLine("Performance evidence self-test passed (synthetic timings only; no benchmark executed).");
                 return 0;
             }
+            if (args.SequenceEqual(new[] { "--self-test-kernel-comparison" }))
+            {
+                KernelComparison.SelfTest();
+                Console.WriteLine("Kernel comparison self-test passed (synthetic samples only; no benchmark executed).");
+                return 0;
+            }
             RequireCi();
+            if (args.Contains("--compare-kernels", StringComparer.Ordinal))
+                return await KernelComparison.Run(args);
             Options options = Options.Parse(args);
             if (Directory.Exists(options.Output) && Directory.EnumerateFileSystemEntries(options.Output).Any())
                 throw new InvalidDataException("Evidence output directory must be empty to prevent stale evidence.");
@@ -176,7 +184,7 @@ internal static class Program
         }
     }
 
-    private static void RequireCi()
+    internal static void RequireCi()
     {
 #if DEBUG
         throw new InvalidOperationException("Actual measurements require a Release build.");
@@ -190,7 +198,7 @@ internal static class Program
 #endif
     }
 
-    private static List<(string Id, string Category, string SourcePath, PpmImage Image)> ReadCorpus(string corpus)
+    internal static List<(string Id, string Category, string SourcePath, PpmImage Image)> ReadCorpus(string corpus)
     {
         string[] files = Directory.GetFiles(corpus, "*.ppm", SearchOption.AllDirectories);
         if (files.Length != 24) throw new InvalidDataException("The natural corpus requires exactly24 Kodak P6 PPM inputs.");
@@ -285,7 +293,7 @@ internal static class Program
         return standardOutput;
     }
 
-    private static object EnvironmentDetails()
+    internal static object EnvironmentDetails()
     {
         string cpu = Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ?? "not supplied";
         string? corelibInformationalVersion = typeof(object).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
