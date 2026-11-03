@@ -11,35 +11,39 @@ before the first measurement.
 ## Current measurement scope
 
 The complete 256-case comparison of revision
-`eb86172fb197b7614ca9e82ffdbd6422cfc4d74f` in
-[hosted run 41573245587](https://github.com/symbiogenesis/DotJpegli/actions/runs/41573245587)
+`f52961be35384adfe99b078a47ec0f16b21633e4` in
+[hosted run 41603913358](https://github.com/symbiogenesis/DotJpegli/actions/runs/41603913358)
 has valid, stable measurements and matched settings, but **fails full performance
-parity**. The same run passes the complete quality/compression matrix.
+parity**. Measurements were collected on November 3, 2026. The same run passes
+the complete quality/compression matrix.
 
 | Corpus | Sampling | Sequential mean / worst | Progressive level 2 mean / worst |
 | --- | --- | ---: | ---: |
-| Kodak photographs | 4:4:4 | 0.914 / 1.099 | 0.720 / 0.765 |
-| Kodak photographs | 4:2:0 | 0.919 / 1.148 | 0.713 / 0.802 |
-| Deterministic controls | 4:4:4 | 1.085 / 1.763 | 1.040 / 2.097 |
-| Deterministic controls | 4:2:0 | 1.017 / 1.753 | 1.048 / 2.054 |
+| Kodak photographs | 4:4:4 | 1.161 / 1.367 | 0.802 / 0.869 |
+| Kodak photographs | 4:2:0 | 1.135 / 1.361 | 0.798 / 0.900 |
+| Deterministic controls | 4:4:4 | 1.196 / 1.503 | 0.991 / 1.394 |
+| Deterministic controls | 4:2:0 | 1.123 / 1.503 | 0.989 / 1.426 |
 
 Each mean is the geometric mean of managed/native median latency ratios across
 the group's images and both distances; worst is the largest case ratio.
-Lower is better. All four photograph groups have lower mean latency: 8–9% less
-time for sequential and 28–29% less for progressive. Every progressive photograph
-case is faster. Both progressive groups and sequential 4:4:4 pass all fixed
-bounds; sequential 4:2:0 includes a 1.147908 case ratio. Low-detail controls and
-tiny inputs expose the remaining gaps. Group averages cannot override failures.
+Lower is better. Photograph groups use 13.5–16.1% more time for sequential
+encoding and 19.8–20.2% less for progressive encoding. Every progressive
+photograph case is faster, and both progressive photograph groups pass all
+fixed bounds. Both sequential photograph groups and all four control groups
+fail; the worst individual case is a 1.502862 ratio for sequential 4:4:4 smooth
+gradient at distance 1. Group averages cannot override individual failures.
 
 This RGB8 to YCbCr comparison uses distances 1/4, adaptive quantization, optimized
-Huffman coding and one worker, on AMD EPYC 9V45 x64 with .NET
+Huffman coding and one worker, on AMD EPYC 9V74 x64 with .NET
 `11.0.0-rc.3.26522.148` and tiered compilation disabled.
-The [complete reference evidence](performance-evidence/2026-11-02-eb86172/README.md)
-retains every case, failure, raw sample, host identity, setting, hash, native
-provenance and separate CPU profiles. These measurements support a photograph
-speed claim within this scope; full parity remains unestablished.
+The [complete reference evidence](performance-evidence/2026-11-03-f52961b/README.md)
+retains every case, failure, raw sample, host identity, setting, hash and native
+provenance. These measurements support lower
+progressive photograph latency within this scope; full parity remains
+unestablished.
 
 Earlier complete references on
+[EPYC 9V45](performance-evidence/2026-11-02-eb86172/README.md),
 [EPYC 7763](performance-evidence/2026-11-02-6738b09/README.md) and
 [EPYC 9V74](performance-evidence/2026-11-02-ba9693f/README.md) retain their failures
 and different revisions. Four-case references remain available for

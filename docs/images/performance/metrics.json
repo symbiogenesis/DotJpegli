@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "performance": {
+    "revision": "f52961be35384adfe99b078a47ec0f16b21633e4",
+    "run": "41603913358",
+    "dateUtc": "2026-11-03"
+  },
+  "quality": {
+    "revision": "f52961be35384adfe99b078a47ec0f16b21633e4",
+    "run": "41603913358",
+    "dateUtc": "2026-11-03"
+  },
+  "upstreamRevision": "031a0077f5799a6041004267fc12b956c1f52a20",
+  "performancePassed": false,
+  "qualityPassed": true,
+  "wallTime": [
+    {
+      "category": "natural",
+      "label": "Sequential \u00B7 4:4:4",
+      "metric": "DotJpegli / native",
+      "value": 1.1612492208359155
+    },
+    {
+      "category": "natural",
+      "label": "Sequential \u00B7 4:2:0",
+      "metric": "DotJpegli / native",
+      "value": 1.1348770205695555
+    },
+    {
+      "category": "natural",
+      "label": "Progressive \u00B7 4:4:4",
+      "metric": "DotJpegli / native",
+      "value": 0.8023585386874535
+    },
+    {
+      "category": "natural",
+      "label": "Progressive \u00B7 4:2:0",
+      "metric": "DotJpegli / native",
+      "value": 0.7983864459419092
+    },
+    {
+      "category": "controlled",
+      "label": "Sequential \u00B7 4:4:4",
+      "metric": "DotJpegli / native",
+      "value": 1.1957531364446794
+    },
+    {
+      "category": "controlled",
+      "label": "Sequential \u00B7 4:2:0",
+      "metric": "DotJpegli / native",
+      "value": 1.1226075388531893
+    },
+    {
+      "category": "controlled",
+      "label": "Progressive \u00B7 4:4:4",
+      "metric": "DotJpegli / native",
+      "value": 0.9907276181725823
+    },
+    {
+      "category": "controlled",
+      "label": "Progressive \u00B7 4:2:0",
+      "metric": "DotJpegli / native",
+      "value": 0.9888976020877704
+    }
+  ],
+  "compression": [
+    {
+      "category": "natural",
+      "label": "Sequential \u00B7 4:4:4",
+      "metric": "Matched PSNR",
+      "value": 1.0000178296295246
+    },
+    {
+      "category": "natural",
+      "label": "Sequential \u00B7 4:4:4",
+      "metric": "Matched SSIM",
+      "value": 1.0000143978685594
+    },
+    {
+      "category": "natural",
+      "label": "Sequential \u00B7 4:2:0",
+      "metric": "Matched PSNR",
+      "value": 1.0000043579544686
+    },
+    {
+      "category": "natural",
+      "label": "Sequential \u00B7 4:2:0",
+      "metric": "Matched SSIM",
+      "value": 1.0000039096878879
+    },
+    {
+      "category": "natural",
+      "label": "Progressive \u00B7 4:4:4",
+      "metric": "Matched PSNR",
+      "value": 1.0000012004177763
+    },
+    {
+      "category": "natural",
+      "label": "Progressive \u00B7 4:4:4",
+      "metric": "Matched SSIM",
+      "value": 0.9999995167456389
+    },
+    {
+      "category": "natural",
+      "label": "Progressive \u00B7 4:2:0",
+      "metric": "Matched PSNR",
+      "value": 0.9999983153801367
+    },
+    {
+      "category": "natural",
+      "label": "Progressive \u00B7 4:2:0",
+      "metric": "Matched SSIM",
+      "value": 1.00000101226368
+    }
+  ],
+  "allocations": [
+    {
+      "category": "natural",
+      "label": "Sequential \u00B7 4:4:4",
+      "metric": "DotJpegli managed KiB / encode",
+      "value": 120.95803520416393
+    },
+    {
+      "category": "natural",
+      "label": "Sequential \u00B7 4:2:0",
+      "metric": "DotJpegli managed KiB / encode",
+      "value": 109.77125921498337
+    },
+    {
+      "category": "natural",
+      "label": "Progressive \u00B7 4:4:4",
+      "metric": "DotJpegli managed KiB / encode",
+      "value": 168.59172072637648
+    },
+    {
+      "category": "natural",
+      "label": "Progressive \u00B7 4:2:0",
+      "metric": "DotJpegli managed KiB / encode",
+      "value": 156.02794189375695
+    }
+  ],
+  "worstCaseWallTimeRatio": 1.5028621456156253,
+  "worstMatchedQualitySizeRatio": 1.0008705105946347,
+  "allocationMethod": "Arithmetic mean across cases of mean block allocatedManagedBytes / case iterations / 1024; managed only; includes returned JPEG; excludes retained pool capacity and peak memory"
+}

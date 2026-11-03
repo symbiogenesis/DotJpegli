@@ -10,7 +10,7 @@
 [![.NET Standard 2.1 · .NET 10 · .NET 11](https://img.shields.io/badge/.NET-Standard_2.1_%7C_10_%7C_11-512BD4)](https://github.com/symbiogenesis/DotJpegli/blob/main/src/DotJpegli/DotJpegli.csproj)
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE)
 
-[Quick start](#quick-start) · [Features](#features) · [Documentation](#documentation)
+[Quick start](#quick-start) · [Features](#features) · [Performance](#performance) · [Documentation](#documentation)
 
 </div>
 
@@ -117,17 +117,43 @@ for coverage.
 
 ## Performance
 
-DotJpegli used **8–29% less time than native Google Jpegli** in the Kodak
-photograph comparison: 8–9% lower latency for sequential and 28–29% lower for
-progressive encoding, by geometric mean. This covers all 24 photographs,
-distances 1/4 and 4:4:4/4:2:0 sampling, using one worker on AMD EPYC 9V45 with
-.NET `11.0.0-rc.3.26522.148` and tiered compilation disabled.
+Compare DotJpegli with **native Google Jpegli** on all 24 Kodak photographs.
+The charts use fresh measurements from **November 3, 2026**,
+[CI run 41603913358](https://github.com/symbiogenesis/DotJpegli/actions/runs/41603913358),
+testing revision `f52961b`. Lower bars are better; **1× means native** in the
+compression and time comparisons.
 
-The complete 256-case comparison also identifies individual sequential,
-low-detail and tiny-image regressions, so full performance parity remains
-unestablished.
-See the [retained measurements and reproducible protocol](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md)
-for exact revisions, raw samples, settings and limits.
+### Compression efficiency
+
+JPEG sizes are nearly identical at the same measured quality. PSNR and SSIM
+comparisons use matched quality curves across ten encoding distances.
+
+![JPEG file size relative to native Google Jpegli at matched PSNR and SSIM, for sequential and progressive encoding with 4:4:4 and 4:2:0 sampling.](docs/images/performance/compression.svg)
+
+### Encoding wall time
+
+On the measured AMD EPYC 9V74 host, progressive photograph encoding used
+**about 20% less time** than native; sequential encoding used **13.5–16.1% more**.
+Each bar is the geometric mean of DotJpegli/native median encoding times.
+Photographs and controls are shown separately to keep regressions visible.
+
+![Encoding wall time relative to native Google Jpegli, showing Kodak photographs and deterministic controls separately.](docs/images/performance/wall-time.svg)
+
+### Managed allocations
+
+Each bar shows average managed allocations per complete encode, including the
+returned JPEG. Native allocations were not measured. Retained pool capacity
+and peak memory are outside this measurement.
+
+![DotJpegli managed allocations in KiB per encode for Kodak photographs, grouped by sampling and sequential or progressive encoding.](docs/images/performance/allocations.svg)
+
+The time and allocation comparison uses distances 1/4, both sampling modes,
+one worker and tiered compilation disabled. The complete 256-case comparison
+includes eight deterministic controls; full performance parity remains
+unestablished. See the [retained measurements](docs/performance-evidence/2026-11-03-f52961b/README.md),
+[chart values](docs/images/performance/metrics.json) and
+[reproducible protocol](docs/performance-parity.md) for the host, runtime,
+raw samples and individual regressions.
 
 ## Documentation
 

@@ -1,0 +1,66 @@
+{
+    "testedRevision":  "f52961be35384adfe99b078a47ec0f16b21633e4",
+    "runId":  "41603913358",
+    "runUrl":  "https://github.com/symbiogenesis/DotJpegli/actions/runs/41603913358",
+    "measurementDate":  "2026-11-03",
+    "measurementDateTimeZone":  "America/Chicago",
+    "artifacts":  [
+                      {
+                          "id":  "13216141067",
+                          "name":  "performance-parity-f52961be35384adfe99b078a47ec0f16b21633e4",
+                          "digest":  "sha256:2570414382bdb59307bad4034ed5ef2d4829e9a368d07a7051c748b27775b8b6"
+                      },
+                      {
+                          "id":  "13216140105",
+                          "name":  "quality-compression-parity-f52961be35384adfe99b078a47ec0f16b21633e4",
+                          "digest":  "sha256:a2968648086b377a9fbbf0a773375679a7dd06dbd9dc0032ac84a0bb6199a9e7"
+                      },
+                      {
+                          "id":  "13216585267",
+                          "name":  "performance-charts-f52961be35384adfe99b078a47ec0f16b21633e4",
+                          "digest":  "sha256:683f777c2c5843cc6d6679e2b0977d8aab7beab9f230134f4b005cbde578c561"
+                      }
+                  ],
+    "files":  [
+                  {
+                      "path":  "full/cases.json",
+                      "sha256":  "dd5c8109c3a53862f662b9a8a17aa0b574bd8f7628fcb810c24900cd579b0617"
+                  },
+                  {
+                      "path":  "full/report.md",
+                      "sha256":  "875a5943427861df49f988512d7d91674548d3fcaeb900a885f2e3c2f45a1bfb"
+                  },
+                  {
+                      "path":  "full/sources.json",
+                      "sha256":  "7268cb35be71aab345dc2cbc0fa2459a533c14a6f5e5cb1559172efc55b987a5"
+                  },
+                  {
+                      "path":  "full/summary.json",
+                      "sha256":  "1a084c479c9bf3c162560fff929d42e1f08b11eb290b93e9148417069b25d641"
+                  },
+                  {
+                      "path":  "full/run.json",
+                      "sha256":  "c976c0012d3f92533ad51d157bc7406373cfe637a0fee07445090eeb41af70b1"
+                  },
+                  {
+                      "path":  "native-provenance.json",
+                      "sha256":  "1a3b176aa8dbd98dcdb1054e5ec3952f02b4ccae10b23bbee2ff09f0230d79fc"
+                  },
+                  {
+                      "path":  "../../images/performance/allocations.svg",
+                      "sha256":  "237d7d0e18553e137185e9a63458f9190d6259791dce372adcba4cb901aaa960"
+                  },
+                  {
+                      "path":  "../../images/performance/compression.svg",
+                      "sha256":  "7855825196caf39a2705325094d4eb14cc752a1ff68ba697e44239f4d23f0f3c"
+                  },
+                  {
+                      "path":  "../../images/performance/wall-time.svg",
+                      "sha256":  "86c637b1c7b58fe0f7d272fc90ad3af5328d0adf7d004c5a645f221424d674f6"
+                  },
+                  {
+                      "path":  "../../images/performance/metrics.json",
+                      "sha256":  "aa5deb3339387c511a4dd80511271e164ecc1e7feefba17264894e4c13ad1b45"
+                  }
+              ]
+}

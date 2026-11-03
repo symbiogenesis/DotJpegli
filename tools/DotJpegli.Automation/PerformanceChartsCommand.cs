@@ -14,7 +14,7 @@ internal static class PerformanceChartsCommand
     private const string Slate = "#cbd5e1";
     private const int PlotLeft = 258;
     private const int PlotWidth = 490;
-    private static readonly JsonSerializerOptions MetricsOptions = new(Indented) { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly JsonSerializerOptions MetricsOptions = new(Indented) { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, NewLine = "\n" };
     private static readonly (int Sampling, int Progression, string Label)[] Modes =
     [
         (444, 0, "Sequential · 4:4:4"), (420, 0, "Sequential · 4:2:0"),

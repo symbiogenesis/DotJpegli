@@ -1,0 +1,12 @@
+{
+    "testedRevision":  "f52961be35384adfe99b078a47ec0f16b21633e4",
+    "runId":  "41603913358",
+    "runUrl":  "https://github.com/symbiogenesis/DotJpegli/actions/runs/41603913358",
+    "measurementDate":  "2026-11-03",
+    "measurementDateTimeZone":  "America/Chicago",
+    "artifact":  {
+                     "id":  "13216140105",
+                     "name":  "quality-compression-parity-f52961be35384adfe99b078a47ec0f16b21633e4",
+                     "digest":  "sha256:a2968648086b377a9fbbf0a773375679a7dd06dbd9dc0032ac84a0bb6199a9e7"
+                 }
+}
