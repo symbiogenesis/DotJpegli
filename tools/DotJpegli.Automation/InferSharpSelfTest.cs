@@ -108,10 +108,10 @@ internal static partial class InferSharpSelfTest
             Check("Malformed JSON fails", "Invalid InferSharp SARIF");
             foreach (string invalid in new[]
             {
-                "{\"version\":\"1.0.0\",\"runs\":[{\"tool\":{\"driver\":{\"name\":\"Infer\"}},\"results\":[]}]}",
-                "{\"version\":\"2.1.0\",\"runs\":[]}",
-                "{\"version\":\"2.1.0\",\"runs\":{}}",
-                "{\"version\":\"2.1.0\"}",
+                /*lang=json,strict*/ "{\"version\":\"1.0.0\",\"runs\":[{\"tool\":{\"driver\":{\"name\":\"Infer\"}},\"results\":[]}]}",
+                /*lang=json,strict*/ "{\"version\":\"2.1.0\",\"runs\":[]}",
+                /*lang=json,strict*/ "{\"version\":\"2.1.0\",\"runs\":{}}",
+                /*lang=json,strict*/ "{\"version\":\"2.1.0\"}",
             })
             {
                 File.WriteAllText(reportPath, invalid);
@@ -120,13 +120,13 @@ internal static partial class InferSharpSelfTest
 
             foreach (string invalidRun in new[]
             {
-                "{\"tool\":{\"driver\":{\"name\":\"Other\"}},\"results\":[]}",
-                "{\"tool\":{\"driver\":{\"name\":\"Infer\"}}}",
-                "{\"tool\":{\"driver\":{\"name\":\"Infer\"}},\"results\":null}",
-                "{\"tool\":{\"driver\":{\"name\":\"Infer\"}},\"results\":{}}",
-                "{\"results\":[]}",
-                "{\"tool\":[{\"driver\":{\"name\":\"Infer\"}}],\"results\":[]}",
-                "{\"tool\":{\"driver\":{\"name\":\"Infer\"}},\"results\":[\"invalid result\"]}",
+                /*lang=json,strict*/ "{\"tool\":{\"driver\":{\"name\":\"Other\"}},\"results\":[]}",
+                /*lang=json,strict*/ "{\"tool\":{\"driver\":{\"name\":\"Infer\"}}}",
+                /*lang=json,strict*/ "{\"tool\":{\"driver\":{\"name\":\"Infer\"}},\"results\":null}",
+                /*lang=json,strict*/ "{\"tool\":{\"driver\":{\"name\":\"Infer\"}},\"results\":{}}",
+                /*lang=json,strict*/ "{\"results\":[]}",
+                /*lang=json,strict*/ "{\"tool\":[{\"driver\":{\"name\":\"Infer\"}}],\"results\":[]}",
+                /*lang=json,strict*/ "{\"tool\":{\"driver\":{\"name\":\"Infer\"}},\"results\":[\"invalid result\"]}",
             })
             {
                 WriteReport(runs: [JsonNode.Parse(invalidRun)]);
@@ -144,9 +144,9 @@ internal static partial class InferSharpSelfTest
             foreach (string invalidLocation in new[]
             {
                 "{}",
-                "{\"physicalLocation\":{}}",
-                "{\"physicalLocation\":{\"artifactLocation\":{\"uri\":\"file:/_/src/Example.cs\"},\"region\":{\"startLine\":0}}}",
-                "{\"physicalLocation\":{\"artifactLocation\":{\"uri\":\"file:/_/src/Example.cs\"},\"region\":{\"startLine\":\"1\"}}}",
+                /*lang=json,strict*/ "{\"physicalLocation\":{}}",
+                /*lang=json,strict*/ "{\"physicalLocation\":{\"artifactLocation\":{\"uri\":\"file:/_/src/Example.cs\"},\"region\":{\"startLine\":0}}}",
+                /*lang=json,strict*/ "{\"physicalLocation\":{\"artifactLocation\":{\"uri\":\"file:/_/src/Example.cs\"},\"region\":{\"startLine\":\"1\"}}}",
             })
             {
                 JsonObject finding = Finding();

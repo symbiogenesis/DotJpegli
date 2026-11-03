@@ -46,7 +46,7 @@ internal static class Program
 
             return 0;
         }
-        catch (Exception exception) when (exception is ArgumentException or IOException or InvalidOperationException or System.Text.Json.JsonException or System.Xml.XmlException or System.Net.Http.HttpRequestException or OperationCanceledException)
+        catch (Exception exception) when (exception is ArgumentException or IOException or InvalidOperationException or System.Text.Json.JsonException or System.Xml.XmlException or HttpRequestException or OperationCanceledException)
         {
             Console.Error.WriteLine(exception.Message);
             return 1;

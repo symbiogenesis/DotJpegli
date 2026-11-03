@@ -11,23 +11,23 @@ internal static class CorpusPng
         if (data.Length < signature.Length ||
             !MemoryExtensions.SequenceEqual(data.AsSpan(0, 8), signature))
         {
-            throw new System.IO.InvalidDataException("Not a PNG");
+            throw new InvalidDataException("Not a PNG");
         }
 
         int width = 0, height = 0, position = 8;
         bool ended = false;
-        using var compressed = new System.IO.MemoryStream();
+        using var compressed = new MemoryStream();
         while (position < data.Length)
         {
             if (data.Length - position < 12)
             {
-                throw new System.IO.InvalidDataException("Truncated PNG chunk");
+                throw new InvalidDataException("Truncated PNG chunk");
             }
 
             uint length = ReadUInt32(data, position);
             if (length > (uint)(data.Length - position - 12))
             {
-                throw new System.IO.InvalidDataException("Truncated PNG payload");
+                throw new InvalidDataException("Truncated PNG payload");
             }
 
             int size = (int)length;
@@ -35,25 +35,25 @@ internal static class CorpusPng
             int payload = position + 8;
             if (Crc32(data, position + 4, size + 4) != ReadUInt32(data, payload + size))
             {
-                throw new System.IO.InvalidDataException("PNG CRC mismatch");
+                throw new InvalidDataException("PNG CRC mismatch");
             }
 
             if (position == 8 && kind != "IHDR")
             {
-                throw new System.IO.InvalidDataException("Missing IHDR");
+                throw new InvalidDataException("Missing IHDR");
             }
 
             if (kind == "IHDR")
             {
                 if (width != 0 || size != 13)
                 {
-                    throw new System.IO.InvalidDataException("Invalid IHDR");
+                    throw new InvalidDataException("Invalid IHDR");
                 }
 
                 uint pngWidth = ReadUInt32(data, payload), pngHeight = ReadUInt32(data, payload + 4);
                 if (pngWidth == 0 || pngHeight == 0 || (ulong)pngWidth * pngHeight > 1024 * 1024)
                 {
-                    throw new System.IO.InvalidDataException("Unexpected corpus dimensions");
+                    throw new InvalidDataException("Unexpected corpus dimensions");
                 }
 
                 width = (int)pngWidth;
@@ -61,7 +61,7 @@ internal static class CorpusPng
                 if (data[payload + 8] != 8 || data[payload + 9] != 2 ||
                     data[payload + 10] != 0 || data[payload + 11] != 0 || data[payload + 12] != 0)
                 {
-                    throw new System.IO.InvalidDataException("Expected noninterlaced RGB8 PNG");
+                    throw new InvalidDataException("Expected noninterlaced RGB8 PNG");
                 }
             }
             else if (kind == "IDAT")
@@ -72,7 +72,7 @@ internal static class CorpusPng
             {
                 if (size != 0)
                 {
-                    throw new System.IO.InvalidDataException("Invalid IEND");
+                    throw new InvalidDataException("Invalid IEND");
                 }
 
                 ended = true;
@@ -80,14 +80,14 @@ internal static class CorpusPng
             }
             else if (data[position + 4] is >= ((byte)'A') and <= ((byte)'Z'))
             {
-                throw new System.IO.InvalidDataException("Unsupported critical chunk " + kind);
+                throw new InvalidDataException("Unsupported critical chunk " + kind);
             }
 
             position += size + 12;
         }
         if (width == 0 || !ended)
         {
-            throw new System.IO.InvalidDataException("Missing IHDR or IEND");
+            throw new InvalidDataException("Missing IHDR or IEND");
         }
 
         int stride = width * 3;
@@ -103,7 +103,7 @@ internal static class CorpusPng
 
             if (read != raw.Length || inflater.ReadByte() != -1)
             {
-                throw new System.IO.InvalidDataException("Unexpected pixel extent");
+                throw new InvalidDataException("Unexpected pixel extent");
             }
         }
         byte[] header = System.Text.Encoding.ASCII.GetBytes(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"P6\n{width} {height}\n255\n"));
@@ -115,7 +115,7 @@ internal static class CorpusPng
             int mode = raw[start];
             if (mode > 4)
             {
-                throw new System.IO.InvalidDataException("Unknown PNG filter");
+                throw new InvalidDataException("Unknown PNG filter");
             }
 
             for (int x = 0; x < stride; x++)
