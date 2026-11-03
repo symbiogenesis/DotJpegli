@@ -172,12 +172,29 @@ internal readonly ref struct PixelSource
                 && Vector<float>.Count is 4 or 8 && this.sourceType == SourceType.Byte
                 && !this.IsGrayscaleInput && !this.ycbcr && !this.xyb && this.colorTransform is null
                 && this.ColorSpace is JpegColorSpace.YCbCr or JpegColorSpace.Grayscale;
-            for (int y = 0; y < planes.CachedHeight; y++)
+            if (planes.IsContiguous)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                this.ConvertRow(y * stride, planes.GetRow(0, y),
-                    components == 1 ? default : planes.GetRow(1, y),
-                    components == 1 ? default : planes.GetRow(2, y), vectorRgb);
+                Span<float> first = planes.GetPlane(0);
+                Span<float> second = components == 1 ? default : planes.GetPlane(1);
+                Span<float> third = components == 1 ? default : planes.GetPlane(2);
+                for (int y = 0; y < height; y++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    int offset = y * width;
+                    this.ConvertRow(y * stride, first.Slice(offset, width),
+                        components == 1 ? default : second.Slice(offset, width),
+                        components == 1 ? default : third.Slice(offset, width), vectorRgb);
+                }
+            }
+            else
+            {
+                for (int y = 0; y < planes.CachedHeight; y++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    this.ConvertRow(y * stride, planes.GetRow(0, y),
+                        components == 1 ? default : planes.GetRow(1, y),
+                        components == 1 ? default : planes.GetRow(2, y), vectorRgb);
+                }
             }
             return new PixelSource(this, this.colorSpace, convertedPlanes: planes);
         }
@@ -229,9 +246,14 @@ internal readonly ref struct PixelSource
                 return this.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget, allowPartial);
             }
             reservedScratchBytes = scratchBytes;
+            bool vectorRgb = Vector.IsHardwareAccelerated && BitConverter.IsLittleEndian && Vector<float>.Count is 4 or 8;
+            if (planes.IsContiguous)
+            {
+                this.ConvertContiguous420Rows(planes, width, height, stride, scratch, vectorRgb, cancellationToken);
+                return new PixelSource(this, this.colorSpace, convertedPlanes: planes);
+            }
             Span<float> firstCb = scratch.AsSpan(0, width), firstCr = scratch.AsSpan(width, width);
             Span<float> secondCb = scratch.AsSpan(2 * width, width), secondCr = scratch.AsSpan(3 * width, width);
-            bool vectorRgb = Vector.IsHardwareAccelerated && BitConverter.IsLittleEndian && Vector<float>.Count is 4 or 8;
             int chromaRow = 0;
             for (int y = 0; y < planes.CachedHeight; y += 2, chromaRow++)
             {
@@ -283,6 +305,46 @@ internal readonly ref struct PixelSource
             if (reservedScratchBytes != 0)
             {
                 cacheBudget?.Release(reservedScratchBytes, EncoderCacheKind.ConvertedSamples);
+            }
+        }
+    }
+
+    private void ConvertContiguous420Rows(ConvertedPlanes planes, int width, int height, int stride,
+        Span<float> scratch, bool vectorRgb, CancellationToken cancellationToken)
+    {
+        Span<float> luma = planes.GetPlane(0), cb = planes.GetPlane(1), cr = planes.GetPlane(2);
+        Span<float> firstCb = scratch[..width], firstCr = scratch.Slice(width, width);
+        Span<float> secondCb = scratch.Slice(2 * width, width), secondCr = scratch.Slice(3 * width, width);
+        int chromaWidth = planes.ChromaWidth;
+        int chromaRow = 0;
+        for (int y = 0; y < height; y += 2, chromaRow++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            this.ConvertRow(y * stride, luma.Slice(y * width, width), firstCb, firstCr, vectorRgb);
+            if (y + 1 < height)
+            {
+                this.ConvertRow((y + 1) * stride, luma.Slice((y + 1) * width, width), secondCb, secondCr, vectorRgb);
+            }
+            else
+            {
+                firstCb.CopyTo(secondCb);
+                firstCr.CopyTo(secondCr);
+            }
+            DownsampleConvertedRow(firstCb, secondCb, cb.Slice(chromaRow * chromaWidth, chromaWidth));
+            DownsampleConvertedRow(firstCr, secondCr, cr.Slice(chromaRow * chromaWidth, chromaWidth));
+        }
+        if (chromaRow < planes.ChromaHeight)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Span<float> finalCb = cb.Slice(chromaRow * chromaWidth, chromaWidth);
+            Span<float> finalCr = cr.Slice(chromaRow * chromaWidth, chromaWidth);
+            DownsampleConvertedRow(secondCb, secondCb, finalCb);
+            DownsampleConvertedRow(secondCr, secondCr, finalCr);
+            for (int row = chromaRow + 1; row < planes.ChromaHeight; row++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                finalCb.CopyTo(cb.Slice(row * chromaWidth, chromaWidth));
+                finalCr.CopyTo(cr.Slice(row * chromaWidth, chromaWidth));
             }
         }
     }
@@ -441,8 +503,14 @@ internal readonly ref struct PixelSource
                 : this.samples[(component * this.PlaneLength) + index];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal Span<float> GetRow(int component, int row)
         {
+            if (this.segments is null)
+            {
+                int width = component == 0 ? this.Width : this.ChromaWidth;
+                return this.GetPlane(component).Slice(row * width, width);
+            }
             Span<float> segment = this.GetSegment(component, row, out int rowWidth, out _, out int localRow);
             return segment.Slice(localRow * rowWidth, rowWidth);
         }

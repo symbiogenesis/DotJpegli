@@ -325,9 +325,12 @@ internal sealed class QuantizedImage : IDisposable
         return rental;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private Span<short> Block(int component, int x, int y)
     {
-        int offset = checked(((y * this.widths[component]) + x) * 64);
+        // Accepted cache capacity bounds every valid block offset below Int32.MaxValue.
+        // Callers visit only admitted rows and real component columns.
+        int offset = ((y * this.widths[component]) + x) * 64;
         return this.segments is null ? this.components[component].AsSpan(offset, 64)
             : this.segments[component][offset / SegmentLength].AsSpan(offset % SegmentLength, 64);
     }

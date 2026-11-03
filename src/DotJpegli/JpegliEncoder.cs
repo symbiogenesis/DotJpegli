@@ -792,28 +792,51 @@ public static class JpegliEncoder
         ref readonly SequentialComponent info = ref source.Components[component];
         ReadOnlySpan<float> plane = info.UsePlane
             ? component == 0 ? source.Plane0 : component == 1 ? source.Plane1 : source.Plane2 : default;
-        int planeWidth = info.PlaneWidth, planeHeight = info.PlaneHeight, planeY = componentY * 8;
-        if (plane.IsEmpty && info.UsePlane)
-        {
-            bool compactChroma = component != 0
-                && (info.Horizontal != source.Horizontal || info.Vertical != source.Vertical);
-            plane = source.Pixels.GetConvertedPlaneSegment(component, componentY * 8, compactChroma,
-                out planeWidth, out planeHeight, out planeY);
-        }
         if (!plane.IsEmpty)
         {
-            if ((componentX * 8) + 8 <= planeWidth && planeY + 8 <= planeHeight)
+            if ((componentX * 8) + 8 <= info.PlaneWidth && (componentY * 8) + 8 <= info.PlaneHeight)
             {
-                ForwardDct.TransformQuantizePlane(plane, planeWidth, componentX * 8, planeY,
+                ForwardDct.TransformQuantizePlane(plane, info.PlaneWidth, componentX * 8, componentY * 8,
                     info.Quantizer, shortScratch.Slice(64, 64), strength);
             }
             else
             {
-                ForwardDct.TransformQuantizePaddedPlane(plane, planeWidth, planeHeight,
-                    componentX * 8, planeY, info.Quantizer, shortScratch.Slice(64, 64), strength);
+                ForwardDct.TransformQuantizePaddedPlane(plane, info.PlaneWidth, info.PlaneHeight,
+                    componentX * 8, componentY * 8, info.Quantizer, shortScratch.Slice(64, 64), strength);
             }
 
             return;
+        }
+        PrepareSequentialFallback(in source, component, componentX, componentY, strength, floatScratch, shortScratch);
+    }
+
+    // Segment lookup and raw readers have a separate frame so their extra
+    // geometry and scratch do not enter the ordinary contiguous-plane path.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void PrepareSequentialFallback(in SequentialBlockSource source, int component,
+        int componentX, int componentY, float strength, Span<float> floatScratch, Span<short> shortScratch)
+    {
+        ref readonly SequentialComponent info = ref source.Components[component];
+        if (info.UsePlane)
+        {
+            bool compactChroma = component != 0
+                && (info.Horizontal != source.Horizontal || info.Vertical != source.Vertical);
+            ReadOnlySpan<float> plane = source.Pixels.GetConvertedPlaneSegment(component, componentY * 8, compactChroma,
+                out int planeWidth, out int planeHeight, out int planeY);
+            if (!plane.IsEmpty)
+            {
+                if ((componentX * 8) + 8 <= planeWidth && planeY + 8 <= planeHeight)
+                {
+                    ForwardDct.TransformQuantizePlane(plane, planeWidth, componentX * 8, planeY,
+                        info.Quantizer, shortScratch.Slice(64, 64), strength);
+                }
+                else
+                {
+                    ForwardDct.TransformQuantizePaddedPlane(plane, planeWidth, planeHeight,
+                        componentX * 8, planeY, info.Quantizer, shortScratch.Slice(64, 64), strength);
+                }
+                return;
+            }
         }
         Span<float> samples = floatScratch[..64];
         Downsampling.FillBlock(source.Pixels, source.Width, source.Height, source.Stride, component,
