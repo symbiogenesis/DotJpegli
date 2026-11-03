@@ -17,7 +17,7 @@ Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 $repository = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-$settings = Join-Path $repository 'PSScriptAnalyzerSettings.psd1'
+$settings = @{ IncludeDefaultRules = $true; Severity = @('Error', 'Warning', 'Information') }
 
 function Get-DefaultShell([System.Collections.IDictionary] $Definition) {
     $defaults = $Definition['defaults']
