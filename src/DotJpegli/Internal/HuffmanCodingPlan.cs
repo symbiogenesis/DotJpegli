@@ -139,8 +139,10 @@ internal sealed class HuffmanCodingPlan
         var clusters = new List<long[]>();
         int[] indexes = new int[histograms.Count];
         var slots = new List<int>();
-        var slotHistograms = new List<int>();
-        var slotCosts = new List<float>();
+        // JPEG has only four table slots, even when later clusters evict them.
+        Span<int> slotHistograms = stackalloc int[4];
+        Span<float> slotCosts = stackalloc float[4];
+        int slotCount = 0;
         Span<long> combined = stackalloc long[256];
         for (int index = 0; index < histograms.Count; index++)
         {
@@ -155,13 +157,13 @@ internal sealed class HuffmanCodingPlan
                 continue;
             }
 
-            int bestSlot = slotHistograms.Count;
+            int bestSlot = slotCount;
             // Explicit offline limits retain a bounded set of clusters instead
             // of evicting table slots. Zero keeps the existing default policy.
             bool forbidNewCluster = (forceBaseline && bestSlot > 1)
                 || (tableLimit != 0 && bestSlot >= tableLimit);
             float bestCost = forbidNewCluster ? float.MaxValue : Cost(current);
-            for (int slot = 0; slot < slotHistograms.Count; slot++)
+            for (int slot = 0; slot < slotCount; slot++)
             {
                 Add(clusters[slotHistograms[slot]], current, combined);
                 float cost = Cost(combined) - slotCosts[slot];
@@ -171,15 +173,14 @@ internal sealed class HuffmanCodingPlan
                     bestSlot = slot;
                 }
             }
-            if (bestSlot == slotHistograms.Count)
+            if (bestSlot == slotCount)
             {
                 int histogramIndex = clusters.Count;
                 clusters.Add((long[])current.Clone());
                 indexes[index] = histogramIndex;
-                if (bestSlot < 4)
+                if (bestSlot < slotHistograms.Length)
                 {
-                    slotHistograms.Add(histogramIndex);
-                    slotCosts.Add(bestCost);
+                    slotCount++;
                 }
                 else
                 {
