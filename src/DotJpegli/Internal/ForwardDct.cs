@@ -19,16 +19,6 @@ internal static class ForwardDct
     // Source revision: 031a0077f5799a6041004267fc12b956c1f52a20.
     private const float Sqrt2 = 1.41421356237f;
 
-    // WcMultipliers<N>: 1 / (2*cos((i + 0.5)*pi/N)).
-    private static ReadOnlySpan<float> Wc4 => [0.541196100146197f, 1.3065629648763764f];
-    private static ReadOnlySpan<float> Wc8 =>
-    [
-        0.5097955791041592f,
-        0.6013448869350453f,
-        0.8999762231364156f,
-        2.5629154477415055f
-    ];
-
     /// <summary>
     /// Transforms 64 row-major, level-shifted samples into standard JPEG
     /// orthonormal coefficients in row-major frequency order.
@@ -251,7 +241,7 @@ internal static class ForwardDct
                 lane[y] = samples[(y * 8) + x];
             }
 
-            TransformRecursive(lane);
+            TransformEightScalar(lane);
             for (int v = 0; v < 8; v++)
             {
                 intermediate[(v * 8) + x] = lane[v] * 0.125f;
@@ -265,7 +255,7 @@ internal static class ForwardDct
         for (int v = 0; v < 8; v++)
         {
             Span<float> row = intermediate.Slice(v * 8, 8);
-            TransformRecursive(row);
+            TransformEightScalar(row);
             row.CopyTo(coefficients.Slice(v * 8, 8));
         }
     }
@@ -598,56 +588,46 @@ internal static class ForwardDct
         => TransformScalarCore(samples, coefficients);
 
 #endif
-    private static void TransformRecursive(Span<float> values)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TransformEightScalar(Span<float> values)
     {
-        int size = values.Length;
-        if (size == 2)
-        {
-            // DCT1DImpl<2>.
-            float first = values[0];
-            float second = values[1];
-            values[0] = first + second;
-            values[1] = first - second;
-            return;
-        }
+        // Specialize the fixed recursion without scratch spans. Each lane keeps
+        // the recursive port's operation order, including its fused multiply-adds.
+        float e0 = values[0] + values[7];
+        float e1 = values[1] + values[6];
+        float e2 = values[2] + values[5];
+        float e3 = values[3] + values[4];
+        TransformFourScalar(ref e0, ref e1, ref e2, ref e3);
+        float o0 = (values[0] - values[7]) * 0.5097955791041592f;
+        float o1 = (values[1] - values[6]) * 0.6013448869350453f;
+        float o2 = (values[2] - values[5]) * 0.8999762231364156f;
+        float o3 = (values[3] - values[4]) * 2.5629154477415055f;
+        TransformFourScalar(ref o0, ref o1, ref o2, ref o3);
+        o0 = FloatingPointMath.FusedMultiplyAdd(o0, Sqrt2, o1);
+        o1 += o2;
+        o2 += o3;
+        values[0] = e0;
+        values[1] = o0;
+        values[2] = e1;
+        values[3] = o1;
+        values[4] = e2;
+        values[5] = o2;
+        values[6] = e3;
+        values[7] = o3;
+    }
 
-        // DCT1DImpl<N>, where N is 4 or 8. The C++ templates operate on
-        // parallel SIMD lanes; this span represents one scalar lane.
-        int half = size / 2;
-        Span<float> temporary = stackalloc float[8];
-        Span<float> even = temporary[..half];
-        Span<float> odd = temporary.Slice(half, half);
-        for (int i = 0; i < half; i++)
-        {
-            even[i] = values[i] + values[size - 1 - i];
-        }
-
-        TransformRecursive(even);
-        for (int i = 0; i < half; i++)
-        {
-            odd[i] = values[i] - values[size - 1 - i];
-        }
-
-        ReadOnlySpan<float> multipliers = size == 4 ? Wc4 : Wc8;
-        for (int i = 0; i < half; i++)
-        {
-            odd[i] *= multipliers[i];
-        }
-
-        TransformRecursive(odd);
-
-        // B<N/2> uses Highway MulAdd for this first operation.
-        odd[0] = FloatingPointMath.FusedMultiplyAdd(odd[0], Sqrt2, odd[1]);
-        for (int i = 1; i + 1 < half; i++)
-        {
-            odd[i] += odd[i + 1];
-        }
-
-        // InverseEvenOdd<N> interleaves the recursively transformed halves.
-        for (int i = 0; i < half; i++)
-        {
-            values[2 * i] = even[i];
-            values[(2 * i) + 1] = odd[i];
-        }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TransformFourScalar(ref float v0, ref float v1, ref float v2, ref float v3)
+    {
+        float e0 = v0 + v3;
+        float e1 = v1 + v2;
+        float o0 = (v0 - v3) * 0.541196100146197f;
+        float o1 = (v1 - v2) * 1.3065629648763764f;
+        float first = o0 + o1;
+        float second = o0 - o1;
+        v0 = e0 + e1;
+        v1 = FloatingPointMath.FusedMultiplyAdd(first, Sqrt2, second);
+        v2 = e0 - e1;
+        v3 = second;
     }
 }

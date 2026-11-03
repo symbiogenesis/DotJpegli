@@ -30,6 +30,13 @@ assembly. No CPU-specific intrinsics are used. Smoothing and nonlinear
 RGB-to-XYB conversion use scalar paths. These implementation choices do not
 establish speed parity; see the [performance measurements and protocol](performance-parity.md).
 
+The scalar DCT specializes the same fixed eight- and four-point stages as the
+vector path. It keeps the recursive port's arithmetic and fused multiply-adds
+while avoiding recursive calls and per-stage scratch spans. A retained recursive
+test oracle checks coefficient bits, including signed zero, subnormals and
+exceptional values; complete-encode fixtures check JPEG output. This scheduling
+change still needs CI measurements before claiming a latency benefit.
+
 Fuzzy erosion retains both the four-value insertion algorithm (45 min/max
 operations) and the pruned seven-layer network (39 operations). Narrow
 transposed zigzag ordering retains the original shuffle network and adjacent-

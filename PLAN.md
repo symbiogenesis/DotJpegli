@@ -24,6 +24,8 @@ completed work.
   paths use Original; normal wide-SIMD dispatch remains available.
 - Kernel preferences are immutable per encode. There is no startup benchmark,
   shared mutable selector or timing-dependent JPEG output.
+- Scalar DCT uses fixed eight- and four-point schedules, preserving the original
+  recursive arithmetic without recursive calls or per-stage scratch spans.
 - AQ scratch has encode-owned bounded pooling, oversized-array fallback and
   strengths-row reuse across passes.
 - Entropy-token scans share one encode-owned 64 MiB budget, accounting actual
