@@ -61,8 +61,8 @@ if ($buildRoot.StartsWith($sourcePrefix, $pathComparison) -or $buildRoot.Equals(
     throw 'BuildDirectory must be outside the reference source checkout.'
 }
 
-$git = (Get-Command git -CommandType Application).Source
-$cmake = (Get-Command cmake -CommandType Application).Source
+$git = (Get-Command git -CommandType Application | Select-Object -First 1).Source
+$cmake = (Get-Command cmake -CommandType Application | Select-Object -First 1).Source
 
 [System.IO.Directory]::CreateDirectory($BuildDirectory) | Out-Null
 Push-Location -LiteralPath $BuildDirectory
