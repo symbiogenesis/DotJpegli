@@ -44,6 +44,16 @@ ordering; default wide-SIMD dispatch remains available. AQ keeps the original
 insertion kernel because no portable selection guard was established. Both
 algorithms preserve the existing arithmetic; no runtime benchmarking is used.
 
+Optimized Huffman encoding shares one 64 MiB entropy-token rental budget across
+all scans in an encode. Scans acquire storage in script order, accounting for
+actual pooled array lengths, so small DC scans can leave capacity for larger AC
+scans. Exhaustion abandons only the affected scan, returns its rentals and lets
+later scans use the refunded capacity. Emission replays complete sequences and
+recomputes abandoned ones; successful replay releases that scan's storage early.
+Independent encodes own independent budgets. This policy preserves JPEG bytes
+but can change which scans are cached; it does not establish lower latency or
+peak working memory for every image.
+
 ## Build
 
 The library targets `netstandard2.1`, `net10.0` and `net11.0`; tests and tools run

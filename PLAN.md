@@ -123,6 +123,9 @@ is known to change outputs. Correctly rounded real log/exp functions also need
 not match the existing upstream approximations. Require a proof of the final
 quantized result, or evaluate as an explicit quality-changing option.
 
+The interval proof and fallback-rate measurements remain pending. This candidate
+is outside the shared token-budget batch below.
+
 ### 5. Parallel entropy coding — pending architecture work
 
 [PJRD (SoftwareX, September 2026)](https://www.sciencedirect.com/science/article/pii/S2352711026002669)
@@ -160,13 +163,14 @@ Potential benefits are lower bandwidth and keeping larger images below the
 unpacking, rank/indexing and noisy-image expansion. Keep dense fallback and
 account for actual pooled bucket sizes. Benchmark both sparse and dense images.
 
-### 8. Dynamic token budget across scans — pending
+### 8. Dynamic token budget across scans — implemented, CI pending
 
-Location: `EntropyTokenScans`. The total 64 MiB budget is divided equally by
-scan count. A small DC scan may leave capacity unused while a large AC scan
-abandons caching. Consider shared, demand-driven accounting without increasing
-the cap. Preserve rental accounting and complete-sequence fallback semantics.
-This is an engineering observation, not a literature-derived breakthrough.
+Location: `EntropyTokenScans`. The former equal division of 64 MiB by scan count
+could leave capacity unused by a small DC scan while a large AC scan abandoned
+caching. One encode-owned budget now accounts actual accepted rental lengths
+across scans on demand, retaining the cap and complete-sequence fallback.
+Implementation and bounded local validation are complete; automatic CI validation
+is pending. This is an engineering change, not a literature-derived breakthrough.
 
 ### 9. Larger-image and ICC workspaces — pending, lower priority
 
@@ -419,11 +423,42 @@ latency bounds. No thresholds were relaxed and no additional retry was launched.
 
 [Retained first-batch evidence](docs/performance-evidence/2026-11-02-first-batch-67d5724/README.md)
 includes the verified narrow raw samples and the earlier normal/repeat comparison
-reports. All remaining candidates above stay pending. The first batch makes no
-compression-size change: its compared JPEG outputs are byte-identical.
+reports. The first batch makes no compression-size change: its compared JPEG
+outputs are byte-identical.
 
 The `performance-baseline-2fa9afe53325be785bd638c7c4448598d308cb9f` artifact
 retains raw baseline evidence, both attempted narrow evidence sets and the normal
 comparison report. The normal current evidence is in the corresponding
 `performance-targeted` artifact. Allocation totals exclude retained pool capacity
 and do not establish lower peak working memory.
+
+## Shared token-budget implementation and validation
+
+`418c556` replaces equal per-scan shares with one encode-owned 64 MiB budget.
+Segment requests retain the existing geometric growth and use smaller final
+rentals when necessary. Accounting uses actual accepted array lengths, including
+oversized rentals. Exhaustion abandons and releases only the affected scan;
+its capacity becomes available to later scans while siblings remain replayable.
+Allocation follows scan order, so early scans have priority. The shared budget
+adds one small object allocation per token-cache owner.
+
+`a114953` releases each successful scan's rentals immediately after replay and
+adds whole-encoder comparisons against uncached emission. Focused regressions
+cover dirty and oversized rentals, rent failures, partial raw writes, repeated
+disposal, sibling and independent-owner lifetimes, and cached/fallback byte parity
+through sequential component scans, progressive refinement and restart markers.
+They also cover concurrent encodes, cancellation and destination-failure prefixes.
+Public encoder settings and the managed-only runtime contract are unchanged.
+
+Local Release library and test builds pass with zero warnings for all three
+library targets. Touched-file `dotnet format` checks pass at severity info.
+On Windows ARM64, 74 focused token, replay and encoder tests pass on each of
+.NET 10 and .NET 11. The 20 new tests also pass on .NET 11 with hardware intrinsics
+disabled and against the .NET Standard library on .NET 10. No local benchmark or
+full test suite was run.
+
+The settled revision's automatic push run will supply full CI validation and
+normal selected-case performance measurements; those results are pending.
+Large progressive workloads still need measurements before claiming a latency
+or peak-working-memory benefit. Tests establish bounded rental ownership and
+byte parity, not such a benefit. The other pending candidates remain open.
