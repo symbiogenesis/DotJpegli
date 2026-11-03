@@ -333,13 +333,13 @@ internal static class Program
     // Preserve the complete prerelease suffix; only remove the source-hash metadata.
     internal static string? RuntimeProductVersion(string? informationalVersion) => informationalVersion?.Split('+', 2)[0];
 
-    private static string Report(string status, IReadOnlyList<CaseResult> cases, Evaluation evaluation)
+    private static string Report(string status, List<CaseResult> cases, Evaluation evaluation)
     {
         var text = new StringBuilder();
-        text.AppendLine($"# Performance parity: {status.ToUpperInvariant()}");
+        text.AppendLine(CultureInfo.InvariantCulture, $"# Performance parity: {status.ToUpperInvariant()}");
         text.AppendLine();
-        text.AppendLine($"{cases.Count}/256 cases: RGB8 YCbCr, Kodak24 plus eight fixed controls, distances1/4, 444/420 and progression0/2, one worker on this CI host. Pinned upstream `{UpstreamPin}`.");
-        text.AppendLine($"Tested revision: `{Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA")}`.");
+        text.AppendLine(CultureInfo.InvariantCulture, $"{cases.Count}/256 cases: RGB8 YCbCr, Kodak24 plus eight fixed controls, distances1/4, 444/420 and progression0/2, one worker on this CI host. Pinned upstream `{UpstreamPin}`.");
+        text.AppendLine(CultureInfo.InvariantCulture, $"Tested revision: `{Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA")}`.");
         text.AppendLine();
         text.AppendLine("All cases are measured even when a latency bound fails, so the report identifies every measured regression. A passing verdict requires complete, valid coverage and all fixed bounds.");
         text.AppendLine();
@@ -385,10 +385,10 @@ internal static class Program
         });
         var report = new StringBuilder("# Targeted performance diagnostic\n\n");
         if (instrumentation is not null)
-            report.AppendLine($"**Instrumented CPU diagnostic only. Timings do not establish latency acceptance.** {instrumentation}\n");
-        report.AppendLine($"Status: {status}. {cases.Count}/{expectedCases} selected cases measured. **Full performance parity is not evaluated.**");
-        report.AppendLine($"Tested revision: `{Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA")}`.");
-        report.AppendLine($"\n{policy.Blocks} alternating blocks, {policy.Warmups} untimed warmups per block, {policy.MinimumIterations}..{policy.MaximumIterations} shared iterations. The selected-case latency bound is managed/native <=1.10. No group or whole-corpus acceptance verdict is inferred.\n");
+            report.AppendLine(CultureInfo.InvariantCulture, $"**Instrumented CPU diagnostic only. Timings do not establish latency acceptance.** {instrumentation}\n");
+        report.AppendLine(CultureInfo.InvariantCulture, $"Status: {status}. {cases.Count}/{expectedCases} selected cases measured. **Full performance parity is not evaluated.**");
+        report.AppendLine(CultureInfo.InvariantCulture, $"Tested revision: `{Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA")}`.");
+        report.AppendLine(CultureInfo.InvariantCulture, $"\n{policy.Blocks} alternating blocks, {policy.Warmups} untimed warmups per block, {policy.MinimumIterations}..{policy.MaximumIterations} shared iterations. The selected-case latency bound is managed/native <=1.10. No group or whole-corpus acceptance verdict is inferred.\n");
         report.AppendLine("| Case | Managed median (ms) | Native median (ms) | Ratio | Managed MAD | Native MAD |\n| --- | ---: | ---: | ---: | ---: | ---: |");
         foreach (CaseResult item in cases)
             report.AppendLine(FormattableString.Invariant($"| {Evidence.Label(item)} | {item.Managed.Median / 1_000_000:F3} | {item.Native.Median / 1_000_000:F3} | {item.MedianRatio:F3} | {item.Managed.RelativeMad:P1} | {item.Native.RelativeMad:P1} |"));

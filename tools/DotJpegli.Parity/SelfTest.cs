@@ -66,7 +66,8 @@ internal static class SelfTest
         Check(!Evidence.EvaluateQuality(cases, qualityMatches, new(), failures)[0].Passed && failures.Count >= 2,
             "Matched-quality rate violations must fail.");
         failures.Clear();
-        MatchedQuality[] completeQuality = new[] { "rgb-psnr-db", "luma-ssim" }.SelectMany(metric => Enumerable.Range(0, 5)
+        string[] qualityMetrics = ["rgb-psnr-db", "luma-ssim"];
+        MatchedQuality[] completeQuality = qualityMetrics.SelectMany(metric => Enumerable.Range(0, 5)
             .Select(index => new MatchedQuality("image", "controlled", 444, 2, metric, index, 100, 100))).ToArray();
         Check(Evidence.EvaluateQuality(cases, completeQuality, new(), failures).All(item => item.Passed) && failures.Count == 0,
             "Complete equal matched-quality evidence must pass.");

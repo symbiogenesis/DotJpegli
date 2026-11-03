@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace DotJpegli.Performance;
 
 // The acceptance protocol always uses these defaults. Only diagnostic runs may override work counts.
@@ -7,11 +9,17 @@ internal sealed record Policy
     public int Blocks { get; init; } = 7;
     public int MinimumIterations { get; init; } = 3;
     public int MaximumIterations { get; init; } = 100;
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "The fixed acceptance policy is serialized as instance properties in retained evidence.")]
     public double TargetBlockMilliseconds => 50;
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "The fixed acceptance policy is serialized as instance properties in retained evidence.")]
     public double MinimumBlockMilliseconds => 1;
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "The fixed acceptance policy is serialized as instance properties in retained evidence.")]
     public double MaximumRelativeMad => 0.10;
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "The fixed acceptance policy is serialized as instance properties in retained evidence.")]
     public double MaximumGroupGeometricMeanRatio => 1.05;
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "The fixed acceptance policy is serialized as instance properties in retained evidence.")]
     public double MaximumCaseRatio => 1.10;
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "The fixed acceptance policy is serialized as instance properties in retained evidence.")]
     public int ManagedWorkers => 1;
 }
 

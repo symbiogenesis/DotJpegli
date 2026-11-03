@@ -157,10 +157,10 @@ internal static class Program
     private static string Report(Summary summary)
     {
         var text = new StringBuilder();
-        text.AppendLine($"# Quality and compression parity: {(summary.Passed ? "PASS" : "FAIL")}");
+        text.AppendLine(CultureInfo.InvariantCulture, $"# Quality and compression parity: {(summary.Passed ? "PASS" : "FAIL")}");
         text.AppendLine(); text.AppendLine(summary.Scope); text.AppendLine();
-        text.AppendLine($"Pinned upstream: `{summary.UpstreamRevision}`. Cases: {summary.Cases}; matched-rate targets: {summary.MatchedTargets} ({summary.MatchedRateAnchors} anchors); matched-quality targets: {summary.MatchedQualityTargets} ({summary.MatchedQualityAnchors} anchors).");
-        text.AppendLine($"Tested revision: `{summary.TestedRevision ?? "not supplied"}`.");
+        text.AppendLine(CultureInfo.InvariantCulture, $"Pinned upstream: `{summary.UpstreamRevision}`. Cases: {summary.Cases}; matched-rate targets: {summary.MatchedTargets} ({summary.MatchedRateAnchors} anchors); matched-quality targets: {summary.MatchedQualityTargets} ({summary.MatchedQualityAnchors} anchors).");
+        text.AppendLine(CultureInfo.InvariantCulture, $"Tested revision: `{summary.TestedRevision ?? "not supplied"}`.");
         text.AppendLine(); text.AppendLine("Every group and every image/target must satisfy the fixed bounds. Aggregate results never excuse an individual failure. The gate measures PSNR and this explicitly defined local luma SSIM, without a human study or Butteraugli/MS-SSIM claim.");
         text.AppendLine(); text.AppendLine("Size limits: <=1.02 geometric mean and <=1.05 each case/target. Matched-rate PSNR delta: >=-0.10dB mean, >=-0.25dB each target. SSIM delta: >=-0.001 mean, >=-0.003 each target. Lower managed bytes and higher managed quality are accepted.");
         text.AppendLine(); text.AppendLine("Means use five interior anchors per image. Worst bounds use those anchors, overlap endpoints and the union of both encoders' frontier knots, covering the full common piecewise-linear interpolated range. No extrapolation or unmeasured real encoder behavior between samples is claimed.");

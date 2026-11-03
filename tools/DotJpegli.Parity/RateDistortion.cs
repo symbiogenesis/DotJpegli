@@ -4,6 +4,8 @@ internal readonly record struct CurvePoint(long Bytes, double Quality);
 
 internal static class RateDistortion
 {
+    private static readonly double[] TargetFractions = [.1, .3, .5, .7, .9];
+
     public static List<CurvePoint> Frontier(IEnumerable<CurvePoint> points)
     {
         var frontier = new List<CurvePoint>();
@@ -39,7 +41,7 @@ internal static class RateDistortion
             throw new InvalidDataException("At least two nondominated points are required in every metric curve.");
         double minimum = curves.Max(curve => (double)curve[0].Bytes), maximum = curves.Min(curve => (double)curve[^1].Bytes);
         if (minimum >= maximum) throw new InvalidDataException("No common rate-distortion range.");
-        return new[] { .1, .3, .5, .7, .9 }
+        return TargetFractions
             .Select(fraction => Math.Exp(Math.Log(minimum) + fraction * (Math.Log(maximum) - Math.Log(minimum)))).ToArray();
     }
 
@@ -64,7 +66,7 @@ internal static class RateDistortion
         if (managed.Count < 2 || native.Count < 2) throw new InvalidDataException("Constant or insufficient quality curve.");
         double minimum = Math.Max(managed[0].Quality, native[0].Quality), maximum = Math.Min(managed[^1].Quality, native[^1].Quality);
         if (minimum >= maximum) throw new InvalidDataException("No common quality range.");
-        return new[] { .1, .3, .5, .7, .9 }.Select(fraction => minimum + fraction * (maximum - minimum)).ToArray();
+        return TargetFractions.Select(fraction => minimum + fraction * (maximum - minimum)).ToArray();
     }
 
     public static double[] WorstRateTargets(params IReadOnlyList<CurvePoint>[] curves)

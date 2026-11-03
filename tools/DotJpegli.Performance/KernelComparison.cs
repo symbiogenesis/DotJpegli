@@ -425,7 +425,7 @@ internal static class KernelComparison
         foreach (Result item in results)
             text.AppendLine(FormattableString.Invariant($"| {item.Id}/{item.Sampling}/p{item.ProgressiveLevel}/d{item.Distance:g} | {item.Kernel} | {item.BaselinePreference} | {item.CandidatePreference} | {item.OptimizedKernelReachable} | {item.Iterations} | {Metric(item.Analysis.Original?.Median / 1e6, "F4")} | {Metric(item.Analysis.Optimized?.Median / 1e6, "F4")} | {Metric(item.Analysis.PairedRatios?.Median, "F6")} | {Metric(item.Analysis.OriginalAllocatedBytesPerEncode, "F1")} | {Metric(item.Analysis.OptimizedAllocatedBytesPerEncode, "F1")} | {item.Analysis.EvidencePreference} | {item.Analysis.InvalidReasons.Length == 0} |"));
         if (skipped.Count != 0)
-            text.AppendLine($"\n{skipped.Count} narrow-zigzag comparisons were not applicable to this pipeline's vector width; skipped.json retains their case identities and reason.");
+            text.AppendLine(CultureInfo.InvariantCulture, $"\n{skipped.Count} narrow-zigzag comparisons were not applicable to this pipeline's vector width; skipped.json retains their case identities and reason.");
         if (invalid.Length != 0)
         {
             text.AppendLine("\nInvalid evidence:");
