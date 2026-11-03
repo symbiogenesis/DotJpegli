@@ -159,16 +159,16 @@ internal static partial class PerformanceEvidenceCommand
         double ratio = Positive(data[1].Case["managed"]!["median"], "Managed median") / Positive(firstCase["managed"]!["median"], "Managed median");
         double simdRatio = Positive(data[3].Case["managed"]!["median"], "Managed median") / Positive(data[2].Case["managed"]!["median"], "Managed median");
         StringBuilder report = new();
-        report.Append("# One-case .NET runtime and portable SIMD API comparison\n\nKodak01 4:2:0 sequential distance 1, same CPU, 7 blocks/20 iterations/5 warmups. The first pair uses identical net10.0 binaries to isolate runtime changes. The second pair uses the pinned .NET 11 SDK and runtime, comparing portable Shuffle/Create lane assembly with Zip/Unzip/Concat in the DCT transpose and downsampling. Both implementations use portable APIs, with no CPU-specific intrinsic paths. All four JPEG hashes must match. No whole-corpus or migration verdict.\n\n");
-        report.Append(CultureInfo.InvariantCulture, $"Host: {Text(left["environment"]!["cpu"])}; architecture: {architecture}.\n\n");
-        report.Append("| Build/runtime | Managed median (ms) | Native median (ms) |\n| --- | ---: | ---: |\n");
+        _ = report.Append("# One-case .NET runtime and portable SIMD API comparison\n\nKodak01 4:2:0 sequential distance 1, same CPU, 7 blocks/20 iterations/5 warmups. The first pair uses identical net10.0 binaries to isolate runtime changes. The second pair uses the pinned .NET 11 SDK and runtime, comparing portable Shuffle/Create lane assembly with Zip/Unzip/Concat in the DCT transpose and downsampling. Both implementations use portable APIs, with no CPU-specific intrinsic paths. All four JPEG hashes must match. No whole-corpus or migration verdict.\n\n");
+        _ = report.Append(CultureInfo.InvariantCulture, $"Host: {Text(left["environment"]!["cpu"])}; architecture: {architecture}.\n\n");
+        _ = report.Append("| Build/runtime | Managed median (ms) | Native median (ms) |\n| --- | ---: | ---: |\n");
         for (int index = 0; index < Versions.Length; index++)
         {
-            report.Append(CultureInfo.InvariantCulture, $"| {Versions[index]} | {Positive(data[index].Case["managed"]!["median"], "Managed median") / 1e6:F3} | {Positive(data[index].Case["native"]!["median"], "Native median") / 1e6:F3} |\n");
+            _ = report.Append(CultureInfo.InvariantCulture, $"| {Versions[index]} | {Positive(data[index].Case["managed"]!["median"], "Managed median") / 1e6:F3} | {Positive(data[index].Case["native"]!["median"], "Native median") / 1e6:F3} |\n");
         }
 
-        report.Append(CultureInfo.InvariantCulture, $"\n.NET 11/.NET 10 managed latency ratio: **{ratio:F6}** (lower is better). JPEG hashes match.\n");
-        report.Append(CultureInfo.InvariantCulture, $"\nExplicit .NET 11 SIMD/baseline latency ratio on .NET 11: **{simdRatio:F6}** (lower is better). This measures this rewrite only, not all possible new API uses.\n");
+        _ = report.Append(CultureInfo.InvariantCulture, $"\n.NET 11/.NET 10 managed latency ratio: **{ratio:F6}** (lower is better). JPEG hashes match.\n");
+        _ = report.Append(CultureInfo.InvariantCulture, $"\nExplicit .NET 11 SIMD/baseline latency ratio on .NET 11: **{simdRatio:F6}** (lower is better). This measures this rewrite only, not all possible new API uses.\n");
         string text = report.ToString();
         File.WriteAllText(Path.Combine(directory, "runtime-comparison.md"), text);
         JsonArray versions = [];

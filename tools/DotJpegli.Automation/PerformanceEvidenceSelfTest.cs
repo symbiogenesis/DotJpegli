@@ -10,7 +10,7 @@ internal static partial class PerformanceEvidenceCommand
     {
         string temporaryRoot = Path.GetFullPath(Path.GetTempPath());
         string directory = Path.Combine(temporaryRoot, "dotjpegli-ci-helpers-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture));
-        Directory.CreateDirectory(directory);
+        _ = Directory.CreateDirectory(directory);
         try
         {
             JsonNode run = JsonNode.Parse("""{"environment":{"vector128":true,"vector256":true,"vector512":false,"vectorFloatWidth":8},"narrowApplicable":true}""")!;
@@ -53,7 +53,7 @@ internal static partial class PerformanceEvidenceCommand
             for (int index = 0; index < Versions.Length; index++)
             {
                 string path = Path.Combine(directory, "runtime-" + Versions[index]);
-                Directory.CreateDirectory(path);
+                _ = Directory.CreateDirectory(path);
                 JsonObject runtime = new()
                 {
                     ["testedRevision"] = "revision",
@@ -81,7 +81,7 @@ internal static partial class PerformanceEvidenceCommand
             }
 
             string summary = Path.Combine(directory, "job-summary.md");
-            CompareRuntimes(directory, "X64", summary);
+            _ = CompareRuntimes(directory, "X64", summary);
             JsonNode result = Read(Path.Combine(directory, "runtime-comparison.json"));
             Require(Number(result["net11OverNet10"]) == 1.1 && Math.Abs(Number(result["explicitSimdOverNet11Baseline"]) - (13.0 / 12)) < 1e-12, "Wrong runtime comparison ratios.");
             Require(File.ReadAllText(summary).Contains("| 10.0.14 | 1.000 | 0.500 |", StringComparison.Ordinal), "Missing invariant Markdown timing output.");

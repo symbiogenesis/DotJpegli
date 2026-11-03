@@ -200,15 +200,15 @@ internal static partial class PerformanceComparisonCommand
     {
         JsonNode environment = result["environment"]!;
         StringBuilder report = new();
-        report.Append("# Same-host encoder development comparison\n\n");
-        report.Append(CultureInfo.InvariantCulture, $"Baseline `{Text(result["baselineRevision"])}`, current `{Text(result["currentRevision"])}`; CPU: {Text(environment["cpu"])}; affinity: {Text(environment["affinity"])}; Vector128/256/512: {True(environment["vector128"])}/{True(environment["vector256"])}/{True(environment["vector512"])}.\n\n");
-        report.Append("Both uninstrumented diagnostics use identical input and JPEG hashes, the same pinned native executable, CPU affinity, runtime, SIMD capabilities and evidence policy. Revisions are measured separately; their samples are not interleaved. Native-calibrated iteration counts and raw samples are retained. This diagnostic cannot replace the current revision's managed/native bounds or establish whole-corpus parity.\n\n");
-        report.Append("Allocated bytes are the mean per-block managed allocation total divided by encodes per block; pool capacity and peak working set are separate quantities.\n\n");
-        report.Append("| Case | Baseline managed (ms) | Current managed (ms) | Current/baseline managed | Current/baseline native | Baseline allocated B/encode | Current allocated B/encode |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n");
+        _ = report.Append("# Same-host encoder development comparison\n\n");
+        _ = report.Append(CultureInfo.InvariantCulture, $"Baseline `{Text(result["baselineRevision"])}`, current `{Text(result["currentRevision"])}`; CPU: {Text(environment["cpu"])}; affinity: {Text(environment["affinity"])}; Vector128/256/512: {True(environment["vector128"])}/{True(environment["vector256"])}/{True(environment["vector512"])}.\n\n");
+        _ = report.Append("Both uninstrumented diagnostics use identical input and JPEG hashes, the same pinned native executable, CPU affinity, runtime, SIMD capabilities and evidence policy. Revisions are measured separately; their samples are not interleaved. Native-calibrated iteration counts and raw samples are retained. This diagnostic cannot replace the current revision's managed/native bounds or establish whole-corpus parity.\n\n");
+        _ = report.Append("Allocated bytes are the mean per-block managed allocation total divided by encodes per block; pool capacity and peak working set are separate quantities.\n\n");
+        _ = report.Append("| Case | Baseline managed (ms) | Current managed (ms) | Current/baseline managed | Current/baseline native | Baseline allocated B/encode | Current allocated B/encode |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n");
         foreach (JsonNode? item in (JsonArray)result["comparisons"]!)
         {
             JsonNode identity = item!["case"]!;
-            report.Append(CultureInfo.InvariantCulture, $"| {Text(identity[0])}/{Number(identity[1])}/p{Number(identity[2])}/d{Number(identity[3]):G} | {Number(item["baselineManagedNs"]) / 1e6:F3} | {Number(item["currentManagedNs"]) / 1e6:F3} | {Number(item["managedRatio"]):F6} | {Number(item["nativeRatio"]):F6} | {Number(item["baselineAllocatedBytesPerEncode"]):F1} | {Number(item["currentAllocatedBytesPerEncode"]):F1} |\n");
+            _ = report.Append(CultureInfo.InvariantCulture, $"| {Text(identity[0])}/{Number(identity[1])}/p{Number(identity[2])}/d{Number(identity[3]):G} | {Number(item["baselineManagedNs"]) / 1e6:F3} | {Number(item["currentManagedNs"]) / 1e6:F3} | {Number(item["managedRatio"]):F6} | {Number(item["nativeRatio"]):F6} | {Number(item["baselineAllocatedBytesPerEncode"]):F1} | {Number(item["currentAllocatedBytesPerEncode"]):F1} |\n");
         }
 
         return report.ToString();
@@ -229,7 +229,7 @@ internal static partial class PerformanceComparisonCommand
     {
         string report = Markdown(result);
         string fullPrefix = Path.GetFullPath(prefix);
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPrefix)!);
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(fullPrefix)!);
         File.WriteAllText(fullPrefix + ".md", report);
         Write(fullPrefix + ".json", result);
         if (!string.IsNullOrEmpty(summary))

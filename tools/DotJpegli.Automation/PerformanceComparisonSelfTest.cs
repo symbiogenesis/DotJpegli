@@ -107,14 +107,14 @@ internal static partial class PerformanceComparisonCommand
         equivalent["cases"]![0]!["distance"] = JsonNode.Parse("1.0");
         before["run"]!["policy"]!["warmups"] = 5;
         equivalent["run"]!["policy"] = JsonNode.Parse("""{"warmups":5,"blocks":3}""");
-        Compare(before, equivalent, beforeRevision, afterRevision);
+        _ = Compare(before, equivalent, beforeRevision, afterRevision);
 
         string temporaryRoot = Path.GetFullPath(Path.GetTempPath());
         string testRoot = Path.Combine(temporaryRoot, "jpegli-comparator-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture) + "[synthetic]");
         CultureInfo previousCulture = CultureInfo.CurrentCulture;
         try
         {
-            Directory.CreateDirectory(testRoot);
+            _ = Directory.CreateDirectory(testRoot);
             foreach (string name in new[] { "run", "summary", "cases", "sources" })
             {
                 File.WriteAllText(Path.Combine(testRoot, name + ".json"), after[name]!.ToJsonString(Indented), new UTF8Encoding(true));
