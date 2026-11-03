@@ -163,7 +163,7 @@ internal static class KernelComparison
                                 bool candidateReachable = kernel != "automatic-policy"
                                     || KernelPolicy.UseSelectionNetwork(KernelPreference.Automatic, image.Width)
                                     || (!Vector512.IsHardwareAccelerated && narrowApplicable
-                                        && KernelPolicy.UseTiledZigZag(KernelPreference.Automatic));
+                                        && KernelPolicy.UseTiledZigZag(KernelPreference.Automatic, image.Width, image.Height));
                                 byte[] originalJpeg = Encode(image, original);
                                 byte[] optimizedJpeg = Encode(image, optimized);
                                 RequireSameBytes(expected, originalJpeg);

@@ -703,7 +703,7 @@ public static class JpegliEncoder
             var quantizer = Quantization.PreparedTable.Create(tables[component], component, distance,
                 adaptiveQuantization: adaptive is not null,
                 adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                narrowZigZagKernel: narrowZigZagKernel);
+                narrowZigZagKernel: narrowZigZagKernel, imageWidth: width, imageHeight: height);
             components[component] = new(factor.Horizontal, factor.Vertical,
                 (width * factor.Horizontal + mcuWidth - 1) / mcuWidth,
                 (height * factor.Vertical + mcuHeight - 1) / mcuHeight,

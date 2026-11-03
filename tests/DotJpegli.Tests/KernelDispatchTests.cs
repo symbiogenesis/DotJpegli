@@ -12,9 +12,8 @@ public sealed class KernelDispatchTests
     [InlineData(true, ChromaSubsampling.Quarter)]
     public void EveryKernelCombinationPreservesJpegBytes(bool progressive, ChromaSubsampling sampling)
     {
-        foreach (int width in new[] { 1, 17, 67 })
+        foreach ((int width, int height) in new[] { (1, 1), (17, 35), (67, 35), (128, 255), (128, 256), (129, 255) })
         {
-            int height = width == 1 ? 1 : 35;
             byte[] pixels = Pattern(width, height);
             foreach (int workers in new[] { 1, 2 })
             {
@@ -76,5 +75,21 @@ public sealed class KernelDispatchTests
         for (int index = 0; index < pixels.Length; index++)
             pixels[index] = (byte)((index * 73 + index / 11 * 19) & 255);
         return pixels;
+    }
+
+    [Fact]
+    public void AutomaticNarrowPolicyKeepsUnsupportedAndSmallInputsOnOriginal()
+    {
+        Assert.True(KernelPolicy.UseTiledZigZagForConfiguration(128, 256, true, 8, true, false, true));
+        Assert.True(KernelPolicy.UseTiledZigZagForConfiguration(65535, 65535, true, 8, true, false, true));
+        Assert.False(KernelPolicy.UseTiledZigZagForConfiguration(128, 255, true, 8, true, false, true));
+        Assert.False(KernelPolicy.UseTiledZigZagForConfiguration(7, 65535, true, 8, true, false, true));
+        Assert.False(KernelPolicy.UseTiledZigZagForConfiguration(65535, 7, true, 8, true, false, true));
+        Assert.False(KernelPolicy.UseTiledZigZagForConfiguration(128, 256, false, 8, true, false, true));
+        Assert.False(KernelPolicy.UseTiledZigZagForConfiguration(128, 256, true, 4, true, false, true));
+        Assert.False(KernelPolicy.UseTiledZigZagForConfiguration(128, 256, true, 16, true, false, true));
+        Assert.False(KernelPolicy.UseTiledZigZagForConfiguration(128, 256, true, 8, false, false, true));
+        Assert.False(KernelPolicy.UseTiledZigZagForConfiguration(128, 256, true, 8, true, true, true));
+        Assert.False(KernelPolicy.UseTiledZigZagForConfiguration(128, 256, true, 8, true, false, false));
     }
 }

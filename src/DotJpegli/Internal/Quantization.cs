@@ -464,13 +464,14 @@ internal static class Quantization
         private TransposedTable? transposed;
 
         private PreparedTable(float[] divisors, float[] multipliers, float acOffset, bool adaptiveQuantization,
-            KernelPreference narrowZigZagKernel)
+            KernelPreference narrowZigZagKernel, int imageWidth, int imageHeight)
         {
             this.divisors = divisors;
             this.multipliers = multipliers;
             AcOffset = acOffset;
             AdaptiveQuantization = adaptiveQuantization;
             NarrowZigZagKernel = narrowZigZagKernel;
+            UseTiledZigZag = KernelPolicy.UseTiledZigZag(narrowZigZagKernel, imageWidth, imageHeight);
         }
 
         internal ReadOnlySpan<float> Divisors => divisors;
@@ -478,6 +479,7 @@ internal static class Quantization
         internal float AcOffset { get; }
         internal bool AdaptiveQuantization { get; }
         internal KernelPreference NarrowZigZagKernel { get; }
+        internal bool UseTiledZigZag { get; }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal TransposedTable GetTransposed()
@@ -493,7 +495,8 @@ internal static class Quantization
         internal static PreparedTable Create(ReadOnlySpan<ushort> table, int component, float distance,
             bool grayscale = false, bool adaptiveQuantization = false,
             ReadOnlySpan<float> adaptiveMultipliers = default, bool rgb = false,
-            KernelPreference narrowZigZagKernel = KernelPreference.Automatic)
+            KernelPreference narrowZigZagKernel = KernelPreference.Automatic,
+            int imageWidth = 0, int imageHeight = 0)
         {
             ValidateComponent(component);
             if (grayscale && component != 0)
@@ -528,7 +531,7 @@ internal static class Quantization
                 1 => 0.58146f,
                 _ => 0.57988f,
             };
-            return new(divisors, multipliers, acOffset, adaptiveQuantization, narrowZigZagKernel);
+            return new(divisors, multipliers, acOffset, adaptiveQuantization, narrowZigZagKernel, imageWidth, imageHeight);
         }
     }
 
@@ -604,8 +607,10 @@ internal static class Quantization
         // network even when this host can use the automatic wide path.
         if (Vector512.IsHardwareAccelerated && table.NarrowZigZagKernel == KernelPreference.Automatic)
             StoreTransposedZigZag512(q0, q1, q2, q3, q4, q5, q6, q7, output);
+        else if (table.UseTiledZigZag)
+            StoreTransposedZigZag128Tiled(q0, q1, q2, q3, q4, q5, q6, q7, output);
         else
-            StoreTransposedZigZag128(q0, q1, q2, q3, q4, q5, q6, q7, output, table.NarrowZigZagKernel);
+            StoreTransposedZigZag128Original(q0, q1, q2, q3, q4, q5, q6, q7, output);
         return true;
     }
 

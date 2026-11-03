@@ -54,7 +54,8 @@ internal sealed class QuantizedImage : IDisposable
                 quantizers[component] = Quantization.PreparedTable.Create(tables[component], component, distance,
                     grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
                     adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                    rgb: pixels.IsRgb, narrowZigZagKernel: narrowZigZagKernel);
+                    rgb: pixels.IsRgb, narrowZigZagKernel: narrowZigZagKernel,
+                    imageWidth: width, imageHeight: height);
             }
             Span<float> samples = stackalloc float[64];
             Span<short> naturalOrder = stackalloc short[64];

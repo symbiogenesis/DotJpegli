@@ -272,6 +272,32 @@ public sealed class FusedPlaneQuantizationTests
     }
 
     [Fact]
+    public void PreparedTablesKeepIndependentNarrowChoicesAndSourceGeometry()
+    {
+        ushort[] divisors = Enumerable.Repeat((ushort)1, 64).ToArray();
+        var original = Quantization.PreparedTable.Create(divisors, 0, 4f,
+            narrowZigZagKernel: KernelPreference.Original, imageWidth: 768, imageHeight: 512);
+        var optimized = Quantization.PreparedTable.Create(divisors, 0, 4f,
+            narrowZigZagKernel: KernelPreference.Optimized, imageWidth: 19, imageHeight: 17);
+        var automaticLarge = Quantization.PreparedTable.Create(divisors, 0, 4f,
+            imageWidth: 768, imageHeight: 512);
+        var automaticTiny = Quantization.PreparedTable.Create(divisors, 0, 4f,
+            imageWidth: 19, imageHeight: 17);
+        var automaticUnspecified = Quantization.PreparedTable.Create(divisors, 0, 4f);
+
+        Assert.False(original.UseTiledZigZag);
+        Assert.True(optimized.UseTiledZigZag);
+        Assert.Equal(KernelPolicy.UseTiledZigZag(KernelPreference.Automatic, 768, 512), automaticLarge.UseTiledZigZag);
+        Assert.False(automaticTiny.UseTiledZigZag);
+        Assert.False(automaticUnspecified.UseTiledZigZag);
+        float[] coefficients = Enumerable.Range(0, 64).Select(index => index * 7f + 0.5f).ToArray();
+        foreach (Quantization.PreparedTable table in new[] { original, optimized, automaticLarge, automaticTiny, automaticUnspecified })
+            AssertTransposed(coefficients, table, 0);
+        Assert.False(original.UseTiledZigZag);
+        Assert.True(optimized.UseTiledZigZag);
+    }
+
+    [Fact]
     public void ConservativeAcSuppressionPreservesDivisionBoundariesForEveryDivisor()
     {
         const float margin = 1f - 1f / 1048576f;
