@@ -356,7 +356,7 @@ public sealed record JpegliEncoderOptions
 
     /// <summary>
     /// Maximum concurrent workers for pixel conversion, downsampling, the DCT and
-    /// cached optimized-Huffman entropy segments separated by requested restarts.
+    /// cached optimized-Huffman entropy replay, with or without requested restarts.
     /// One (the default) keeps serial execution; -1 uses
     /// the processor count, and positive values set a worker limit. Zero and values
     /// below -1 are invalid. Parallel execution shares cached converted samples or

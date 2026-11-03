@@ -63,6 +63,13 @@ completed work.
   exceeding that budget and uncached scans retain serial emission. Destination
   writes remain on the caller's thread in their original order and sizes;
   no restart markers are added. Latency and peak memory remain unmeasured.
+- Complete cached scans without restart markers also support opt-in parallel
+  entropy replay. Ordered token collection resolves DC prediction, progressive
+  EOB runs and correction bits before workers pack unstuffed chunks. One caller
+  writer merges their exact bits, preserving stuffing, padding and destination
+  writes. Batches retain at most 32 chunks under the same 4 MiB accepted-rental
+  cap; unsupported chunks and uncached scans retain serial emission. Latency
+  and peak memory remain unmeasured.
 - Kernel diagnostics include deterministic controls below, at and above the
   32,768-pixel guard, an 8-by-4,096 tall image and 64K/128K intermediate images.
   They run in bounded sequential selections within the optional CI kernel
@@ -174,13 +181,6 @@ prefixes. [PJRD](https://github.com/jstankowski/PJRD) supplies a reference appro
 to parallel encoding and SIMD stuffing, not measured DotJpegli gains.
 
 ## Architectural candidates
-
-### Entropy parallelism without restart boundaries
-
-A baseline-only design could emit unstuffed bit chunks, merge at bit
-boundaries and stuff bytes without new restarts. Correct preceding DC predictors
-are required. Progressive EOB runs and correction-bit dependencies need a
-separate design.
 
 ### Compact coefficient cache
 

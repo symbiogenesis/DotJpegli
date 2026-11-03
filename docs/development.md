@@ -118,12 +118,43 @@ accounting actual rental lengths, in addition to at most 32 private 4 KiB writer
 buffers, at most 12 KiB of additional lookup staging and fixed batch metadata.
 Oversized rentals are immediately returned; oversized segments use serial
 replay. The range cursor crosses token rentals
-without allocating an image-sized restart index. Uncached scans and scans
-without restarts retain serial replay. All workers finish before emission or
-cleanup, and rentals are returned on success, cancellation and failure. This
-resolves parallel coding at existing restart boundaries; it does not establish
-a latency or peak-memory improvement. Parallel coding without restarts remains
-separate work.
+without allocating an image-sized restart index. Uncached scans retain serial
+replay; complete scans without restarts use the bit-chunk path below. All workers
+finish before emission or cleanup, and rentals are returned on success,
+cancellation and failure. This resolves parallel coding at existing restart
+boundaries; it does not establish
+a latency or peak-memory improvement.
+
+Complete token caches without restart markers also support parallel entropy
+replay. The ordered histogram/token pass already resolves DC predictors,
+progressive EOB runs, correction-bit order and the final pending EOB run. Workers
+therefore need only the scan's immutable global Huffman tables and explicit
+code/suffix or raw-bit records; neither baseline nor progressive replay needs
+new predictor or run state at a chunk boundary.
+
+Scans with at least 16,384 records split into 8,192-token chunks, with at most
+32 chunks per batch and a shared 4 MiB cap on accepted actual rental lengths.
+Each chunk requests at most 32 KiB for unstuffed 32-bit words, retaining its
+exact final partial word separately. One caller-owned buffered bit writer merges
+those words and tails without padding at chunk or batch boundaries. Its global
+64-bit discharge sees the same words as serial replay, so byte stuffing,
+destination write sizes and destination-failure prefixes remain identical.
+Only the original scan boundary receives padding. The fixed chunk threshold
+bounds scheduling overhead; it is not a measured performance crossover.
+
+Missing Huffman codes and noncanonical suffix widths discard the entire staged
+chunk and replay its original records through the same caller writer. This
+retains strict validation and the original error prefix even when earlier
+chunks left pending bits. Oversized rentals also use serial chunk replay.
+Workers finish before merging or cleanup; all accepted rentals return on
+success, cancellation, destination failure and rental failure. Staging adds
+one 4 KiB merge-writer buffer, at most 12 KiB of lookup staging and fixed batch
+metadata beyond the accepted rental cap. Tiny scans, single-worker execution
+and uncached scans retain serial replay. Focused regressions cover every
+64-bit seam alignment, all-FF stuffing, token rental boundaries, strict fallback,
+exact destination writes, partial failures, cancellation and full baseline,
+progressive and custom-refinement JPEG parity. Latency, allocations and peak
+memory remain CI measurement questions.
 
 Single-context entropy-token replay reads the table's immutable prepared lookup
 directly, avoiding a stack clear and copy for that scan. Bulk and strict replay

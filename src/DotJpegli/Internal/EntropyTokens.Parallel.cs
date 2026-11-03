@@ -15,9 +15,10 @@ internal sealed partial class EntropyTokens
     private readonly record struct TokenPosition(int Segment, int Offset);
     private readonly record struct RestartRange(TokenPosition Start, TokenPosition End, int FollowingRestart, long Count);
 
-    // Called only at an empty scan boundary. Restart records already separate
-    // the DC predictors, progressive EOB runs and correction bits in this cache.
-    // The caller retains its original serial writer when no restart is present.
+    // Called only at an empty scan boundary. Ordered token collection has
+    // already resolved the DC predictors, progressive EOB runs and corrections.
+    // Restart ranges can be emitted independently; otherwise unaligned staging
+    // merges exact bits through one caller-owned stuffing/padding writer.
     internal bool TryReplayParallel(Stream output, HuffmanCodingPlan.ScanCoding coding, int workerLimit,
         CancellationToken cancellationToken, ArrayPool<byte>? pool = null)
     {
@@ -28,9 +29,13 @@ internal sealed partial class EntropyTokens
             throw new InvalidOperationException("An abandoned entropy token sequence cannot be replayed.");
         }
         cancellationToken.ThrowIfCancellationRequested();
-        if (workerLimit < 2 || !this.hasRestart)
+        if (workerLimit < 2)
         {
             return false;
+        }
+        if (!this.hasRestart)
+        {
+            return this.TryReplayUnaligned(output, coding, workerLimit, pool, cancellationToken);
         }
         if (!output.CanWrite)
         {

@@ -11,6 +11,38 @@ public sealed class EncoderParallelEntropyTests
     [InlineData(1, true)]
     [InlineData(2, false)]
     [InlineData(2, true)]
+    public void CachedAndUncachedScansWithoutRestartsPreserveCompleteJpegs(int mode, bool subsampled)
+    {
+        const int width = 257, height = 193;
+        byte[] pixels = new byte[width * height * 3];
+        new Random(81151).NextBytes(pixels);
+        var options = new JpegliEncoderOptions
+        {
+            Distance = 1.7f,
+            Subsampling = subsampled ? ChromaSubsampling.Quarter : ChromaSubsampling.None,
+            Progressive = mode == 1,
+            ProgressiveRefinementBits = mode == 1 ? 2 : 0,
+            ScanScript = mode == 2 ? ProgressiveScript() : null,
+            OptimizeHuffmanTables = true
+        };
+        byte[] expected = JpegliEncoder.Encode(pixels, width, height, PixelLayout.Rgb24, options,
+            cancellationToken: TestContext.Current.CancellationToken);
+        foreach (long budget in new[] { 0L, 64L * 1024 * 1024 })
+        {
+            byte[] actual = JpegliEncoder.Encode(pixels, width, height, PixelLayout.Rgb24,
+                options with { MaxDegreeOfParallelism = 3, EntropyTokenBudgetBytes = budget },
+                cancellationToken: TestContext.Current.CancellationToken);
+            Assert.Equal(expected, actual);
+        }
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(0, true)]
+    [InlineData(1, false)]
+    [InlineData(1, true)]
+    [InlineData(2, false)]
+    [InlineData(2, true)]
     public void CachedMixedAndUncachedRestartScansPreserveCompleteJpegs(int mode, bool flat)
     {
         const int width = 65, height = 73;

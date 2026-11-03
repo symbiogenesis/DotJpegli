@@ -411,6 +411,16 @@ calling thread. Cancellation and I/O failures retain the usual partial-output
 contract. Thread scheduling and the extra copy can outweigh parallel work,
 especially for small images; speed claims require CI performance measurements.
 
+Complete optimized-Huffman token caches can also replay entropy in parallel,
+using requested restart boundaries or merging unpadded bit chunks when no
+restart markers are present. This supports sequential and progressive scans
+without adding restart markers or changing JPEG bytes. Destination writes keep
+their serial order and sizes on the calling thread. Worker staging shares a
+4 MiB cap on accepted pooled capacity, with at most 32 chunks per batch;
+oversized or unsupported chunks use serial replay. Scans without restarts need
+at least 16,384 cached records for chunk replay; smaller and uncached scans
+remain serial. Latency and peak-memory benefits have not been measured.
+
 ## Memory and source lifetime
 
 Keep the input unchanged until encoding returns. The encoder retains converted
@@ -446,4 +456,5 @@ use full converted planes or streaming recomputation.
 
 The byte-array overload also holds the encoded JPEG in memory; use the stream
 overload for larger outputs. Opt-in parallel execution additionally keeps the
-row of DCT coefficients and, when needed, source copy described above.
+row of DCT coefficients and, when needed, source copy described above, plus
+the bounded entropy staging and worker scratch when token replay is eligible.
