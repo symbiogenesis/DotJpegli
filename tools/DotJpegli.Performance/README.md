@@ -63,7 +63,7 @@ native ratios expose possible drift; these diagnostics do not change the
 current revision's acceptance bounds or establish full parity. This uses the
 single planned automatic run and requires no additional workflow dispatch.
 
-The same job repeats these selections serially with `DOTNET_EnableAVX512F=0`
+The same job repeats these selections serially with `DOTNET_EnableAVX512=0`
 for both managed revisions. This exercises narrow zigzag ordering even when the
 runner supports AVX-512. Separate `baseline-avx2-comparison` reports and raw
 `avx2-current-evidence` / `avx2-baseline-evidence` directories record this

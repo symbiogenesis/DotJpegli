@@ -312,7 +312,7 @@ jobs:
         id: avx2_measure
         if: always() && steps.baseline_build.outcome == 'success' && (steps.targeted.outcome == 'success' || steps.targeted.outcome == 'failure')
         env:
-          DOTNET_EnableAVX512F: '0'
+          DOTNET_EnableAVX512: '0'
           DOTNET_TieredCompilation: '0'
         run: |
           cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
