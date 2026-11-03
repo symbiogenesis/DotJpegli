@@ -35,11 +35,11 @@ internal static class QuantizationTableSearch
     }
 
     internal sealed record Trial(string Id, int Bytes, string Sha256, string DecodedSha256,
-        QualityMetrics Metrics, bool Eligible);
+        QualityMetrics Metrics, bool Eligible, double MultiScaleSsim);
 
     internal sealed record SearchResult(byte[] Jpeg, string WinnerId, ushort[][] BaseTables,
         IReadOnlyList<BandCost> BandCosts, IReadOnlyList<Candidate> Candidates,
-        IReadOnlyList<Trial> Trials, long SourceBlockCount)
+        IReadOnlyList<Trial> Trials, long SourceBlockCount, int ReferenceMetricValidationCount)
     {
         internal int EncodeCount => this.Trials.Count;
     }
@@ -55,10 +55,14 @@ internal static class QuantizationTableSearch
             CalculateBandCosts(image, baseTables, subsampling, cancellationToken);
         IReadOnlyList<Candidate> candidates = GenerateCandidates(baseTables, bandCosts);
         IReadOnlyList<Candidate> finalists = Shortlist(candidates);
+        PreparedQualityMetrics reference = QualityMetrics.Prepare(image);
+        PreparedMultiScaleSsim perceptualReference = MultiScaleSsim.Prepare(image, cancellationToken);
         var trials = new List<Trial>(finalists.Count);
         byte[]? best = null;
         string winner = "control";
         QualityMetrics? control = null;
+        double? controlPerceptualScore = null;
+        int referenceValidations = 0;
         foreach (Candidate candidate in finalists)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -68,21 +72,32 @@ internal static class QuantizationTableSearch
             PpmImage decoded = decode(jpeg);
             cancellationToken.ThrowIfCancellationRequested();
             ValidateImage(decoded);
-            var metrics = QualityMetrics.Compare(image, decoded);
+            QualityMetrics metrics = reference.Compare(decoded);
+            double perceptualScore = perceptualReference.Compare(decoded, cancellationToken);
             control ??= metrics;
-            bool eligible = metrics.RgbPsnrDb >= control.RgbPsnrDb && metrics.LumaSsim >= control.LumaSsim;
-            trials.Add(new(candidate.Id, jpeg.Length, Hash(jpeg), Hash(decoded.Pixels), metrics, eligible));
+            controlPerceptualScore ??= perceptualScore;
+            bool eligible = metrics.RgbPsnrDb >= control.RgbPsnrDb && metrics.LumaSsim >= control.LumaSsim
+                && perceptualScore >= controlPerceptualScore.Value;
+            trials.Add(new(candidate.Id, jpeg.Length, Hash(jpeg), Hash(decoded.Pixels), metrics, eligible, perceptualScore));
             // The control is first and is always eligible. Keep the earlier
             // candidate on equal complete sizes and retain only current/best JPEGs.
             if (eligible && (best is null || jpeg.Length < best.Length))
             {
+                // Check the control and every provisional winner with the
+                // independent original scorer before accepting their bytes.
+                if (QualityMetrics.Compare(image, decoded) != metrics
+                    || MultiScaleSsim.Compare(image, decoded, cancellationToken) != perceptualScore)
+                {
+                    throw new InvalidDataException("Prepared quality metrics disagree with the reference scorer.");
+                }
+                referenceValidations++;
                 best = jpeg;
                 winner = candidate.Id;
             }
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        return new(best!, winner, baseTables, bandCosts, candidates, trials.AsReadOnly(), sourceBlockCount);
+        return new(best!, winner, baseTables, bandCosts, candidates, trials.AsReadOnly(), sourceBlockCount, referenceValidations);
     }
 
     internal static ushort[][] CreateBaseTables(float distance, ChromaSubsampling subsampling)

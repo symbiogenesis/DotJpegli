@@ -103,8 +103,8 @@ internal static class RateDistortionSearchCommand
         IReadOnlyList<RateDistortionSearch.Candidate> candidates = result.Candidates;
         var report = new
         {
-            schemaVersion = 1,
-            scope = "Bounded offline baseline RGB8 to YCbCr AC rate-distortion quantization; complete JPEGs and decoded PSNR/SSIM comparisons; no global optimum claim",
+            schemaVersion = 2,
+            scope = "Bounded offline baseline RGB8 to YCbCr AC rate-distortion quantization; complete JPEGs with PSNR, local SSIM and multiscale structural floors; PSNR/SSIM curves; no global optimum claim",
             input = new
             {
                 path = options.Input,
@@ -144,6 +144,11 @@ internal static class RateDistortionSearchCommand
             output = "winner.jpg",
             encodeCount = result.Trials.Count,
             decodeCount = result.Trials.Count,
+            referenceFeaturePreparationCount = 2,
+            preparedMetricCount = result.Trials.Count,
+            preparedScorerCallCount = 2 * result.Trials.Count,
+            result.ReferenceMetricValidationCount,
+            referenceScorerCallCount = 2 * result.ReferenceMetricValidationCount,
             totalHistogramScanCount = result.Trials.Count,
             totalOutputScanCount = result.Trials.Count,
             totalEntropyPassCount = 2 * result.Trials.Count,
@@ -151,7 +156,9 @@ internal static class RateDistortionSearchCommand
             result.CandidateEvaluations,
             result.ChangedCoefficients,
             costScope = "Every candidate performs a complete encode and decode; positive-lambda encodes add one bounded AC dynamic-programming search per real block. Retained block, transition and changed-coefficient counts account algorithmic work, not CPU time, allocations or peak memory",
-            qualityScope = "RGB PSNR and disjoint 8x8 pixel-weighted BT.601 luma SSIM as defined by QualityMetrics; estimated DCT distortion is not perceptual quality. Unsupported curve comparisons are retained with their reasons",
+            qualityScope = "RGB PSNR and disjoint 8x8 pixel-weighted BT.601 luma SSIM as defined by QualityMetrics, plus the explicitly defined offline multiscale structural objective; all three control floors apply. Estimated DCT distortion is not perceptual quality. Unsupported PSNR/SSIM curves are retained with their reasons",
+            perceptualObjective = new { id = MultiScaleSsim.MetricId, definition = MultiScaleSsim.Definition },
+            metricEvaluation = "One immutable source-feature preparation for PSNR/local SSIM and one for the multiscale objective; prepared score sets for every decoded trial; each independent reference scorer checks the control and every provisional winner without another encode or decode. Reused arithmetic is not measured latency or encoder acceleration",
             candidates,
             result.Trials,
             result.Comparisons
@@ -190,19 +197,23 @@ internal static class RateDistortionSearchCommand
         _ = text.AppendLine();
         _ = text.AppendLine(CultureInfo.InvariantCulture, $"Selected `{result.WinnerId}`: {result.Jpeg.Length} complete JPEG bytes from {result.Trials.Count} complete encodes and decodes.");
         _ = text.AppendLine();
-        _ = text.AppendLine("Each positive-lambda trial begins with the normal AQ coefficients and retains DC. A finite dynamic program chooses original AC values, one step toward zero or zero using squared DCT error plus estimated run/category bit cost, including EOB and ZRL. Every candidate is completely encoded with optimized Huffman tables and independently decoded. Complete JPEG sizes and decoded RGB PSNR/local luma SSIM decide eligibility and matched comparisons; the surrogate cannot establish actual entropy size or visual quality.");
+        _ = text.AppendLine("Each positive-lambda trial begins with the normal AQ coefficients and retains DC. A finite dynamic program chooses original AC values, one step toward zero or zero using squared DCT error plus estimated run/category bit cost, including EOB and ZRL. Every candidate is completely encoded with optimized Huffman tables and independently decoded. Complete JPEG sizes and decoded RGB PSNR, local luma SSIM and the offline multiscale structural score decide eligibility; the surrogate cannot establish actual entropy size or visual quality.");
         _ = text.AppendLine();
-        _ = text.AppendLine("Matched-size and matched-quality comparisons use nondominated curves and five supported interior targets for each metric, interpolating in log bytes without extrapolation. Missing or constant common ranges remain explicitly unsupported in search.json. Winner selection uses both quality floors of the distance-1 unchanged AQ/Huffman control; equal complete sizes retain the earlier candidate.");
+        _ = text.AppendLine("Matched-size and matched-quality PSNR/local SSIM comparisons use nondominated curves and five supported interior targets, interpolating in log bytes without extrapolation. Missing or constant common ranges remain explicitly unsupported in search.json. Winner selection uses all three quality floors of the distance-1 unchanged AQ/Huffman control; equal complete sizes retain the earlier candidate.");
         _ = text.AppendLine();
-        _ = text.AppendLine("| Trial | Distance | Lambda | Complete bytes | RGB PSNR dB | Luma SSIM | Eligible |");
-        _ = text.AppendLine("| --- | ---: | ---: | ---: | ---: | ---: | --- |");
+        _ = text.AppendLine("| Trial | Distance | Lambda | Complete bytes | RGB PSNR dB | Luma SSIM | Multiscale SSIM | Eligible |");
+        _ = text.AppendLine("| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
         foreach (RateDistortionSearch.Trial trial in result.Trials)
         {
-            _ = text.AppendLine(CultureInfo.InvariantCulture, $"| {trial.Id} | {trial.Distance:R} | {trial.Lambda:R} | {trial.Bytes} | {trial.Metrics.RgbPsnrDb:R} | {trial.Metrics.LumaSsim:R} | {trial.Eligible} |");
+            _ = text.AppendLine(CultureInfo.InvariantCulture, $"| {trial.Id} | {trial.Distance:R} | {trial.Lambda:R} | {trial.Bytes} | {trial.Metrics.RgbPsnrDb:R} | {trial.Metrics.LumaSsim:R} | {trial.MultiScaleSsim:R} | {trial.Eligible} |");
         }
 
         _ = text.AppendLine();
         _ = text.AppendLine(CultureInfo.InvariantCulture, $"Added search work: {result.SearchedBlocks} real blocks, {result.CandidateEvaluations} candidate/state transitions, {result.ChangedCoefficients} changed AC coefficients across all trials.");
+        _ = text.AppendLine();
+        _ = text.AppendLine(CultureInfo.InvariantCulture, $"Quality evaluation: one immutable preparation for each objective family, {result.Trials.Count} prepared score sets and {result.ReferenceMetricValidationCount} independent reference validations per family of the control and provisional winners. No additional encode or decode is needed. Source RGB, luma, window moments and multiscale features add image-sized offline storage; saved repeated arithmetic is not a measured speedup.");
+        _ = text.AppendLine();
+        _ = text.AppendLine(MultiScaleSsim.MetricId + ": " + MultiScaleSsim.Definition);
         foreach (RateDistortionSearch.Comparison comparison in result.Comparisons)
         {
             _ = text.AppendLine();

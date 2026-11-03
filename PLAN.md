@@ -82,8 +82,9 @@ completed work.
   caches 18 band-option costs in one DCT traversal and screens 729 joint
   luma/chroma table configurations. At most 17 finalists are completely encoded
   with AQ and optimized Huffman coding and decoded by the pinned native wrapper.
-  The smallest complete JPEG meeting both control PSNR and SSIM scores wins,
-  with the unchanged default control included first. Reports retain all tables,
+  The smallest complete JPEG meeting the control PSNR, local SSIM and offline
+  multiscale structural scores wins, with the unchanged default control included
+  first. Reports retain all tables,
   surrogate costs, exact trials, rejections, hashes and operation counts. This is
   a bounded offline experiment, without a global optimum, visual-quality or
   corpus-wide compression claim.
@@ -93,9 +94,18 @@ completed work.
   dynamic program chooses each original AC value, one step toward zero or zero
   using squared DCT error and standard-table run/category costs, including ZRL
   and EOB; DC stays fixed. Complete encodes relearn optimized Huffman tables.
-  Reports retain decoded PSNR/SSIM, matched-size and matched-quality curves,
-  unsupported ranges, hashes and search-work counts. Default bytes and public
+  Reports retain decoded PSNR, local SSIM and the multiscale structural score,
+  PSNR/SSIM matched-size and matched-quality curves, unsupported ranges, hashes
+  and search-work counts. Default bytes and public
   APIs are unchanged; corpus compression and latency remain unmeasured.
+- Offline quantization searches reuse immutable source features for PSNR/local
+  SSIM and a specified five-scale structural objective. Both independent
+  reference scorers validate the control and every provisional winner before
+  acceptance; all three control floors apply. Schema 2 reports charge feature
+  preparation, comparisons and reference validation and retain every score.
+  Focused regressions check exact score bits and reproduce eligibility and
+  winner bytes. This adds image-sized offline storage; latency, allocations and
+  peak memory remain unmeasured. See the [objective implementation](tools/DotJpegli.Parity/README.md#reusable-offline-quality-objectives).
 
 These mechanisms have focused numerical, byte-parity, ownership and failure-path
 regressions. They do not establish a latency or peak-working-memory benefit for
@@ -192,10 +202,6 @@ without source ICC do not establish a benefit.
 
 ## Optional compression and tuning experiments
 
-- **Faster offline perceptual objectives:** Screen candidates with reusable
-  reference features or faster metrics, then validate finalists with the
-  reference perceptual metric and existing PSNR/SSIM checks. Faster metric
-  evaluation is not encoder acceleration or identical-score evidence.
 - **Domain-specific learned presets:** Investigate only with an explicit
   workload and task metric. Matched recognition accuracy differs from matched
   visual quality. Keep training and neural dependencies outside the runtime.

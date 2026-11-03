@@ -109,8 +109,8 @@ internal static class QuantizationTableSearchCommand
         QuantizationTableSearch.SearchResult result = QuantizationTableSearch.Search(image, options.Distance, options.Subsampling, decode);
         var report = new
         {
-            schemaVersion = 1,
-            scope = "Bounded offline RGB8 to YCbCr quantization-table search; complete-JPEG ranking at decoded control PSNR and SSIM floors; no global optimum claim",
+            schemaVersion = 2,
+            scope = "Bounded offline RGB8 to YCbCr quantization-table search; complete-JPEG ranking at decoded control PSNR, local SSIM and multiscale structural floors; no global optimum claim",
             input = new
             {
                 path = options.Input,
@@ -155,12 +155,19 @@ internal static class QuantizationTableSearchCommand
             screenedCandidateCount = result.Candidates.Count,
             result.EncodeCount,
             decodeCount = result.EncodeCount,
+            referenceFeaturePreparationCount = 2,
+            preparedMetricCount = result.EncodeCount,
+            preparedScorerCallCount = 2 * result.EncodeCount,
+            result.ReferenceMetricValidationCount,
+            referenceScorerCallCount = 2 * result.ReferenceMetricValidationCount,
             totalHistogramScanCount = result.EncodeCount,
             totalOutputScanCount = result.EncodeCount,
             totalEntropyPassCount = 2 * result.EncodeCount,
             costScope = "One source block DCT traversal for cached screening costs, then one complete encode and decode per finalist; logical one-scan histogram collection and emission/replay passes exclude coefficient preparation; counts are not CPU time, allocations or peak memory",
             screeningScope = "Per-band quantization squared error and estimated AC amplitude/nonzero costs are only surrogates; they omit AQ, runs, optimized Huffman assignment, stuffing and headers. Actual complete encodes and decoded metrics decide the winner",
-            qualityScope = "RGB PSNR and disjoint 8x8 pixel-weighted BT.601 luma SSIM as defined by QualityMetrics; no perceptual or human visual-quality guarantee",
+            qualityScope = "RGB PSNR and disjoint 8x8 pixel-weighted BT.601 luma SSIM as defined by QualityMetrics, plus the explicitly defined offline multiscale structural objective; all three control floors apply. No human visual-quality or external metric-equivalence guarantee",
+            perceptualObjective = new { id = MultiScaleSsim.MetricId, definition = MultiScaleSsim.Definition },
+            metricEvaluation = "One immutable source-feature preparation for PSNR/local SSIM and one for the multiscale objective; prepared score sets for every decoded trial; each independent reference scorer checks the control and every provisional winner without another encode or decode. Reused arithmetic is not measured latency or encoder acceleration",
             result.BandCosts,
             result.Candidates,
             result.Trials
@@ -282,17 +289,21 @@ internal static class QuantizationTableSearchCommand
         _ = text.AppendLine();
         _ = text.AppendLine(CultureInfo.InvariantCulture, $"Selected `{result.WinnerId}`: {result.Jpeg.Length} complete JPEG bytes; unchanged default-table control: {result.Trials[0].Bytes} bytes.");
         _ = text.AppendLine();
-        _ = text.AppendLine("Joint Y/Cb/Cr table candidates combine independently scaled Y and paired Cb/Cr AC bands, retaining distinct Cb/Cr base tables and fixed DC. Cached per-band costs only screen candidates: AQ, run lengths, optimized Huffman tables, stuffing and headers are coupled and require complete finalist encodes. Each finalist is decoded by the same decoder and measured against the source. Only candidates reaching both control RGB PSNR and local luma SSIM floors are eligible. Minimum complete bytes wins; equal bytes keep the earlier candidate, with control first.");
+        _ = text.AppendLine("Joint Y/Cb/Cr table candidates combine independently scaled Y and paired Cb/Cr AC bands, retaining distinct Cb/Cr base tables and fixed DC. Cached per-band costs only screen candidates: AQ, run lengths, optimized Huffman tables, stuffing and headers are coupled and require complete finalist encodes. Each finalist is decoded by the same decoder and measured against the source. Only candidates reaching all three control floors (RGB PSNR, local luma SSIM and the offline multiscale structural objective) are eligible. Minimum complete bytes wins; equal bytes keep the earlier candidate, with control first.");
         _ = text.AppendLine();
         _ = text.AppendLine(CultureInfo.InvariantCulture, $"Search cost: {result.SourceBlockCount} source block DCTs, {result.BandCosts.Count} cached band costs, {result.Candidates.Count} screened joint candidates, {result.EncodeCount} complete encodes and decodes. Each encode has one logical histogram scan and one emission/replay scan; coefficient preparation is additional. These counts do not measure CPU time, allocations or peak working memory.");
         _ = text.AppendLine();
+        _ = text.AppendLine(CultureInfo.InvariantCulture, $"Quality evaluation: one immutable preparation for each objective family, {result.EncodeCount} prepared score sets and {result.ReferenceMetricValidationCount} independent reference validations per family of the control and provisional winners. No additional encode or decode is needed. Source RGB, luma, window moments and multiscale features add image-sized offline storage; saved repeated arithmetic is not a measured speedup.");
+        _ = text.AppendLine();
+        _ = text.AppendLine(MultiScaleSsim.MetricId + ": " + MultiScaleSsim.Definition);
+        _ = text.AppendLine();
         _ = text.AppendLine("This is a finite offline experiment with no global optimum, latency, perceptual-quality or universal compression claim. Encoder defaults and public APIs are unchanged. Run corpus or performance measurements on CI.");
         _ = text.AppendLine();
-        _ = text.AppendLine("| Finalist | Complete bytes | RGB PSNR dB | Luma SSIM | Eligible |");
-        _ = text.AppendLine("| --- | ---: | ---: | ---: | --- |");
+        _ = text.AppendLine("| Finalist | Complete bytes | RGB PSNR dB | Luma SSIM | Multiscale SSIM | Eligible |");
+        _ = text.AppendLine("| --- | ---: | ---: | ---: | ---: | --- |");
         foreach (QuantizationTableSearch.Trial trial in result.Trials)
         {
-            _ = text.AppendLine(CultureInfo.InvariantCulture, $"| {trial.Id} | {trial.Bytes} | {trial.Metrics.RgbPsnrDb:R} | {trial.Metrics.LumaSsim:R} | {trial.Eligible} |");
+            _ = text.AppendLine(CultureInfo.InvariantCulture, $"| {trial.Id} | {trial.Bytes} | {trial.Metrics.RgbPsnrDb:R} | {trial.Metrics.LumaSsim:R} | {trial.MultiScaleSsim:R} | {trial.Eligible} |");
         }
 
         _ = text.AppendLine();

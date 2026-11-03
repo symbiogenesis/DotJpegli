@@ -149,7 +149,8 @@ vary independently for Y and paired Cb/Cr, retaining distinct chroma base tables
 The surrogate omits AQ and coupled entropy costs. At most 17 finalists use
 complete default-policy baseline AQ/Huffman encodes and a common pinned native
 decoder. Only outputs meeting the default control's RGB PSNR and local luma SSIM
-scores can replace it, and actual complete JPEG size decides the winner.
+scores and the offline multiscale structural score can replace it, and actual
+complete JPEG size decides the winner.
 Reports retain all costs, tables, exact trials and hashes. Focused tests check
 cached costs against an independent cosine-DCT oracle and reproduce every exact
 finalist with an independent managed decoder. This tool adds no public API or
@@ -170,13 +171,28 @@ The offline grid contains five distances and five weights, including five
 unchanged controls. Every one of the 25 complete JPEGs is decoded and scored
 with RGB PSNR and local luma SSIM. Reports retain per-metric nondominated curves,
 matched-size and matched-quality interpolation without extrapolation, and
-unsupported ranges. The distance-1 control sets both measured quality floors
+unsupported ranges. The distance-1 control sets all three measured quality floors
 for choosing a winning complete JPEG. Search counts include every real block,
 candidate/state transition and changed AC coefficient, as well as all complete
 encodes, decodes and logical histogram/emission passes. These counts do not
 measure CPU time, allocations or peak working memory. Exhaustive small-block
 oracles, independent entropy histograms, coefficient parsing, decoder checks and
 failure-path fixtures validate the experiment; corpus measurements remain CI-only.
+
+Both offline quantization searches use a single immutable
+[prepared quality reference](../tools/DotJpegli.Parity/README.md#reusable-offline-quality-objectives)
+to reuse source RGB, exact luma and clipped-window moments across decoded trials.
+They also prepare source pyramids and Gaussian moments for the explicitly
+specified five-scale `dotjpegli-ms-ssim-v1` objective. All three control scores
+are eligibility floors. Both independent reference scorers validate the control
+and each provisional winner before acceptance. Schema 2 reports record the
+metric definition, all scores and feature/comparison/validation counts without
+extra encodes or decodes. Focused regressions check exact score bits, analytic
+constants, snapshot ownership and concurrent reuse; complete-search fixtures
+reproduce all scores, eligibility and selected bytes. Additional image-sized
+offline reference storage and reduced arithmetic do not establish a latency,
+allocation or peak-memory benefit. Encoder paths and the fixed native acceptance
+runner are unchanged.
 
 ## Build
 

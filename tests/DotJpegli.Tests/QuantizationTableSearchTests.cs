@@ -159,7 +159,9 @@ public sealed class QuantizationTableSearchTests
         }
 
         var controlMetrics = QualityMetrics.Compare(image, Decode(control));
+        double controlPerceptualScore = MultiScaleSsim.Compare(image, Decode(control), TestContext.Current.CancellationToken);
         var eligible = new List<(QuantizationTableSearch.Trial Trial, byte[] Jpeg)>();
+        int referenceValidations = 0, bestBytes = int.MaxValue;
         foreach (QuantizationTableSearch.Trial trial in result.Trials)
         {
             QuantizationTableSearch.Candidate candidate = Assert.Single(result.Candidates, item => item.Id == trial.Id);
@@ -171,17 +173,26 @@ public sealed class QuantizationTableSearchTests
                 cancellationToken: TestContext.Current.CancellationToken);
             PpmImage decoded = Decode(jpeg);
             var metrics = QualityMetrics.Compare(image, decoded);
+            double perceptualScore = MultiScaleSsim.Compare(image, decoded, TestContext.Current.CancellationToken);
             Assert.Equal(jpeg.Length, trial.Bytes);
             Assert.Equal(Hash(jpeg), trial.Sha256);
             Assert.Equal(Hash(decoded.Pixels), trial.DecodedSha256);
             Assert.Equal(metrics, trial.Metrics);
-            bool accepted = metrics.RgbPsnrDb >= controlMetrics.RgbPsnrDb && metrics.LumaSsim >= controlMetrics.LumaSsim;
+            Assert.Equal(BitConverter.DoubleToInt64Bits(perceptualScore), BitConverter.DoubleToInt64Bits(trial.MultiScaleSsim));
+            bool accepted = metrics.RgbPsnrDb >= controlMetrics.RgbPsnrDb && metrics.LumaSsim >= controlMetrics.LumaSsim
+                && perceptualScore >= controlPerceptualScore;
             Assert.Equal(accepted, trial.Eligible);
             if (accepted)
             {
                 eligible.Add((trial, jpeg));
+                if (jpeg.Length < bestBytes)
+                {
+                    referenceValidations++;
+                    bestBytes = jpeg.Length;
+                }
             }
         }
+        Assert.Equal(referenceValidations, result.ReferenceMetricValidationCount);
         (QuantizationTableSearch.Trial winner, byte[] winnerJpeg) = eligible.OrderBy(item => item.Trial.Bytes).First();
         Assert.Equal(winner.Id, result.WinnerId);
         Assert.Equal(winnerJpeg, result.Jpeg);

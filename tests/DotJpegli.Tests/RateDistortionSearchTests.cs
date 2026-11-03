@@ -79,7 +79,9 @@ public sealed class RateDistortionSearchTests
             }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(Hash(control), result.Trials[0].Sha256);
         var controlMetrics = QualityMetrics.Compare(image, Decode(control));
+        double controlPerceptualScore = MultiScaleSsim.Compare(image, Decode(control), TestContext.Current.CancellationToken);
         var eligible = new List<(RateDistortionSearch.Trial Trial, byte[] Jpeg)>();
+        int referenceValidations = 0, bestBytes = int.MaxValue;
         foreach (RateDistortionSearch.Trial trial in result.Trials)
         {
             RateDistortionSearch.Candidate candidate = Assert.Single(result.Candidates, item => item.Id == trial.Id);
@@ -88,12 +90,14 @@ public sealed class RateDistortionSearchTests
                 candidate.CreateOptions(sampling, diagnostics), cancellationToken: TestContext.Current.CancellationToken);
             PpmImage decoded = Decode(jpeg);
             var metrics = QualityMetrics.Compare(image, decoded);
+            double perceptualScore = MultiScaleSsim.Compare(image, decoded, TestContext.Current.CancellationToken);
             Assert.Equal(candidate.Distance, trial.Distance);
             Assert.Equal(candidate.Lambda, trial.Lambda);
             Assert.Equal(jpeg.Length, trial.Bytes);
             Assert.Equal(Hash(jpeg), trial.Sha256);
             Assert.Equal(Hash(decoded.Pixels), trial.DecodedSha256);
             Assert.Equal(metrics, trial.Metrics);
+            Assert.Equal(BitConverter.DoubleToInt64Bits(perceptualScore), BitConverter.DoubleToInt64Bits(trial.MultiScaleSsim));
             Assert.Equal(diagnostics.Blocks, trial.SearchedBlocks);
             Assert.Equal(diagnostics.CandidateEvaluations, trial.CandidateEvaluations);
             Assert.Equal(diagnostics.ChangedCoefficients, trial.ChangedCoefficients);
@@ -103,13 +107,20 @@ public sealed class RateDistortionSearchTests
                 Assert.Equal(0, trial.CandidateEvaluations);
                 Assert.Equal(0, trial.ChangedCoefficients);
             }
-            bool accepted = metrics.RgbPsnrDb >= controlMetrics.RgbPsnrDb && metrics.LumaSsim >= controlMetrics.LumaSsim;
+            bool accepted = metrics.RgbPsnrDb >= controlMetrics.RgbPsnrDb && metrics.LumaSsim >= controlMetrics.LumaSsim
+                && perceptualScore >= controlPerceptualScore;
             Assert.Equal(accepted, trial.Eligible);
             if (accepted)
             {
                 eligible.Add((trial, jpeg));
+                if (jpeg.Length < bestBytes)
+                {
+                    referenceValidations++;
+                    bestBytes = jpeg.Length;
+                }
             }
         }
+        Assert.Equal(referenceValidations, result.ReferenceMetricValidationCount);
         (RateDistortionSearch.Trial winner, byte[] winnerJpeg) = eligible.OrderBy(item => item.Trial.Bytes).First();
         Assert.Equal(winner.Id, result.WinnerId);
         Assert.Equal(winnerJpeg, result.Jpeg);
@@ -198,18 +209,18 @@ public sealed class RateDistortionSearchTests
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();
         int calls = 0;
-        Assert.Throws<OperationCanceledException>(() => RateDistortionSearch.Search(image, ChromaSubsampling.None,
+        _ = Assert.Throws<OperationCanceledException>(() => RateDistortionSearch.Search(image, ChromaSubsampling.None,
             _ => { calls++; return image; }, cancelled.Token));
         Assert.Equal(0, calls);
         using var duringDecode = new CancellationTokenSource();
-        Assert.Throws<OperationCanceledException>(() => RateDistortionSearch.Search(image, ChromaSubsampling.None,
+        _ = Assert.Throws<OperationCanceledException>(() => RateDistortionSearch.Search(image, ChromaSubsampling.None,
             _ => { calls++; duringDecode.Cancel(); return image; }, duringDecode.Token));
         Assert.Equal(1, calls);
-        Assert.Throws<InvalidDataException>(() => RateDistortionSearch.Search(image, ChromaSubsampling.None,
+        _ = Assert.Throws<InvalidDataException>(() => RateDistortionSearch.Search(image, ChromaSubsampling.None,
             _ => new(2, 1, [0, 0, 0, 0, 0, 0]), TestContext.Current.CancellationToken));
-        Assert.Throws<ArgumentException>(() => RateDistortionSearch.Search(image, ChromaSubsampling.None,
+        _ = Assert.Throws<ArgumentException>(() => RateDistortionSearch.Search(image, ChromaSubsampling.None,
             _ => new(1, 1, []), TestContext.Current.CancellationToken));
-        Assert.Throws<InvalidDataException>(() => RateDistortionSearch.Search(image, ChromaSubsampling.None,
+        _ = Assert.Throws<InvalidDataException>(() => RateDistortionSearch.Search(image, ChromaSubsampling.None,
             _ => throw new InvalidDataException("decoder failure"), TestContext.Current.CancellationToken));
     }
 
@@ -217,20 +228,20 @@ public sealed class RateDistortionSearchTests
     public void IncompleteInputsAndUnsupportedSamplingAreRejectedBeforeDecoding()
     {
         var image = new PpmImage(1, 1, [71, 113, 197]);
-        Assert.Throws<ArgumentNullException>(() => RateDistortionSearch.Search(image, ChromaSubsampling.None,
+        _ = Assert.Throws<ArgumentNullException>(() => RateDistortionSearch.Search(image, ChromaSubsampling.None,
             null!, TestContext.Current.CancellationToken));
-        Assert.Throws<ArgumentNullException>(() => RateDistortionSearch.Search(null!, ChromaSubsampling.None,
+        _ = Assert.Throws<ArgumentNullException>(() => RateDistortionSearch.Search(null!, ChromaSubsampling.None,
             _ => image, TestContext.Current.CancellationToken));
-        Assert.Throws<ArgumentException>(() => RateDistortionSearch.Search(new(1, 1, []), ChromaSubsampling.None,
+        _ = Assert.Throws<ArgumentException>(() => RateDistortionSearch.Search(new(1, 1, []), ChromaSubsampling.None,
             _ => image, TestContext.Current.CancellationToken));
-        Assert.Throws<ArgumentException>(() => RateDistortionSearch.Search(new(0, 1, []), ChromaSubsampling.None,
+        _ = Assert.Throws<ArgumentException>(() => RateDistortionSearch.Search(new(0, 1, []), ChromaSubsampling.None,
             _ => image, TestContext.Current.CancellationToken));
-        Assert.Throws<ArgumentOutOfRangeException>(() => RateDistortionSearch.Search(image, ChromaSubsampling.HalfHorizontal,
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => RateDistortionSearch.Search(image, ChromaSubsampling.HalfHorizontal,
             _ => image, TestContext.Current.CancellationToken));
     }
 
     private static RateDistortionSearch.Trial Trial(string id, double lambda, int bytes, double psnr, double ssim)
-        => new(id, 1, lambda, bytes, "jpeg", "decoded", new(0, psnr, ssim), false, 0, 0, 0);
+        => new(id, 1, lambda, bytes, "jpeg", "decoded", new(0, psnr, ssim), false, 0, 0, 0, ssim);
 
     private static PpmImage Decode(byte[] jpeg)
     {

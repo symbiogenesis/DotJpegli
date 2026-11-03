@@ -24,11 +24,20 @@ public sealed class QuantizationTableSearchCommandTests
         byte[] winner = File.ReadAllBytes(Path.Combine(fixture.Output, "winner.jpg"));
         using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(fixture.Output, "search.json")));
         JsonElement root = json.RootElement;
-        Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(2, root.GetProperty("schemaVersion").GetInt32());
         Assert.Equal(18, root.GetProperty("cachedBandCostCount").GetInt32());
         Assert.Equal(729, root.GetProperty("screenedCandidateCount").GetInt32());
         Assert.Equal(decodes, root.GetProperty("encodeCount").GetInt32());
         Assert.Equal(decodes, root.GetProperty("decodeCount").GetInt32());
+        Assert.Equal(decodes, root.GetProperty("preparedMetricCount").GetInt32());
+        Assert.Equal(2, root.GetProperty("referenceFeaturePreparationCount").GetInt32());
+        Assert.Equal(2 * decodes, root.GetProperty("preparedScorerCallCount").GetInt32());
+        Assert.InRange(root.GetProperty("referenceMetricValidationCount").GetInt32(), 1, decodes);
+        Assert.Equal(2 * root.GetProperty("referenceMetricValidationCount").GetInt32(),
+            root.GetProperty("referenceScorerCallCount").GetInt32());
+        Assert.Contains("reference scorer", root.GetProperty("metricEvaluation").GetString(), StringComparison.Ordinal);
+        Assert.Equal(MultiScaleSsim.MetricId, root.GetProperty("perceptualObjective").GetProperty("id").GetString());
+        Assert.Equal(MultiScaleSsim.Definition, root.GetProperty("perceptualObjective").GetProperty("definition").GetString());
         Assert.InRange(decodes, 1, 17);
         Assert.Equal(2 * decodes, root.GetProperty("totalEntropyPassCount").GetInt32());
         Assert.Equal(decodes, root.GetProperty("totalHistogramScanCount").GetInt32());
@@ -63,6 +72,10 @@ public sealed class QuantizationTableSearchCommandTests
         JsonElement winnerTrial = Assert.Single(root.GetProperty("trials").EnumerateArray(),
             trial => trial.GetProperty("id").GetString() == winnerId);
         Assert.True(winnerTrial.GetProperty("eligible").GetBoolean());
+        var decodedWinner = ImageResult.FromMemory(winner, ColorComponents.RedGreenBlue);
+        Assert.Equal(MultiScaleSsim.Compare(image, new(decodedWinner.Width, decodedWinner.Height, decodedWinner.Data),
+            TestContext.Current.CancellationToken),
+            winnerTrial.GetProperty("multiScaleSsim").GetDouble());
         Assert.Equal(winner.Length, winnerTrial.GetProperty("bytes").GetInt32());
         Assert.Equal(Convert.ToHexString(SHA256.HashData(winner)), winnerTrial.GetProperty("sha256").GetString());
         Assert.Contains(winnerId, File.ReadAllText(Path.Combine(fixture.Output, "report.md")), StringComparison.Ordinal);

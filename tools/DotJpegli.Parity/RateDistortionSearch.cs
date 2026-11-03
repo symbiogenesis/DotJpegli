@@ -32,7 +32,7 @@ internal static class RateDistortionSearch
 
     internal sealed record Trial(string Id, float Distance, double Lambda, int Bytes,
         string Sha256, string DecodedSha256, QualityMetrics Metrics, bool Eligible,
-        long SearchedBlocks, long CandidateEvaluations, long ChangedCoefficients);
+        long SearchedBlocks, long CandidateEvaluations, long ChangedCoefficients, double MultiScaleSsim);
 
     internal sealed record MatchedRate(double Bytes, double ControlQuality,
         double CandidateQuality, double QualityDelta);
@@ -47,7 +47,7 @@ internal static class RateDistortionSearch
 
     internal sealed record SearchResult(byte[] Jpeg, string WinnerId,
         IReadOnlyList<Candidate> Candidates, IReadOnlyList<Trial> Trials,
-        IReadOnlyList<Comparison> Comparisons)
+        IReadOnlyList<Comparison> Comparisons, int ReferenceMetricValidationCount)
     {
         internal int EncodeCount => this.Trials.Count;
         internal int DecodeCount => this.Trials.Count;
@@ -68,10 +68,14 @@ internal static class RateDistortionSearch
         ValidateSampling(subsampling);
         cancellationToken.ThrowIfCancellationRequested();
         IReadOnlyList<Candidate> candidates = GenerateCandidates();
+        PreparedQualityMetrics reference = QualityMetrics.Prepare(image);
+        PreparedMultiScaleSsim perceptualReference = MultiScaleSsim.Prepare(image, cancellationToken);
         var trials = new List<Trial>(candidates.Count);
         byte[]? best = null;
         string winner = "control";
         QualityMetrics? control = null;
+        double? controlPerceptualScore = null;
+        int referenceValidations = 0;
         foreach (Candidate candidate in candidates)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -82,22 +86,31 @@ internal static class RateDistortionSearch
             PpmImage decoded = decode(jpeg);
             cancellationToken.ThrowIfCancellationRequested();
             ValidateImage(decoded);
-            var metrics = QualityMetrics.Compare(image, decoded);
+            QualityMetrics metrics = reference.Compare(decoded);
+            double perceptualScore = perceptualReference.Compare(decoded, cancellationToken);
             control ??= metrics;
-            bool eligible = metrics.RgbPsnrDb >= control.RgbPsnrDb && metrics.LumaSsim >= control.LumaSsim;
+            controlPerceptualScore ??= perceptualScore;
+            bool eligible = metrics.RgbPsnrDb >= control.RgbPsnrDb && metrics.LumaSsim >= control.LumaSsim
+                && perceptualScore >= controlPerceptualScore.Value;
             trials.Add(new(candidate.Id, candidate.Distance, candidate.Lambda, jpeg.Length,
                 Hash(jpeg), Hash(decoded.Pixels), metrics, eligible,
-                diagnostics.Blocks, diagnostics.CandidateEvaluations, diagnostics.ChangedCoefficients));
+                diagnostics.Blocks, diagnostics.CandidateEvaluations, diagnostics.ChangedCoefficients, perceptualScore));
             // The distance-1 unchanged control is first and always eligible.
             // Equal complete sizes retain the earlier candidate and its bytes.
             if (eligible && (best is null || jpeg.Length < best.Length))
             {
+                if (QualityMetrics.Compare(image, decoded) != metrics
+                    || MultiScaleSsim.Compare(image, decoded, cancellationToken) != perceptualScore)
+                {
+                    throw new InvalidDataException("Prepared quality metrics disagree with the reference scorer.");
+                }
+                referenceValidations++;
                 best = jpeg;
                 winner = candidate.Id;
             }
         }
         cancellationToken.ThrowIfCancellationRequested();
-        return new(best!, winner, candidates, trials.AsReadOnly(), CompareTrials(trials));
+        return new(best!, winner, candidates, trials.AsReadOnly(), CompareTrials(trials), referenceValidations);
     }
 
     internal static IReadOnlyList<Candidate> GenerateCandidates()

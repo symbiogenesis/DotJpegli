@@ -62,6 +62,57 @@ It verifies metric identities and analytic distortion, strict PPM parsing,
 frontiers/interpolation/inverse interpolation, missing coverage and failure bounds,
 and JPEG marker validation using four small encoding fixtures.
 
+## Reusable offline quality objectives
+
+The quantization-table and rate-distortion searches reuse immutable source
+features for the existing RGB PSNR/local luma SSIM checks and a separate
+multiscale structural objective, `dotjpegli-ms-ssim-v1`. Each decoded trial must
+reach all three control scores to be eligible. This extra floor can change the
+selected offline JPEG; the candidate grids, original quality floors and
+complete-byte tie rules are retained.
+
+The multiscale formulation and exponents follow
+[Wang, Simoncelli and Bovik (2003)](https://ece.uwaterloo.ca/~z70wang/publications/msssim.pdf).
+This specified variant uses double BT.601 luma, a normalized 11x11 Gaussian
+(sigma 1.5) at every pixel, replicated edges and weighted population moments.
+Variances clamp to zero. With C1=(.01*255)^2 and C2=(.03*255)^2,
+CS=(2cov+C2)/(varX+varY+C2) and L=(2meanX*meanY+C1)/(meanX^2+meanY^2+C1).
+Spatial means of CS at the first four scales and L*CS at the fifth clamp to
+[0,1] before exponentiation. Their powered product uses exponents
+.0448, .2856, .3001, .2363 and .1333 without renormalization. Successive scales
+use row-major 2x2 averages with replicated odd edges and ceil dimensions;
+tiny images continue through five scales, repeating 1x1. These explicit choices
+do not establish score parity with other MS-SSIM implementations or human
+visual-quality equivalence.
+
+PSNR/local SSIM preparation snapshots source RGB and caches exact luma and
+clipped-window moments. Multiscale preparation caches source luma, local means
+and variances at every scale. Prepared comparison preserves the reference
+accumulation order. The control and every provisional winner also run both
+independent unprepared reference scorers before acceptance. Disagreement aborts
+before output creation. No additional encode, decode or retained decoded RGB
+image is needed. Rejected-trial parity is covered by focused regressions.
+
+Schema 2 search reports retain the objective ID/definition and every trial's
+three scores. They charge two feature preparations, one prepared score set per
+trial and one reference validation set per provisional winner, including the
+control; explicit scorer-call counts are twice the set counts. Local metrics
+retain 11 bytes per pixel plus two doubles and a count per clipped window.
+Multiscale features retain 24*S bytes, where S sums the pixel counts at all five
+ceil-halved scales; each comparison also creates an 8*S-byte decoded luma
+pyramid. Unprepared validation creates both luma pyramids. Array/record overhead
+and the shared 121-double Gaussian are additional. Storage lives only in the
+offline search, outside the encoder's workspace policy.
+
+`PreparedQualityMetricsTests` and `MultiScaleSsimTests` compare exact score bits
+against the independent scorers across tiny, clipped-edge, flat, extreme and
+noisy inputs, plus analytic constants, ownership and concurrent reuse. Complete
+search fixtures reproduce all scores, eligibility and winner bytes; a dedicated
+fixture checks that multiscale rejection applies even when PSNR/local SSIM pass.
+Reduced repeated arithmetic is not a measured latency, allocation or peak-memory
+benefit. Benchmarks remain CI-only. The fixed native acceptance runner retains
+its original scorer and bounds; encoder defaults and public APIs are unchanged.
+
 ## Bounded progressive scan search
 
 Use the opt-in offline search for a single binary P6 RGB8 image:
@@ -158,13 +209,14 @@ the screening score is D/max(Dcontrol,1) + lambda*R/max(Rcontrol,1). Stable
 candidate enumeration resolves equal scores. Every finalist runs the real
 encoder, including AQ and its table-derived thresholds, Huffman optimization,
 entropy coding and headers.
-Ranking uses actual complete JPEG bytes. A finalist is eligible only if both
-decoded RGB PSNR and luma SSIM meet the default control's scores. The first
-minimum wins ties. The selected JPEG therefore never exceeds the control's size
-and meets both measured quality floors with this decoder; these checks do not
-establish perceptual equivalence, a global optimum or a corpus-wide gain.
+Ranking uses actual complete JPEG bytes. A finalist is eligible only if its
+decoded RGB PSNR, local luma SSIM and the multiscale structural objective meet
+the default control's scores. The first minimum wins ties. The selected JPEG
+therefore never exceeds the control's size and meets all three measured quality
+floors with this decoder; these checks do not establish perceptual equivalence,
+a global optimum or a corpus-wide gain.
 
-`winner.jpg` contains the selected output. `search.json` (schema 1) retains the
+`winner.jpg` contains the selected output. `search.json` (schema 2) retains the
 source/pixel, encoder and decoder identities, base tables, cached costs, every
 joint configuration's tables and screening scores, all exact trials including
 quality rejections, JPEG/decoded hashes and the winner. `report.md` gives the
@@ -172,7 +224,8 @@ exact finalists and selection rule. Source DCT block counts, cached costs,
 screened combinations, complete encodes/decodes and logical entropy passes
 include discarded work. They are operation counts, not latency, allocation,
 rental-capacity or peak-memory measurements. Only the current and winning JPEG
-are retained during the serial search, alongside bounded candidate metadata.
+are retained during the serial search, alongside bounded candidate metadata and
+the [prepared quality reference](#reusable-offline-quality-objectives).
 
 Reproduce a finalist using its three natural-order tables with
 `JpegliEncoderOptions.QuantizationTables` and the report's fixed settings. The
@@ -222,9 +275,9 @@ in bytes. There is no extrapolation; constant, insufficient or disjoint ranges
 are retained as unsupported, with their reasons. These sampled comparisons do
 not establish a corpus-wide compression gain or perceptual equivalence.
 
-The winner is the smallest actual complete JPEG meeting both decoded scores of
-the distance-1 unchanged control. Equal sizes keep the earlier trial; the control
-is always eligible. `winner.jpg` stores that output. `search.json` (schema 1)
+The winner is the smallest actual complete JPEG meeting all three decoded scores
+of the distance-1 unchanged control. Equal sizes keep the earlier trial; the control
+is always eligible. `winner.jpg` stores that output. `search.json` (schema 2)
 retains all candidate distances and weights, trial sizes, JPEG and decoded hashes,
 quality scores, eligibility, curve points, matched comparisons, unsupported
 ranges and source/encoder/runner/decoder identities. `report.md` lists every trial
@@ -237,7 +290,8 @@ and 25 emission/replay passes. Positive weights add one bounded search per real
 block; exact candidate/state evaluations and changed AC coefficients are retained
 per trial and in aggregate, including discarded work. These are algorithmic work
 counts, not CPU time, allocations, rental capacity or peak-memory measurements.
-The search keeps only the current and winning JPEG plus bounded trial metadata.
+The search keeps only the current and winning JPEG plus bounded trial metadata
+and the [prepared quality reference](#reusable-offline-quality-objectives).
 It makes no latency, global optimum or human visual-quality claim.
 
 Focused correctness fixtures use `RateDistortionQuantizationTests`,
