@@ -239,11 +239,24 @@ internal sealed class AdaptiveQuantization : IDisposable
             this.preErosion.AsSpan(this.verticalSampling * 2 * this.preStride, 2 * this.preStride).CopyTo(this.preErosion);
             firstPreRow = 2;
         }
+        int previousPreY = firstPreRow == 0 ? -1
+            : Math.Clamp(firstPreY + firstPreRow - 1, 0, preHeight - 1) * 4;
         for (int row = firstPreRow; row < (this.verticalSampling * 2) + 2; row++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             int sourceY = Math.Clamp(firstPreY + row, 0, preHeight - 1) * 4;
-            this.ComputePreErosion(sourceY - firstLumaY, row, useVector);
+            if (sourceY == previousPreY)
+            {
+                // Clamped top/bottom cells share the complete pixel stencil.
+                // Retain its already-rounded result instead of analyzing it again.
+                this.preErosion.AsSpan((row - 1) * this.preStride, this.preStride)
+                    .CopyTo(this.preErosion.AsSpan(row * this.preStride, this.preStride));
+            }
+            else
+            {
+                this.ComputePreErosion(sourceY - firstLumaY, row, useVector);
+            }
+            previousPreY = sourceY;
         }
 
         const float acQuant = 0.841f;

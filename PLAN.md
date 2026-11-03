@@ -27,7 +27,8 @@ completed work.
 - Scalar DCT uses fixed eight- and four-point schedules, preserving the original
   recursive arithmetic without recursive calls or per-stage scratch spans.
 - AQ scratch has encode-owned bounded pooling, oversized-array fallback and
-  strengths-row reuse across passes.
+  strengths-row reuse across passes. Identical clamped pre-erosion rows reuse
+  their rounded results at image boundaries.
 - Entropy-token scans share one encode-owned 64 MiB budget, accounting actual
   accepted rental lengths. Earlier scans acquire capacity first. Abandoning a
   scan refunds its rentals without invalidating siblings; successful replay

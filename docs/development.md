@@ -37,6 +37,13 @@ test oracle checks coefficient bits, including signed zero, subnormals and
 exceptional values; complete-encode fixtures check JPEG output. This scheduling
 change still needs CI measurements before claiming a latency benefit.
 
+AQ copies the preceding pre-erosion row when edge clamping selects the same
+four-pixel stencil again. This reuses the rounded result without new scratch
+storage and retains cancellation checks for every requested row. Retained
+strength-bit fixtures cover one-row and odd-edge images, sampling factors one
+through four, scalar/vector paths and immutable converted-plane reuse. The
+avoided stencil work does not establish an end-to-end speed improvement.
+
 Fuzzy erosion retains both the four-value insertion algorithm (45 min/max
 operations) and the pruned seven-layer network (39 operations). Narrow
 transposed zigzag ordering retains the original shuffle network and adjacent-
