@@ -10,6 +10,7 @@ public sealed class PooledOutputStreamTests
     [InlineData(4097)]
     [InlineData(131073)]
     [InlineData(1048577)]
+    [InlineData(4194347)]
     public void MixedWritesAndGrowthPreserveEveryByteAndReturnIndependentCopies(int length)
     {
         byte[] input = new byte[length];
@@ -40,6 +41,25 @@ public sealed class PooledOutputStreamTests
         using var later = new PooledOutputStream();
         later.Write(new byte[length]);
         Assert.Equal(input.Skip(1), first.Skip(1));
+    }
+
+    [Fact]
+    public void LargeSingleWritesAndFollowingByteWritesCrossSegmentsExactly()
+    {
+        byte[] input = new byte[(3 * 1024 * 1024) + 17];
+        new Random(1985).NextBytes(input);
+        using var stream = new PooledOutputStream();
+        stream.Write(input);
+        byte[] first = stream.ToArray();
+        Assert.Equal(input, first);
+        stream.WriteByte(0xff);
+        stream.Write(input.AsSpan(0, 123));
+        Assert.Equal(input.Length + 124, stream.Length);
+        byte[] actual = stream.ToArray();
+        Assert.Equal(input, actual[..input.Length]);
+        Assert.Equal(0xff, actual[input.Length]);
+        Assert.Equal(input[..123], actual[(input.Length + 1)..]);
+        Assert.Equal(input, first);
     }
 
     [Fact]
