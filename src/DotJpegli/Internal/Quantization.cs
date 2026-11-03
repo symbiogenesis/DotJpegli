@@ -608,6 +608,11 @@ internal static class Quantization
         bool adaptive, bool dc, ref bool valid)
     {
         valid &= Vector256.LessThanOrEqualAll(Vector256.Abs(coefficients), Vector256.Create(float.MaxValue));
+        // Exact zero AC coefficients stay zero for every validated divisor
+        // and adaptive bias, including negative zero and a zero threshold.
+        // Keep the finite check and sticky failure state before this shortcut.
+        if (!dc && Vector256.EqualsAll(coefficients, Vector256<float>.Zero))
+            return Vector128<short>.Zero;
         Vector256<float> values = coefficients / Vector256.Create(divisors);
         float dcValue = dc ? values.GetElement(0) : 0f;
         Vector256<float> threshold = Vector256.Create(acOffset);

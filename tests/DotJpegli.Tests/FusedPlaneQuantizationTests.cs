@@ -94,6 +94,34 @@ public sealed class FusedPlaneQuantizationTests
     }
 
     [Fact]
+    public void ExactZeroAcRowsPreserveSignedZerosDcAndEarlierValidationFailures()
+    {
+        foreach (bool adaptive in new[] { false, true })
+            foreach (float zero in new[] { 0f, BitConverter.Int32BitsToSingle(int.MinValue) })
+            {
+                var table = Quantization.PreparedTable.Create(Enumerable.Repeat((ushort)3, 64).ToArray(),
+                    0, 4f, grayscale: true, adaptiveQuantization: adaptive,
+                    adaptiveMultipliers: Enumerable.Repeat(0.5f, 64).ToArray());
+                float[] coefficients = Enumerable.Repeat(zero, 64).ToArray();
+                foreach (float dc in new[] { 0f, -7.5f, 7.5f, float.MaxValue, -float.MaxValue })
+                {
+                    coefficients[0] = dc;
+                    AssertTransposed(coefficients, table, 0.625f);
+                }
+                coefficients[0] = zero;
+                foreach (int index in new[] { 0, 1, 8, 16, 63 })
+                    foreach (float invalid in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+                    {
+                        coefficients[index] = invalid;
+                        short[] output = Enumerable.Repeat((short)-23456, 72).ToArray();
+                        Assert.False(TryTransposed(coefficients, table, 0.625f, output));
+                        Assert.All(output, value => Assert.Equal((short)-23456, value));
+                        coefficients[index] = zero;
+                    }
+            }
+    }
+
+    [Fact]
     public void BothPortableOrderingNetworksPreserveEverySignedShortBitPattern()
     {
         for (int shift = 0; shift < 1024; shift++)
