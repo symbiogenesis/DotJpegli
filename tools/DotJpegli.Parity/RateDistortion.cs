@@ -37,7 +37,8 @@ internal static class RateDistortion
             if (bytes <= curve[index].Bytes)
             {
                 CurvePoint a = curve[index - 1], b = curve[index];
-                double fraction = (Math.Log(bytes) - Math.Log(a.Bytes)) / (Math.Log(b.Bytes) - Math.Log(a.Bytes));
+                double logA = Math.Log(a.Bytes);
+                double fraction = (Math.Log(bytes) - logA) / (Math.Log(b.Bytes) - logA);
                 return a.Quality + (fraction * (b.Quality - a.Quality));
             }
         }
@@ -57,8 +58,8 @@ internal static class RateDistortion
             throw new InvalidDataException("No common rate-distortion range.");
         }
 
-        return TargetFractions
-            .Select(fraction => Math.Exp(Math.Log(minimum) + (fraction * (Math.Log(maximum) - Math.Log(minimum))))).ToArray();
+        double logMinimum = Math.Log(minimum), logRange = Math.Log(maximum) - logMinimum;
+        return TargetFractions.Select(fraction => Math.Exp(logMinimum + (fraction * logRange))).ToArray();
     }
 
     public static double Invert(IReadOnlyList<CurvePoint> curve, double quality)
@@ -74,7 +75,8 @@ internal static class RateDistortion
             {
                 CurvePoint a = curve[index - 1], b = curve[index];
                 double fraction = (quality - a.Quality) / (b.Quality - a.Quality);
-                return Math.Exp(Math.Log(a.Bytes) + (fraction * (Math.Log(b.Bytes) - Math.Log(a.Bytes))));
+                double logA = Math.Log(a.Bytes);
+                return Math.Exp(logA + (fraction * (Math.Log(b.Bytes) - logA)));
             }
         }
         throw new InvalidDataException("Unreachable quality interpolation point.");
