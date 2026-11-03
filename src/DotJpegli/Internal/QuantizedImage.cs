@@ -4,6 +4,7 @@ using System.Buffers;
 #if !NETSTANDARD2_1
 using System.Numerics;
 #endif
+using System.Runtime.CompilerServices;
 
 /// <summary>Reuses full coefficients across histogram, spectral and refinement passes.</summary>
 internal sealed class QuantizedImage : IDisposable
@@ -71,9 +72,7 @@ internal sealed class QuantizedImage : IDisposable
                     imageWidth: width, imageHeight: height);
             }
             Span<float> samples = stackalloc float[64];
-            Span<float> searchCoefficients = rateDistortionLambda > 0 ? stackalloc float[64] : default;
             Span<short> naturalOrder = stackalloc short[64];
-            Span<short> searchOriginal = rateDistortionLambda > 0 ? stackalloc short[64] : default;
             int horizontal = sampling.MaxHorizontal;
             int vertical = sampling.MaxVertical;
             Span<float> strengths = adaptive is null ? default : adaptive.Strengths;
@@ -111,23 +110,8 @@ internal sealed class QuantizedImage : IDisposable
                                 // this same completed cache; the default fused path is unchanged.
                                 Downsampling.FillBlock(pixels, width, height, stride, component, x, y,
                                     horizontal, vertical, factor.Horizontal, factor.Vertical, samples, smoothingFactor);
-                                ForwardDct.Transform(samples, searchCoefficients);
-                                Quantization.QuantizePrepared(searchCoefficients, quantizers[component], naturalOrder,
-                                    adaptiveStrength: strength);
-                                EntropyEncoder.ValidateAc(naturalOrder);
-                                ZigZagOrdering.Reorder(naturalOrder, quantized);
-                                quantized.CopyTo(searchOriginal);
-                                int evaluations = RateDistortionQuantization.Optimize(searchCoefficients, tables[component],
-                                    quantized, rateDistortionLambda, chroma: component != 0);
-                                int changes = 0;
-                                for (int coefficient = 1; coefficient < 64; coefficient++)
-                                {
-                                    if (quantized[coefficient] != searchOriginal[coefficient])
-                                    {
-                                        changes++;
-                                    }
-                                }
-                                rateDistortionDiagnostics?.RecordBlock(evaluations, changes);
+                                PrepareRateDistortionBlock(samples, quantizers[component], tables[component],
+                                    quantized, strength, rateDistortionLambda, component != 0, rateDistortionDiagnostics);
                                 continue;
                             }
                             if (pixels.ParallelRows is { } parallelRows)
@@ -175,6 +159,34 @@ internal sealed class QuantizedImage : IDisposable
             image.Dispose();
             throw;
         }
+    }
+
+    // Keep the opt-in search's scratch and live state out of the ordinary cache
+    // loop. Conditional stack allocations otherwise change that method's frame
+    // even when the experiment is disabled for every block.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void PrepareRateDistortionBlock(ReadOnlySpan<float> samples,
+        Quantization.PreparedTable quantizer, ReadOnlySpan<ushort> table, Span<short> quantized,
+        float strength, double lambda, bool chroma, RateDistortionDiagnostics? diagnostics)
+    {
+        Span<float> coefficients = stackalloc float[64];
+        Span<short> natural = stackalloc short[64];
+        Span<short> original = stackalloc short[64];
+        ForwardDct.Transform(samples, coefficients);
+        Quantization.QuantizePrepared(coefficients, quantizer, natural, adaptiveStrength: strength);
+        EntropyEncoder.ValidateAc(natural);
+        ZigZagOrdering.Reorder(natural, quantized);
+        quantized.CopyTo(original);
+        int evaluations = RateDistortionQuantization.Optimize(coefficients, table, quantized, lambda, chroma);
+        int changes = 0;
+        for (int coefficient = 1; coefficient < 64; coefficient++)
+        {
+            if (quantized[coefficient] != original[coefficient])
+            {
+                changes++;
+            }
+        }
+        diagnostics?.RecordBlock(evaluations, changes);
     }
 
     private Span<short> Block(int component, int x, int y)

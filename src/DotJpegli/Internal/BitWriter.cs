@@ -105,6 +105,30 @@ internal sealed class BitWriter
             throw new ArgumentOutOfRangeException(nameof(lookupOffset));
         }
 
+        // Sequential scans use all six contexts. Keep their original constant
+        // lookup bound and unbiased index instead of paying for progressive
+        // scan offsets on every token. Specialize once per replay batch.
+        return lookups.Length == 6 * 256
+            ? this.WriteEntropyTokens<FullContextLookup>(tokens, lookups, 0)
+            : this.WriteEntropyTokens<PartialContextLookup>(tokens, lookups, lookupOffset);
+    }
+
+    private readonly struct FullContextLookup
+    {
+    }
+
+    private readonly struct PartialContextLookup
+    {
+    }
+
+    private int WriteEntropyTokens<TLookup>(ReadOnlySpan<uint> tokens, ReadOnlySpan<ulong> lookups, int lookupOffset)
+        where TLookup : struct
+    {
+        if (typeof(TLookup) == typeof(FullContextLookup))
+        {
+            lookups = lookups[..(6 * 256)];
+        }
+
         ulong pending = this.buffer;
         int pendingBits = this.bufferedBits;
         int index = 0;
@@ -112,7 +136,8 @@ internal sealed class BitWriter
         {
             uint token = tokens[index];
             int contextAndSymbol = (int)(token >> 16) & 2047;
-            int lookupIndex = contextAndSymbol - lookupOffset;
+            int lookupIndex = typeof(TLookup) == typeof(FullContextLookup)
+                ? contextAndSymbol : contextAndSymbol - lookupOffset;
             uint bits;
             int count;
             if ((uint)lookupIndex < (uint)lookups.Length)
