@@ -99,15 +99,8 @@ internal sealed class HuffmanTable
 
     public static HuffmanTable CreateOptimized(ReadOnlySpan<long> frequencies)
     {
-        Span<UInt128> counts =
-#if NETSTANDARD2_1
-            new UInt128[257];
-#else
-            stackalloc UInt128[257];
-#endif
-        InitializeCounts(frequencies, counts);
         Span<int> depth = stackalloc int[257];
-        BuildCodeLengths(counts, depth);
+        BuildCodeLengths(frequencies, depth);
         byte[] histogram = new byte[16];
         int symbolCount = 0;
         for (int symbol = 0; symbol < 256; symbol++)
@@ -147,16 +140,21 @@ internal sealed class HuffmanTable
     // canonical codes and allocating table arrays for each trial is unnecessary.
     internal static float EstimateOptimizedCost(ReadOnlySpan<long> frequencies)
     {
-        Span<UInt128> counts =
-#if NETSTANDARD2_1
-            new UInt128[257];
-#else
-            stackalloc UInt128[257];
-#endif
-        InitializeCounts(frequencies, counts);
         Span<int> depth = stackalloc int[257];
-        BuildCodeLengths(counts, depth);
+        bool narrow = BuildCodeLengths(frequencies, depth);
         int symbolCount = 0;
+        if (narrow)
+        {
+            ulong narrowBits = 0;
+            for (int symbol = 0; symbol < 256; symbol++)
+            {
+                symbolCount += depth[symbol] == 0 ? 0 : 1;
+                narrowBits += (ulong)frequencies[symbol] * (uint)depth[symbol];
+            }
+            // Keep the same final conversion as the wide path, including the
+            // portable target's double intermediate.
+            return HistogramCost((UInt128)(narrowBits + (uint)((17 + symbolCount) * 8)));
+        }
         UInt128 bits = 0;
         for (int symbol = 0; symbol < 256; symbol++)
         {
@@ -261,25 +259,73 @@ internal sealed class HuffmanTable
         (float)bits;
 #endif
 
-    private static void BuildCodeLengths(ReadOnlySpan<UInt128> frequencies, Span<int> depth)
+    private static bool BuildCodeLengths(ReadOnlySpan<long> frequencies, Span<int> depth)
+    {
+        if (frequencies.Length != 256)
+            throw new ArgumentException("A frequency table must have 256 entries.", nameof(frequencies));
+
+        Span<ulong> narrowCounts = stackalloc ulong[257];
+        bool narrow = true, hasSymbol = false;
+        for (int symbol = 0; symbol < frequencies.Length; symbol++)
+        {
+            long frequency = frequencies[symbol];
+            if (frequency < 0)
+                throw new ArgumentOutOfRangeException(nameof(frequencies), "Symbol frequencies cannot be negative.");
+            narrowCounts[symbol] = (ulong)frequency;
+            narrow &= frequency <= uint.MaxValue;
+            hasSymbol |= frequency != 0;
+        }
+        if (narrow)
+        {
+            if (!hasSymbol)
+                narrowCounts[0] = 1;
+            narrowCounts[256] = 1;
+            // At the uint bound, every retry reaches uniform weights by the
+            // time minimumCount reaches uint.MaxValue. All 257 leaf weights
+            // and their merged sum remain below 2^41; a 16-bit code cost is
+            // below 2^45. Neither can collide with the ulong sentinel.
+            Span<Node<ulong>> narrowTree = stackalloc Node<ulong>[2 * 257 + 1];
+            BuildCodeLengths<ulong, NarrowArithmetic>(narrowCounts, depth, narrowTree);
+            return true;
+        }
+
+        Span<UInt128> counts =
+#if NETSTANDARD2_1
+            new UInt128[257];
+#else
+            stackalloc UInt128[257];
+#endif
+        InitializeCounts(frequencies, counts);
+        Span<Node<UInt128>> tree =
+#if NETSTANDARD2_1
+            new Node<UInt128>[2 * 257 + 1];
+#else
+            stackalloc Node<UInt128>[2 * 257 + 1];
+#endif
+        BuildCodeLengths<UInt128, WideArithmetic>(counts, depth, tree);
+        return false;
+    }
+
+    private static void BuildCodeLengths<T, TArithmetic>(ReadOnlySpan<T> frequencies,
+        Span<int> depth, Span<Node<T>> tree)
+        where T : struct, IComparable<T>
+        where TArithmetic : struct, ITreeArithmetic<T>
     {
         // Every retry has at most one leaf per frequency, one internal node per
         // merge, and two sentinels. Reuse this bounded storage across retries.
-        Span<Node> tree =
-#if NETSTANDARD2_1
-            new Node[2 * 257 + 1];
-#else
-            stackalloc Node[2 * 257 + 1];
-#endif
-        UInt128 minimumCount = 0;
+        // Value-type arithmetic lets the JIT specialize this one algorithm for
+        // bounded ulong counts and for the exact UInt128/BigInteger fallback.
+        TArithmetic arithmetic = default;
+        T minimumCount = default;
         while (true)
         {
             int leafCount = 0;
             for (int symbol = frequencies.Length - 1; symbol >= 0; symbol--)
             {
-                if (frequencies[symbol] != 0)
+                T count = frequencies[symbol];
+                if (count.CompareTo(default) != 0)
                 {
-                    tree[leafCount++] = new Node(UInt128.Max(frequencies[symbol], minimumCount), -1, symbol);
+                    tree[leafCount++] = new Node<T>(count.CompareTo(minimumCount) >= 0 ? count : minimumCount, -1, symbol);
                 }
             }
 
@@ -288,29 +334,23 @@ internal sealed class HuffmanTable
                 int comparison = left.Count.CompareTo(right.Count);
                 return comparison != 0 ? comparison : right.RightOrSymbol.CompareTo(left.RightOrSymbol);
             });
-            Node sentinel = new(
-#if NETSTANDARD2_1
-                (UInt128.One << 128) - 1,
-#else
-                UInt128.MaxValue,
-#endif
-                -1, -1);
+            Node<T> sentinel = new(arithmetic.Sentinel, -1, -1);
             tree[leafCount] = sentinel;
             tree[leafCount + 1] = sentinel;
             int leafIndex = 0;
             int parentIndex = leafCount + 1;
             for (int merge = 1; merge < leafCount; merge++)
             {
-                int left = tree[leafIndex].Count <= tree[parentIndex].Count ? leafIndex++ : parentIndex++;
-                int right = tree[leafIndex].Count <= tree[parentIndex].Count ? leafIndex++ : parentIndex++;
+                int left = tree[leafIndex].Count.CompareTo(tree[parentIndex].Count) <= 0 ? leafIndex++ : parentIndex++;
+                int right = tree[leafIndex].Count.CompareTo(tree[parentIndex].Count) <= 0 ? leafIndex++ : parentIndex++;
                 // UInt128 keeps even 256 long.MaxValue frequencies exact;
                 // no saturated internal node can collide with the sentinel.
-                tree[leafCount + merge] = new Node(tree[left].Count + tree[right].Count, left, right);
+                tree[leafCount + merge] = new Node<T>(arithmetic.Add(tree[left].Count, tree[right].Count), left, right);
                 tree[leafCount + merge + 1] = sentinel;
             }
 
             depth.Clear();
-            SetDepth(tree, 2 * leafCount - 1, depth, 0);
+            SetDepth<T>(tree, 2 * leafCount - 1, depth, 0);
             if (!depth.ContainsAnyInRange(17, int.MaxValue))
             {
                 return;
@@ -318,13 +358,13 @@ internal sealed class HuffmanTable
 
             // CreateHuffmanTree uses limits 1, 2, 4... and clamps at limit-1.
             // This retry eventually makes leaf weights nearly uniform.
-            minimumCount = minimumCount == 0 ? 1 : minimumCount * 2 + 1;
+            minimumCount = arithmetic.NextMinimum(minimumCount);
         }
     }
 
-    private static void SetDepth(ReadOnlySpan<Node> tree, int nodeIndex, Span<int> depth, int level)
+    private static void SetDepth<T>(ReadOnlySpan<Node<T>> tree, int nodeIndex, Span<int> depth, int level)
     {
-        Node node = tree[nodeIndex];
+        Node<T> node = tree[nodeIndex];
         if (node.Left < 0)
         {
             depth[node.RightOrSymbol] = level;
@@ -335,5 +375,31 @@ internal sealed class HuffmanTable
         SetDepth(tree, node.RightOrSymbol, depth, level + 1);
     }
 
-    private readonly record struct Node(UInt128 Count, int Left, int RightOrSymbol);
+    private interface ITreeArithmetic<T>
+    {
+        T Sentinel { get; }
+        T Add(T left, T right);
+        T NextMinimum(T minimum);
+    }
+
+    private readonly struct NarrowArithmetic : ITreeArithmetic<ulong>
+    {
+        public ulong Sentinel => ulong.MaxValue;
+        public ulong Add(ulong left, ulong right) => left + right;
+        public ulong NextMinimum(ulong minimum) => minimum == 0 ? 1 : minimum * 2 + 1;
+    }
+
+    private readonly struct WideArithmetic : ITreeArithmetic<UInt128>
+    {
+        public UInt128 Sentinel =>
+#if NETSTANDARD2_1
+            (UInt128.One << 128) - 1;
+#else
+            UInt128.MaxValue;
+#endif
+        public UInt128 Add(UInt128 left, UInt128 right) => left + right;
+        public UInt128 NextMinimum(UInt128 minimum) => minimum == 0 ? 1 : minimum * 2 + 1;
+    }
+
+    private readonly record struct Node<T>(T Count, int Left, int RightOrSymbol);
 }

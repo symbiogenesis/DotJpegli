@@ -101,6 +101,29 @@ public sealed class HuffmanTableOptimizationTests
         }
     }
 
+    [Theory]
+    [InlineData(4294967295L)]
+    [InlineData(4294967296L)]
+    public void NarrowWeightBoundaryPreservesExactTablesAndCost(long maximum)
+    {
+        long[] frequencies = Enumerable.Range(0, 256).Select(symbol =>
+            symbol % 7 == 0 ? maximum : symbol % 3 == 0 ? maximum / 2 : symbol % 5 == 0 ? 0L : 1L).ToArray();
+        AssertMatchesReference(frequencies);
+    }
+
+    [Fact]
+    public void NarrowSkewedWeightsPreserveLengthLimitRetries()
+    {
+        long[] frequencies = new long[256];
+        frequencies[0] = frequencies[1] = 1;
+        for (int symbol = 2; symbol < 47; symbol++)
+            frequencies[symbol] = frequencies[symbol - 1] + frequencies[symbol - 2];
+        Assert.InRange(frequencies[46], 1, uint.MaxValue);
+        ReferenceTable expected = BuildReference(frequencies);
+        Assert.True(expected.Retries > 1);
+        AssertMatchesReference(frequencies, expected);
+    }
+
     [Fact]
     public void WideHistogramCostPreservesUInt128Rounding()
     {
