@@ -1,0 +1,159 @@
+{
+  "testedRevision": "eb86172fb197b7614ca9e82ffdbd6422cfc4d74f",
+  "runId": "41573245587",
+  "runUrl": "https://github.com/symbiogenesis/DotJpegli/actions/runs/41573245587",
+  "artifacts": [
+    {
+      "id": "13202398076",
+      "name": "performance-parity-eb86172fb197b7614ca9e82ffdbd6422cfc4d74f",
+      "digest": "sha256:5ef4831f96e936d8f29c4ada4df8deddd650ffcfd0f68e930fba9340c8949b44"
+    },
+    {
+      "id": "13202571317",
+      "name": "performance-profile-eb86172fb197b7614ca9e82ffdbd6422cfc4d74f",
+      "digest": "sha256:854fe3d1944810049d885a4094797273890a8c12673ace75fc090ed6337f1496"
+    }
+  ],
+  "files": [
+    {
+      "path": "full/cases.json",
+      "sha256": "1d0ad8a903266a37eb39283af3eac8d7e4683d0e7f0c97a41b690ed36e2d1df4"
+    },
+    {
+      "path": "full/report.md",
+      "sha256": "65c26cf4c08ddd28904930d2a050d34a6668c9c12554e47c2ec351d07ca18b27"
+    },
+    {
+      "path": "full/run.json",
+      "sha256": "3fa179a68660d1f3b8f6554d297109b7030dccba20e44d45a0e346c1ed5328c4"
+    },
+    {
+      "path": "full/sources.json",
+      "sha256": "7268cb35be71aab345dc2cbc0fa2459a533c14a6f5e5cb1559172efc55b987a5"
+    },
+    {
+      "path": "full/summary.json",
+      "sha256": "16155756b2892bb6a5db74ebfa460bf7f72afa2671163ef0aeeb1f667b6414bc"
+    },
+    {
+      "path": "native-provenance.json",
+      "sha256": "1a3b176aa8dbd98dcdb1054e5ec3952f02b4ccae10b23bbee2ff09f0230d79fc"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-low-contrast/cases.json",
+      "sha256": "88dd96dff0f8b9384fa3dcb83d4cda07ed3c26deb9f59b91fa55d2fdc99b5e7e"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-low-contrast/native.log",
+      "sha256": "db71d7fb8bd43059c897a65635404477db8c84158c92222bd34d7742328ef545"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-low-contrast/progress.json",
+      "sha256": "5933f9fe458502c307619ab683731669386c5926b83ce5791500f4b89b86af5e"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-low-contrast/report.md",
+      "sha256": "d8df528b33a1c1f11a2c4cb35307cccef85b156d422f5e6df0eb06b9f8cdd42c"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-low-contrast/run.json",
+      "sha256": "e2ca3e63a80a8a12fd790910c9370571078640daee9a80d3cc208940bf6b474b"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-low-contrast/sources.json",
+      "sha256": "70efaf50eaa0032269f1eb49c4e683a5a63d6e315597810f76b9ff3f6a11b056"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-low-contrast/summary.json",
+      "sha256": "973057747c8d7f2c5b854d2ecf32807518676bfda7ccd114769754dd25ac4625"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-low-noise/cases.json",
+      "sha256": "8a161a9df20334e90cd4801b7e00463222a2d06e9b1072f2fc911aeda03d245c"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-low-noise/native.log",
+      "sha256": "fef37700969a7968b81e9b0f22c26bb835c295dbc17aa06488fcf23dffd399ff"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-low-noise/progress.json",
+      "sha256": "0c1ad417d8b207b2b86c98f060c6f91fafd73a41c11516486f07bbb6e5bd480f"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-low-noise/report.md",
+      "sha256": "455ce0f293ca30200c47d8b014129c59930d44ec754bfddbdea190bf4f41844d"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-low-noise/run.json",
+      "sha256": "f1cc3e73b3d906463f522d1ba0582075e058398307d33bbccfe997872b362b24"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-low-noise/sources.json",
+      "sha256": "9162619826b62aef149a2fab91f3968691acd3ba2a990bc508a06a3e82a494bd"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-low-noise/summary.json",
+      "sha256": "23dbb7dac1a2e90b686db88df0dbc74d72fddc511ac668b929ad1422ec7331de"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-tiny-odd-edges/cases.json",
+      "sha256": "1a7a30e4607997709e7efcaa85587cd1c9c64c20f043788cc7ec6a6fe22efe39"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-tiny-odd-edges/native.log",
+      "sha256": "9404ec2b2fe3239fd8313e457a0c560e7b897e7d45395ed04c00d86f167ddcbf"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-tiny-odd-edges/progress.json",
+      "sha256": "fad028501cec3c79b85319069d5fc27c74765890cd7f7dced57269dbc5bb0d66"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-tiny-odd-edges/report.md",
+      "sha256": "b012e6796557cc98a8548952afc4162db6538b373bd2cc8ba78b8f53d89bf2b5"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-tiny-odd-edges/run.json",
+      "sha256": "ff49e9a40e1d30812ad0a01c4b2eb5e652724b0188686c7f034e6b246bb201cd"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-tiny-odd-edges/sources.json",
+      "sha256": "a9aef0f990527ec1251de5dbd92887dd57b998a9fa59bcfe4135ba7de696b630"
+    },
+    {
+      "path": "profiles/full-performance-profile-evidence-tiny-odd-edges/summary.json",
+      "sha256": "c42b47dcb46a2971817dce646b4943834b074ecc6517aa5944d19ec0c790c40f"
+    },
+    {
+      "path": "profiles/full-performance-profile-install.log",
+      "sha256": "10ef089a3752194fffd335fb3572105b1c5c76da1c24a0a646f7a673e0b6285c"
+    },
+    {
+      "path": "profiles/full-performance-profile-low-contrast.log",
+      "sha256": "9a8ca5ef35dd7f796e4cdaae415485c14e4fe4b12fec630cfd8d5d22d2985b7a"
+    },
+    {
+      "path": "profiles/full-performance-profile-low-contrast.speedscope.json",
+      "sha256": "394aec21b8eab5b5273f127679ccce9c1c5b0ae5df888931ee785cd2f9aa329b"
+    },
+    {
+      "path": "profiles/full-performance-profile-low-noise.log",
+      "sha256": "aa73aa0141a6f993d8e3be6923ba6a3894fda9e2f6b51fceb6f8f252a5807064"
+    },
+    {
+      "path": "profiles/full-performance-profile-low-noise.speedscope.json",
+      "sha256": "804537339ef9132429664717ed490b3a1b482f13c06a0dc0e589a73d9f894f75"
+    },
+    {
+      "path": "profiles/full-performance-profile-selection.txt",
+      "sha256": "ebcff5791d326a17c6f538f7cb6b870f7e103b6d55f32ca517352fac7874c316"
+    },
+    {
+      "path": "profiles/full-performance-profile-tiny-odd-edges.log",
+      "sha256": "6d62651371565f437fbcefbd77e224424b42d081bd6e3ed9eff86475bcdb5b81"
+    },
+    {
+      "path": "profiles/full-performance-profile-tiny-odd-edges.speedscope.json",
+      "sha256": "a95619328390cf5185de90cfb8887a72d103450b5decc25c7056914fde0f5f6f"
+    }
+  ]
+}

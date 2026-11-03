@@ -1,0 +1,5 @@
+low-contrast/444/p0/d4: managed/native=1.480; 1/1 cases retained.
+Measured low-contrast (controlled); 1/1 cases retained.
+Targeted diagnostic: selected-case-bound-exceeded; no full parity verdict; evidence: /home/runner/work/_temp/full-performance-profile-evidence-low-contrast
+Processing trace data file '/home/runner/work/_temp/full-performance-profile-low-contrast.nettrace' to create a new Speedscope file '/home/runner/work/_temp/full-performance-profile-low-contrast.speedscope.json'.
+Conversion complete

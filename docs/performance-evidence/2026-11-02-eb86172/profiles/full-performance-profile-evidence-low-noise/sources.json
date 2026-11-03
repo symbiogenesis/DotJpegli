@@ -1,0 +1,11 @@
+[
+  {
+    "id": "low-noise",
+    "category": "controlled",
+    "sourcePath": "generated:low-noise",
+    "ppmSha256": "8a07ecfb883e0e02eb55f76af681e1d2e5b9e2e3afabc9836542d6950c62850d",
+    "pixelsSha256": "3b3f47c3cd069bcaae7baf8e73cbdc5562251ef6e356706079ea7b1873c9e2e9",
+    "width": 257,
+    "height": 193
+  }
+]
