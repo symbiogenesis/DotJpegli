@@ -40,6 +40,18 @@ internal static class Program
                 Console.WriteLine("Revision comparison self-test passed (synthetic samples only; no benchmark executed).");
                 return 0;
             }
+            if (args.SequenceEqual(["--self-test-workloads"]))
+            {
+                WorkloadDiagnostics.SelfTest();
+                Console.WriteLine("Workload diagnostic self-test passed (no encodes or clocks).");
+                return 0;
+            }
+            if (args.Contains("--workload-diagnostics", StringComparer.Ordinal)
+                || args.Contains("--workload-worker", StringComparer.Ordinal))
+            {
+                RequireCi(requireUntiered: false);
+                return await WorkloadDiagnostics.Run(args);
+            }
             // This command counts numerical certificates and compares bytes;
             // it never reads a timer or invokes any benchmark entry point.
             if (args.Contains("--aq-reciprocal-analysis", StringComparer.Ordinal))
@@ -296,7 +308,7 @@ internal static class Program
         }
     }
 
-    internal static void RequireCi()
+    internal static void RequireCi(bool requireUntiered = true)
     {
 #if DEBUG
         throw new InvalidOperationException("Actual measurements require a Release build.");
@@ -308,7 +320,7 @@ internal static class Program
             throw new InvalidOperationException("Benchmarks may execute only in GitHub Actions. Use --self-test locally for synthetic evidence checks.");
         }
 
-        if (AppContext.TryGetSwitch("System.Runtime.TieredCompilation", out bool tiering) && tiering)
+        if (requireUntiered && AppContext.TryGetSwitch("System.Runtime.TieredCompilation", out bool tiering) && tiering)
         {
             throw new InvalidOperationException("Tiered compilation must be disabled for this fixed protocol.");
         }

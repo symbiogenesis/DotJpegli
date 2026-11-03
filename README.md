@@ -130,8 +130,8 @@ for coverage.
 ## Performance
 
 Same-host comparisons against the source published as **1.0.0** found no
-confirmed latency regressions in the repaired encoder across the measured
-.NET 10/11 x64 and ARM64 configurations, including .NET 11 AVX-512. Across
+confirmed latency regressions in the repaired encoder at `74ae25d`/`a045052`
+across the measured .NET 10/11 x64 and ARM64 configurations, including .NET 11 AVX-512. Across
 1,792 selected case comparisons, 1,640 consistently favored the repaired
 encoder and 152 were inconclusive. Geometric means of the selected latency
 ratios show **5.9–11.7% less encoding time** across the seven configurations.

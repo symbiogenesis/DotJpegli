@@ -181,15 +181,20 @@ The untimed analysis checks 24 actual AQ image configurations across distances
 1/4 and 444/420, plus adversarial signed coefficients and partial tiles. It
 retains useful bytes, actual rental capacity and explicitly defined packing,
 read, indexing, rank and bit-operation counters. Capacity trials repeat all
-source components in their original proportions around the production summed
+source components in their original proportions around the then-current summed
 rental boundary, preserving one shared cap across components. These replicas
 establish storage admissions only. Counters compare the executable offline
 codecs: production dense storage receives DCT output directly and returns block
-spans without the prototype's packing and expansion passes. Production retains
-that dense implementation; latency, allocations and peak memory are unmeasured.
+spans without the prototype's packing and expansion passes. The study did not
+deploy either compact representation or measure latency, allocations or peak
+memory. Current production still stores dense coefficients, using bounded
+segments and a complete prefix of MCU rows when whole-component rentals exceed
+the available capacity; this later policy is separate from the historical study.
 
 Optimized Huffman encoding shares one 64 MiB entropy-token rental budget across
-all scans in an encode. Scans acquire storage in script order, accounting for
+all scans in an encode, additionally constrained by the shared `MaxCacheBytes`
+capacity across converted samples, coefficients and tokens. Scans acquire
+storage in script order, accounting for
 actual pooled array lengths, so small DC scans can leave capacity for larger AC
 scans. Exhaustion abandons only the affected scan, returns its rentals and lets
 later scans use the refunded capacity. Emission replays complete sequences and

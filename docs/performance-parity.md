@@ -36,6 +36,26 @@ checks and native performance parity answer different questions.
 
 ## Native comparison reference
 
+The fixed acceptance matrix is complemented by an opt-in workload diagnostic.
+Include `[performance-workloads]` alongside `[full-parity]` in the settled main
+commit to collect both in its single automatic workflow. The workload jobs run
+on x64 and ARM64, each with a ten-minute measurement deadline. They cover actual
+large encodes around converted-plane and coefficient-cache boundaries, whole
+photograph enlargements to 9.8 megapixels, bounded
+cache settings, RGB/XYB/source-ICC conversion, stream and array output, one/two/four
+workers, and two/four concurrent calls with separate caller input buffers.
+Their fresh-process first encode and subsequent warmed measurements include a
+separate default-tiering case. No local benchmark or additional workflow is needed.
+
+These observations preserve the fixed native corpus, settings and acceptance
+bounds. They retain raw per-encode samples, throughput, allocation counts, actual
+accepted cache capacities, cold/warm memory snapshots and sampled process RSS.
+Process memory includes runtime and caller data; allocation traffic is not peak
+memory or retained pool capacity. Results remain observations, including noisy
+rows, rather than a regression or service-tail-latency verdict. See the
+[workload method](../tools/DotJpegli.Performance/README.md#bounded-workload-diagnostics)
+for input generation, output checks, runtime settings and measurement limits.
+
 The complete 256-case comparison of revision
 `d5f3226d9501a1b636f13eb15ff9b7113a767920` in
 [hosted run 41619016995](https://github.com/symbiogenesis/DotJpegli/actions/runs/41619016995)
@@ -87,7 +107,7 @@ including dense fallback and actual pooled payload/index capacity. Its 360
 real-coefficient comparisons cover 24 AQ configurations from a photograph and
 five sparse, noisy and odd-edge controls at distances 1/4 and 444/420. Another
 75 adversarial layout comparisons check signed extremes and partial tiles;
-30 capacity attempts test shared component budgets around the unchanged 64 MiB
+30 capacity attempts test shared component budgets around the then-current 64 MiB
 dense admission boundary. Full-block, direct-DC and individual coefficient
 values are checked exactly, and retained operation counts have a defined scope.
 
@@ -95,9 +115,11 @@ Compact layouts admit additional replicated coefficients for some source sets;
 pooling and index overhead prevent uniform savings. These are synthetic capacity
 trials, without large-image encoding or speed evidence. The work counters
 compare offline prototypes; production dense storage writes DCT output directly
-and returns spans. The study retains the production implementation and makes no
+and returns spans. The study left production unchanged and makes no
 latency, allocation, peak-memory or native-acceptance claim. Its local untimed
 command is described in the [runner guide](../tools/DotJpegli.Performance/README.md).
+The later segmented dense cache and partial-row reuse are separate from this
+historical compact-layout study and require their own workload measurements.
 
 ## Targeted development comparisons
 

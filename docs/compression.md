@@ -167,9 +167,11 @@ Bands and DC component groups may change between valid refinement scans.
 `ProgressiveRefinementBits`, `ProgressiveInterleaveDc = false` or
 `SequentialInterleaveComponents = false`. Null uses the other scan controls.
 The encoder copies the script and every component list before output; do not
-modify them while encoding starts. Optimized grayscale/YCbCr encoding reuses
-quantized coefficients across scans within a 64 MiB pooled-buffer budget, falling
-back to row/block recomputation for larger images. It retains the existing input, quantization,
+modify them while encoding starts. Optimized encoding reuses quantized
+coefficients across scans within a 64 MiB cache ceiling and the shared
+`MaxCacheBytes` budget. Large components use bounded coefficient segments;
+when the whole image cannot fit, complete initial MCU rows remain cached and
+only uncached rows require recomputation. It retains the existing input, quantization,
 metadata and stream contracts. Single-component scans visit real blocks in
 raster order; scans selecting two or three components use frame MCUs with
 dummy blocks. Histograms and output share that traversal and restart interval.
@@ -393,13 +395,18 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 
 The default, `1`, uses serial execution. Zero and
 values below `-1` are rejected before output. When the effective limit exceeds
-one, workers convert source samples, smooth/downsample components and compute
-the DCT independently across each MCU row. Adaptive analysis, quantization,
+one and enough work is available, workers convert source samples,
+smooth/downsample components and compute the DCT across contiguous ranges in
+each MCU row. Images below 16,384 pixels or fewer than 64 blocks across the MCU
+row retain serial DCT execution. Each worker range requires at least 32 blocks;
+short separate-component rows execute directly. These guards avoid source-copy
+and scheduling costs that cannot be amortized. Adaptive analysis, quantization,
 Huffman frequency collection and entropy output remain ordered, producing the
 same JPEG bytes as serial execution with the same settings. The option applies
 to every source precision, output color space, sampling scheme and scan script.
 
-Parallel execution shares cached converted samples when available; otherwise
+Parallel execution shares cached converted samples, including compact 4:2:0
+chroma planes for unsmoothed 4:2:0, when available; otherwise
 it copies the consumed source storage once, including row padding and ignored
 alpha but excluding trailing storage. It also buffers one MCU row of DCT
 coefficients. Its additional memory is proportional to image width and, when
@@ -419,42 +426,64 @@ their serial order and sizes on the calling thread. Worker staging shares a
 4 MiB cap on accepted pooled capacity, with at most 32 chunks per batch;
 oversized or unsupported chunks use serial replay. Scans without restarts need
 at least 16,384 cached records for chunk replay; smaller and uncached scans
-remain serial. Latency and peak-memory benefits have not been measured.
+remain serial. The optional CI workload diagnostic measures requested worker
+limits and concurrent encodes separately; its observations do not promise a
+speedup on every input or host.
 
 ## Memory and source lifetime
 
-Keep the input unchanged until encoding returns. The encoder retains converted
-samples, optimized grayscale/YCbCr quantized coefficients and entropy tokens
-within three independent 64 MiB budgets. Pooled allocation sizes count toward
-the limits; token storage shares its budget across scans. Larger images and
-exhausted token budgets use coefficient replay or row/block recomputation.
-These budgets exclude caller pixels, output, metadata, histograms and
-row/block scratch. Adaptive analysis owns reusable scratch and one strengths
+Keep the input unchanged until encoding returns. `MaxCacheBytes` controls the
+combined accepted capacity of converted samples, quantized coefficients and
+entropy tokens owned by one encode. It defaults to 192 MiB; each cache kind
+also retains its existing 64 MiB ceiling, and token storage shares that ceiling
+across scans. Zero disables these image caches. A lower value trades reuse for
+recomputation without changing JPEG bytes. For example, `MaxCacheBytes =
+32L * 1024 * 1024` limits combined accepted image caches to 32 MiB.
+
+Actual rental capacities count toward the limits, including the compact 4:2:0
+conversion-row scratch. The limit excludes caller pixels, JPEG output,
+metadata, cache bookkeeping and array headers, histograms, adaptive-analysis
+scratch and worker/transform scratch.
+It is not a process-memory ceiling: concurrent calls each own their budget,
+and returned arrays may remain in the shared runtime pool. Adaptive analysis
+owns reusable scratch and one strengths
 row for the duration of the encode. Scratch is rented when its largest requested
 array fits 1 MiB; wider neighborhoods use ordinary arrays. Rentals are returned
-on success, cancellation and failure. Pool retention is separate from the three
-image-cache budgets.
+on success, cancellation and failure. Pool retention is separate from accepted
+cache ownership.
 
 A single-worker optimized interleaved sequential YCbCr scan usually records
 entropy tokens while transforming and quantizing blocks, avoiding the image-wide
 coefficient cache. With accelerated 256-bit SIMD and no accelerated 512-bit SIMD,
 it instead prepares component rows separately when the same 64 MiB coefficient
-budget permits, keeping the fused transform separate from MCU traversal. If
-that cache cannot fit, it uses the streaming path. Streaming emission recomputes
-blocks with the same prepared quantizers if tokens exceed their budget. Other
-optimized grayscale/YCbCr scan layouts reuse quantized coefficients when that
-cache fits, and otherwise recompute blocks in scan order. Optimized progressive output
+budget permits, keeping the fused transform separate from MCU traversal.
+Dense storage uses bounded segments when whole-component pool rounding would
+exceed the budget. Beyond total capacity, it retains a complete prefix of MCU
+rows across components; cached rows remain reusable and only the remainder is
+recomputed. With no admitted coefficient rows, it uses the streaming path.
+Streaming emission recomputes blocks with the same prepared quantizers if
+tokens exceed their budget. RGB/XYB histogram and scan passes also reuse these
+bounded coefficients, as does unoptimized progressive output. Optimized progressive output
 collects frequencies from the initial DC and all AC scans before writing them. Histogram
 storage grows with the bounded scan-context count, independently of image area;
 spatial analysis uses bounded neighboring rows.
 
-Single-worker optimized, unsmoothed RGB8-to-YCbCr 4:2:0 encoding without source
+Optimized, unsmoothed RGB8-to-YCbCr 4:2:0 encoding without source
 ICC conversion retains full-resolution Y and compact chroma planes. Two rows of
 full-resolution chroma scratch share the converted-sample budget. Source edges
 are replicated before the ordered 2×2 averages. Other input/mode combinations
 use full converted planes or streaming recomputation.
 
-The byte-array overload also holds the encoded JPEG in memory; use the stream
-overload for larger outputs. Opt-in parallel execution additionally keeps the
+Source-ICC conversion prepares reusable converted planes during input
+validation when the budget admits them, so encoding does not evaluate every
+nonlinear transform again. If those planes cannot fit, preflight validation
+still completes before output and later passes convert samples as needed.
+
+The byte-array overload stages output in a pooled buffer up to 1 MiB, then
+appends bounded 1 MiB ordinary segments. Large outputs avoid repeatedly copying
+all previous bytes or retaining giant pooled arrays. Creating the returned
+owned `byte[]` still requires one final copy and temporarily coexists with
+staging storage. Use the stream overload to avoid that retained output and
+copy for larger JPEGs. Opt-in parallel execution additionally keeps the
 row of DCT coefficients and, when needed, source copy described above, plus
 the bounded entropy staging and worker scratch when token replay is eligible.

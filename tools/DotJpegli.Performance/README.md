@@ -106,7 +106,8 @@ adversarial comparisons and 30 shared-budget capacity attempts. Source,
 coefficient and binary hashes accompany the storage and abstract work counts.
 Replicated coefficients establish capacity only. The counters describe offline
 codecs; production dense storage writes DCT output directly and returns spans
-without these pack/copy passes. Production remains unchanged. This command
+without these pack/copy passes. That study did not deploy a compact layout;
+the later segmented dense cache is a separate implementation. This command
 runs before the CI benchmark guard and has no timers, warmups, calibration,
 allocation measurement or performance verdict; latency and peak memory remain
 unmeasured. All benchmark commands retain their CI guard.
@@ -236,6 +237,90 @@ The same job then repeats the interleaved selection with
 report eight float lanes, accelerated 256-bit SIMD and disabled 512-bit SIMD.
 This exercises narrow ordering even when the host supports AVX-512. Both
 selections belong to the single planned automatic run.
+
+## Bounded workload diagnostics
+
+`[performance-workloads]` in a main push requests additional x64 and ARM64
+observations in that push's automatic workflow. Add `[full-parity]` to refresh
+the complete native reference in the same workflow. The optional dispatch input
+`performance_workloads=true` provides the same job when no suitable automatic
+run exists; inspect and reuse existing runs as usual.
+
+The CI-only command is `--workload-diagnostics --corpus <absolute-Kodak-directory>
+--output <empty-absolute-directory>`. It verifies the existing pinned corpus,
+then runs each fixed scenario in a fresh child process, sequentially, with a
+ten-minute total measurement deadline. The job has an eighteen-minute timeout
+including setup. A timed-out or failed worker preserves its logs, raw completed
+samples and memory observations; incomplete coverage returns exit 2. There are
+no retries, fastest-sample selection or changes to native acceptance.
+
+The 25 scenarios include the 4:4:4 converted-plane bucket boundary
+at 2048 by 2728/2736, the former dense coefficient bucket at 2048 by 4096/4104,
+and the 64 MiB segmented coefficient capacity boundary at 2048 by 5456/5464.
+4:2:0 uses 4096 by 2048/2064. These are real complete encodes of tiled Kodak01
+pixels, not replicated coefficient capacity trials. Two additional 3840-by-2560
+cases enlarge the whole Kodak01 photograph fivefold with deterministic
+nearest-neighbor sampling, preserving its composition in 4:4:4 progressive and
+4:2:0 sequential output. Source and derived dimensions and hashes are retained.
+Tiling and enlargement exercise large encodes but do not substitute for a diverse
+camera-native high-resolution photo corpus. A deterministic xorshift-noise input adds a dense case. Input hashes
+and the generator source are retained through the revision and runner identities.
+Per-encode cache observations report actual admitted peak capacity for converted
+samples, coefficients and entropy tokens, plus their combined peak; returned
+ownership must be zero. These observations establish the paths exercised without
+assuming that a nominal dimension always selects the same cache layout.
+Converted-plane boundary cases additionally require the expected admission or
+fallback, and coefficient cases require actual retained coefficients. The
+untimed self-test verifies that segmented capacity plans straddle 64 MiB.
+
+The remaining cases cover RGB, XYB and Display-P3 source-ICC conversion,
+byte-array and counting-discard-stream output, disabled/16 MiB/default cache
+budgets, and one/two/four encoder workers or two/four concurrent encodes. Concurrent
+calls own separate caller pixel arrays. The runner retains CPU affinity and
+processor count; it does not fabricate four available cores on a smaller runner.
+Only one scenario runs at a time. Parallel and concurrent scenarios use the
+runner's available cores, while the fixed native protocol remains single-core.
+
+Each process records its first encode before validation or warmup, then three
+warmup batches and seven measured batches. Tiny images use 32 operations per
+caller per batch; other scenarios use one. Every encode has a separate timer;
+batch throughput also includes task scheduling. Input construction, profile
+creation, hash checks and report writes are outside encode timers. Cold latency
+excludes process startup and input/settings preparation. It is one observation,
+not a startup distribution. One child uses a runtime configuration with normal
+tiered compilation enabled; others retain the existing untiered configuration.
+The actual runtime configuration is saved beside each request. Seven samples
+cannot establish service p95/p99, and cross-process scenario differences are not
+interleaved causal estimates. MAD over 10% marks noisy observations without
+discarding them or producing a speed preference.
+
+Streaming timings count and discard bytes, avoiding output retention and disk or
+network I/O. Array outputs are checked by hash after timing; all timed stream
+outputs must match the expected length. Separate untimed array/stream encodes
+must match every byte, and parallel cases must also match serial encoding.
+Concurrent scenarios additionally validate a separate concurrent batch of real
+memory-stream encodes against the serial reference after the measurement snapshots.
+The diagnostic sink and per-encode cache accounting add small instrumentation
+costs; these observations never replace the uninstrumented parity measurements.
+
+`GC.GetTotalAllocatedBytes` records process-wide workload allocation traffic,
+including encoder output, result wrappers, diagnostic sinks, options copies
+and task scheduling. It is reported per encode but is not an encoder-only
+allocation count. Before/cold/warm
+phase snapshots separately record process working set, process lifetime peak,
+uncollected managed bytes and last-GC heap/committed/fragmented sizes. No GC is
+forced. The parent polls RSS every 25 ms, retaining every observation. A sampled
+peak is a lower bound and includes input generation, runtime and final untimed
+output validation; the warm-phase snapshot precedes that validation. Neither
+RSS nor heap snapshots measure exact retained array-pool capacity, and cache
+ownership peaks exclude caller pixels, output and scratch. No native-memory
+comparison or blanket low-memory claim is made.
+
+The artifact is `performance-workloads-<architecture>-<revision>`. It contains
+scenario requests, raw timing samples, output and input hashes, child runtime
+settings, memory observations, logs and a readable report. Locally, only
+`--self-test-workloads` is allowed: it checks scenario bounds, coverage, deterministic
+input tiling/enlargement and stream byte accounting without encoding or reading clocks.
 
 ## Interleaved kernel selection diagnostics
 

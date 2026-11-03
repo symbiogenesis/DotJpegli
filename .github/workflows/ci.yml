@@ -44,6 +44,10 @@ on:
         description: 'Compare one case for .NET 10/11 runtime changes and explicit .NET 11 SIMD'
         type: boolean
         default: false
+      performance_workloads:
+        description: 'Bounded large-image, memory, parallel and cold/warm workload observations'
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -335,6 +339,50 @@ jobs:
             ${{ runner.temp }}/parity-corpus/
           retention-days: 7
           if-no-files-found: error
+
+  performance-workloads:
+    if: (github.event_name == 'push' && contains(github.event.head_commit.message, '[performance-workloads]')) || (github.event_name == 'workflow_dispatch' && inputs.performance_workloads)
+    needs: native-reference
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            architecture: X64
+          - runner: ubuntu-24.04-arm
+            architecture: ARM64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: parity-reference-X64-${{ github.sha }}
+          path: ${{ runner.temp }}
+      - name: Build workload observations
+        run: |
+          dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
+          dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release -f net11.0 --no-restore
+          dotnet tools/DotJpegli.Performance/bin/Release/net11.0/DotJpegli.Performance.dll --self-test-workloads
+      - name: Measure bounded workloads serially (CI only)
+        run: dotnet tools/DotJpegli.Performance/bin/Release/net11.0/DotJpegli.Performance.dll --workload-diagnostics --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/workload-evidence"
+      - name: Retain all workload observations, including incomplete runs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: performance-workloads-${{ matrix.architecture }}-${{ github.sha }}
+          path: ${{ runner.temp }}/workload-evidence/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Publish workload report
+        if: always()
+        run: |
+          if [[ -f "${{ runner.temp }}/workload-evidence/report.md" ]]; then
+            cat "${{ runner.temp }}/workload-evidence/report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   kernel-comparison:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[compare-kernels]')
