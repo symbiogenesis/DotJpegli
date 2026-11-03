@@ -7,6 +7,22 @@ namespace DotJpegli.Tests;
 
 public sealed class FusedPlaneQuantizationTests
 {
+    private delegate void NarrowOrdering(Vector128<short> q0, Vector128<short> q1,
+        Vector128<short> q2, Vector128<short> q3, Vector128<short> q4, Vector128<short> q5,
+        Vector128<short> q6, Vector128<short> q7, Span<short> output);
+
+    private static readonly NarrowOrdering[] NarrowPaths =
+    [
+        Quantization.StoreTransposedZigZag128Original,
+        Quantization.StoreTransposedZigZag128Tiled,
+        (q0, q1, q2, q3, q4, q5, q6, q7, output) =>
+            Quantization.StoreTransposedZigZag128(q0, q1, q2, q3, q4, q5, q6, q7, output),
+        (q0, q1, q2, q3, q4, q5, q6, q7, output) =>
+            Quantization.StoreTransposedZigZag128(q0, q1, q2, q3, q4, q5, q6, q7, output, KernelPreference.Original),
+        (q0, q1, q2, q3, q4, q5, q6, q7, output) =>
+            Quantization.StoreTransposedZigZag128(q0, q1, q2, q3, q4, q5, q6, q7, output, KernelPreference.Optimized),
+    ];
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -162,14 +178,17 @@ public sealed class FusedPlaneQuantizationTests
     {
         short[] expected = JpegConstants.ZigZag.ToArray()
             .Select(index => transposed[(index % 8) * 8 + index / 8]).ToArray();
-        short[] actual = Enumerable.Repeat((short)-23456, 80).ToArray();
-        Quantization.StoreTransposedZigZag128(Vector128.Create(transposed.AsSpan(0, 8)), Vector128.Create(transposed.AsSpan(8, 8)),
-            Vector128.Create(transposed.AsSpan(16, 8)), Vector128.Create(transposed.AsSpan(24, 8)),
-            Vector128.Create(transposed.AsSpan(32, 8)), Vector128.Create(transposed.AsSpan(40, 8)),
-            Vector128.Create(transposed.AsSpan(48, 8)), Vector128.Create(transposed.AsSpan(56, 8)), actual.AsSpan(3, 72));
-        Assert.Equal(expected, actual.AsSpan(3, 64).ToArray());
-        Assert.All(actual[..3], value => Assert.Equal((short)-23456, value));
-        Assert.All(actual[67..], value => Assert.Equal((short)-23456, value));
+        foreach (NarrowOrdering path in NarrowPaths)
+        {
+            short[] actual = Enumerable.Repeat((short)-23456, 80).ToArray();
+            path(Vector128.Create(transposed.AsSpan(0, 8)), Vector128.Create(transposed.AsSpan(8, 8)),
+                Vector128.Create(transposed.AsSpan(16, 8)), Vector128.Create(transposed.AsSpan(24, 8)),
+                Vector128.Create(transposed.AsSpan(32, 8)), Vector128.Create(transposed.AsSpan(40, 8)),
+                Vector128.Create(transposed.AsSpan(48, 8)), Vector128.Create(transposed.AsSpan(56, 8)), actual.AsSpan(3, 72));
+            Assert.Equal(expected, actual.AsSpan(3, 64).ToArray());
+            Assert.All(actual[..3], value => Assert.Equal((short)-23456, value));
+            Assert.All(actual[67..], value => Assert.Equal((short)-23456, value));
+        }
     }
 
     [Fact]
@@ -185,6 +204,32 @@ public sealed class FusedPlaneQuantizationTests
                 AssertNarrowOrdering(transposed);
                 transposed[position] = 0;
             }
+    }
+
+    [Fact]
+    public void EveryNarrowOrderingRetainsTheSamePrefixForIncompleteOutput()
+    {
+        foreach (bool dcOnly in new[] { false, true })
+        {
+            short[] transposed = Enumerable.Range(0, 64)
+                .Select(index => dcOnly && index != 0 ? (short)0 : unchecked((short)(index * 997 - 23456))).ToArray();
+            short[] expected = JpegConstants.ZigZag.ToArray()
+                .Select(index => transposed[(index % 8) * 8 + index / 8]).ToArray();
+            foreach (NarrowOrdering path in NarrowPaths)
+                for (int length = 0; length < 64; length++)
+                {
+                    short[] actual = Enumerable.Repeat((short)-12345, 80).ToArray();
+                    Assert.Throws<ArgumentOutOfRangeException>(() => path(
+                        Vector128.Create(transposed.AsSpan(0, 8)), Vector128.Create(transposed.AsSpan(8, 8)),
+                        Vector128.Create(transposed.AsSpan(16, 8)), Vector128.Create(transposed.AsSpan(24, 8)),
+                        Vector128.Create(transposed.AsSpan(32, 8)), Vector128.Create(transposed.AsSpan(40, 8)),
+                        Vector128.Create(transposed.AsSpan(48, 8)), Vector128.Create(transposed.AsSpan(56, 8)), actual.AsSpan(3, length)));
+                    int written = length / 8 * 8;
+                    Assert.Equal(expected[..written], actual.AsSpan(3, written).ToArray());
+                    Assert.All(actual[..3], value => Assert.Equal((short)-12345, value));
+                    Assert.All(actual[(3 + written)..], value => Assert.Equal((short)-12345, value));
+                }
+        }
     }
 
     [Fact]
@@ -271,22 +316,18 @@ public sealed class FusedPlaneQuantizationTests
             Vector256.Create(threshold), offset);
 
     [Fact]
-    public void BothPortableOrderingNetworksPreserveEverySignedShortBitPattern()
+    public void AllPortableOrderingNetworksPreserveEverySignedShortBitPattern()
     {
         for (int shift = 0; shift < 1024; shift++)
         {
             short[] transposed = Enumerable.Range(0, 64).Select(index => unchecked((short)(index + shift * 64))).ToArray();
             short[] expected = JpegConstants.ZigZag.ToArray().Select(index => transposed[(index % 8) * 8 + index / 8]).ToArray();
-            short[] narrow = new short[64], wide = new short[64];
-            Quantization.StoreTransposedZigZag128(Vector128.Create(transposed.AsSpan(0, 8)), Vector128.Create(transposed.AsSpan(8, 8)),
-                Vector128.Create(transposed.AsSpan(16, 8)), Vector128.Create(transposed.AsSpan(24, 8)),
-                Vector128.Create(transposed.AsSpan(32, 8)), Vector128.Create(transposed.AsSpan(40, 8)),
-                Vector128.Create(transposed.AsSpan(48, 8)), Vector128.Create(transposed.AsSpan(56, 8)), narrow);
+            AssertNarrowOrdering(transposed);
+            short[] wide = new short[64];
             Quantization.StoreTransposedZigZag512(Vector128.Create(transposed.AsSpan(0, 8)), Vector128.Create(transposed.AsSpan(8, 8)),
                 Vector128.Create(transposed.AsSpan(16, 8)), Vector128.Create(transposed.AsSpan(24, 8)),
                 Vector128.Create(transposed.AsSpan(32, 8)), Vector128.Create(transposed.AsSpan(40, 8)),
                 Vector128.Create(transposed.AsSpan(48, 8)), Vector128.Create(transposed.AsSpan(56, 8)), wide);
-            Assert.Equal(expected, narrow);
             Assert.Equal(expected, wide);
         }
     }
