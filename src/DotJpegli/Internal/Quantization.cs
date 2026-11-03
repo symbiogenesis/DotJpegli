@@ -94,7 +94,7 @@ internal static class Quantization
 
     // Three independent perceptual matrices: 64 Y, 64 Cb, then 64 Cr values.
     // This corresponds to SetQuantMatrices(add_two_chroma_tables = true).
-    private static ReadOnlySpan<float> BaseMatrices =>
+    internal static ReadOnlySpan<float> BaseMatrices =>
     [
         1.2397409345866273f, 1.7227115097630963f, 2.9212167156636855f, 2.812737435286529f, 3.339819711906184f, 3.463603762596166f, 3.840915217993518f, 3.86956f,
         1.7227115097630963f, 2.0928894413636874f, 2.8456760904429297f, 2.704506820909662f, 3.4407673520905337f, 3.166232352090534f, 4.025208741558432f, 4.035324490952577f,
@@ -121,6 +121,46 @@ internal static class Quantization
         9.188341534163023f, 6.711923184393611f, 7.8858175969577955f, 7.4734110000000005f, 9.043702663686046f, 9.922697394370815f, 63.184936549738225f, 83.35294340273799f,
         9.482700481227672f, 8.380307846134853f, 8.67909f, 8.362933242943903f, 8.053178199770173f, 64.25135180237939f, 83.35294340273799f, 114.89202448569779f,
     ];
+
+    // QuantValsToDistance's inverse factors depend only on the fixed matrices
+    // and one of three transfer scales. Initialize each variant on first use.
+    private static class NormalInverseBaseQuantizers
+    {
+        internal static readonly float[] Values = PrepareInverseBaseQuantizers(GlobalScale);
+    }
+
+    private static class PqInverseBaseQuantizers
+    {
+        internal static readonly float[] Values = PrepareInverseBaseQuantizers(GlobalScale * 0.4f);
+    }
+
+    private static class HlgInverseBaseQuantizers
+    {
+        internal static readonly float[] Values = PrepareInverseBaseQuantizers(GlobalScale * 0.5f);
+    }
+
+    private static float[] PrepareInverseBaseQuantizers(float globalScale)
+    {
+        ReadOnlySpan<float> matrices = BaseMatrices;
+        var inverse = new float[matrices.Length];
+        for (int index = 0; index < inverse.Length; index++)
+            // Two float divisions retain the original rounding. Combining
+            // the denominator or multiplying by a reciprocal changes bits.
+            inverse[index] = 1f / matrices[index] / globalScale;
+        return inverse;
+    }
+
+    internal static ReadOnlySpan<float> GetInverseBaseQuantizers(int cicpTransferFunction)
+    {
+        if (cicpTransferFunction is < 0 or > 255)
+            throw new ArgumentOutOfRangeException(nameof(cicpTransferFunction));
+        return cicpTransferFunction switch
+        {
+            16 => PqInverseBaseQuantizers.Values,
+            18 => HlgInverseBaseQuantizers.Values,
+            _ => NormalInverseBaseQuantizers.Values
+        };
+    }
 
     // InitQuantizer uses natural frequency order: 64 Y, then Cb and Cr.
     private static ReadOnlySpan<float> ZeroBiasMultipliersLowQuality =>
@@ -345,7 +385,7 @@ internal static class Quantization
                 if (selector is < 0 or > 2)
                     throw new ArgumentOutOfRangeException(nameof(quantizationSelectors));
         }
-        float globalScale = TransferFunctionGlobalScale(cicpTransferFunction);
+        ReadOnlySpan<float> inverseBase = GetInverseBaseQuantizers(cicpTransferFunction);
         const float distanceLimit = 10000f;
         float distanceMin = 0f;
         float distanceMax = distanceLimit;
@@ -355,15 +395,16 @@ internal static class Quantization
             ushort[] table = tables[component];
             if (table is null || table.Length != BlockSize)
                 throw new ArgumentException("A quantization table requires 64 values.", nameof(tables));
+            int tableIndex = quantizationSelectors.IsEmpty
+                ? sharedChromaTable && component > 0 ? 1 : component
+                : quantizationSelectors[component];
+            ReadOnlySpan<float> inverseTable = inverseBase.Slice(tableIndex * BlockSize, BlockSize);
             for (int frequency = 0; frequency < BlockSize; frequency++)
             {
                 int quant = table[frequency];
                 if (quant < 1 || quant > quantMaximum)
                     throw new ArgumentException($"Quantization values must be between 1 and {quantMaximum}.", nameof(tables));
-                int tableIndex = quantizationSelectors.IsEmpty
-                    ? sharedChromaTable && component > 0 ? 1 : component
-                    : quantizationSelectors[component];
-                float inverseQuant = 1f / BaseMatrices[tableIndex * BlockSize + frequency] / globalScale;
+                float inverseQuant = inverseTable[frequency];
                 float min = quant > 1 ? ScaleToDistance((quant - 0.5f) * inverseQuant, frequency) : 0f;
                 float max = quant < quantMaximum ? ScaleToDistance((quant + 0.5f) * inverseQuant, frequency) : distanceLimit;
                 if (min <= distanceMax)

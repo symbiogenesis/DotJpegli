@@ -41,6 +41,31 @@ public sealed class QuantizationScalePreparationTests
     }
 
     [Fact]
+    public void PreparedInverseBaseMatricesPreserveOriginalDivisionBitsForEveryTransferCode()
+    {
+        ReadOnlySpan<float> matrices = Quantization.BaseMatrices;
+        for (int transfer = 0; transfer <= 255; transfer++)
+        {
+            float scale = transfer switch
+            {
+                16 => 1.73966010f * 0.4f,
+                18 => 1.73966010f * 0.5f,
+                _ => 1.73966010f
+            };
+            ReadOnlySpan<float> prepared = Quantization.GetInverseBaseQuantizers(transfer);
+            Assert.Equal(192, prepared.Length);
+            for (int index = 0; index < matrices.Length; index++)
+            {
+                float expected = 1f / matrices[index] / scale;
+                Assert.Equal(BitConverter.SingleToInt32Bits(expected),
+                    BitConverter.SingleToInt32Bits(prepared[index]));
+            }
+        }
+        Assert.Throws<ArgumentOutOfRangeException>(() => Quantization.GetInverseBaseQuantizers(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Quantization.GetInverseBaseQuantizers(256));
+    }
+
+    [Fact]
     public void PreparedInverseFactorsPreserveOriginalScaleBits()
     {
         foreach (float scale in Distances)
