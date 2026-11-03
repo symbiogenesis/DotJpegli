@@ -59,6 +59,27 @@ internal static class Quantization
         1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f,
     ];
 
+    private static class PreparedScales
+    {
+        internal static readonly (float Multiplier, float InverseExponent, float InverseMultiplier)[] Values = Create();
+
+        private static (float, float, float)[] Create()
+        {
+            var values = new (float, float, float)[BlockSize];
+            for (int frequency = 0; frequency < values.Length; frequency++)
+            {
+                float exponent = FrequencyExponents[frequency];
+                float inverseExponent = (float)(1.0 / exponent);
+                // Preserve the original double-precision pow and explicit float
+                // conversions. These factors depend only on fixed frequencies,
+                // not the image, distance or requested quantization tables.
+                values[frequency] = ((float)Math.Pow(NonlinearThreshold, 1.0 - exponent),
+                    inverseExponent, (float)Math.Pow(NonlinearThreshold, 1.0 - inverseExponent));
+            }
+            return values;
+        }
+    }
+
     private static ReadOnlySpan<float> ChromaRescale420 =>
     [
         0.4093f, 0.3209f, 0.3477f, 0.3333f, 0.3144f, 0.2823f, 0.3214f, 0.3354f,
@@ -1011,7 +1032,7 @@ internal static class Quantization
             return distance;
         float exponent = FrequencyExponents[frequency];
         // C++ uses std::pow(float, double) for the first pow due to 1.0.
-        float multiplier = (float)Math.Pow(NonlinearThreshold, 1.0 - exponent);
+        float multiplier = PreparedScales.Values[frequency].Multiplier;
         return MathF.Max(0.5f * distance, multiplier * MathF.Pow(distance, exponent));
     }
 
@@ -1031,13 +1052,12 @@ internal static class Quantization
         };
     }
 
-    private static float ScaleToDistance(float scale, int frequency)
+    internal static float ScaleToDistance(float scale, int frequency)
     {
         if (scale < NonlinearThreshold)
             return scale;
-        float exponent = (float)(1.0 / FrequencyExponents[frequency]);
-        float multiplier = (float)Math.Pow(NonlinearThreshold, 1.0 - exponent);
-        return MathF.Min(2f * scale, multiplier * MathF.Pow(scale, exponent));
+        ref readonly var factors = ref PreparedScales.Values[frequency];
+        return MathF.Min(2f * scale, factors.InverseMultiplier * MathF.Pow(scale, factors.InverseExponent));
     }
 
     private static void ValidateComponent(int component)
