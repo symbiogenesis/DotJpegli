@@ -133,9 +133,10 @@ internal static class ByteStuffingExperiment
                 });
             }
             var policy = new Policy { Blocks = 6, Warmups = 3, MinimumIterations = workload.Iterations, MaximumIterations = workload.Iterations };
-            KernelComparison.Analysis analysis = KernelComparison.Analyze(samples.ToArray(), workload.Iterations, policy, comparison);
+            KernelComparison.Quartet[] quartets = samples.ToArray();
+            KernelComparison.Analysis analysis = KernelComparison.Analyze(quartets, workload.Iterations, policy, comparison);
             results.Add(new(workload.Id, workload.Scope, workload.Iterations, workload.UnitsPerIteration,
-                workload.Input, Hash(expected), expected.LongLength, samples.ToArray(), analysis));
+                workload.Input, Hash(expected), expected.LongLength, quartets, analysis));
             await WriteJson(output, "cases.json", results);
             Console.WriteLine(FormattableString.Invariant($"{workload.Id}: optimized/original={analysis.PairedRatios?.Median:F6}; preference={analysis.EvidencePreference}; valid={analysis.InvalidReasons.Length == 0}; {results.Count}/14"));
         }

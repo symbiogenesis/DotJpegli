@@ -78,6 +78,7 @@ internal static class AcReciprocalCommand
             {
                 bool[] ambiguous = Enumerable.Range(0, Count).Select(i =>
                     !AcReciprocalExperiment.TryQuantize(input.Coefficients[i], input.Reciprocals[i], input.Thresholds[i], out _)).ToArray();
+                int ambiguousCount = ambiguous.Count(value => value);
                 int ambiguousBatches = Enumerable.Range(0, Count / Vector<float>.Count)
                     .Count(batch => ambiguous.AsSpan(batch * Vector<float>.Count, Vector<float>.Count).Contains(true));
                 foreach (bool vector in new[] { false, true })
@@ -145,11 +146,12 @@ internal static class AcReciprocalCommand
                         }
                         quartets.Add(new(block, order, legs));
                     }
-                    KernelComparison.Analysis analysis = KernelComparison.Analyze(quartets.ToArray(), iterations, policy, comparisonIndex);
+                    KernelComparison.Quartet[] samples = quartets.ToArray();
+                    KernelComparison.Analysis analysis = KernelComparison.Analyze(samples, iterations, policy, comparisonIndex);
                     results.Add(new(input.Id, vector ? "portable-vector" : "scalar", InputHash(input), Count,
-                        ambiguous.Count(value => value), ambiguousBatches, Count / Vector<float>.Count, iterations, quartets.ToArray(), analysis));
+                        ambiguousCount, ambiguousBatches, Count / Vector<float>.Count, iterations, samples, analysis));
                     await WriteJson(output, "results.json", results);
-                    Console.WriteLine($"{input.Id}/{(vector ? "vector" : "scalar")}: ratio={analysis.GeometricMeanPairedRatio:F3}, preference={analysis.EvidencePreference}, invalid={analysis.InvalidReasons.Length}, fallback={ambiguous.Count(value => value)}/{Count}");
+                    Console.WriteLine($"{input.Id}/{(vector ? "vector" : "scalar")}: ratio={analysis.GeometricMeanPairedRatio:F3}, preference={analysis.EvidencePreference}, invalid={analysis.InvalidReasons.Length}, fallback={ambiguousCount}/{Count}");
                 }
             }
             await WriteJson(output, "summary.json", new
