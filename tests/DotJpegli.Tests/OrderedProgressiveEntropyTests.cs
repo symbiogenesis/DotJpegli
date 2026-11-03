@@ -7,6 +7,55 @@ public sealed class OrderedProgressiveEntropyTests
 {
     [Theory]
     [InlineData(0)]
+    [InlineData(64)]
+    [InlineData(65536)]
+    public void FreshEmptyAcBandsPreserveRunsWithoutReservingTokenStorage(int budget)
+    {
+        foreach ((int start, int end) in new[] { (1, 2), (3, 63), (7, 32) })
+            foreach (int low in new[] { 0, 2, 10 })
+            {
+                short[] ordered = new short[64];
+                // Nonzero coefficients outside the band, and coefficients
+                // below this scan's approximation bit, must remain invisible.
+                ordered[0] = 37;
+                ordered[start] = (short)((1 << low) - 1);
+                if (start > 1)
+                    ordered[1] = 1023;
+                if (end < 63)
+                    ordered[63] = -1023;
+                long[] expected = new long[256], actual = new long[256];
+                int expectedPending = 0, actualPending = 0;
+                using var expectedTokens = new EntropyTokens(budget);
+                using var actualTokens = new EntropyTokens(budget);
+                for (int block = 0; block < 19; block++)
+                {
+                    ProgressiveEntropyEncoder.AccumulateAcFrequencies(ToNatural(ordered), expected,
+                        ref expectedPending, low, start, end, tokens: expectedTokens, component: 2);
+                    ProgressiveEntropyEncoder.AccumulateAcFrequencies(ordered, actual,
+                        ref actualPending, low, start, end, tokens: actualTokens, component: 2, zigZagOrdered: true);
+                }
+                Assert.Equal(19, actualPending);
+                Assert.False(actualTokens.TryReserveBlock(out _));
+                // Terminating the empty run must retain its extension before
+                // the first significant coefficient, even with no rental budget.
+                ordered[end] = (short)-(1 << low);
+                ProgressiveEntropyEncoder.AccumulateAcFrequencies(ToNatural(ordered), expected,
+                    ref expectedPending, low, start, end, coefficientsValidated: true, tokens: expectedTokens, component: 2);
+                ProgressiveEntropyEncoder.AccumulateAcFrequencies(ordered, actual,
+                    ref actualPending, low, start, end, coefficientsValidated: true,
+                    tokens: actualTokens, component: 2, zigZagOrdered: true);
+                ProgressiveEntropyEncoder.FlushAcFrequencies(expected, ref expectedPending, expectedTokens, 2);
+                ProgressiveEntropyEncoder.FlushAcFrequencies(actual, ref actualPending, actualTokens, 2);
+                Assert.Equal(expected, actual);
+                Assert.Equal(expectedPending, actualPending);
+                Assert.Equal(expectedTokens.IsComplete, actualTokens.IsComplete);
+                if (actualTokens.IsComplete)
+                    Assert.Equal(Replay(expectedTokens), Replay(actualTokens));
+            }
+    }
+
+    [Theory]
+    [InlineData(0)]
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(3)]

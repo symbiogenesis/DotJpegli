@@ -185,11 +185,25 @@ internal static class ProgressiveEntropyEncoder
         {
             FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
         }
-        if (zigZagOrdered && tokens is not null && tokens.TryReserveBlock(out Span<uint> destination))
+        if (zigZagOrdered)
         {
-            AccumulateOrderedAcFrequencies(naturalCoefficients, ac, ref pendingEobRun, successiveLow,
-                spectralStart, spectralEnd, tokens, component, destination);
-            return;
+            ulong nonzero = OrderedAcMask(naturalCoefficients, successiveLow, spectralStart, spectralEnd);
+            // A fresh all-zero scan has no token segment to reserve. Detect its
+            // empty bands independently of reservation so a long EOB run does
+            // not fall back to inspecting every coefficient of every block.
+            if (nonzero == 0)
+            {
+                pendingEobRun++;
+                if (pendingEobRun == MaximumEobRun)
+                    FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
+                return;
+            }
+            if (tokens is not null && tokens.TryReserveBlock(out Span<uint> destination))
+            {
+                AccumulateOrderedAcFrequencies(naturalCoefficients, ac, ref pendingEobRun, successiveLow,
+                    spectralStart, spectralEnd, nonzero, tokens, component, destination);
+                return;
+            }
         }
 
         int run = 0;
@@ -234,11 +248,10 @@ internal static class ProgressiveEntropyEncoder
 
     private static void AccumulateOrderedAcFrequencies(ReadOnlySpan<short> coefficients, long[] frequencies,
         ref int pendingEobRun, int successiveLow, int spectralStart, int spectralEnd,
-        EntropyTokens tokens, int component, Span<uint> destination)
+        ulong nonzero, EntropyTokens tokens, int component, Span<uint> destination)
     {
         int count = 0;
         int context = (component << 1) | 1;
-        ulong nonzero = OrderedAcMask(coefficients, successiveLow, spectralStart, spectralEnd);
         if (nonzero != 0 && pendingEobRun != 0)
             FlushReservedAcFrequencies(frequencies, ref pendingEobRun, tokens, context, destination, ref count);
 
@@ -276,7 +289,15 @@ internal static class ProgressiveEntropyEncoder
         // Narrow low-frequency bands are cheaper to inspect directly. Larger
         // bands classify independent magnitudes together, then skip every zero.
 #if !NETSTANDARD2_1
-        if (spectralEnd - spectralStart >= 8 && Vector256.IsHardwareAccelerated)
+        if (spectralEnd - spectralStart >= 8 && Vector512.IsHardwareAccelerated)
+        {
+            for (int offset = 0; offset < 64; offset += Vector512<short>.Count)
+            {
+                var magnitude = Vector512.ShiftRightLogical(Vector512.Abs(Vector512.Create(coefficients[offset..])), successiveLow);
+                mask |= (~Vector512.Equals(magnitude, Vector512<short>.Zero)).ExtractMostSignificantBits() << offset;
+            }
+        }
+        else if (spectralEnd - spectralStart >= 8 && Vector256.IsHardwareAccelerated)
         {
             for (int offset = 0; offset < 64; offset += Vector256<short>.Count)
             {
@@ -644,7 +665,17 @@ internal static class ProgressiveEntropyEncoder
         // Abs(short.MinValue) retains the unsigned 0x8000 magnitude. Keep
         // comparisons unsigned so already-validated wide callers match scalar.
 #if !NETSTANDARD2_1
-        if (Vector256.IsHardwareAccelerated)
+        if (Vector512.IsHardwareAccelerated)
+        {
+            var one = Vector512.Create((ushort)1);
+            for (int offset = 0; offset < 64; offset += Vector512<short>.Count)
+            {
+                var magnitude = Vector512.ShiftRightLogical(Vector512.Abs(Vector512.Create(coefficients[offset..])).AsUInt16(), successiveLow);
+                newlySignificant |= Vector512.Equals(magnitude, one).ExtractMostSignificantBits() << offset;
+                previouslySignificant |= Vector512.GreaterThan(magnitude, one).ExtractMostSignificantBits() << offset;
+            }
+        }
+        else if (Vector256.IsHardwareAccelerated)
         {
             var one = Vector256.Create((ushort)1);
             for (int offset = 0; offset < 64; offset += Vector256<short>.Count)
