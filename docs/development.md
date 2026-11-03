@@ -101,15 +101,12 @@ test oracle checks coefficient bits, including signed zero, subnormals and
 exceptional values; complete-encode fixtures check JPEG output. This scheduling
 change still needs CI measurements before claiming a latency benefit.
 
-The .NET 11 eight-row transpose interleaves complete 256-bit rows before joining
-their four-element halves. Its graph uses sixteen full-width Zip operations
-instead of thirty-two half-width Zip operations, with the same sixteen half
-reads and eight joins. Both DCT transformation and eight-block AQ modulation
-use this packing schedule. It only permutes bits, including signed zeros and
-NaN payloads; independent single-lane regressions also check untouched tails.
-.NET 10 and builds with `DotJpegliNet11Simd=false` retain the four-panel schedule.
-These managed operation counts do not establish machine-instruction or latency
-savings; software 256-bit operations can decompose into half-width operations.
+The eight-row transpose uses the released four-panel schedule for DCT and
+eight-block AQ modulation. The replacement using full-width `Vector256.Zip`
+added cross-half instructions on x64, so .NET 11 again uses portable
+`Vector128.Zip` inside each panel. The transform only permutes bits, including
+signed zeros and NaN payloads; independent single-lane regressions also check
+untouched tails. Complete-encode timing remains a CI measurement.
 
 AQ copies the preceding pre-erosion row when edge clamping selects the same
 four-pixel stencil again. This reuses the rounded result without new scratch
