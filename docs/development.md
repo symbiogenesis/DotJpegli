@@ -91,6 +91,24 @@ dotnet build src/DotJpegli/DotJpegli.csproj -c Release
 Use `-f netstandard2.1` to build only the portable library target. The pinned
 compiler is still required when building that target from source.
 
+Repository automation uses PowerShell 7 and .NET. Corpus preparation and CI
+evidence processing require no additional scripting runtime. The corpus tool
+loads its lossless PNG decoder from C# source and verifies both the downloaded
+PNG hashes and canonical PPM hashes against the committed manifest:
+
+```powershell
+./tools/parity/prepare-corpus.ps1 -Output /absolute/path/new-corpus
+```
+
+Use `-Source /absolute/path/png-directory` to read previously downloaded inputs.
+The output directory must not already exist. Check corpus conversion and the
+revision comparator locally with synthetic fixtures, without running benchmarks:
+
+```powershell
+./tools/parity/prepare-corpus.ps1 -SelfTest
+./tools/compare-performance-revisions.ps1 -SelfTest
+```
+
 ## Banned APIs
 
 All projects reference `Microsoft.CodeAnalysis.BannedApiAnalyzers` as a private

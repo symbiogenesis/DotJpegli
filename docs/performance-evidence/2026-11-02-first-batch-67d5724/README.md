@@ -54,8 +54,9 @@ The repeat's 32-case geometric-mean managed ratio is 0.98664, with native drift
 matching managed GC. A tight majority cluster can pass MAD despite such a
 transition, so a valid policy verdict does not prove comparable host conditions.
 
-The repeat report was regenerated from retained raw JSON with
-`tools/compare-performance-revisions.py`; no local measurements were executed.
+The repeat report was regenerated from retained raw JSON with the revision
+comparator (now `tools/compare-performance-revisions.ps1`); no local measurements
+were executed.
 Its folder names in the hosted artifact say `avx2`, but actual Vector512 flags
 identify the execution path. Do not treat that attempted pair as narrow evidence.
 

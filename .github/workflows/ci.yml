@@ -191,6 +191,11 @@ jobs:
         run: |
           identity=$( { cat /etc/os-release; uname -m; c++ --version; cmake --version; ninja --version; } | sha256sum | cut -d' ' -f1)
           echo "identity=$identity" >> "$GITHUB_OUTPUT"
+      - name: Verify corpus conversion and CI diagnostics using synthetic inputs
+        shell: pwsh
+        run: |
+          ./tools/parity/prepare-corpus.ps1 -SelfTest
+          ./tools/ci/test-helpers.ps1
       - name: Restore pinned native executable and provenance
         id: native-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -207,23 +212,17 @@ jobs:
         run: |
           chmod +x "${{ runner.temp }}/parity-native/jpegli-parity-native"
           test "$("${{ runner.temp }}/parity-native/jpegli-parity-native" version)" = 031a0077f5799a6041004267fc12b956c1f52a20
-          python3 - <<'PY'
-          import hashlib, json, os
-          from pathlib import Path
-          root = Path(os.environ['RUNNER_TEMP']) / 'parity-native'
-          metadata = json.loads((root / 'provenance.json').read_text(encoding='utf-8-sig'))
-          assert metadata['sourceUnmodified'] and metadata['revision'] == '031a0077f5799a6041004267fc12b956c1f52a20'
-          assert hashlib.sha256((root / 'jpegli-parity-native').read_bytes()).hexdigest() == metadata['executableSha256']
-          PY
+          pwsh -NoProfile -File tools/ci/verify-native.ps1 -Directory "${{ runner.temp }}/parity-native"
       - name: Restore pinned lossless photographic corpus
         id: corpus-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/parity-corpus
-          key: jpegli-corpus-v1-${{ hashFiles('tools/parity/corpus.json', 'tools/parity/prepare-corpus.py') }}
+          key: jpegli-corpus-v1-${{ hashFiles('tools/parity/corpus.json', 'tools/parity/prepare-corpus.ps1', 'tools/parity/*.cs') }}
       - name: Prepare hash-pinned lossless photographic corpus
         if: steps.corpus-cache.outputs.cache-hit != 'true'
-        run: python3 tools/parity/prepare-corpus.py --output "${{ runner.temp }}/parity-corpus"
+        shell: pwsh
+        run: ./tools/parity/prepare-corpus.ps1 -Output "${{ runner.temp }}/parity-corpus"
       - name: Share reference and corpus with comparison job
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -281,24 +280,14 @@ jobs:
         run: dotnet run --project tools/DotJpegli.Performance -c Release -f ${{ matrix.framework }} --no-build -- --self-test-kernel-comparison
       - name: Interleave original and optimized encodes on one CPU (CI only)
         run: |
-          cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
+          cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
           taskset -c "$cpu" dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll" --compare-kernels --include-automatic --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/kernel-evidence" --images kodim01,low-noise,low-contrast,tiny-odd-edges --distances 1,4 --samplings 444,420 --progressions 0,2 --blocks 6 --warmups 5 --iterations 20
       - name: Check actual comparison capabilities
         if: always()
+        shell: pwsh
         env:
           EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
-        run: |
-          python3 - <<'PY'
-          import json, os
-          from pathlib import Path
-          run = json.loads((Path(os.environ['RUNNER_TEMP']) / 'kernel-evidence/run.json').read_text())
-          environment = run['environment']
-          assert environment['vector128'], 'Expected accelerated SIMD'
-          if os.environ['EXPECTED_ARCHITECTURE'] == 'X64':
-              assert environment['vector256'] and not environment['vector512'] and environment['vectorFloatWidth'] == 8, 'Expected accelerated narrow SIMD'
-          else:
-              assert environment['vectorFloatWidth'] == 4 and not run['narrowApplicable'], 'Expected ARM64 four-lane analysis'
-          PY
+        run: ./tools/ci/assert-simd.ps1 -Evidence "${{ runner.temp }}/kernel-evidence" -Architecture $env:EXPECTED_ARCHITECTURE
       - name: Retain interleaved kernel evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -346,14 +335,15 @@ jobs:
       - name: Verify performance evidence policy using synthetic samples
         run: dotnet run --project tools/DotJpegli.Performance -c Release -f ${{ inputs.framework || 'net11.0' }} --no-build -- --self-test
       - name: Verify revision comparison guards using synthetic evidence
-        run: python3 tools/compare-performance-revisions.py --self-test
+        shell: pwsh
+        run: ./tools/compare-performance-revisions.ps1 -SelfTest
       - name: Compare selected encoding cases (CI only; no full parity verdict)
         id: targeted
         env:
           DOTJPEGLI_PERFORMANCE_REVISION: ${{ github.sha }}
           DOTNET_TieredCompilation: '0'
         run: |
-          cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
+          cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
           args=(--diagnostic --images "$TARGET_IMAGES" --distances "$TARGET_DISTANCES" --samplings "$TARGET_SAMPLINGS" --progressions "$TARGET_PROGRESSIONS" --blocks "$TARGET_BLOCKS" --warmups "$TARGET_WARMUPS")
           if [[ -n "$TARGET_ITERATIONS" ]]; then args+=(--iterations "$TARGET_ITERATIONS"); fi
           taskset -c "$cpu" dotnet run --project tools/DotJpegli.Performance -c Release -f ${{ inputs.framework || 'net11.0' }} --no-build -- --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/performance-evidence" "${args[@]}"
@@ -375,7 +365,7 @@ jobs:
           DOTJPEGLI_PERFORMANCE_REVISION: 2ef3d5fcc12a804c7cd707446091eb74fa9c6476
           DOTNET_TieredCompilation: '0'
         run: |
-          cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
+          cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
           args=(--diagnostic --images "$TARGET_IMAGES" --distances "$TARGET_DISTANCES" --samplings "$TARGET_SAMPLINGS" --progressions "$TARGET_PROGRESSIONS" --blocks "$TARGET_BLOCKS" --warmups "$TARGET_WARMUPS")
           if [[ -n "$TARGET_ITERATIONS" ]]; then args+=(--iterations "$TARGET_ITERATIONS"); fi
           set +e
@@ -385,8 +375,8 @@ jobs:
           if [[ "$verdict" -gt 1 ]]; then exit "$verdict"; fi
       - name: Report same-host encoder comparison without changing acceptance
         if: always() && steps.baseline_measure.outcome == 'success' && (steps.targeted.outcome == 'success' || steps.targeted.outcome == 'failure')
-        run: |
-          python3 tools/compare-performance-revisions.py --baseline "${{ runner.temp }}/baseline-evidence" --current "${{ runner.temp }}/performance-evidence" --baseline-revision "$BASELINE_REVISION" --current-revision "${{ github.sha }}" --output "${{ runner.temp }}/baseline-comparison" --summary "$GITHUB_STEP_SUMMARY"
+        shell: pwsh
+        run: ./tools/compare-performance-revisions.ps1 -Baseline "${{ runner.temp }}/baseline-evidence" -Current "${{ runner.temp }}/performance-evidence" -BaselineRevision $env:BASELINE_REVISION -CurrentRevision "${{ github.sha }}" -Output "${{ runner.temp }}/baseline-comparison" -Summary $env:GITHUB_STEP_SUMMARY
       - name: Measure narrow SIMD on the same CPU for both revisions (CI only)
         id: avx2_measure
         if: always() && steps.baseline_build.outcome == 'success' && (steps.targeted.outcome == 'success' || steps.targeted.outcome == 'failure')
@@ -394,7 +384,7 @@ jobs:
           DOTNET_EnableAVX512: '0'
           DOTNET_TieredCompilation: '0'
         run: |
-          cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
+          cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
           args=(--diagnostic --images "$TARGET_IMAGES" --distances "$TARGET_DISTANCES" --samplings "$TARGET_SAMPLINGS" --progressions "$TARGET_PROGRESSIONS" --blocks "$TARGET_BLOCKS" --warmups "$TARGET_WARMUPS")
           if [[ -n "$TARGET_ITERATIONS" ]]; then args+=(--iterations "$TARGET_ITERATIONS"); fi
           set +e
@@ -406,9 +396,10 @@ jobs:
           if [[ "$current_verdict" -gt 1 || "$baseline_verdict" -gt 1 ]]; then exit 2; fi
       - name: Report narrow SIMD baseline comparison
         if: always() && steps.avx2_measure.outcome == 'success'
+        shell: pwsh
         run: |
-          python3 -c 'import json,sys; from pathlib import Path; environments = [json.loads((Path(p) / "run.json").read_text())["environment"] for p in sys.argv[1:]]; assert all(e["vector256"] and not e["vector512"] and e["vectorFloatWidth"] == 8 for e in environments), "Expected accelerated narrow SIMD for both revisions"' "${{ runner.temp }}/avx2-baseline-evidence" "${{ runner.temp }}/avx2-current-evidence"
-          python3 tools/compare-performance-revisions.py --baseline "${{ runner.temp }}/avx2-baseline-evidence" --current "${{ runner.temp }}/avx2-current-evidence" --baseline-revision "$BASELINE_REVISION" --current-revision "${{ github.sha }}" --output "${{ runner.temp }}/baseline-avx2-comparison" --summary "$GITHUB_STEP_SUMMARY"
+          ./tools/ci/assert-simd.ps1 -Evidence "${{ runner.temp }}/avx2-baseline-evidence", "${{ runner.temp }}/avx2-current-evidence" -Narrow
+          ./tools/compare-performance-revisions.ps1 -Baseline "${{ runner.temp }}/avx2-baseline-evidence" -Current "${{ runner.temp }}/avx2-current-evidence" -BaselineRevision $env:BASELINE_REVISION -CurrentRevision "${{ github.sha }}" -Output "${{ runner.temp }}/baseline-avx2-comparison" -Summary $env:GITHUB_STEP_SUMMARY
       - name: Retain the optional same-host baseline diagnostic
         if: always() && steps.baseline_build.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -440,15 +431,8 @@ jobs:
           DOTNET_TieredCompilation: '0'
           DOTJPEGLI_PERFORMANCE_INSTRUMENTATION: 'dotnet-trace 10.0.750501; dotnet-sampled-thread-time; profiling timings are not acceptance evidence'
         run: |
-          cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
-          read -r image sampling progression distance < <(python3 - <<'PY'
-          import json, os
-          from pathlib import Path
-          cases = json.loads((Path(os.environ['RUNNER_TEMP']) / 'performance-evidence/cases.json').read_text())
-          case = max(cases, key=lambda item: item['medianRatio'])
-          print(case['id'], case['sampling'], case['progressiveLevel'], case['distance'])
-          PY
-          )
+          cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
+          read -r image sampling progression distance < <(pwsh -NoProfile -File "${{ github.workspace }}/tools/ci/select-profile-cases.ps1" -Evidence "${{ runner.temp }}/performance-evidence")
           taskset -c "$cpu" "${{ runner.temp }}/diagnostic-tools/dotnet-trace" collect --profile dotnet-sampled-thread-time --format Speedscope --show-child-io --output "${{ runner.temp }}/performance-profile.nettrace" -- dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ inputs.framework || 'net11.0' }}/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/profile-evidence" --diagnostic --images "$image" --distances "$distance" --samplings "$sampling" --progressions "$progression" --blocks 3 --iterations 20 --warmups 5 2>&1 | tee "${{ runner.temp }}/performance-profile.log"
       - name: Retain separate instrumented CPU diagnostics
         if: always() && steps.profiler.outcome != 'skipped'
@@ -519,7 +503,7 @@ jobs:
           DOTNET_TieredCompilation: '0'
           DOTNET_ROLL_FORWARD_TO_PRERELEASE: '1'
         run: |
-          cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
+          cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
           for runtime in 10.0.14 11.0.0-rc.3.26522.148; do
             set +e
             taskset -c "$cpu" dotnet --fx-version "$runtime" --roll-forward Disable "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/net10.0/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/runtime-$runtime" --diagnostic --images kodim01 --distances 1 --samplings 420 --progressions 0 --blocks 7 --iterations 20 --warmups 5
@@ -535,50 +519,8 @@ jobs:
             if [[ "$verdict" -gt 1 ]]; then exit "$verdict"; fi
           done
       - name: Report runtime and explicit SIMD comparisons
-        run: |
-          python3 - <<'PY'
-          import json, os
-          from pathlib import Path
-          root = Path(os.environ['RUNNER_TEMP'])
-          versions = ['10.0.14', '11.0.0-rc.3.26522.148', 'net11-baseline', 'net11-simd']
-          data = []
-          for version in versions:
-              path = root / ('runtime-' + version)
-              run = json.loads((path / 'run.json').read_text())
-              summary = json.loads((path / 'summary.json').read_text())
-              cases = json.loads((path / 'cases.json').read_text())
-              assert summary['valid'] and len(cases) == 1, 'Runtime comparison needs stable matched evidence'
-              expected = '10.0.14' if version == '10.0.14' else '11.0.0-rc.3.26522.148'
-              assert run['environment']['runtimeVersion'] == expected.split('-')[0], 'Unexpected runtime version'
-              product = run['environment']['runtimeProductVersion']
-              assert product == expected or (expected == '10.0.14' and product.startswith(expected + '-servicing.')), 'Unexpected runtime build'
-              assert run['environment']['explicitNet11Simd'] == (version == 'net11-simd'), 'Unexpected SIMD experiment build'
-              data.append((run, cases[0]))
-          left, right, baseline, simd = data
-          assert baseline[0]['managedEncoderSha256'] != simd[0]['managedEncoderSha256'], 'SIMD variant must change the encoder binary'
-          for field in ['testedRevision', 'managedEncoderSha256', 'managedRunnerSha256', 'nativeExecutableSha256']:
-              assert left[0][field] == right[0][field], 'Comparison binary/revision mismatch'
-          for run, case in data:
-              for field in ['cpu', 'affinity', 'vectorFloatWidth']:
-                  assert left[0]['environment'][field] == run['environment'][field], 'Comparison host mismatch'
-              assert left[0]['testedRevision'] == run['testedRevision'], 'Comparison source revision mismatch'
-              assert left[0]['nativeExecutableSha256'] == run['nativeExecutableSha256'], 'Comparison native mismatch'
-              assert left[1]['managedJpegSha256'] == case['managedJpegSha256'], 'Experiment changed JPEG bytes'
-          ratio = right[1]['managed']['median'] / left[1]['managed']['median']
-          simd_ratio = simd[1]['managed']['median'] / baseline[1]['managed']['median']
-          report = '# One-case .NET runtime and portable SIMD API comparison\n\nKodak01 4:2:0 sequential distance 1, same CPU, 7 blocks/20 iterations/5 warmups. The first pair uses identical net10.0 binaries to isolate runtime changes. The second pair uses the pinned .NET 11 SDK and runtime, comparing portable Shuffle/Create lane assembly with Zip/Unzip/Concat in the DCT transpose and downsampling. Both implementations use portable APIs, with no CPU-specific intrinsic paths. All four JPEG hashes must match. No whole-corpus or migration verdict.\n\n'
-          report += f"Host: {left[0]['environment']['cpu']}; architecture: {os.environ['RUNNER_ARCH']}.\n\n"
-          report += '| Build/runtime | Managed median (ms) | Native median (ms) |\n| --- | ---: | ---: |\n'
-          for version, (_, case) in zip(versions, data):
-              report += f"| {version} | {case['managed']['median']/1e6:.3f} | {case['native']['median']/1e6:.3f} |\n"
-          report += f'\n.NET 11/.NET 10 managed latency ratio: **{ratio:.6f}** (lower is better). JPEG hashes match.\n'
-          report += f'\nExplicit .NET 11 SIMD/baseline latency ratio on .NET 11: **{simd_ratio:.6f}** (lower is better). This measures this rewrite only, not all possible new API uses.\n'
-          (root / 'runtime-comparison.md').write_text(report)
-          (root / 'runtime-comparison.json').write_text(json.dumps({'versions': versions, 'net11OverNet10': ratio, 'explicitSimdOverNet11Baseline': simd_ratio, 'scope': 'one case, same CPU; separate runtime-only and explicit SIMD diagnostics'}, indent=2))
-          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
-              output.write(report)
-          print(report)
-          PY
+        shell: pwsh
+        run: ./tools/ci/report-runtime-comparison.ps1 -Directory "${{ runner.temp }}"
       - name: Retain runtime comparison evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -642,7 +584,7 @@ jobs:
           DOTJPEGLI_PERFORMANCE_REVISION: ${{ github.sha }}
           DOTNET_TieredCompilation: '0'
         run: |
-          cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
+          cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
           taskset -c "$cpu" dotnet run --project tools/DotJpegli.Performance -c Release -f net11.0 --no-build -- --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/performance-evidence"
       - name: Retain performance evidence and native build provenance
         if: always()
@@ -681,29 +623,8 @@ jobs:
           DOTNET_TieredCompilation: '0'
           DOTJPEGLI_PERFORMANCE_INSTRUMENTATION: 'dotnet-trace 10.0.750501; dotnet-sampled-thread-time; profiling timings are not acceptance evidence'
         run: |
-          cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
-          python3 - <<'PY' > "${{ runner.temp }}/full-performance-profile-selection.txt"
-          import json, os
-          from pathlib import Path
-          cases = json.loads((Path(os.environ['RUNNER_TEMP']) / 'performance-evidence/cases.json').read_text())
-          sources = json.loads((Path(os.environ['RUNNER_TEMP']) / 'performance-evidence/sources.json').read_text())
-          selected = set()
-          profiles = []
-          for case in sorted(cases, key=lambda item: item['medianRatio'], reverse=True):
-              if case['id'] in selected:
-                  continue
-              profiles.append(case)
-              selected.add(case['id'])
-              if len(selected) == 3:
-                  break
-          smallest = min(sources, key=lambda item: item['width'] * item['height'])['id']
-          if smallest not in selected:
-              case = max((item for item in cases if item['id'] == smallest), key=lambda item: item['medianRatio'])
-              if case['medianRatio'] > 1.10:
-                  profiles.append(case)
-          for case in profiles:
-              print(case['id'], case['sampling'], case['progressiveLevel'], case['distance'])
-          PY
+          cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
+          pwsh -NoProfile -File "${{ github.workspace }}/tools/ci/select-profile-cases.ps1" -Evidence "${{ runner.temp }}/performance-evidence" -Full > "${{ runner.temp }}/full-performance-profile-selection.txt"
           while read -r image sampling progression distance; do
             if ! taskset -c "$cpu" "${{ runner.temp }}/diagnostic-tools/dotnet-trace" collect --profile dotnet-sampled-thread-time --format Speedscope --show-child-io --output "${{ runner.temp }}/full-performance-profile-$image.nettrace" -- dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/net11.0/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/full-performance-profile-evidence-$image" --diagnostic --images "$image" --distances "$distance" --samplings "$sampling" --progressions "$progression" --blocks 7 --iterations 100 --warmups 5 2>&1 | tee "${{ runner.temp }}/full-performance-profile-$image.log"; then
               echo "Profiler or instrumented comparison returned nonzero; diagnostic evidence retained."

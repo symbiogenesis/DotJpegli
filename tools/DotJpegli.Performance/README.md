@@ -63,6 +63,16 @@ native ratios expose possible drift; these diagnostics do not change the
 current revision's acceptance bounds or establish full parity. This uses the
 single planned automatic run and requires no additional workflow dispatch.
 
+To compare retained evidence without running encodes, use PowerShell 7:
+
+```powershell
+./tools/compare-performance-revisions.ps1 -Baseline /absolute/baseline-evidence -Current /absolute/current-evidence -BaselineRevision <full-baseline-sha> -CurrentRevision <full-current-sha> -Output /absolute/comparison
+```
+
+`-Output` is a prefix for the Markdown and JSON reports; `-Summary` optionally
+appends the Markdown to a CI summary file. `-SelfTest` checks synthetic evidence
+and mismatch rejection locally.
+
 The same job repeats these selections serially with `DOTNET_EnableAVX512=0`
 for both managed revisions. This exercises narrow zigzag ordering even when the
 runner supports AVX-512. Separate `baseline-avx2-comparison` reports and raw
