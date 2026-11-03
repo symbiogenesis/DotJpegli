@@ -308,8 +308,8 @@ internal sealed class AdaptiveQuantization : IDisposable
                 }
                 else
                 {
-                    value = this.HfModulationScalar(blockX * 8, 5 + (blockY * 8), value);
-                    value = this.GammaModulationScalar(blockX * 8, 5 + (blockY * 8), value);
+                    int offset = ((5 + (blockY * 8)) * this.lumaStride) + (blockX * 8) + 1;
+                    value = ModulateScalar(this.luma.AsSpan(offset), this.lumaStride, value);
                 }
                 float field = (FastPow2(value * 1.442695041f) * mul) + add;
                 strengths[(blockY * this.BlocksWide) + blockX] = MathF.Max(0f, (0.6f / field) - 1f);
@@ -750,25 +750,32 @@ internal sealed class AdaptiveQuantization : IDisposable
         return (-0.15526878023684174f * InvLog2E * FastLog2(ratio)) + value;
     }
 
-    private float HfModulationScalar(int x, int y, float value)
+    internal static float ModulateScalar(ReadOnlySpan<float> samples, int stride, float value)
     {
         float sum = 0;
+        float ratio = 0;
         for (int dy = 0; dy < 8; dy++)
         {
-            int row = ((y + dy) * this.lumaStride) + x + 1;
-            int next = dy == 7 ? row : row + this.lumaStride;
+            int row = dy * stride;
+            int next = dy == 7 ? row : row + stride;
             for (int dx = 0; dx < 8; dx++)
             {
+                float sample = samples[row + dx];
                 if (dx != 7)
                 {
-                    sum += MathF.Abs(this.luma[row + dx] - this.luma[row + dx + 1]);
+                    sum += MathF.Abs(sample - samples[row + dx + 1]);
                 }
 
-                sum += MathF.Abs(this.luma[row + dx] - this.luma[next + dx]);
+                sum += MathF.Abs(sample - samples[next + dx]);
+                ratio += DerivativeRatio(sample + (0.16f / InputScaling), invert: true);
             }
         }
+        // Share sample loads while retaining two independent raster-order sums.
+        // Apply HF before gamma, exactly as the previous two scalar traversals did.
         const float sumCoeff = (float)(-2.0052193233688884f * InputScaling / 112.0);
-        return (sum * sumCoeff) + value;
+        value = (sum * sumCoeff) + value;
+        ratio *= InputScaling / 64f;
+        return (-0.15526878023684174f * InvLog2E * FastLog2(ratio)) + value;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -809,21 +816,6 @@ internal sealed class AdaptiveQuantization : IDisposable
         sum += horizontal[6];
         sum += vertical[6];
         return sum + vertical[7];
-    }
-
-    private float GammaModulationScalar(int x, int y, float value)
-    {
-        float ratio = 0;
-        for (int dy = 0; dy < 8; dy++)
-        {
-            int row = ((y + dy) * this.lumaStride) + x + 1;
-            for (int dx = 0; dx < 8; dx++)
-            {
-                ratio += DerivativeRatio(this.luma[row + dx] + (0.16f / InputScaling), invert: true);
-            }
-        }
-        ratio *= InputScaling / 64f;
-        return (-0.15526878023684174f * InvLog2E * FastLog2(ratio)) + value;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
