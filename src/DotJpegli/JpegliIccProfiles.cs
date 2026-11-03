@@ -1,6 +1,6 @@
-using DotJpegli.Internal;
-
 namespace DotJpegli;
+
+using DotJpegli.Internal;
 
 /// <summary>Output profiles for the managed encoder.</summary>
 public static class JpegliIccProfiles

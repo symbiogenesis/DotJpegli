@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class ZigZagOrderingTests
 {
@@ -12,13 +12,19 @@ public sealed class ZigZagOrderingTests
         for (int first = 0; first <= ushort.MaxValue; first += 64)
         {
             for (int index = 0; index < 64; index++)
+            {
                 source[index] = unchecked((short)(first + index));
+            }
+
             Array.Fill(actual, (short)-12345);
             Array.Fill(wide, (short)-12345);
             ZigZagOrdering.Reorder(source, actual);
             ZigZagOrdering.ReorderVector512(source, wide);
             for (int position = 0; position < 64; position++)
+            {
                 Assert.Equal(source[JpegConstants.ZigZag[position]], actual[position]);
+            }
+
             Assert.All(actual[64..], value => Assert.Equal(-12345, value));
             Assert.Equal(actual, wide);
         }
@@ -32,12 +38,17 @@ public sealed class ZigZagOrderingTests
     {
         foreach (bool wide in new[] { false, true })
         {
-            short[] storage = Enumerable.Range(0, 96).Select(index => (short)(index * 197 - 9503)).ToArray();
+            short[] storage = Enumerable.Range(0, 96).Select(index => (short)((index * 197) - 9503)).ToArray();
             short[] original = (short[])storage.Clone();
             if (wide)
+            {
                 ZigZagOrdering.ReorderVector512(storage.AsSpan(sourceOffset, 64), storage.AsSpan(outputOffset, 64));
+            }
             else
+            {
                 ZigZagOrdering.Reorder(storage.AsSpan(sourceOffset, 64), storage.AsSpan(outputOffset, 64));
+            }
+
             for (int position = 0; position < storage.Length; position++)
             {
                 short expected = position >= outputOffset && position < outputOffset + 64
@@ -51,8 +62,8 @@ public sealed class ZigZagOrderingTests
     public void ShortBuffersAreRejectedBeforeWritingAnyOutput()
     {
         short[] output = Enumerable.Repeat((short)12345, 64).ToArray();
-        Assert.Throws<ArgumentException>(() => ZigZagOrdering.Reorder(new short[63], output));
-        Assert.Throws<ArgumentException>(() => ZigZagOrdering.Reorder(new short[64], output.AsSpan(0, 63)));
+        _ = Assert.Throws<ArgumentException>(() => ZigZagOrdering.Reorder(new short[63], output));
+        _ = Assert.Throws<ArgumentException>(() => ZigZagOrdering.Reorder(new short[64], output.AsSpan(0, 63)));
         Assert.All(output, value => Assert.Equal(12345, value));
     }
 
@@ -95,16 +106,20 @@ public sealed class ZigZagOrderingTests
         for (int component = 0; component < 3; component++)
         {
             JpegComponentSampling factor = sampling[component];
-            int columns = (width * factor.Horizontal + sampling.MaxHorizontal * 8 - 1) / (sampling.MaxHorizontal * 8);
-            int rows = (height * factor.Vertical + sampling.MaxVertical * 8 - 1) / (sampling.MaxVertical * 8);
+            int columns = ((width * factor.Horizontal) + (sampling.MaxHorizontal * 8) - 1) / (sampling.MaxHorizontal * 8);
+            int rows = ((height * factor.Vertical) + (sampling.MaxVertical * 8) - 1) / (sampling.MaxVertical * 8);
             for (int y = 0; y < rows; y++)
+            {
                 for (int x = 0; x < columns; x++)
                 {
                     ReadOnlySpan<short> expected = natural.GetBlock(component, x, y);
                     ReadOnlySpan<short> actual = ordered.GetBlock(component, x, y);
                     for (int position = 0; position < 64; position++)
+                    {
                         Assert.Equal(expected[JpegConstants.ZigZag[position]], actual[position]);
+                    }
                 }
+            }
         }
     }
 }

@@ -1,26 +1,29 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class HuffmanTableOptimizationTests
 {
     [Fact]
     public void CombinedSymbolAndSuffixWritesPreserveEntropyBytes()
     {
-        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        var table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
         using var expected = new MemoryStream();
         using var actual = new MemoryStream();
         var separate = new BitWriter(expected);
         var combined = new BitWriter(actual);
         for (int symbol = 0; symbol < 256; symbol++)
+        {
             for (int count = 0; count <= 14; count++)
             {
-                uint bits = (uint)(symbol * 131 + count * 17) & ((1U << count) - 1);
+                uint bits = (uint)((symbol * 131) + (count * 17)) & ((1U << count) - 1);
                 table.WriteSymbol(separate, symbol);
                 separate.WriteBits(bits, count);
                 table.WriteSymbolWithBits(combined, symbol, bits, count);
             }
+        }
+
         separate.Flush();
         combined.Flush();
         Assert.Equal(expected.ToArray(), actual.ToArray());
@@ -46,6 +49,7 @@ public sealed class HuffmanTableOptimizationTests
             (1, 1), (1, 2), (2, 1), (uint.MaxValue, uint.MaxValue + 1L),
             (long.MaxValue, 1), (1, long.MaxValue), (long.MaxValue, long.MaxValue)
         })
+        {
             foreach ((int low, int high) in new[] { (0, 1), (0, 255), (254, 255) })
             {
                 long[] frequencies = new long[256];
@@ -53,6 +57,7 @@ public sealed class HuffmanTableOptimizationTests
                 frequencies[high] = second;
                 AssertMatchesReference(frequencies);
             }
+        }
     }
 
     [Theory]
@@ -64,8 +69,8 @@ public sealed class HuffmanTableOptimizationTests
         long[] frequencies = new long[256];
         Array.Fill(frequencies, 1L, 0, symbols);
         frequencies[255] = -1;
-        Assert.Throws<ArgumentOutOfRangeException>(() => HuffmanTable.CreateOptimized(frequencies));
-        Assert.Throws<ArgumentOutOfRangeException>(() => HuffmanTable.EstimateOptimizedCost(frequencies));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => HuffmanTable.CreateOptimized(frequencies));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => HuffmanTable.EstimateOptimizedCost(frequencies));
     }
 
     [Fact]
@@ -147,7 +152,10 @@ public sealed class HuffmanTableOptimizationTests
         long[] frequencies = new long[256];
         frequencies[0] = frequencies[1] = 1;
         for (int symbol = 2; symbol < 47; symbol++)
+        {
             frequencies[symbol] = frequencies[symbol - 1] + frequencies[symbol - 2];
+        }
+
         Assert.InRange(frequencies[46], 1, uint.MaxValue);
         ReferenceTable expected = BuildReference(frequencies);
         Assert.True(expected.Retries > 1);
@@ -162,11 +170,14 @@ public sealed class HuffmanTableOptimizationTests
     [InlineData(255)]
     public void ActiveLeafStoragePreservesSparseTreesAndSentinelBoundaries(int symbols)
     {
-        foreach (long maximum in new[] { (long)uint.MaxValue, long.MaxValue })
+        foreach (long maximum in new[] { uint.MaxValue, long.MaxValue })
         {
             long[] frequencies = new long[256];
             for (int index = 0; index < symbols; index++)
+            {
                 frequencies[255 - index] = index % 3 == 0 ? maximum : index % 3 == 1 ? 1 : maximum / 2;
+            }
+
             AssertMatchesReference(frequencies);
         }
     }
@@ -197,8 +208,11 @@ public sealed class HuffmanTableOptimizationTests
         {
             long[] frequencies = new long[256];
             for (int symbol = 0; symbol < frequencies.Length; symbol++)
+            {
                 frequencies[symbol] = random.Next(4) == 0 ? 0 : sample % 3 == 0 ? random.Next(1, 8)
                     : sample % 3 == 1 ? random.NextInt64(1, (long)uint.MaxValue + 1) : 1L << random.Next(0, 32);
+            }
+
             AssertMatchesReference(frequencies);
         }
     }
@@ -212,8 +226,8 @@ public sealed class HuffmanTableOptimizationTests
         // includes twelve symbols in its DHT definition.
         UInt128 midpoint = ((UInt128)1 << 64) + ((UInt128)1 << 40);
         long[] frequencies = new long[256];
-        frequencies[1] = (long)((midpoint + 2 - (17 + 12) * 8) / 3);
-        UInt128 expectedBits = (UInt128)frequencies[1] * 3 + (17 + 12) * 8;
+        frequencies[1] = (long)((midpoint + 2 - ((17 + 12) * 8)) / 3);
+        UInt128 expectedBits = ((UInt128)frequencies[1] * 3) + ((17 + 12) * 8);
 
         float actual = HuffmanTable.CreateDefault(isAc: false, chroma: false).EstimateCost(frequencies);
 
@@ -223,7 +237,7 @@ public sealed class HuffmanTableOptimizationTests
     private static void AssertMatchesReference(long[] frequencies, ReferenceTable? expected = null)
     {
         expected ??= BuildReference(frequencies);
-        HuffmanTable actual = HuffmanTable.CreateOptimized(frequencies);
+        var actual = HuffmanTable.CreateOptimized(frequencies);
         Assert.Equal(expected.Counts, actual.Counts);
         Assert.Equal(expected.Symbols, actual.Symbols);
         Assert.Equal(BitConverter.SingleToInt32Bits(actual.EstimateCost(frequencies)),
@@ -274,7 +288,7 @@ public sealed class HuffmanTableOptimizationTests
                 return new ReferenceTable(counts, symbols, retries);
             }
 
-            minimumCount = minimumCount == 0 ? 1 : minimumCount * 2 + 1;
+            minimumCount = minimumCount == 0 ? 1 : (minimumCount * 2) + 1;
             retries++;
             Assert.True(retries < 128, "The reference tree did not reach JPEG's depth limit.");
         }

@@ -1,10 +1,10 @@
+namespace DotJpegli.Internal;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
-
-namespace DotJpegli.Internal;
 
 /// <summary>Prepares JPEG extended XMP and its standard-packet link before any output.</summary>
 internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket, string Digest, uint Length)
@@ -23,7 +23,9 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
             ? AutomaticXmpPartitioning.Prepare(options.XmpPacket, selection, cancellationToken) : null;
         string? packet = automatic?.ExtendedPacket ?? options.ExtendedXmpPacket;
         if (string.IsNullOrEmpty(packet))
+        {
             return null;
+        }
 
         string parameter = automatic is null
             ? nameof(options.ExtendedXmpPacket) : nameof(options.XmpPacket);
@@ -40,10 +42,16 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
                 cancellationToken.ThrowIfCancellationRequested();
                 chunk = chunks.Read();
                 if (chunk.IsEmpty)
+                {
                     break;
+                }
+
                 if ((ulong)length + (uint)chunk.Length > uint.MaxValue)
+                {
                     throw new ArgumentOutOfRangeException(parameter,
                         "The UTF-8 extended XMP packet must fit in an unsigned 32-bit byte length.");
+                }
+
                 length += (uint)chunk.Length;
                 hash.AppendData(chunk);
             }
@@ -57,13 +65,16 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
         Span<byte> digestBytes = stackalloc byte[16];
 #if NETSTANDARD2_1
         if (!hash.TryGetHashAndReset(digestBytes, out _))
+        {
             throw new InvalidOperationException("The MD5 destination is too short.");
+        }
+
         const string hexadecimal = "0123456789ABCDEF";
         Span<char> digestCharacters = stackalloc char[32];
         for (int index = 0; index < digestBytes.Length; index++)
         {
             digestCharacters[index * 2] = hexadecimal[digestBytes[index] >> 4];
-            digestCharacters[index * 2 + 1] = hexadecimal[digestBytes[index] & 15];
+            digestCharacters[(index * 2) + 1] = hexadecimal[digestBytes[index] & 15];
         }
         string digest = new(digestCharacters);
 #else
@@ -75,7 +86,10 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
             : automatic is not null || string.IsNullOrEmpty(options.XmpPacket)
                 ? CreateStandardPacket(digest) : options.XmpPacket;
         if (automatic is null && !string.IsNullOrEmpty(options.XmpPacket))
+        {
             ValidateLink(standard, digest);
+        }
+
         return new(packet, standard, digest, length);
     }
 
@@ -101,12 +115,10 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
             };
             using var input = new StringReader(packet);
             using var reader = XmlReader.Create(input, settings);
-            XDocument document = XDocument.Load(reader);
-            XElement? rdf = document.Root?.Name == Rdf + "RDF" ? document.Root
+            var document = XDocument.Load(reader);
+            XElement? rdf = (document.Root?.Name == Rdf + "RDF" ? document.Root
                 : document.Root?.Name == Meta + "xmpmeta" ? document.Root.Elements(Rdf + "RDF").SingleOrDefault()
-                : null;
-            if (rdf is null)
-                throw new ArgumentException(message, nameof(JpegliEncoderOptions.XmpPacket));
+                : null) ?? throw new ArgumentException(message, nameof(JpegliEncoderOptions.XmpPacket));
 
             int links = 0;
             foreach (XElement description in rdf.Elements(Rdf + "Description"))
@@ -116,18 +128,24 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
                 {
                     links++;
                     if (attribute.Value != digest)
+                    {
                         throw new ArgumentException(message, nameof(JpegliEncoderOptions.XmpPacket));
+                    }
                 }
                 foreach (XElement property in description.Elements(Note + "HasExtendedXMP"))
                 {
                     links++;
                     if (property.HasElements || property.Attributes().Any(value => !value.IsNamespaceDeclaration) ||
                         property.Value != digest)
+                    {
                         throw new ArgumentException(message, nameof(JpegliEncoderOptions.XmpPacket));
+                    }
                 }
             }
             if (links != 1)
+            {
                 throw new ArgumentException(message, nameof(JpegliEncoderOptions.XmpPacket));
+            }
         }
         catch (XmlException error)
         {
@@ -152,15 +170,18 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
 
         internal ReadOnlySpan<byte> Read()
         {
-            if (pendingBytes != 0)
-                buffer.AsSpan(MaxChunkBytes, pendingBytes).CopyTo(buffer);
-            encoder.Convert(packet.AsSpan(position), buffer.AsSpan(pendingBytes), flush: true,
+            if (this.pendingBytes != 0)
+            {
+                this.buffer.AsSpan(MaxChunkBytes, this.pendingBytes).CopyTo(this.buffer);
+            }
+
+            this.encoder.Convert(packet.AsSpan(this.position), this.buffer.AsSpan(this.pendingBytes), flush: true,
                 out int charsUsed, out int bytesUsed, out _);
-            position += charsUsed;
-            int available = pendingBytes + bytesUsed;
+            this.position += charsUsed;
+            int available = this.pendingBytes + bytesUsed;
             int length = Math.Min(available, MaxChunkBytes);
-            pendingBytes = available - length;
-            return buffer.AsSpan(0, length);
+            this.pendingBytes = available - length;
+            return this.buffer.AsSpan(0, length);
         }
     }
 }

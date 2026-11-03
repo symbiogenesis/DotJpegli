@@ -1,10 +1,10 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using DotJpegli.Internal;
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class SourceIccColorManagementTests
 {
@@ -16,9 +16,14 @@ public sealed class SourceIccColorManagementTests
         {
             var modes = new TheoryData<int, PixelComponentLayout>();
             for (int precision = 0; precision < 3; precision++)
+            {
                 foreach (PixelComponentLayout layout in new[]
                     { PixelComponentLayout.Rgb, PixelComponentLayout.Bgr, PixelComponentLayout.Rgba, PixelComponentLayout.Bgra, PixelComponentLayout.Gray })
+                {
                     modes.Add(precision, layout);
+                }
+            }
+
             return modes;
         }
     }
@@ -29,10 +34,10 @@ public sealed class SourceIccColorManagementTests
     [InlineData(0.6f, 0.8f, 1.0f)]
     public void LinearSrgbUsesIndependentPiecewiseTransferOracle(float r, float g, float b)
     {
-        var transform = Transform(JpegliIccProfiles.CreateLinearSrgbProfile(), JpegliIccProfiles.CreateSrgbProfile());
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateLinearSrgbProfile(), JpegliIccProfiles.CreateSrgbProfile());
         AssertConversion(transform, r, g, b, Srgb(r), Srgb(g), Srgb(b), 0.0001);
 
-        var reverse = Transform(JpegliIccProfiles.CreateSrgbProfile(), JpegliIccProfiles.CreateLinearSrgbProfile());
+        IccColorTransform reverse = Transform(JpegliIccProfiles.CreateSrgbProfile(), JpegliIccProfiles.CreateLinearSrgbProfile());
         AssertConversion(reverse, r, g, b, Linear(r), Linear(g), Linear(b), 0.0001);
     }
 
@@ -46,10 +51,10 @@ public sealed class SourceIccColorManagementTests
         // Bradford-adapt to the same PCS, so that adaptation cancels. ICC fixed-
         // point colorants account for the small tolerance in this double oracle.
         double lr = Linear(r), lg = Linear(g), lb = Linear(b);
-        double expectedR = Srgb(Math.Clamp(1.2249401763 * lr - 0.2249401763 * lg, 0, 1));
-        double expectedG = Srgb(Math.Clamp(-0.0420569547 * lr + 1.0420569547 * lg, 0, 1));
-        double expectedB = Srgb(Math.Clamp(-0.0196375546 * lr - 0.0786360456 * lg + 1.0982736002 * lb, 0, 1));
-        var transform = Transform(JpegliIccProfiles.CreateDisplayP3Profile(), JpegliIccProfiles.CreateSrgbProfile());
+        double expectedR = Srgb(Math.Clamp((1.2249401763 * lr) - (0.2249401763 * lg), 0, 1));
+        double expectedG = Srgb(Math.Clamp((-0.0420569547 * lr) + (1.0420569547 * lg), 0, 1));
+        double expectedB = Srgb(Math.Clamp((-0.0196375546 * lr) - (0.0786360456 * lg) + (1.0982736002 * lb), 0, 1));
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateDisplayP3Profile(), JpegliIccProfiles.CreateSrgbProfile());
         AssertConversion(transform, r, g, b, expectedR, expectedG, expectedB, 0.0004);
     }
 
@@ -59,7 +64,7 @@ public sealed class SourceIccColorManagementTests
     [InlineData(0.75f)]
     public void GrayscaleProfilesDecodeAndEncodeWithoutRgbLumaConversion(float gray)
     {
-        var transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(),
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(),
             JpegliIccProfiles.CreateSrgbGrayscaleProfile(), sourceGray: true, destinationGray: true);
         AssertConversion(transform, gray, gray, gray, Srgb(gray), Srgb(gray), Srgb(gray), 0.0001);
     }
@@ -81,8 +86,8 @@ public sealed class SourceIccColorManagementTests
             _ => [2, 1, 0, 0.25, 0.25, 0.0625, 0.0625]
         };
         byte[] source = ParametricGrayProfile(function, parameters);
-        var transform = Transform(source, JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), true, true);
-        var inverse = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), source, true, true);
+        IccColorTransform transform = Transform(source, JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), true, true);
+        IccColorTransform inverse = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), source, true, true);
         foreach (float x in new[] { 0.1f, 0.25f, 0.6f })
         {
             double expected = function switch
@@ -91,11 +96,13 @@ public sealed class SourceIccColorManagementTests
                 1 => Math.Pow(Math.Max(x - 0.25, 0), 2),
                 2 => Math.Pow(Math.Max(x - 0.25, 0), 2) + 0.125,
                 3 => x < 0.25 ? 0.25 * x : x * (double)x,
-                _ => x < 0.25 ? 0.25 * x + 0.0625 : x * (double)x + 0.0625
+                _ => x < 0.25 ? (0.25 * x) + 0.0625 : (x * (double)x) + 0.0625
             };
             AssertConversion(transform, x, x, x, expected, expected, expected, 0.000001);
             if (function is not (1 or 2) || x >= 0.25f)
+            {
                 AssertConversion(inverse, (float)expected, (float)expected, (float)expected, x, x, x, 0.000001);
+            }
         }
     }
 
@@ -104,14 +111,14 @@ public sealed class SourceIccColorManagementTests
     {
         byte[] sampled = SampledGrayProfile(0, 16384, 65535);
         byte[] linear = JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile();
-        var forward = Transform(sampled, linear, true, true);
+        IccColorTransform forward = Transform(sampled, linear, true, true);
         double low = 16384 / 65535d;
         AssertConversion(forward, 0.25f, 0.25f, 0.25f, low / 2, low / 2, low / 2, 0.000001);
         AssertConversion(forward, 0.75f, 0.75f, 0.75f, (1 + low) / 2, (1 + low) / 2, (1 + low) / 2, 0.000001);
-        var reverse = Transform(linear, sampled, true, true);
+        IccColorTransform reverse = Transform(linear, sampled, true, true);
         float sample = (float)((1 + low) / 2);
         AssertConversion(reverse, sample, sample, sample, 0.75, 0.75, 0.75, 0.000001);
-        var error = Assert.Throws<ArgumentException>(() => Transform(linear, SampledGrayProfile(0, 65535, 16384), true, true));
+        ArgumentException error = Assert.Throws<ArgumentException>(() => Transform(linear, SampledGrayProfile(0, 65535, 16384), true, true));
         Assert.Equal("IccProfile", error.ParamName);
     }
 
@@ -121,15 +128,15 @@ public sealed class SourceIccColorManagementTests
         byte[] lab = JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile();
         "Lab "u8.CopyTo(lab.AsSpan(20));
         byte[] xyz = JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile();
-        var forward = Transform(lab, xyz, true, true);
+        IccColorTransform forward = Transform(lab, xyz, true, true);
         foreach (float gray in new[] { 0f, 0.05f, 0.5f, 1f })
         {
             double l = gray * 100d;
             double expected = l <= 8 ? l * 27 / 24389 : Math.Pow((l + 16) / 116, 3);
             AssertConversion(forward, gray, gray, gray, expected, expected, expected, 0.000001);
         }
-        var reverse = Transform(xyz, lab, true, true);
-        double lightness = (116 * Math.Cbrt(0.18f) - 16) / 100;
+        IccColorTransform reverse = Transform(xyz, lab, true, true);
+        double lightness = ((116 * Math.Cbrt(0.18f)) - 16) / 100;
         AssertConversion(reverse, 0.18f, 0.18f, 0.18f, lightness, lightness, lightness, 0.000001);
     }
 
@@ -155,7 +162,7 @@ public sealed class SourceIccColorManagementTests
     {
         byte[] destination = function == 3 ? ParametricGrayProfile(3, 2, 1, 0, 0.5, 2) :
             ParametricGrayProfile(4, 2, 1, 0, 0.5, 2, 0, 0.125);
-        var transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), destination, true, true);
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), destination, true, true);
         double offset = function == 4 ? 0.125 : 0;
         foreach (float sample in new[] { 0.2f, 0.5f, 0.8f })
         {
@@ -168,7 +175,7 @@ public sealed class SourceIccColorManagementTests
     public void DestinationParametricTerminalPlateauUsesFirstWhiteSample()
     {
         byte[] destination = ParametricGrayProfile(3, 1, 1, 1, 0, 0.5);
-        var transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), destination, true, true);
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), destination, true, true);
         AssertConversion(transform, 1, 1, 1, 0.5, 0.5, 0.5, 0.000001);
     }
 
@@ -181,7 +188,7 @@ public sealed class SourceIccColorManagementTests
     {
         byte[] destination = function == 3 ? ParametricGrayProfile(3, 1, a, b, c, d) :
             ParametricGrayProfile(4, 1, a, b, c, d, 0, 0);
-        var transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), destination, true, true);
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), destination, true, true);
         AssertConversion(transform, 1, 1, 1, expected, expected, expected, 0.000001);
     }
 
@@ -192,7 +199,7 @@ public sealed class SourceIccColorManagementTests
     {
         byte[] destination = function == 3 ? ParametricGrayProfile(3, 1, 1, 0, 0.1, 0.5) :
             ParametricGrayProfile(4, 1, 1, 0, 0.1, 0.5, 0.125, 0.0625);
-        var transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), destination, true, true);
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), destination, true, true);
         transform.Convert(0.2f, 0.2f, 0.2f, out float r, out float g, out float b);
         // The nearest low-branch output must remain below d after conversion
         // to float. A double predecessor of d rounds back onto the high branch.
@@ -209,7 +216,7 @@ public sealed class SourceIccColorManagementTests
     [Fact]
     public void SampledDestinationInitialInteriorAndTerminalFlatsHaveDefinedInverse()
     {
-        var transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(),
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(),
             SampledGrayProfile(0, 0, 32768, 32768, 65535, 65535), true, true);
         AssertConversion(transform, 0, 0, 0, 0.2, 0.2, 0.2, 0.000001);
         float middle = 32768 / 65535f;
@@ -221,11 +228,14 @@ public sealed class SourceIccColorManagementTests
 
     private static byte[] ParametricGrayProfile(int function, params double[] parameters)
     {
-        byte[] data = new byte[12 + parameters.Length * 4];
+        byte[] data = new byte[12 + (parameters.Length * 4)];
         "para"u8.CopyTo(data);
         BinaryPrimitives.WriteUInt16BigEndian(data.AsSpan(8, 2), (ushort)function);
         for (int index = 0; index < parameters.Length; index++)
-            Write32(data, 12 + index * 4, unchecked((uint)(int)(parameters[index] * 65536)));
+        {
+            Write32(data, 12 + (index * 4), unchecked((uint)(int)(parameters[index] * 65536)));
+        }
+
         byte[] profile = JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile();
         int offset = (profile.Length + 3) & ~3;
         Array.Resize(ref profile, offset + data.Length);
@@ -234,7 +244,7 @@ public sealed class SourceIccColorManagementTests
         int count = (int)BinaryPrimitives.ReadUInt32BigEndian(profile.AsSpan(128, 4));
         for (int index = 0; index < count; index++)
         {
-            int entry = 132 + index * 12;
+            int entry = 132 + (index * 12);
             if (profile.AsSpan(entry, 4).SequenceEqual("kTRC"u8))
             {
                 Write32(profile, entry + 4, (uint)offset);
@@ -252,7 +262,10 @@ public sealed class SourceIccColorManagementTests
         "curv"u8.CopyTo(profile.AsSpan(curve));
         Write32(profile, curve + 8, (uint)values.Length);
         for (int index = 0; index < values.Length; index++)
-            BinaryPrimitives.WriteUInt16BigEndian(profile.AsSpan(curve + 12 + index * 2, 2), values[index]);
+        {
+            BinaryPrimitives.WriteUInt16BigEndian(profile.AsSpan(curve + 12 + (index * 2), 2), values[index]);
+        }
+
         return profile;
     }
 
@@ -265,16 +278,19 @@ public sealed class SourceIccColorManagementTests
         float[] pixels = Enumerable.Range(0, 64).SelectMany(_ => new[] { r, g, b }).ToArray();
         var options = new JpegliEncoderOptions
         {
-            SourceIccProfile = JpegliIccProfiles.CreateLinearSrgbProfile(), ColorSpace = colorSpace,
-            Quality = 100, AdaptiveQuantization = false, Subsampling = ChromaSubsampling.None
+            SourceIccProfile = JpegliIccProfiles.CreateLinearSrgbProfile(),
+            ColorSpace = colorSpace,
+            Quality = 100,
+            AdaptiveQuantization = false,
+            Subsampling = ChromaSubsampling.None
         };
         byte[] jpeg = Encode(pixels, 8, 8, PixelComponentLayout.Rgb, options);
         JpegDocument document = Read(jpeg, options);
         double er = Srgb(r) * 255, eg = Srgb(g) * 255, eb = Srgb(b) * 255;
         double[] samples = colorSpace == JpegColorSpace.Rgb ? [er, eg, eb] :
-            [0.299 * er + 0.587 * eg + 0.114 * eb,
-             128 - 0.168736 * er - 0.331264 * eg + 0.5 * eb,
-             128 + 0.5 * er - 0.418688 * eg - 0.081312 * eb];
+            [(0.299 * er) + (0.587 * eg) + (0.114 * eb),
+             128 - (0.168736 * er) - (0.331264 * eg) + (0.5 * eb),
+             128 + (0.5 * er) - (0.418688 * eg) - (0.081312 * eb)];
         int[] ids = colorSpace == JpegColorSpace.Rgb ? ['R', 'G', 'B'] : [1, 2, 3];
         for (int channel = 0; channel < 3; channel++)
         {
@@ -295,16 +311,18 @@ public sealed class SourceIccColorManagementTests
         float[] pixels = Enumerable.Range(0, 64).SelectMany(_ => new[] { r, g, b }).ToArray();
         var options = new JpegliEncoderOptions
         {
-            SourceIccProfile = source, ColorSpace = JpegColorSpace.Grayscale,
-            Quality = 100, AdaptiveQuantization = false
+            SourceIccProfile = source,
+            ColorSpace = JpegColorSpace.Grayscale,
+            Quality = 100,
+            AdaptiveQuantization = false
         };
         byte[] jpeg = Encode(pixels, 8, 8, PixelComponentLayout.Rgb, options);
         JpegDocument document = Read(jpeg, options);
         // Independent ICC parsing extracts the PCS luminance row. Applying the
         // grayscale curve before conventional RGB luma would give another DC.
-        double linearY = r * ColorantY(source, "rXYZ"u8) +
-            g * ColorantY(source, "gXYZ"u8) + b * ColorantY(source, "bXYZ"u8);
-        int expected = (int)Math.Round(8 * (255 * Srgb(linearY) - 128), MidpointRounding.AwayFromZero);
+        double linearY = (r * ColorantY(source, "rXYZ"u8)) +
+            (g * ColorantY(source, "gXYZ"u8)) + (b * ColorantY(source, "bXYZ"u8));
+        int expected = (int)Math.Round(8 * ((255 * Srgb(linearY)) - 128), MidpointRounding.AwayFromZero);
         Block block = Assert.Single(document.Blocks).Value;
         Assert.Equal((byte)1, document.Quantizers[document.Components[1].Quantizer][0]);
         Assert.InRange(block.Coefficients[0], expected - 1, expected + 1);
@@ -318,19 +336,22 @@ public sealed class SourceIccColorManagementTests
     {
         const int width = 19, height = 17;
         bool gray = layout == PixelComponentLayout.Gray;
-        int stride = width * Components(layout) + 11;
+        int stride = (width * Components(layout)) + 11;
         Array pixels = Source(precision, width, height, layout, stride);
-        Array before = (Array)pixels.Clone();
+        var before = (Array)pixels.Clone();
         var options = new JpegliEncoderOptions
         {
             SourceIccProfile = Sliced(gray ? JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile() :
                 JpegliIccProfiles.CreateLinearSrgbProfile()),
-            SmoothingFactor = 37, Progressive = true, ProgressiveRefinementBits = 2,
-            RestartInterval = 2, SamplingFactors = gray ? null : new(new(2, 2), new(2, 1), new(1, 1))
+            SmoothingFactor = 37,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2,
+            SamplingFactors = gray ? null : new(new(2, 2), new(2, 1), new(1, 1))
         };
         byte[] actual = Encode(pixels, width, height, layout, options, stride);
         float[] converted = IndependentlyConvert(pixels, width, height, layout, stride);
-        var expectedOptions = options with
+        JpegliEncoderOptions expectedOptions = options with
         {
             SourceIccProfile = default,
             IccProfile = gray ? JpegliIccProfiles.CreateSrgbGrayscaleProfile() : JpegliIccProfiles.CreateSrgbProfile()
@@ -341,7 +362,7 @@ public sealed class SourceIccColorManagementTests
             options with { SourceIccProfile = default, IccProfile = expectedOptions.IccProfile }, stride)));
         Assert.Equal(expectedOptions.IccProfile.ToArray(), ReassembleIcc(actual));
         PixelAssert.Equal(before, pixels);
-        ImageResult decoded = ImageResult.FromMemory(actual, gray ? ColorComponents.Grey : ColorComponents.RedGreenBlue);
+        var decoded = ImageResult.FromMemory(actual, gray ? ColorComponents.Grey : ColorComponents.RedGreenBlue);
         Assert.Equal((width, height), (decoded.Width, decoded.Height));
         Assert.Equal(actual, Encode(pixels, width, height, layout, options with { MaxDegreeOfParallelism = 3 }, stride));
         using var destination = new MemoryStream();
@@ -362,8 +383,10 @@ public sealed class SourceIccColorManagementTests
         var options = new JpegliEncoderOptions
         {
             SourceIccProfile = JpegliIccProfiles.CreateLinearSrgbProfile(),
-            IccProfile = Sliced(destinationProfile), ColorSpace = colorSpace,
-            Subsampling = ChromaSubsampling.None, AdaptiveQuantization = false
+            IccProfile = Sliced(destinationProfile),
+            ColorSpace = colorSpace,
+            Subsampling = ChromaSubsampling.None,
+            AdaptiveQuantization = false
         };
         float[] converted = pixels.Select(value => (float)Math.Pow(value, 1 / 2.2)).ToArray();
         byte[] actual = Encode(pixels, width, height, PixelComponentLayout.Rgb, options);
@@ -379,8 +402,12 @@ public sealed class SourceIccColorManagementTests
         float[] pixels = (float[])Source(2, width, height, PixelComponentLayout.Rgb, width * 3);
         var options = new JpegliEncoderOptions
         {
-            SourceIccProfile = JpegliIccProfiles.CreateLinearSrgbProfile(), ColorSpace = JpegColorSpace.Xyb,
-            SmoothingFactor = 37, Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2
+            SourceIccProfile = JpegliIccProfiles.CreateLinearSrgbProfile(),
+            ColorSpace = JpegColorSpace.Xyb,
+            SmoothingFactor = 37,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2
         };
         float[] converted = pixels.Select(value => (float)Srgb(value)).ToArray();
         byte[] actual = Encode(pixels, width, height, PixelComponentLayout.Rgb, options);
@@ -405,17 +432,35 @@ public sealed class SourceIccColorManagementTests
         byte[] profile = JpegliIccProfiles.CreateLinearSrgbProfile();
         switch (corruption)
         {
-            case "short": profile = profile[..127]; break;
-            case "signature": profile[36] = (byte)'X'; break;
-            case "declared size": Write32(profile, 0, uint.MaxValue); break;
-            case "tag count": Write32(profile, 128, uint.MaxValue); break;
-            case "tag offset": Write32(profile, 136, uint.MaxValue); break;
-            case "tag size": Write32(profile, 140, uint.MaxValue); break;
-            case "CMYK": "CMYK"u8.CopyTo(profile.AsSpan(16)); break;
-            case "wrong channels": profile = JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(); break;
+            case "short":
+                profile = profile[..127];
+                break;
+            case "signature":
+                profile[36] = (byte)'X';
+                break;
+            case "declared size":
+                Write32(profile, 0, uint.MaxValue);
+                break;
+            case "tag count":
+                Write32(profile, 128, uint.MaxValue);
+                break;
+            case "tag offset":
+                Write32(profile, 136, uint.MaxValue);
+                break;
+            case "tag size":
+                Write32(profile, 140, uint.MaxValue);
+                break;
+            case "CMYK":
+                "CMYK"u8.CopyTo(profile.AsSpan(16));
+                break;
+            case "wrong channels":
+                profile = JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile();
+                break;
+            default:
+                break;
         }
         using var output = new MemoryStream();
-        var error = Assert.Throws<ArgumentException>(() => JpegliEncoder.Encode(output, new byte[] { 1, 2, 3 },
+        ArgumentException error = Assert.Throws<ArgumentException>(() => JpegliEncoder.Encode(output, [1, 2, 3],
             1, 1, PixelLayout.Rgb24, new() { SourceIccProfile = profile }, cancellationToken: Cancellation));
         Assert.Equal("SourceIccProfile", error.ParamName);
         Assert.Equal(0, output.Length);
@@ -428,9 +473,12 @@ public sealed class SourceIccColorManagementTests
     public void DirectComponentInputsRejectSourceProfileBeforeOutput(PixelComponentLayout layout)
     {
         using var output = new MemoryStream();
-        Assert.ThrowsAny<ArgumentException>(() => JpegliEncoder.Encode(output, new float[] { 0.2f, 0.4f, 0.6f },
-            1, 1, layout, new() { SourceIccProfile = JpegliIccProfiles.CreateSrgbProfile(),
-                IccProfile = layout == PixelComponentLayout.Xyb ? JpegliIccProfiles.CreateXybProfile() : default },
+        _ = Assert.ThrowsAny<ArgumentException>(() => JpegliEncoder.Encode(output, [0.2f, 0.4f, 0.6f],
+            1, 1, layout, new()
+            {
+                SourceIccProfile = JpegliIccProfiles.CreateSrgbProfile(),
+                IccProfile = layout == PixelComponentLayout.Xyb ? JpegliIccProfiles.CreateXybProfile() : default
+            },
             cancellationToken: Cancellation));
         Assert.Equal(0, output.Length);
         Assert.True(output.CanWrite);
@@ -446,9 +494,12 @@ public sealed class SourceIccColorManagementTests
         float[] pixels = Enumerable.Repeat(0.5f, 19 * 17 * 3).ToArray();
         pixels[^1] = invalid;
         using var output = new MemoryStream();
-        var error = Assert.ThrowsAny<ArgumentException>(() => JpegliEncoder.Encode(output, pixels, 19, 17,
-            PixelComponentLayout.Rgb, new() { SourceIccProfile = JpegliIccProfiles.CreateLinearSrgbProfile(),
-                AllowOutOfRangeFloatSamples = true }, cancellationToken: Cancellation));
+        ArgumentException error = Assert.ThrowsAny<ArgumentException>(() => JpegliEncoder.Encode(output, pixels, 19, 17,
+            PixelComponentLayout.Rgb, new()
+            {
+                SourceIccProfile = JpegliIccProfiles.CreateLinearSrgbProfile(),
+                AllowOutOfRangeFloatSamples = true
+            }, cancellationToken: Cancellation));
         Assert.Equal("pixels", error.ParamName);
         Assert.Equal(0, output.Length);
         Assert.True(output.CanWrite);
@@ -470,7 +521,7 @@ public sealed class SourceIccColorManagementTests
         })
         {
             using var output = new MemoryStream();
-            Assert.ThrowsAny<ArgumentException>(() => JpegliEncoder.Encode(output, new byte[] { 1, 2, 3 },
+            _ = Assert.ThrowsAny<ArgumentException>(() => JpegliEncoder.Encode(output, [1, 2, 3],
                 1, 1, PixelLayout.Rgb24, options, cancellationToken: Cancellation));
             Assert.Equal(0, output.Length);
             Assert.True(output.CanWrite);
@@ -482,12 +533,12 @@ public sealed class SourceIccColorManagementTests
     {
         byte[] source = JpegliIccProfiles.CreateLinearSrgbProfile(), destination = JpegliIccProfiles.CreateSrgbProfile();
         var canceled = new CancellationToken(true);
-        var transformError = Assert.Throws<OperationCanceledException>(() => IccColorTransform.Create(source, destination,
+        OperationCanceledException transformError = Assert.Throws<OperationCanceledException>(() => IccColorTransform.Create(source, destination,
             false, false, IccRenderingIntent.RelativeColorimetric, canceled));
         Assert.Equal(canceled, transformError.CancellationToken);
         using var output = new MemoryStream();
-        var encodeError = Assert.Throws<OperationCanceledException>(() => JpegliEncoder.Encode(output,
-            new byte[] { 1, 2, 3 }, 1, 1, PixelLayout.Rgb24,
+        OperationCanceledException encodeError = Assert.Throws<OperationCanceledException>(() => JpegliEncoder.Encode(output,
+            [1, 2, 3], 1, 1, PixelLayout.Rgb24,
             new() { SourceIccProfile = source }, cancellationToken: canceled));
         Assert.Equal(canceled, encodeError.CancellationToken);
         Assert.Equal(0, output.Length);
@@ -502,8 +553,11 @@ public sealed class SourceIccColorManagementTests
         var options = new JpegliEncoderOptions { IccProfile = opaque, Progressive = true, ProgressiveRefinementBits = 2 };
         byte[] reference = JpegliEncoder.Encode(pixels, 19, 17, PixelLayout.Rgb24, options, cancellationToken: Cancellation);
         foreach (IccRenderingIntent intent in Enum.GetValues<IccRenderingIntent>())
+        {
             Assert.Equal(reference, JpegliEncoder.Encode(pixels, 19, 17, PixelLayout.Rgb24,
                 options with { SourceIccProfile = ReadOnlyMemory<byte>.Empty, ColorRenderingIntent = intent }, cancellationToken: Cancellation));
+        }
+
         Assert.Equal(opaque, ReassembleIcc(reference));
     }
 
@@ -515,8 +569,11 @@ public sealed class SourceIccColorManagementTests
         byte[] pixels = Pattern(19, 17, PixelLayout.Rgb24);
         var options = new JpegliEncoderOptions
         {
-            SourceIccProfile = source, IccProfile = destinationProfile, Progressive = true,
-            ProgressiveRefinementBits = 2, MaxDegreeOfParallelism = 3
+            SourceIccProfile = source,
+            IccProfile = destinationProfile,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            MaxDegreeOfParallelism = 3
         };
         byte[] expected = Encode(pixels, 19, 17, PixelComponentLayout.Rgb, options);
         using var destination = new MemoryStream();
@@ -539,13 +596,15 @@ public sealed class SourceIccColorManagementTests
     public void SourceLabLutsUseTheirSpecifiedPcsEncoding(string kind, int version)
     {
         byte[] profile = LutProfile(kind, false, version);
-        var transform = Transform(profile, JpegliIccProfiles.CreateSrgbProfile());
+        IccColorTransform transform = Transform(profile, JpegliIccProfiles.CreateSrgbProfile());
         // Lab neutral L*=50, D50 -> XYZ Y=((50+16)/116)^3. lut8
         // quantizes L to 128/255; lut16 remains legacy even in v4.
         double l = kind == "mft1" ? 128 / 255d * 100 : kind == "mAB " ? 32768 / 65535d * 100 : 50;
         double expected = Srgb(Math.Pow((l + 16) / 116, 3));
         foreach ((float r, float g, float b) in new[] { (0f, 0f, 0f), (0.2f, 0.4f, 0.7f), (1f, 1f, 1f) })
+        {
             AssertConversion(transform, r, g, b, expected, expected, expected, 0.0003);
+        }
     }
 
     [Theory]
@@ -556,38 +615,40 @@ public sealed class SourceIccColorManagementTests
     public void DestinationLutsActuallyApplyTheBToADeviceTransform(string kind, int version)
     {
         byte[] profile = LutProfile(kind, true, version);
-        var transform = Transform(JpegliIccProfiles.CreateSrgbProfile(), profile);
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateSrgbProfile(), profile);
         foreach ((float r, float g, float b) in new[] { (0f, 0f, 0f), (0.2f, 0.4f, 0.7f), (1f, 1f, 1f) })
+        {
             AssertConversion(transform, r, g, b, 51 / 255d, 102 / 255d, 179 / 255d, 0.00003);
+        }
     }
 
     [Fact]
     public void MAbFullPipelineAppliesAToClutToMToMatrixToBWithXyzScaling()
     {
-        byte[] profile = MakeProfile(4, new[] { ("A2B0", OrderedLut(false)) });
+        byte[] profile = MakeProfile(4, [("A2B0", OrderedLut(false))]);
         "XYZ "u8.CopyTo(profile.AsSpan(20));
-        var transform = Transform(profile, JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), destinationGray: true);
+        IccColorTransform transform = Transform(profile, JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), destinationGray: true);
         const float r = 0.6f, g = 0.3f, b = 0.2f;
         // A squares all device channels, CLUT swaps X/Y, M squares, matrix
         // halves and adds 1/8, B squares, then PCSXYZ words map to 0..1.99997.
-        double expected = Math.Pow(0.5 * Math.Pow(r, 4) + 0.125, 2) * (65535d / 32768);
+        double expected = Math.Pow((0.5 * Math.Pow(r, 4)) + 0.125, 2) * (65535d / 32768);
         AssertConversion(transform, r, g, b, expected, expected, expected, 0.00001);
     }
 
     [Fact]
     public void MBaFullPipelineAppliesBToMatrixToMToClutToAWithXyzScaling()
     {
-        byte[] profile = MakeProfile(4, new[] { ("B2A0", OrderedLut(true)) });
+        byte[] profile = MakeProfile(4, [("B2A0", OrderedLut(true))]);
         "XYZ "u8.CopyTo(profile.AsSpan(20));
-        var transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), profile, sourceGray: true);
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), profile, sourceGray: true);
         const float gray = 0.4f;
         double scale = 65535d / 32768;
         double x = 0.9642 * gray / scale, y = gray / scale, z = 0.8249 * gray / scale;
         // B squares PCS coordinates, matrix halves and adds 1/8, M squares,
         // CLUT swaps X/Y, A squares the device channels.
         AssertConversion(transform, gray, gray, gray,
-            Math.Pow(0.5 * y * y + 0.125, 4), Math.Pow(0.5 * x * x + 0.125, 4),
-            Math.Pow(0.5 * z * z + 0.125, 4), 0.000002);
+            Math.Pow((0.5 * y * y) + 0.125, 4), Math.Pow((0.5 * x * x) + 0.125, 4),
+            Math.Pow((0.5 * z * z) + 0.125, 4), 0.000002);
     }
 
     [Theory]
@@ -599,7 +660,7 @@ public sealed class SourceIccColorManagementTests
     {
         int[] dimensions = grayscale ? [5] : [2, 3, 4];
         byte[] profile = InterpolationLutProfile(false, grayscale, dimensions, precision, out double[] values);
-        var transform = Transform(profile, JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(),
+        IccColorTransform transform = Transform(profile, JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(),
             sourceGray: grayscale, destinationGray: true);
         foreach ((float r, float g, float b) in InterpolationSamples())
         {
@@ -628,13 +689,16 @@ public sealed class SourceIccColorManagementTests
         "XYZ "u8.CopyTo(xyz);
         byte[][] colorants = [xyz.ToArray(), xyz.ToArray(), xyz.ToArray()];
         for (int channel = 0; channel < 3; channel++)
-            Write32(colorants[channel], 8 + channel * 4, 131070);
+        {
+            Write32(colorants[channel], 8 + (channel * 4), 131070);
+        }
+
         byte[] curve = new byte[12];
         "curv"u8.CopyTo(curve);
         byte[] source = MakeProfile(4, [("rTRC", curve), ("gTRC", curve), ("bTRC", curve),
             ("rXYZ", colorants[0]), ("gXYZ", colorants[1]), ("bXYZ", colorants[2])]);
         "XYZ "u8.CopyTo(source.AsSpan(20));
-        var transform = Transform(source, profile, destinationGray: grayscale);
+        IccColorTransform transform = Transform(source, profile, destinationGray: grayscale);
         foreach ((float r, float g, float b) in InterpolationSamples())
         {
             double[] expected = LegacyClut(dimensions, outputs, values,
@@ -653,12 +717,12 @@ public sealed class SourceIccColorManagementTests
     [InlineData(IccRenderingIntent.AbsoluteColorimetric, 50)]
     public void RenderingIntentSelectsTheCorrespondingLutAndColorimetricFallback(IccRenderingIntent intent, int l)
     {
-        byte[] profile = MakeProfile(4, new[]
-        {
+        byte[] profile = MakeProfile(4,
+        [
             ("A2B0", Lut("mft2", false, 25)),
             ("A2B1", Lut("mft2", false, 50)),
             ("A2B2", Lut("mft2", false, 75))
-        });
+        ]);
         double expected = Srgb(Math.Pow((l + 16) / 116d, 3));
         AssertConversion(Transform(profile, JpegliIccProfiles.CreateSrgbProfile(), intent: intent),
             0.2f, 0.4f, 0.7f, expected, expected, expected, 0.0003);
@@ -682,14 +746,26 @@ public sealed class SourceIccColorManagementTests
         int offset = Tag(profile, "A2B0"u8);
         switch (corruption)
         {
-            case "grid": profile[offset + (kind == "mAB " ? 104 : 10)] = 255; break;
-            case "table": BinaryPrimitives.WriteUInt16BigEndian(profile.AsSpan(offset + 48, 2), ushort.MaxValue); break;
-            case "offset": Write32(profile, offset + 24, uint.MaxValue); break;
-            case "precision": profile[offset + 104 + 16] = 3; break;
-            case "curve": Write32(profile, offset + 32 + 8, uint.MaxValue); break;
+            case "grid":
+                profile[offset + (kind == "mAB " ? 104 : 10)] = 255;
+                break;
+            case "table":
+                BinaryPrimitives.WriteUInt16BigEndian(profile.AsSpan(offset + 48, 2), ushort.MaxValue);
+                break;
+            case "offset":
+                Write32(profile, offset + 24, uint.MaxValue);
+                break;
+            case "precision":
+                profile[offset + 104 + 16] = 3;
+                break;
+            case "curve":
+                Write32(profile, offset + 32 + 8, uint.MaxValue);
+                break;
+            default:
+                break;
         }
         using var output = new MemoryStream();
-        var error = Assert.Throws<ArgumentException>(() => JpegliEncoder.Encode(output, new byte[] { 1, 2, 3 },
+        ArgumentException error = Assert.Throws<ArgumentException>(() => JpegliEncoder.Encode(output, [1, 2, 3],
             1, 1, PixelLayout.Rgb24, new() { SourceIccProfile = profile }, cancellationToken: Cancellation));
         Assert.Equal("SourceIccProfile", error.ParamName);
         Assert.Equal(0, output.Length);
@@ -702,7 +778,7 @@ public sealed class SourceIccColorManagementTests
         byte[] profile = LutProfile("mft1", false, 2);
         "XYZ "u8.CopyTo(profile.AsSpan(20));
         using var output = new MemoryStream();
-        Assert.Throws<ArgumentException>(() => JpegliEncoder.Encode(output, new byte[] { 1, 2, 3 }, 1, 1,
+        _ = Assert.Throws<ArgumentException>(() => JpegliEncoder.Encode(output, [1, 2, 3], 1, 1,
             PixelLayout.Rgb24, new() { SourceIccProfile = profile }, cancellationToken: Cancellation));
         Assert.Equal(0, output.Length);
     }
@@ -713,9 +789,12 @@ public sealed class SourceIccColorManagementTests
     public void BuiltInHdrCompatibilityLutCannotServeAsDestinationInverse(bool pq)
     {
         using var output = new MemoryStream();
-        var error = Assert.Throws<ArgumentException>(() => JpegliEncoder.Encode(output, new byte[] { 1, 2, 3 }, 1, 1,
-            PixelLayout.Rgb24, new() { SourceIccProfile = JpegliIccProfiles.CreateSrgbProfile(),
-                IccProfile = pq ? JpegliIccProfiles.CreateRec2100PqProfile() : JpegliIccProfiles.CreateRec2100HlgProfile() },
+        ArgumentException error = Assert.Throws<ArgumentException>(() => JpegliEncoder.Encode(output, [1, 2, 3], 1, 1,
+            PixelLayout.Rgb24, new()
+            {
+                SourceIccProfile = JpegliIccProfiles.CreateSrgbProfile(),
+                IccProfile = pq ? JpegliIccProfiles.CreateRec2100PqProfile() : JpegliIccProfiles.CreateRec2100HlgProfile()
+            },
             cancellationToken: Cancellation));
         Assert.Equal("IccProfile", error.ParamName);
         Assert.Equal(0, output.Length);
@@ -737,25 +816,34 @@ public sealed class SourceIccColorManagementTests
         Write32(profile, curve + 24, 0); // c
         Write32(profile, curve + 28, 0); // d
         using var output = new MemoryStream();
-        Assert.ThrowsAny<ArgumentException>(() => JpegliEncoder.Encode(output, new byte[] { 128, 128, 128 }, 1, 1,
+        _ = Assert.ThrowsAny<ArgumentException>(() => JpegliEncoder.Encode(output, [128, 128, 128], 1, 1,
             PixelLayout.Rgb24, new() { SourceIccProfile = profile }, cancellationToken: Cancellation));
         Assert.Equal(0, output.Length);
         Assert.True(output.CanWrite);
     }
 
     private static byte[] LutProfile(string kind, bool reverse, int version) =>
-        MakeProfile(version, new[] { (reverse ? "B2A0" : "A2B0", Lut(kind, reverse, 50)) });
+        MakeProfile(version, [(reverse ? "B2A0" : "A2B0", Lut(kind, reverse, 50))]);
 
     private static IEnumerable<(float R, float G, float B)> InterpolationSamples()
     {
         float[] boundaries = [-0.25f, 0, 1f / 3, 0.5f, 2f / 3, MathF.BitDecrement(1), 1, 1.25f];
         foreach (float r in boundaries)
+        {
             foreach (float g in boundaries)
+            {
                 foreach (float b in boundaries)
+                {
                     yield return (r, g, b);
+                }
+            }
+        }
+
         Random random = new(781);
         for (int index = 0; index < 128; index++)
+        {
             yield return (random.NextSingle(), random.NextSingle(), random.NextSingle());
+        }
     }
 
     private static byte[] InterpolationLutProfile(bool reverse, bool grayscale, int[] dimensions,
@@ -763,9 +851,9 @@ public sealed class SourceIccColorManagementTests
     {
         int inputs = dimensions.Length, outputs = reverse && grayscale ? 1 : 3;
         int bCount = reverse ? inputs : outputs, aCount = reverse ? outputs : inputs;
-        int aOffset = 32 + bCount * 12, clutOffset = aOffset + aCount * 12;
+        int aOffset = 32 + (bCount * 12), clutOffset = aOffset + (aCount * 12);
         int entries = dimensions.Aggregate(outputs, (count, dimension) => count * dimension);
-        byte[] data = new byte[clutOffset + 20 + entries * precision];
+        byte[] data = new byte[clutOffset + 20 + (entries * precision)];
         (reverse ? "mBA "u8 : "mAB "u8).CopyTo(data);
         data[8] = (byte)inputs;
         data[9] = (byte)outputs;
@@ -773,24 +861,33 @@ public sealed class SourceIccColorManagementTests
         Write32(data, 24, (uint)clutOffset);
         Write32(data, 28, (uint)aOffset);
         for (int offset = 32; offset < clutOffset; offset += 12)
+        {
             "curv"u8.CopyTo(data.AsSpan(offset));
+        }
+
         for (int dimension = 0; dimension < dimensions.Length; dimension++)
+        {
             data[clutOffset + dimension] = (byte)dimensions[dimension];
+        }
+
         data[clutOffset + 16] = (byte)precision;
         values = new double[entries];
         for (int index = 0; index < entries; index++)
         {
             // Distinct channel and cell values expose incorrect flattening even
             // when dimensions have different strides.
-            int value = (index * 7919 + 193) % (precision == 1 ? 256 : 65536);
+            int value = ((index * 7919) + 193) % (precision == 1 ? 256 : 65536);
             int word = precision == 1 ? value * 257 : value;
-            WriteLutValue(data, clutOffset + 20 + index * precision, word, precision);
+            WriteLutValue(data, clutOffset + 20 + (index * precision), word, precision);
             values[index] = precision == 1 ? value / 255d : value / 65535d;
         }
         byte[] profile = MakeProfile(4, [(reverse ? "B2A0" : "A2B0", data)]);
         "XYZ "u8.CopyTo(profile.AsSpan(20));
         if (grayscale)
+        {
             "GRAY"u8.CopyTo(profile.AsSpan(16));
+        }
+
         return profile;
     }
 
@@ -812,18 +909,20 @@ public sealed class SourceIccColorManagementTests
             for (int dimension = 0; dimension < dimensions.Length; dimension++)
             {
                 int high = (corner >> dimension) & 1;
-                index = index * dimensions[dimension] + lower[dimension] + high;
+                index = (index * dimensions[dimension]) + lower[dimension] + high;
                 weight *= high == 0 ? 1 - fraction[dimension] : fraction[dimension];
             }
             for (int channel = 0; channel < outputs; channel++)
-                result[channel] += weight * values[index * outputs + channel];
+            {
+                result[channel] += weight * values[(index * outputs) + channel];
+            }
         }
         return result;
     }
 
     private static byte[] MakeProfile(int version, (string Signature, byte[] Data)[] tags)
     {
-        int tagCount = tags.Length + 1, start = 132 + tagCount * 12;
+        int tagCount = tags.Length + 1, start = 132 + (tagCount * 12);
         byte[] profile = new byte[start + 20 + tags.Sum(tag => (tag.Data.Length + 3) & ~3)];
         Write32(profile, 0, (uint)profile.Length);
         Write32(profile, 8, (uint)version << 24);
@@ -843,7 +942,7 @@ public sealed class SourceIccColorManagementTests
         start += 20;
         for (int index = 0; index < tags.Length; index++)
         {
-            int entry = 144 + index * 12;
+            int entry = 144 + (index * 12);
             System.Text.Encoding.ASCII.GetBytes(tags[index].Signature).CopyTo(profile, entry);
             Write32(profile, entry + 4, (uint)start);
             Write32(profile, entry + 8, (uint)tags[index].Data.Length);
@@ -861,17 +960,20 @@ public sealed class SourceIccColorManagementTests
             multiStage ? [(int)Math.Round(l / 100d * 65535), 128 * 257, 128 * 257] :
             bytePrecision ? [(int)Math.Round(l / 100d * 255) * 257, 128 * 257, 128 * 257] :
             [l * 65280 / 100, 32768, 32768];
-        int clut, outputTables = 0;
+        int clut;
         byte[] data;
         if (multiStage)
         {
-            data = new byte[104 + 20 + 8 * 3 * 2];
+            data = new byte[104 + 20 + (8 * 3 * 2)];
             data[8] = data[9] = 3;
             Write32(data, 12, 32); // B curves.
             Write32(data, 24, 104); // CLUT.
             Write32(data, 28, 68); // A curves.
             for (int index = 0; index < 6; index++)
-                "curv"u8.CopyTo(data.AsSpan(32 + index * 12)); // count=0 identity.
+            {
+                "curv"u8.CopyTo(data.AsSpan(32 + (index * 12))); // count=0 identity.
+            }
+
             data[104] = data[105] = data[106] = 2;
             data[120] = 2;
             clut = 124;
@@ -880,38 +982,50 @@ public sealed class SourceIccColorManagementTests
         {
             int tableEntries = bytePrecision ? 256 : 2;
             int header = bytePrecision ? 48 : 52;
-            clut = header + 3 * tableEntries * precision;
-            outputTables = clut + 8 * 3 * precision;
-            data = new byte[outputTables + 3 * tableEntries * precision];
+            clut = header + (3 * tableEntries * precision);
+            int outputTables = clut + (8 * 3 * precision);
+            data = new byte[outputTables + (3 * tableEntries * precision)];
             data[8] = data[9] = 3;
             data[10] = 2;
             for (int index = 0; index < 3; index++)
-                Write32(data, 12 + index * 16, 65536);
+            {
+                Write32(data, 12 + (index * 16), 65536);
+            }
+
             if (!bytePrecision)
             {
                 BinaryPrimitives.WriteUInt16BigEndian(data.AsSpan(48, 2), 2);
                 BinaryPrimitives.WriteUInt16BigEndian(data.AsSpan(50, 2), 2);
             }
             for (int channel = 0; channel < 3; channel++)
+            {
                 for (int index = 0; index < tableEntries; index++)
                 {
                     int value = bytePrecision ? index * 257 : index * 65535;
-                    WriteLutValue(data, header + (channel * tableEntries + index) * precision, value, precision);
-                    WriteLutValue(data, outputTables + (channel * tableEntries + index) * precision, value, precision);
+                    WriteLutValue(data, header + (((channel * tableEntries) + index) * precision), value, precision);
+                    WriteLutValue(data, outputTables + (((channel * tableEntries) + index) * precision), value, precision);
                 }
+            }
         }
         System.Text.Encoding.ASCII.GetBytes(kind).CopyTo(data, 0);
         for (int index = 0; index < 8 * 3; index++)
-            WriteLutValue(data, clut + index * precision, constant[index % 3], precision);
+        {
+            WriteLutValue(data, clut + (index * precision), constant[index % 3], precision);
+        }
+
         return data;
     }
 
     private static void WriteLutValue(byte[] data, int offset, int value, int precision)
     {
         if (precision == 1)
+        {
             data[offset] = (byte)(value / 257);
+        }
         else
+        {
             BinaryPrimitives.WriteUInt16BigEndian(data.AsSpan(offset, 2), (ushort)value);
+        }
     }
 
     private static byte[] OrderedLut(bool reverse)
@@ -926,27 +1040,35 @@ public sealed class SourceIccColorManagementTests
         Write32(data, 24, clut);
         Write32(data, 28, aCurves);
         foreach (int curves in new[] { bCurves, mCurves, aCurves })
+        {
             for (int channel = 0; channel < 3; channel++)
             {
-                "para"u8.CopyTo(data.AsSpan(curves + channel * 16));
-                Write32(data, curves + channel * 16 + 12, 2 * 65536);
+                "para"u8.CopyTo(data.AsSpan(curves + (channel * 16)));
+                Write32(data, curves + (channel * 16) + 12, 2 * 65536);
             }
+        }
+
         for (int channel = 0; channel < 3; channel++)
         {
-            Write32(data, matrix + channel * 16, 32768);
-            Write32(data, matrix + 36 + channel * 4, 8192);
+            Write32(data, matrix + (channel * 16), 32768);
+            Write32(data, matrix + 36 + (channel * 4), 8192);
         }
         data[clut] = data[clut + 1] = data[clut + 2] = 2;
         data[clut + 16] = 2;
         for (int x = 0; x < 2; x++)
+        {
             for (int y = 0; y < 2; y++)
+            {
                 for (int z = 0; z < 2; z++)
                 {
-                    int offset = clut + 20 + (x * 4 + y * 2 + z) * 6;
+                    int offset = clut + 20 + (((x * 4) + (y * 2) + z) * 6);
                     WriteLutValue(data, offset, y * 65535, 2);
                     WriteLutValue(data, offset + 2, x * 65535, 2);
                     WriteLutValue(data, offset + 4, z * 65535, 2);
                 }
+            }
+        }
+
         return data;
     }
 
@@ -963,7 +1085,7 @@ public sealed class SourceIccColorManagementTests
         Assert.InRange(actualB, expectedB - tolerance, expectedB + tolerance);
     }
 
-    private static double Srgb(double linear) => linear <= 0.0031308 ? 12.92 * linear : 1.055 * Math.Pow(linear, 1 / 2.4) - 0.055;
+    private static double Srgb(double linear) => linear <= 0.0031308 ? 12.92 * linear : (1.055 * Math.Pow(linear, 1 / 2.4)) - 0.055;
     private static double Linear(double encoded) => encoded <= 0.04045 ? encoded / 12.92 : Math.Pow((encoded + 0.055) / 1.055, 2.4);
 
     private static double ColorantY(byte[] profile, ReadOnlySpan<byte> signature)
@@ -978,9 +1100,11 @@ public sealed class SourceIccColorManagementTests
         int count = checked((int)BinaryPrimitives.ReadUInt32BigEndian(profile.AsSpan(128, 4)));
         for (int index = 0; index < count; index++)
         {
-            int entry = 132 + index * 12;
+            int entry = 132 + (index * 12);
             if (profile.AsSpan(entry, 4).SequenceEqual(signature))
+            {
                 return checked((int)BinaryPrimitives.ReadUInt32BigEndian(profile.AsSpan(entry + 4, 4)));
+            }
         }
         throw new InvalidOperationException("Missing fixture tag.");
     }
@@ -999,13 +1123,17 @@ public sealed class SourceIccColorManagementTests
     {
         PixelComponentLayout.Gray => 1,
         PixelComponentLayout.Rgba or PixelComponentLayout.Bgra => 4,
+        PixelComponentLayout.Rgb => 3,
+        PixelComponentLayout.Bgr => 3,
+        PixelComponentLayout.YCbCr => 3,
+        PixelComponentLayout.Xyb => 3,
         _ => 3
     };
 
     private static Array Source(int precision, int width, int height, PixelComponentLayout layout, int stride)
     {
         int components = Components(layout);
-        int length = (height - 1) * stride + width * components + 13;
+        int length = ((height - 1) * stride) + (width * components) + 13;
         Array pixels = precision switch
         {
             0 => Enumerable.Repeat((byte)239, length).ToArray(),
@@ -1013,19 +1141,30 @@ public sealed class SourceIccColorManagementTests
             _ => Enumerable.Repeat(float.NaN, length).ToArray()
         };
         for (int row = 0; row < height; row++)
+        {
             for (int column = 0; column < width; column++)
+            {
                 for (int channel = 0; channel < (components == 1 ? 1 : 3); channel++)
                 {
                     int targetChannel = layout is PixelComponentLayout.Bgr or PixelComponentLayout.Bgra ? 2 - channel : channel;
-                    int offset = row * stride + column * components + targetChannel;
-                    int value = 15 + (11 * column + 19 * row + 37 * channel) % 225;
+                    int offset = (row * stride) + (column * components) + targetChannel;
+                    int value = 15 + (((11 * column) + (19 * row) + (37 * channel)) % 225);
                     if (pixels is byte[] bytes)
+                    {
                         bytes[offset] = (byte)value;
+                    }
                     else if (pixels is ushort[] words)
-                        words[offset] = (ushort)(value * 257 + (column + row + channel) % 113);
+                    {
+                        words[offset] = (ushort)((value * 257) + ((column + row + channel) % 113));
+                    }
                     else
-                        ((float[])pixels)[offset] = (value + (column + row + channel) % 113 / 257f) / 255f;
+                    {
+                        ((float[])pixels)[offset] = (value + ((column + row + channel) % 113 / 257f)) / 255f;
+                    }
                 }
+            }
+        }
+
         return pixels;
     }
 
@@ -1034,19 +1173,24 @@ public sealed class SourceIccColorManagementTests
         int components = Components(layout), outputComponents = components == 1 ? 1 : 3;
         float[] converted = new float[width * height * outputComponents];
         for (int row = 0; row < height; row++)
+        {
             for (int column = 0; column < width; column++)
+            {
                 for (int channel = 0; channel < outputComponents; channel++)
                 {
                     int sourceChannel = layout is PixelComponentLayout.Bgr or PixelComponentLayout.Bgra ? 2 - channel : channel;
-                    int offset = row * stride + column * components + sourceChannel;
+                    int offset = (row * stride) + (column * components) + sourceChannel;
                     double sample = pixels switch
                     {
                         byte[] bytes => bytes[offset] / 255d,
                         ushort[] words => words[offset] / 65535d,
                         _ => ((float[])pixels)[offset]
                     };
-                    converted[(row * width + column) * outputComponents + channel] = (float)Srgb(sample);
+                    converted[(((row * width) + column) * outputComponents) + channel] = (float)Srgb(sample);
                 }
+            }
+        }
+
         return converted;
     }
 
@@ -1068,14 +1212,21 @@ public sealed class SourceIccColorManagementTests
                 PixelComponentLayout.Bgr => PixelLayout.Bgr24,
                 PixelComponentLayout.Rgba => PixelLayout.Rgba32,
                 PixelComponentLayout.Bgra => PixelLayout.Bgra32,
+                PixelComponentLayout.Rgb => PixelLayout.Rgb24,
+                PixelComponentLayout.YCbCr => PixelLayout.Rgb24,
+                PixelComponentLayout.Xyb => PixelLayout.Rgb24,
                 _ => PixelLayout.Rgb24
             };
             JpegliEncoder.Encode(output, bytes, width, height, byteLayout, options, stride, cancellation);
         }
         else if (pixels is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, layout, options, stride, cancellation);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])pixels, width, height, layout, options, stride, cancellation);
+        }
     }
 
     private static JpegDocument Read(byte[] jpeg, JpegliEncoderOptions options) =>
@@ -1086,13 +1237,18 @@ public sealed class SourceIccColorManagementTests
         Assert.Equal(expected.Components, actual.Components);
         Assert.Equal(expected.Blocks.Count, actual.Blocks.Count);
         foreach ((int selector, byte[] quantizer) in expected.Quantizers)
+        {
             Assert.Equal(quantizer, actual.Quantizers[selector]);
+        }
+
         foreach ((BlockKey key, Block block) in expected.Blocks)
         {
             Block actualBlock = actual.Blocks[key];
             Assert.Equal(block.IsDummy, actualBlock.IsDummy);
             for (int index = 0; index < 64; index++)
+            {
                 Assert.InRange(actualBlock.Coefficients[index], block.Coefficients[index] - tolerance, block.Coefficients[index] + tolerance);
+            }
         }
     }
 
@@ -1104,7 +1260,10 @@ public sealed class SourceIccColorManagementTests
         {
             Assert.Equal(0xff, jpeg[position]);
             if (jpeg[position + 1] == 0xda)
+            {
                 break;
+            }
+
             int length = (jpeg[position + 2] << 8) | jpeg[position + 3];
             if (jpeg[position + 1] == 0xe2)
             {
@@ -1112,7 +1271,10 @@ public sealed class SourceIccColorManagementTests
                 Assert.True(payload[..12].SequenceEqual("ICC_PROFILE\0"u8));
                 Assert.Equal(expectedSequence++, payload[12]);
                 if (declaredCount == 0)
+                {
                     declaredCount = payload[13];
+                }
+
                 Assert.Equal(declaredCount, payload[13]);
                 profile.Write(payload[14..]);
             }

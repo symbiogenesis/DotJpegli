@@ -1,6 +1,6 @@
-using Xunit;
-
 namespace DotJpegli.Tests;
+
+using Xunit;
 
 internal static class PixelAssert
 {

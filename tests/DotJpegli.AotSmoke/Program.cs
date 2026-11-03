@@ -5,13 +5,15 @@ using DotJpegli;
 const int width = 33, height = 19;
 byte[] pixels = new byte[width * height * 3];
 for (int y = 0; y < height; y++)
+{
     for (int x = 0; x < width; x++)
     {
-        int offset = (y * width + x) * 3;
-        pixels[offset] = (byte)(x * 7 + y * 3);
-        pixels[offset + 1] = (byte)(x * 3 + y * 11);
-        pixels[offset + 2] = (byte)(x * 13 + y * 5);
+        int offset = ((y * width) + x) * 3;
+        pixels[offset] = (byte)((x * 7) + (y * 3));
+        pixels[offset + 1] = (byte)((x * 3) + (y * 11));
+        pixels[offset + 2] = (byte)((x * 13) + (y * 5));
     }
+}
 
 byte[] srgb = JpegliIccProfiles.CreateSrgbProfile();
 var exif = new ExifMetadata();
@@ -21,7 +23,7 @@ var customProperty = new XmpPropertyName("urn:dotjpegli:smoke", "status");
 xmp.SetSimpleProperty(customProperty, "preserved");
 var iptc = new IptcMetadata();
 iptc.SetTextValues(25, ["trimming", "NativeAOT"]);
-var options = JpegliMetadata.Reconcile(new()
+JpegliEncoderOptions options = JpegliMetadata.Reconcile(new()
 {
     Quality = 83,
     RestartInterval = 2,
@@ -63,13 +65,19 @@ Check(Inspect(progressive, width, height, 3, progressive: true).Count(marker => 
 
 ushort[] gray = new ushort[width * height];
 for (int index = 0; index < gray.Length; index++)
+{
     gray[index] = (ushort)(index * 101);
+}
+
 Inspect(JpegliEncoder.Encode(gray, width, height, PixelComponentLayout.Gray),
     width, height, 1, progressive: false);
 
 float[] linearRgb = new float[pixels.Length];
 for (int index = 0; index < linearRgb.Length; index++)
+{
     linearRgb[index] = pixels[index] / 255f;
+}
+
 byte[] converted = JpegliEncoder.Encode(linearRgb, width, height, options: new()
 {
     SourceIccProfile = JpegliIccProfiles.CreateLinearSrgbProfile(),
@@ -124,11 +132,14 @@ static byte[] FindPayload(List<Marker> markers, byte code, ReadOnlySpan<byte> pr
 {
     byte[]? found = null;
     foreach (Marker marker in markers)
+    {
         if (marker.Code == code && marker.Payload.AsSpan().StartsWith(prefix))
         {
             Check(found is null, "Duplicate metadata marker");
             found = marker.Payload;
         }
+    }
+
     return found ?? throw new InvalidOperationException($"Missing JPEG metadata marker 0x{code:x2}.");
 }
 
@@ -142,7 +153,10 @@ static List<Marker> Inspect(byte[] jpeg, int expectedWidth, int expectedHeight, 
     {
         Check(jpeg[offset++] == 0xff, "JPEG marker prefix");
         while (offset < jpeg.Length && jpeg[offset] == 0xff)
+        {
             offset++;
+        }
+
         Check(offset < jpeg.Length, "Truncated JPEG marker");
         byte code = jpeg[offset++];
         if (code == 0xd9)
@@ -151,21 +165,24 @@ static List<Marker> Inspect(byte[] jpeg, int expectedWidth, int expectedHeight, 
             Marker frame = markers.Single(marker => marker.Code is 0xc0 or 0xc2);
             Check(frame.Code == (progressive ? 0xc2 : 0xc0), "JPEG frame type");
             ReadOnlySpan<byte> data = frame.Payload;
-            Check(data.Length == 6 + components * 3 && data[0] == 8 && data[5] == components, "JPEG frame components");
+            Check(data.Length == 6 + (components * 3) && data[0] == 8 && data[5] == components, "JPEG frame components");
             Check(BinaryPrimitives.ReadUInt16BigEndian(data.Slice(1, 2)) == expectedHeight, "JPEG frame height");
             Check(BinaryPrimitives.ReadUInt16BigEndian(data.Slice(3, 2)) == expectedWidth, "JPEG frame width");
             Check(markers.Any(marker => marker.Code == 0xdb) && markers.Any(marker => marker.Code == 0xc4), "JPEG coding tables");
             Check(markers.Any(marker => marker.Code == 0xda), "Missing JPEG scan");
             return markers;
         }
-        Check(code != 0 && code != 0xd8 && code is not (>= 0xd0 and <= 0xd7), "Unexpected standalone JPEG marker");
+        Check(code is not 0 and not 0xd8 and not (>= 0xd0 and <= 0xd7), "Unexpected standalone JPEG marker");
         Check(offset + 2 <= jpeg.Length, "Truncated JPEG segment length");
         int length = BinaryPrimitives.ReadUInt16BigEndian(jpeg.AsSpan(offset, 2));
         Check(length >= 2 && length <= jpeg.Length - offset, "Invalid JPEG segment length");
         markers.Add(new(code, jpeg.AsSpan(offset + 2, length - 2).ToArray()));
         offset += length;
         if (code != 0xda)
+        {
             continue;
+        }
+
         int entropyStart = offset;
         while (offset < jpeg.Length)
         {
@@ -176,10 +193,14 @@ static List<Marker> Inspect(byte[] jpeg, int expectedWidth, int expectedHeight, 
             }
             Check(offset + 1 < jpeg.Length, "Truncated JPEG entropy marker");
             byte next = jpeg[offset + 1];
-            if (next == 0 || next is >= 0xd0 and <= 0xd7)
+            if (next is 0 or (>= 0xd0 and <= 0xd7))
+            {
                 offset += 2;
+            }
             else
+            {
                 break;
+            }
         }
         Check(offset > entropyStart, "Empty JPEG entropy scan");
     }
@@ -189,7 +210,9 @@ static List<Marker> Inspect(byte[] jpeg, int expectedWidth, int expectedHeight, 
 static void Check(bool condition, string message)
 {
     if (!condition)
+    {
         throw new InvalidOperationException(message);
+    }
 }
 
 internal sealed record Marker(byte Code, byte[] Payload);

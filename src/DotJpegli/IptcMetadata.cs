@@ -1,7 +1,7 @@
+namespace DotJpegli;
+
 using System.Buffers.Binary;
 using System.Text;
-
-namespace DotJpegli;
 
 /// <summary>Edits IPTC Information Interchange Model datasets, preserving repeats and unknown binary fields.</summary>
 /// <remarks>
@@ -32,7 +32,10 @@ public sealed class IptcMetadata
         {
             int start = offset;
             if (data.Length - offset < 5 || data[offset] != 0x1c)
+            {
                 throw new ArgumentException("Each IPTC dataset requires a complete 0x1c tag and length.", nameof(data));
+            }
+
             byte record = data[offset + 1];
             byte number = data[offset + 2];
             int length = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(offset + 3, 2));
@@ -41,18 +44,27 @@ public sealed class IptcMetadata
             {
                 int count = length & 0x7fff;
                 if (count == 0 || count > data.Length - offset)
+                {
                     throw new ArgumentException("The extended IPTC length descriptor is missing or truncated.", nameof(data));
+                }
+
                 length = 0;
                 foreach (byte octet in data.Slice(offset, count))
                 {
                     if (length > (int.MaxValue - octet) / 256)
+                    {
                         throw new ArgumentException("The extended IPTC dataset length exceeds supported memory size.", nameof(data));
-                    length = length * 256 + octet;
+                    }
+
+                    length = (length * 256) + octet;
                 }
                 offset += count;
             }
             if (length > data.Length - offset)
+            {
                 throw new ArgumentException("The IPTC dataset payload is truncated.", nameof(data));
+            }
+
             byte[] encoded = data.Slice(start, offset - start + length).ToArray();
             metadata.datasets.Add(new(record, number, encoded, encoded.AsMemory(offset - start, length)));
             offset += length;
@@ -64,11 +76,14 @@ public sealed class IptcMetadata
     public byte[] ToArray()
     {
         int length = 0;
-        foreach (Dataset dataset in datasets)
+        foreach (Dataset dataset in this.datasets)
+        {
             length = checked(length + dataset.Encoded.Length);
+        }
+
         byte[] result = new byte[length];
         int offset = 0;
-        foreach (Dataset dataset in datasets)
+        foreach (Dataset dataset in this.datasets)
         {
             dataset.Encoded.CopyTo(result, offset);
             offset += dataset.Encoded.Length;
@@ -78,7 +93,7 @@ public sealed class IptcMetadata
 
     /// <summary>Gets owned snapshots of all matching dataset payloads in their existing order.</summary>
     public IReadOnlyList<ReadOnlyMemory<byte>> GetValues(byte record, byte dataset) =>
-        Array.AsReadOnly(datasets.Where(entry => entry.Record == record && entry.Number == dataset)
+        Array.AsReadOnly(this.datasets.Where(entry => entry.Record == record && entry.Number == dataset)
             .Select(entry => (ReadOnlyMemory<byte>)entry.Value.ToArray()).ToArray());
 
     /// <summary>Replaces every matching dataset with owned copies of the supplied values. An empty list removes them.</summary>
@@ -87,15 +102,17 @@ public sealed class IptcMetadata
     {
         Guard.ThrowIfNull(values);
         Dataset[] replacements = values.Select(value => CreateDataset(record, dataset, value.Span)).ToArray();
-        int index = datasets.FindIndex(entry => entry.Record == record && entry.Number == dataset);
+        int index = this.datasets.FindIndex(entry => entry.Record == record && entry.Number == dataset);
         if (index < 0)
         {
-            index = datasets.FindIndex(entry => entry.Record > record);
+            index = this.datasets.FindIndex(entry => entry.Record > record);
             if (index < 0)
-                index = datasets.Count;
+            {
+                index = this.datasets.Count;
+            }
         }
-        datasets.RemoveAll(entry => entry.Record == record && entry.Number == dataset);
-        datasets.InsertRange(index, replacements);
+        _ = this.datasets.RemoveAll(entry => entry.Record == record && entry.Number == dataset);
+        this.datasets.InsertRange(index, replacements);
     }
 
     /// <summary>Gets all text values of an application-record-2 dataset, using strict UTF-8 or the undesignated ASCII default.</summary>
@@ -103,8 +120,8 @@ public sealed class IptcMetadata
     public IReadOnlyList<string> GetTextValues(byte dataset)
     {
         EnsureTextDataset(dataset);
-        bool utf8 = GetTextEncoding();
-        return Array.AsReadOnly(datasets.Where(entry => entry.Record == 2 && entry.Number == dataset)
+        bool utf8 = this.GetTextEncoding();
+        return Array.AsReadOnly(this.datasets.Where(entry => entry.Record == 2 && entry.Number == dataset)
             .Select(entry => DecodeText(entry.Value.Span, utf8)).ToArray());
     }
 
@@ -123,11 +140,14 @@ public sealed class IptcMetadata
         Guard.ThrowIfNull(values);
         if (values.Count == 0)
         {
-            SetValues(2, dataset, []);
+            this.SetValues(2, dataset, []);
             return;
         }
         if (dataset is 116 or 120 && values.Count > 1)
+        {
             throw new ArgumentException("This IPTC dataset is not repeatable.", nameof(values));
+        }
+
         int maximum = dataset switch { 80 => 32, 116 => 128, 120 => 2000, _ => int.MaxValue };
         var encoded = new ReadOnlyMemory<byte>[values.Count];
         for (int index = 0; index < values.Count; index++)
@@ -142,35 +162,59 @@ public sealed class IptcMetadata
                 throw new ArgumentException("IPTC text must contain well-formed Unicode.", nameof(values), error);
             }
             if (encoded[index].Length > maximum)
+            {
                 throw new ArgumentException($"IPTC dataset 2:{dataset} text must not exceed {maximum} UTF-8 bytes.", nameof(values));
+            }
+
             _ = DecodeText(encoded[index].Span, true);
             if (dataset is 80 or 116 or 120 && values[index].Any(character => char.IsControl(character) &&
                 !(dataset == 120 && character is '\r' or '\n')))
+            {
                 throw new ArgumentException("This IPTC text field permits graphic characters and spaces; " +
                     "only Caption-Abstract also permits CR/LF.", nameof(values));
+            }
         }
-        bool utf8 = GetTextEncoding();
-        foreach (Dataset entry in datasets)
+        bool utf8 = this.GetTextEncoding();
+        foreach (Dataset entry in this.datasets)
+        {
             if (entry.Record is >= 2 and <= 6 && !(entry.Record == 2 &&
                 (IsBinaryDataset(entry.Number) || entry.Number == dataset)))
+            {
                 _ = DecodeText(entry.Value.Span, utf8);
-        if (!utf8 && values.Count != 0 && datasets.Any(entry => entry.Record == 8))
+            }
+        }
+
+        if (!utf8 && values.Count != 0 && this.datasets.Any(entry => entry.Record == 8))
+        {
             throw new InvalidOperationException("Adding a character-set designation could relabel existing object-record data.");
+        }
         // All copying and validation precede mutation so failed text edits are atomic.
         if (!utf8 && values.Count != 0)
-            SetValues(1, 90, [(ReadOnlyMemory<byte>)Utf8Designation.ToArray()]);
-        if (!datasets.Any(entry => entry.Record == 2 && entry.Number == 0))
-            SetValues(2, 0, [(ReadOnlyMemory<byte>)new byte[] { 0, 4 }]);
-        SetValues(2, dataset, encoded);
+        {
+            this.SetValues(1, 90, [(ReadOnlyMemory<byte>)Utf8Designation.ToArray()]);
+        }
+
+        if (!this.datasets.Any(entry => entry.Record == 2 && entry.Number == 0))
+        {
+            this.SetValues(2, 0, [(ReadOnlyMemory<byte>)new byte[] { 0, 4 }]);
+        }
+
+        this.SetValues(2, dataset, encoded);
     }
 
     private bool GetTextEncoding()
     {
-        Dataset[] designations = datasets.Where(entry => entry.Record == 1 && entry.Number == 90).ToArray();
+        Dataset[] designations = this.datasets.Where(entry => entry.Record == 1 && entry.Number == 90).ToArray();
         if (designations.Length == 0)
+        {
             return false;
+        }
+
         if (designations.Length != 1 || !designations[0].Value.Span.SequenceEqual(Utf8Designation))
+        {
             throw new InvalidOperationException("IPTC text requires one ESC % G UTF-8 designation, or no designation for ASCII.");
+        }
+
         return true;
     }
 
@@ -178,12 +222,21 @@ public sealed class IptcMetadata
     {
         // Escape and shift control functions can change legacy character sets,
         // so even ASCII bytes containing them cannot safely be relabeled UTF-8.
-        if (value.ContainsAny((byte)0x1b, (byte)0x0e, (byte)0x0f))
+        const byte escape = 0x1b;
+        const byte shiftOut = 0x0e;
+        const byte shiftIn = 0x0f;
+        if (value.ContainsAny(escape, shiftOut, shiftIn))
+        {
             throw new InvalidOperationException("IPTC text containing character-set escape or shift functions is unsupported.");
+        }
+
         if (!utf8)
         {
             if (!Ascii.IsValid(value))
+            {
                 throw new InvalidOperationException("Undesignated non-ASCII IPTC text has an ambiguous legacy encoding.");
+            }
+
             return Encoding.ASCII.GetString(value);
         }
         try
@@ -199,7 +252,9 @@ public sealed class IptcMetadata
     private static void EnsureTextDataset(byte dataset)
     {
         if (IsBinaryDataset(dataset))
+        {
             throw new ArgumentException("This application-record-2 dataset is binary; use the raw value API.", nameof(dataset));
+        }
     }
 
     private static bool IsBinaryDataset(byte dataset) => dataset is 0 or 125 or 200 or 201 or 202;
@@ -212,7 +267,9 @@ public sealed class IptcMetadata
         encoded[1] = record;
         encoded[2] = number;
         if (header == 5)
+        {
             BinaryPrimitives.WriteUInt16BigEndian(encoded.AsSpan(3, 2), (ushort)value.Length);
+        }
         else
         {
             BinaryPrimitives.WriteUInt16BigEndian(encoded.AsSpan(3, 2), 0x8004);

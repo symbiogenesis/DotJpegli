@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class AdditionalEncoderSamplingTests
 {
@@ -15,10 +15,19 @@ public sealed class AdditionalEncoderSamplingTests
                 (ChromaSubsampling.HalfVertical, 1, 2),
                 (ChromaSubsampling.QuarterHorizontal, 4, 1)
             })
+            {
                 foreach (bool optimize in new[] { false, true })
+                {
                     foreach (bool adaptive in new[] { false, true })
+                    {
                         foreach (int smoothing in new[] { 0, 73 })
+                        {
                             modes.Add(sampling, horizontal, vertical, optimize, adaptive, smoothing);
+                        }
+                    }
+                }
+            }
+
             return modes;
         }
     }
@@ -34,12 +43,14 @@ public sealed class AdditionalEncoderSamplingTests
             byte[] pixels = Pattern(width, height, PixelLayout.Rgb24);
             var options = new JpegliEncoderOptions
             {
-                Quality = 90, Subsampling = sampling,
-                OptimizeHuffmanTables = optimize, AdaptiveQuantization = adaptive,
+                Quality = 90,
+                Subsampling = sampling,
+                OptimizeHuffmanTables = optimize,
+                AdaptiveQuantization = adaptive,
                 SmoothingFactor = smoothing
             };
             byte[] baseline = Encode(pixels, width, height, PixelLayout.Rgb24, options);
-            JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+            var reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
             AssertSampling(reference, width, height, horizontal, vertical);
             AssertDummyDcContinuity(reference, horizontal, vertical, interval: 0, refinementBits: 0);
 
@@ -47,7 +58,7 @@ public sealed class AdditionalEncoderSamplingTests
             // wholly padded blocks at the right or bottom edge of an MCU.
             byte[] otherHuffman = Encode(pixels, width, height, PixelLayout.Rgb24,
                 options with { OptimizeHuffmanTables = !optimize });
-            JpegDocument other = JpegDocument.Read(otherHuffman, progressive: false, expectedInterval: 0);
+            var other = JpegDocument.Read(otherHuffman, progressive: false, expectedInterval: 0);
             AssertBaselineParity(baseline, reference, otherHuffman, other, PixelLayout.Rgb24);
             AssertDummyDcContinuity(other, horizontal, vertical, interval: 0, refinementBits: 0);
 
@@ -58,10 +69,11 @@ public sealed class AdditionalEncoderSamplingTests
             {
                 byte[] jpeg = Encode(pixels, width, height, PixelLayout.Rgb24, options with
                 {
-                    Progressive = progressive, ProgressiveRefinementBits = refinement,
+                    Progressive = progressive,
+                    ProgressiveRefinementBits = refinement,
                     RestartInterval = interval
                 });
-                JpegDocument actual = JpegDocument.Read(jpeg, progressive, interval, refinement);
+                var actual = JpegDocument.Read(jpeg, progressive, interval, refinement);
                 AssertSampling(actual, width, height, horizontal, vertical);
                 AssertBaselineParity(baseline, reference, jpeg, actual, PixelLayout.Rgb24);
                 AssertDummyDcContinuity(actual, horizontal, vertical, interval, refinement);
@@ -84,18 +96,27 @@ public sealed class AdditionalEncoderSamplingTests
         const int width = 33, height = 17;
         byte[] pixels = new byte[width * height * 3];
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
-                Array.Fill(pixels, (byte)(32 + (11 * x + 19 * y + 7 * (x / 8) + 13 * (y / 8)) % 192),
-                    (y * width + x) * 3, 3);
+            {
+                Array.Fill(pixels, (byte)(32 + (((11 * x) + (19 * y) + (7 * (x / 8)) + (13 * (y / 8))) % 192)),
+                    ((y * width) + x) * 3, 3);
+            }
+        }
+
         foreach ((bool progressive, int refinement) in new[] { (false, 0), (true, 0), (true, 2) })
         {
             byte[] jpeg = Encode(pixels, width, height, PixelLayout.Rgb24, new()
             {
-                Quality = 90, Subsampling = sampling,
-                OptimizeHuffmanTables = optimize, AdaptiveQuantization = adaptive,
-                Progressive = progressive, ProgressiveRefinementBits = refinement, RestartInterval = 2
+                Quality = 90,
+                Subsampling = sampling,
+                OptimizeHuffmanTables = optimize,
+                AdaptiveQuantization = adaptive,
+                Progressive = progressive,
+                ProgressiveRefinementBits = refinement,
+                RestartInterval = 2
             });
-            JpegDocument document = JpegDocument.Read(jpeg, progressive, expectedInterval: 2, refinement);
+            var document = JpegDocument.Read(jpeg, progressive, expectedInterval: 2, refinement);
             AssertSampling(document, width, height, horizontal, vertical);
             AssertDummyDcContinuity(document, horizontal, vertical, interval: 2, refinement);
             int quantizer = document.Quantizers[document.Components[1].Quantizer][0];
@@ -104,12 +125,16 @@ public sealed class AdditionalEncoderSamplingTests
             {
                 double sum = 0;
                 for (int y = 0; y < 8; y++)
+                {
                     for (int x = 0; x < 8; x++)
-                        sum += pixels[(Math.Min(key.Y * 8 + y, height - 1) * width
-                            + Math.Min(key.X * 8 + x, width - 1)) * 3] - 128;
+                    {
+                        sum += pixels[((Math.Min((key.Y * 8) + y, height - 1) * width)
+                            + Math.Min((key.X * 8) + x, width - 1)) * 3] - 128;
+                    }
+                }
                 // DC is the sum / 8 before quantization. AQ leaves DC rounding
                 // unchanged; permit either neighbor at an exact half tie.
-                Assert.InRange(Math.Abs(block.Coefficients[0] - sum / (8 * quantizer)), 0, 0.501);
+                Assert.InRange(Math.Abs(block.Coefficients[0] - (sum / (8 * quantizer))), 0, 0.501);
             }
         }
     }
@@ -129,26 +154,35 @@ public sealed class AdditionalEncoderSamplingTests
             {
                 var options = new JpegliEncoderOptions
                 {
-                    Quality = 90, Subsampling = sampling, SmoothingFactor = 100,
-                    Progressive = progressive, ProgressiveRefinementBits = refinement,
-                    OptimizeHuffmanTables = optimize, RestartInterval = 2
+                    Quality = 90,
+                    Subsampling = sampling,
+                    SmoothingFactor = 100,
+                    Progressive = progressive,
+                    ProgressiveRefinementBits = refinement,
+                    OptimizeHuffmanTables = optimize,
+                    RestartInterval = 2
                 };
                 byte[] expected = Encode(compact, width, height, PixelLayout.Rgb24, options);
                 foreach (PixelLayout layout in new[] { PixelLayout.Rgb24, PixelLayout.Bgr24,
                     PixelLayout.Rgba32, PixelLayout.Bgra32 })
                 {
                     int channels = layout is PixelLayout.Rgba32 or PixelLayout.Bgra32 ? 4 : 3;
-                    int stride = width * channels + 13;
+                    int stride = (width * channels) + 13;
                     byte[] padded = PaddedPixels(compact, width, height, layout, stride);
                     byte[] actual = JpegliEncoder.Encode(padded, width, height, layout, options, stride,
                         cancellationToken: TestContext.Current.CancellationToken);
                     Assert.Equal(expected, actual);
-                    JpegDocument.Read(actual, progressive, expectedInterval: 2, refinement);
+                    _ = JpegDocument.Read(actual, progressive, expectedInterval: 2, refinement);
                     if (channels == 4)
                     {
                         for (int y = 0; y < height; y++)
+                        {
                             for (int x = 0; x < width; x++)
-                                padded[y * stride + x * channels + 3] ^= 0xff;
+                            {
+                                padded[(y * stride) + (x * channels) + 3] ^= 0xff;
+                            }
+                        }
+
                         Assert.Equal(expected, JpegliEncoder.Encode(padded, width, height, layout, options, stride,
                             cancellationToken: TestContext.Current.CancellationToken));
                     }
@@ -166,25 +200,33 @@ public sealed class AdditionalEncoderSamplingTests
         byte[] compact = Pattern(width, height, PixelLayout.Gray8);
         byte[] padded = PaddedPixels(compact, width, height, PixelLayout.Gray8, stride);
         foreach (bool optimize in new[] { false, true })
+        {
             foreach (bool adaptive in new[] { false, true })
+            {
                 foreach ((bool progressive, int refinement) in new[] { (false, 0), (true, 0), (true, 2) })
                 {
                     var options = new JpegliEncoderOptions
                     {
-                        Subsampling = ChromaSubsampling.None, SmoothingFactor = 73,
-                        OptimizeHuffmanTables = optimize, AdaptiveQuantization = adaptive,
-                        Progressive = progressive, ProgressiveRefinementBits = refinement, RestartInterval = 2
+                        Subsampling = ChromaSubsampling.None,
+                        SmoothingFactor = 73,
+                        OptimizeHuffmanTables = optimize,
+                        AdaptiveQuantization = adaptive,
+                        Progressive = progressive,
+                        ProgressiveRefinementBits = refinement,
+                        RestartInterval = 2
                     };
                     byte[] expected = Encode(compact, width, height, PixelLayout.Gray8, options);
                     byte[] actual = JpegliEncoder.Encode(padded, width, height, PixelLayout.Gray8,
                         options with { Subsampling = sampling }, stride,
                         cancellationToken: TestContext.Current.CancellationToken);
                     Assert.Equal(expected, actual);
-                    JpegDocument document = JpegDocument.Read(actual, progressive, expectedInterval: 2, refinement);
+                    var document = JpegDocument.Read(actual, progressive, expectedInterval: 2, refinement);
                     Component component = Assert.Single(document.Components).Value;
                     Assert.Equal((1, 1), (component.H, component.V));
                     Assert.DoesNotContain(document.Blocks.Values, block => block.IsDummy);
                 }
+            }
+        }
     }
 
     private static void AssertSampling(JpegDocument document, int width, int height, int horizontal, int vertical)
@@ -197,9 +239,9 @@ public sealed class AdditionalEncoderSamplingTests
         Assert.Equal((1, 1), (document.Components[3].H, document.Components[3].V));
         int mcuCount = Ceiling(width, 8 * horizontal) * Ceiling(height, 8 * vertical);
         Assert.Equal(mcuCount, document.McuCount);
-        Assert.Equal(mcuCount * (horizontal * vertical + 2), document.Blocks.Count);
+        Assert.Equal(mcuCount * ((horizontal * vertical) + 2), document.Blocks.Count);
         int lumaRealBlocks = Ceiling(width, 8) * Ceiling(height, 8);
-        Assert.Equal(mcuCount * horizontal * vertical - lumaRealBlocks,
+        Assert.Equal((mcuCount * horizontal * vertical) - lumaRealBlocks,
             document.Blocks.Count(pair => pair.Key.Component == 1 && pair.Value.IsDummy));
         Assert.DoesNotContain(document.Blocks, pair => pair.Key.Component != 1 && pair.Value.IsDummy);
     }
@@ -212,11 +254,15 @@ public sealed class AdditionalEncoderSamplingTests
         for (int mcu = 0; mcu < document.McuCount; mcu++)
         {
             if (interval != 0 && mcu % interval == 0)
+            {
                 previousDc = 0;
+            }
+
             for (int y = 0; y < vertical; y++)
+            {
                 for (int x = 0; x < horizontal; x++)
                 {
-                    var key = new BlockKey(1, mcu % columns * horizontal + x, mcu / columns * vertical + y);
+                    var key = new BlockKey(1, (mcu % columns * horizontal) + x, (mcu / columns * vertical) + y);
                     Block block = document.Blocks[key];
                     Assert.Equal((block.Coefficients[0] >> refinementBits) - (previousDc >> refinementBits),
                         block.DcDifference);
@@ -228,6 +274,7 @@ public sealed class AdditionalEncoderSamplingTests
                     }
                     previousDc = block.Coefficients[0];
                 }
+            }
         }
     }
 
@@ -236,24 +283,29 @@ public sealed class AdditionalEncoderSamplingTests
         int channels = layout == PixelLayout.Gray8 ? 1
             : layout is PixelLayout.Rgba32 or PixelLayout.Bgra32 ? 4 : 3;
         // Supply exactly the bytes the API requires, with no padding after the final row.
-        byte[] padded = Enumerable.Repeat((byte)0xe5, (height - 1) * stride + width * channels).ToArray();
+        byte[] padded = Enumerable.Repeat((byte)0xe5, ((height - 1) * stride) + (width * channels)).ToArray();
         bool bgr = layout is PixelLayout.Bgr24 or PixelLayout.Bgra32;
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
             {
-                int output = y * stride + x * channels;
+                int output = (y * stride) + (x * channels);
                 if (layout == PixelLayout.Gray8)
                 {
-                    padded[output] = compact[y * width + x];
+                    padded[output] = compact[(y * width) + x];
                     continue;
                 }
-                int input = (y * width + x) * 3;
+                int input = ((y * width) + x) * 3;
                 padded[output + (bgr ? 2 : 0)] = compact[input];
                 padded[output + 1] = compact[input + 1];
                 padded[output + (bgr ? 0 : 2)] = compact[input + 2];
                 if (channels == 4)
-                    padded[output + 3] = (byte)((17 * x + 29 * y) % 256);
+                {
+                    padded[output + 3] = (byte)(((17 * x) + (29 * y)) % 256);
+                }
             }
+        }
+
         return padded;
     }
 

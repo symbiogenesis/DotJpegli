@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using System.Runtime.InteropServices;
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class SimdQuantizationTests
 {
@@ -39,8 +39,8 @@ public sealed class SimdQuantizationTests
             {
                 table[i] = (ushort)random.Next(1, block < 24 ? 256 : 32768);
                 coefficients[i] = block < 24
-                    ? (float)(random.NextDouble() * 8192 - 4096)
-                    : MathF.ScaleB((float)(random.NextDouble() * 2 - 1), random.Next(-149, 129));
+                    ? (float)((random.NextDouble() * 8192) - 4096)
+                    : MathF.ScaleB((float)((random.NextDouble() * 2) - 1), random.Next(-149, 129));
                 multipliers[i] = (float)random.NextDouble() * 2.5f;
             }
             // Extra source storage is intentionally invalid: only 64 values
@@ -78,15 +78,18 @@ public sealed class SimdQuantizationTests
         {
             float strength = (float)random.NextDouble() * 3;
             float multiplier = (float)random.NextDouble() * 3;
-            float threshold = 0.59082f + strength * multiplier;
+            float threshold = 0.59082f + (strength * multiplier);
             if (threshold == MathF.FusedMultiplyAdd(strength, multiplier, 0.59082f))
+            {
                 continue;
+            }
+
             found++;
             float[] multipliers = Enumerable.Repeat(multiplier, 64).ToArray();
             multipliers[0] = 0;
             float[] boundaries = [MathF.BitDecrement(threshold), threshold, MathF.BitIncrement(threshold)];
             float[] coefficients = Enumerable.Range(0, 64).Select(i =>
-                (i % 2 == 0 ? 1 : -1) * boundaries[(i / 2) % 3]).ToArray();
+                (i % 2 == 0 ? 1 : -1) * boundaries[i / 2 % 3]).ToArray();
             foreach (Quantizer path in Paths)
             {
                 short[] actual = new short[64];
@@ -120,7 +123,7 @@ public sealed class SimdQuantizationTests
         [MathF.BitDecrement(threshold), threshold, MathF.BitIncrement(threshold),
             0.5f, 1.5f, 2.5f, 3.5f, MathF.BitDecrement(2.5f), MathF.BitIncrement(2.5f)];
         float[] coefficients = Enumerable.Range(0, 64).Select(i =>
-            (i % 2 == 0 ? 1 : -1) * boundaries[(i / 2) % boundaries.Length]).ToArray();
+            (i % 2 == 0 ? 1 : -1) * boundaries[i / 2 % boundaries.Length]).ToArray();
         foreach (Quantizer path in Paths)
         {
             short[] actual = new short[64];
@@ -138,12 +141,13 @@ public sealed class SimdQuantizationTests
     public void DivisionAndRoundingRemainExactNearHalfIntegersForNonPowerOfTwoTables()
     {
         foreach (ushort quantizer in new ushort[] { 3, 7, 11, 19, 31, 255, 256, 32767 })
+        {
             foreach (int integer in new[] { 0, 1, 2, 7, 63, 1023, 32766 })
             {
                 float center = (integer + 0.5f) * quantizer;
                 float[] values = [MathF.BitDecrement(center), center, MathF.BitIncrement(center)];
                 float[] coefficients = Enumerable.Range(0, 64).Select(i =>
-                    (i % 2 == 0 ? 1 : -1) * values[(i / 2) % 3]).ToArray();
+                    (i % 2 == 0 ? 1 : -1) * values[i / 2 % 3]).ToArray();
                 ushort[] table = Enumerable.Repeat(quantizer, 64).ToArray();
                 short[] expected = Reference(coefficients, table, 0, true, false, false, 0, [], 0);
                 foreach (Quantizer path in Paths)
@@ -153,6 +157,7 @@ public sealed class SimdQuantizationTests
                     Assert.Equal(expected, actual);
                 }
             }
+        }
     }
 
     [Fact]
@@ -163,6 +168,7 @@ public sealed class SimdQuantizationTests
         float[] multipliers = new float[64];
         multipliers[0] = 1.5f;
         foreach (float dc in new[] { -1.5f, -0.5f, 0.5f, 1.5f, 6.5f, 7.5f, 9f, 10.5f })
+        {
             foreach (Quantizer path in Paths)
             {
                 coefficients[0] = dc;
@@ -173,6 +179,7 @@ public sealed class SimdQuantizationTests
                     : (short)MathF.Round(dc, MidpointRounding.AwayFromZero);
                 Assert.Equal(expected, actual[0]);
             }
+        }
     }
 
     [Fact]
@@ -184,6 +191,7 @@ public sealed class SimdQuantizationTests
         ushort[] table = Enumerable.Repeat((ushort)1, 64).ToArray();
         float[] multipliers = Enumerable.Repeat(float.MaxValue, 64).ToArray();
         foreach (bool adaptive in new[] { false, true })
+        {
             foreach (Quantizer path in Paths)
             {
                 short[] actual = new short[64];
@@ -192,12 +200,14 @@ public sealed class SimdQuantizationTests
                 Assert.Equal(Reference(coefficients, table, 0, false, false, adaptive,
                     float.MaxValue, multipliers, 0), actual);
             }
+        }
     }
 
     [Fact]
     public void InvalidValuesPreserveFirstExceptionAndPrecedingWrites()
     {
         foreach (int position in Enumerable.Range(0, 64))
+        {
             foreach (int invalidKind in Enumerable.Range(0, 8))
             {
                 float[] coefficients = Enumerable.Repeat(17.25f, 64).ToArray();
@@ -205,14 +215,32 @@ public sealed class SimdQuantizationTests
                 float[] multipliers = Enumerable.Repeat(0.5f, 64).ToArray();
                 switch (invalidKind)
                 {
-                    case 0: table[position] = 0; break;
-                    case 1: table[position] = 32768; break;
-                    case 2: coefficients[position] = float.NaN; break;
-                    case 3: coefficients[position] = float.PositiveInfinity; break;
-                    case 4: coefficients[position] = float.NegativeInfinity; break;
-                    case 5: multipliers[position] = float.NaN; break;
-                    case 6: multipliers[position] = float.PositiveInfinity; break;
-                    case 7: multipliers[position] = -float.Epsilon; break;
+                    case 0:
+                        table[position] = 0;
+                        break;
+                    case 1:
+                        table[position] = 32768;
+                        break;
+                    case 2:
+                        coefficients[position] = float.NaN;
+                        break;
+                    case 3:
+                        coefficients[position] = float.PositiveInfinity;
+                        break;
+                    case 4:
+                        coefficients[position] = float.NegativeInfinity;
+                        break;
+                    case 5:
+                        multipliers[position] = float.NaN;
+                        break;
+                    case 6:
+                        multipliers[position] = float.PositiveInfinity;
+                        break;
+                    case 7:
+                        multipliers[position] = -float.Epsilon;
+                        break;
+                    default:
+                        break;
                 }
                 short[] expected = Enumerable.Repeat((short)-23456, 72).ToArray();
                 ArgumentException expectedError = Assert.ThrowsAny<ArgumentException>(() =>
@@ -230,19 +258,24 @@ public sealed class SimdQuantizationTests
                     Assert.Equal(expected, actual);
                 }
             }
+        }
     }
 
     [Fact]
     public void EightBitRangeChecksPrecedeLaterInvalidInputsAndPreserveWrittenPrefix()
     {
         foreach (int position in Enumerable.Range(0, 64))
+        {
             foreach (float value in new[] { -1024.5f, -1024f, -1023f, 1023f, 1023.5f, 1024f })
             {
                 float[] coefficients = Enumerable.Repeat(1f, 64).ToArray();
                 coefficients[position] = value;
                 ushort[] table = Enumerable.Repeat((ushort)1, 64).ToArray();
                 if (position < 63)
+                {
                     table[position + 1] = 0;
+                }
+
                 short[] expected = Enumerable.Repeat((short)-23456, 64).ToArray();
                 Exception? expectedError = Record.Exception(() =>
                     Invoke(Paths[0], coefficients, table, expected, requireEightBit: true));
@@ -256,6 +289,7 @@ public sealed class SimdQuantizationTests
                     Assert.Equal(expected, actual);
                 }
             }
+        }
     }
 
     [Theory]
@@ -316,8 +350,11 @@ public sealed class SimdQuantizationTests
             Assert.Equal("component", Assert.Throws<ArgumentOutOfRangeException>(() =>
                 Invoke(path, coefficients, table, output, component: 1, grayscale: true)).ParamName);
             foreach (float distance in new[] { 0f, -1f, float.NaN, float.PositiveInfinity })
+            {
                 Assert.Equal("distance", Assert.Throws<ArgumentOutOfRangeException>(() =>
                     path(coefficients, table, output, 0, distance, false, false, 0, [], 0, false, false)).ParamName);
+            }
+
             Assert.Equal("coefficients", Assert.Throws<ArgumentException>(() =>
                 Invoke(path, coefficients.AsSpan(0, 63), table, output)).ParamName);
             Assert.Equal("table", Assert.Throws<ArgumentException>(() =>
@@ -325,9 +362,12 @@ public sealed class SimdQuantizationTests
             Assert.Equal("output", Assert.Throws<ArgumentException>(() =>
                 Invoke(path, coefficients, table, output.AsSpan(0, 63))).ParamName);
             foreach (float strength in new[] { -float.Epsilon, float.NaN, float.PositiveInfinity })
+            {
                 Assert.Equal("adaptiveStrength", Assert.Throws<ArgumentOutOfRangeException>(() =>
                     Invoke(path, coefficients, table, output, adaptive: true,
                         strength: strength, multipliers: multipliers)).ParamName);
+            }
+
             Assert.Equal("adaptiveMultipliers", Assert.Throws<ArgumentException>(() =>
                 Invoke(path, coefficients, table, output, adaptive: true, multipliers: multipliers.AsSpan(0, 63))).ParamName);
             Assert.All(output, value => Assert.Equal((short)-23456, value));

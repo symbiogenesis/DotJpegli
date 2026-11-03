@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class ProgressiveEntropyTests
 {
@@ -10,7 +10,7 @@ public sealed class ProgressiveEntropyTests
     {
         using var stream = new MemoryStream();
         var writer = new BitWriter(stream);
-        HuffmanTable dc = HuffmanTable.CreateDefault(false, false);
+        var dc = HuffmanTable.CreateDefault(false, false);
         short[] block = new short[64];
         int previous = 0;
 
@@ -35,7 +35,7 @@ public sealed class ProgressiveEntropyTests
     {
         using var stream = new MemoryStream();
         var writer = new BitWriter(stream);
-        HuffmanTable ac = HuffmanTable.CreateDefault(true, false);
+        var ac = HuffmanTable.CreateDefault(true, false);
         short[] block = new short[64];
 
         ProgressiveEntropyEncoder.WriteAc(writer, block, ac);
@@ -154,7 +154,7 @@ public sealed class ProgressiveEntropyTests
     {
         long[] tableFrequencies = new long[256];
         tableFrequencies[symbol] = 1;
-        HuffmanTable ac = HuffmanTable.CreateOptimized(tableFrequencies);
+        var ac = HuffmanTable.CreateOptimized(tableFrequencies);
         Assert.Equal(new byte[] { (byte)symbol }, ac.Symbols);
         Assert.Equal(1, ac.Counts[0]); // The only symbol gets the one-bit code 0.
         using var stream = new MemoryStream();
@@ -208,7 +208,7 @@ public sealed class ProgressiveEntropyTests
         Assert.Equal(1, frequencies[0xe1]);
         Assert.Equal(6, frequencies.Sum());
 
-        HuffmanTable ac = HuffmanTable.CreateOptimized(frequencies);
+        var ac = HuffmanTable.CreateOptimized(frequencies);
         using var stream = new MemoryStream();
         var writer = new BitWriter(stream);
         int pending = 0;
@@ -244,12 +244,12 @@ public sealed class ProgressiveEntropyTests
         long[] tableFrequencies = new long[256];
         tableFrequencies[0xe0] = 2;
         tableFrequencies[0] = 1;
-        HuffmanTable ac = HuffmanTable.CreateOptimized(tableFrequencies);
+        var ac = HuffmanTable.CreateOptimized(tableFrequencies);
         using var stream = new MemoryStream();
         var writer = new BitWriter(stream);
         int pending = 0;
         int frequencyPending = 0;
-        for (int index = 0; index < 2 * 32767 + 1; index++)
+        for (int index = 0; index < (2 * 32767) + 1; index++)
         {
             ProgressiveEntropyEncoder.WriteAc(writer, block, ac, ref pending);
             ProgressiveEntropyEncoder.AccumulateAcFrequencies(block, frequencies, ref frequencyPending);
@@ -287,7 +287,7 @@ public sealed class ProgressiveEntropyTests
     {
         short[] block = new short[64];
         long[] frequencies = new long[256];
-        HuffmanTable ac = HuffmanTable.CreateDefault(true, false);
+        var ac = HuffmanTable.CreateDefault(true, false);
         using var stream = new MemoryStream();
         var writer = new BitWriter(stream);
         int pending = 0;
@@ -328,9 +328,9 @@ public sealed class ProgressiveEntropyTests
         var writer = new BitWriter(stream);
         int pending = 7;
         int frequencyPending = 7;
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             ProgressiveEntropyEncoder.WriteAc(writer, block, HuffmanTable.CreateDefault(true, false), ref pending));
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             ProgressiveEntropyEncoder.AccumulateAcFrequencies(block, frequencies, ref frequencyPending));
         writer.Flush();
         Assert.Empty(stream.ToArray());
@@ -351,9 +351,9 @@ public sealed class ProgressiveEntropyTests
         var writer = new BitWriter(stream);
         int pending = 7;
         int frequencyPending = 7;
-        Assert.Throws<ArgumentException>(() =>
+        _ = Assert.Throws<ArgumentException>(() =>
             ProgressiveEntropyEncoder.WriteAc(writer, block, HuffmanTable.CreateDefault(true, false), ref pending));
-        Assert.Throws<ArgumentException>(() =>
+        _ = Assert.Throws<ArgumentException>(() =>
             ProgressiveEntropyEncoder.AccumulateAcFrequencies(block, frequencies, ref frequencyPending));
         writer.Flush();
         Assert.Empty(stream.ToArray());
@@ -372,15 +372,15 @@ public sealed class ProgressiveEntropyTests
         long[] frequencies = new long[256];
         using var stream = new MemoryStream();
         var writer = new BitWriter(stream);
-        HuffmanTable ac = HuffmanTable.CreateDefault(true, false);
+        var ac = HuffmanTable.CreateDefault(true, false);
         int pending = initialPending;
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             ProgressiveEntropyEncoder.WriteAc(writer, block, ac, ref pending));
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             ProgressiveEntropyEncoder.AccumulateAcFrequencies(block, frequencies, ref pending));
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             ProgressiveEntropyEncoder.FlushAc(writer, ac, ref pending));
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             ProgressiveEntropyEncoder.FlushAcFrequencies(frequencies, ref pending));
         writer.Flush();
         Assert.Empty(stream.ToArray());
@@ -394,7 +394,7 @@ public sealed class ProgressiveEntropyTests
         long[] frequencies = new long[256];
         frequencies[0x20] = long.MaxValue;
         int pending = 7;
-        Assert.Throws<OverflowException>(() =>
+        _ = Assert.Throws<OverflowException>(() =>
             ProgressiveEntropyEncoder.FlushAcFrequencies(frequencies, ref pending));
         Assert.Equal(7, pending);
         Assert.Equal(long.MaxValue, frequencies[0x20]);
@@ -427,10 +427,10 @@ public sealed class ProgressiveEntropyTests
         int original = previous;
         long[] frequencies = new long[256];
 
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             ProgressiveEntropyEncoder.WriteDc(writer, block, ref previous,
                 HuffmanTable.CreateDefault(false, false)));
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             ProgressiveEntropyEncoder.AccumulateDcFrequencies(block, ref previous, frequencies));
 
         writer.Flush();
@@ -451,9 +451,9 @@ public sealed class ProgressiveEntropyTests
         block[JpegConstants.ZigZag[63]] = value;
         long[] frequencies = new long[256];
 
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             ProgressiveEntropyEncoder.WriteAc(writer, block, HuffmanTable.CreateDefault(true, false)));
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             ProgressiveEntropyEncoder.AccumulateAcFrequencies(block, frequencies));
 
         writer.Flush();
@@ -473,14 +473,14 @@ public sealed class ProgressiveEntropyTests
         int previous = 0;
         long[] frequencies = new long[256];
 
-        Assert.Throws<ArgumentException>(() =>
+        _ = Assert.Throws<ArgumentException>(() =>
             ProgressiveEntropyEncoder.WriteDc(writer, block, ref previous,
                 HuffmanTable.CreateDefault(false, false)));
-        Assert.Throws<ArgumentException>(() =>
+        _ = Assert.Throws<ArgumentException>(() =>
             ProgressiveEntropyEncoder.WriteAc(writer, block, HuffmanTable.CreateDefault(true, false)));
-        Assert.Throws<ArgumentException>(() =>
+        _ = Assert.Throws<ArgumentException>(() =>
             ProgressiveEntropyEncoder.AccumulateDcFrequencies(block, ref previous, frequencies));
-        Assert.Throws<ArgumentException>(() =>
+        _ = Assert.Throws<ArgumentException>(() =>
             ProgressiveEntropyEncoder.AccumulateAcFrequencies(block, frequencies));
     }
 
@@ -493,7 +493,7 @@ public sealed class ProgressiveEntropyTests
         frequencies[1] = long.MaxValue;
         int previous = 0;
 
-        Assert.Throws<OverflowException>(() =>
+        _ = Assert.Throws<OverflowException>(() =>
             ProgressiveEntropyEncoder.AccumulateDcFrequencies(block, ref previous, frequencies));
         Assert.Equal(0, previous);
         Assert.Equal(long.MaxValue, frequencies[1]);

@@ -1,10 +1,10 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using DotJpegli.Internal;
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderIccTransferFunctionTests
 {
@@ -28,6 +28,7 @@ public sealed class EncoderIccTransferFunctionTests
             options with { InferCicpTransferFunctionFromIccProfile = true })));
 
         for (int code = 0; code <= 255; code++)
+        {
             if (code != 2)
             {
                 JpegliEncoderOptions explicitHint = options with { CicpTransferFunction = code };
@@ -35,6 +36,7 @@ public sealed class EncoderIccTransferFunctionTests
                     Encode(pixels, 9, 9, PixelComponentLayout.Rgb,
                         explicitHint with { InferCicpTransferFunctionFromIccProfile = true }));
             }
+        }
     }
 
     [Fact]
@@ -59,7 +61,7 @@ public sealed class EncoderIccTransferFunctionTests
     [InlineData(16, 65_511)]
     [InlineData(18, 65_517)]
     [InlineData(16, IccChunkBytes)]
-    [InlineData(18, 2 * IccChunkBytes - 6)]
+    [InlineData(18, (2 * IccChunkBytes) - 6)]
     public void TagOffsetsAndPayloadsAcrossApp2BoundariesUseTheWholeSlicedProfile(int transfer, int offset)
     {
         byte[] profile = Profile(transfer, offset);
@@ -67,8 +69,12 @@ public sealed class EncoderIccTransferFunctionTests
         byte[] before = slice.ToArray();
         var options = new JpegliEncoderOptions
         {
-            IccProfile = slice, InferCicpTransferFunctionFromIccProfile = true,
-            Distance = 2.375f, Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 1
+            IccProfile = slice,
+            InferCicpTransferFunctionFromIccProfile = true,
+            Distance = 2.375f,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 1
         };
         byte[] pixels = Pattern(9, 9, PixelLayout.YCbCr24);
         byte[] actual = Encode(pixels, 9, 9, PixelComponentLayout.YCbCr, options);
@@ -84,11 +90,12 @@ public sealed class EncoderIccTransferFunctionTests
     public void TagDirectoryMayExtendPastTheFirstApp2Chunk()
     {
         const int count = 5500;
-        byte[] profile = Profile(18, 132 + count * 12 + 7, count);
-        Assert.True(132 + (count - 1) * 12 > IccChunkBytes);
+        byte[] profile = Profile(18, 132 + (count * 12) + 7, count);
+        Assert.True(132 + ((count - 1) * 12) > IccChunkBytes);
         var options = new JpegliEncoderOptions
         {
-            IccProfile = SlicedProfile(profile), InferCicpTransferFunctionFromIccProfile = true,
+            IccProfile = SlicedProfile(profile),
+            InferCicpTransferFunctionFromIccProfile = true,
             Distance = 2.375f
         };
         byte[] pixels = Pattern(9, 9, PixelLayout.Rgb24);
@@ -105,7 +112,7 @@ public sealed class EncoderIccTransferFunctionTests
     public void DeclaredTagSizeOnlyRequiresTheFirstTwelvePayloadBytes(uint size)
     {
         byte[] profile = Profile(16);
-        WriteUInt32(profile, 132 + 2 * 12 + 8, size);
+        WriteUInt32(profile, 132 + (2 * 12) + 8, size);
         Assert.Equal(220, profile.Length);
         Assert.Equal(16, IccProfile.LookupTransferFunction(profile,
             TestContext.Current.CancellationToken));
@@ -157,9 +164,14 @@ public sealed class EncoderIccTransferFunctionTests
         WriteEntry(profile, 3, "cicp"u8, 256, kind == "short size" ? 11u : 12u);
         WriteTag(profile, 256, kind == "unspecified" ? 2 : 18);
         if (kind == "outside profile")
-            WriteUInt32(profile, 132 + 3 * 12 + 4, uint.MaxValue);
+        {
+            WriteUInt32(profile, 132 + (3 * 12) + 4, uint.MaxValue);
+        }
         else if (kind == "wrong payload signature")
+        {
             profile[256] = (byte)'C';
+        }
+
         Assert.Equal(expectedTransfer, IccProfile.LookupTransferFunction(profile,
             TestContext.Current.CancellationToken));
         var options = new JpegliEncoderOptions { IccProfile = profile, Distance = 2.375f };
@@ -194,9 +206,9 @@ public sealed class EncoderIccTransferFunctionTests
         int kind, PixelComponentLayout layout, int transfer)
     {
         const int width = 19, height = 17;
-        int stride = width * Components(layout) + 7;
+        int stride = (width * Components(layout)) + 7;
         Array pixels = Source(kind, width, height, layout, stride);
-        Array before = (Array)pixels.Clone();
+        var before = (Array)pixels.Clone();
         foreach ((bool progressive, int bits, bool optimize) in new[]
         {
             (false, 0, false), (true, 0, true), (true, 3, false)
@@ -204,9 +216,14 @@ public sealed class EncoderIccTransferFunctionTests
         {
             var options = new JpegliEncoderOptions
             {
-                IccProfile = SlicedProfile(Profile(transfer)), InferCicpTransferFunctionFromIccProfile = true,
-                Distance = 2.375f, Progressive = progressive, ProgressiveRefinementBits = bits,
-                OptimizeHuffmanTables = optimize, RestartInterval = 2, SmoothingFactor = 37,
+                IccProfile = SlicedProfile(Profile(transfer)),
+                InferCicpTransferFunctionFromIccProfile = true,
+                Distance = 2.375f,
+                Progressive = progressive,
+                ProgressiveRefinementBits = bits,
+                OptimizeHuffmanTables = optimize,
+                RestartInterval = 2,
+                SmoothingFactor = 37,
                 SamplingFactors = new(new(2, 2), new(2, 1), new(1, 1))
             };
             byte[] actual = Encode(pixels, width, height, layout, options, stride);
@@ -215,7 +232,7 @@ public sealed class EncoderIccTransferFunctionTests
             Assert.False(actual.SequenceEqual(Encode(pixels, width, height, layout,
                 options with { InferCicpTransferFunctionFromIccProfile = false }, stride)));
             Assert.Equal(options.IccProfile.ToArray(), ReassembleIcc(actual));
-            ImageResult decoded = ImageResult.FromMemory(actual, layout == PixelComponentLayout.Gray
+            var decoded = ImageResult.FromMemory(actual, layout == PixelComponentLayout.Gray
                 ? ColorComponents.Grey : ColorComponents.RedGreenBlue);
             Assert.Equal((width, height), (decoded.Width, decoded.Height));
         }
@@ -234,32 +251,40 @@ public sealed class EncoderIccTransferFunctionTests
         const float strength = 0.0467278957f, defaultCrMultiplier = 0.607888103f;
         foreach (bool selectorProbe in new[] { false, true })
         {
-            double correct = 0.57988f + strength * crMultiplier;
-            double wrong = 0.57988f + strength * (selectorProbe ? wrongSelectorMultiplier : defaultCrMultiplier);
+            double correct = 0.57988f + (strength * crMultiplier);
+            double wrong = 0.57988f + (strength * (selectorProbe ? wrongSelectorMultiplier : defaultCrMultiplier));
             double amplitude = (correct + wrong) / 2d * 3d / (4d * Math.Sqrt(2d));
             float[] pixels = new float[8 * 8 * 3];
             for (int row = 0; row < 8; row++)
+            {
                 for (int column = 0; column < 8; column++)
                 {
-                    int offset = (row * 8 + column) * 3;
+                    int offset = ((row * 8) + column) * 3;
                     pixels[offset] = pixels[offset + 1] = 128f / 255f;
-                    pixels[offset + 2] = (float)((128d + amplitude *
-                        Math.Cos(Math.PI * (2 * column + 1) / 16d)) / 255d);
+                    pixels[offset + 2] = (float)((128d + (amplitude *
+                        Math.Cos(Math.PI * ((2 * column) + 1) / 16d))) / 255d);
                 }
+            }
+
             foreach (bool progressive in new[] { false, true })
             {
                 var options = new JpegliEncoderOptions
                 {
-                    IccProfile = Profile(transfer), InferCicpTransferFunctionFromIccProfile = true,
-                    UseStandardQuantizationTables = true, Distance = 0.9f, Subsampling = ChromaSubsampling.None,
-                    Progressive = progressive, ProgressiveRefinementBits = progressive ? 2 : 0,
-                    OptimizeHuffmanTables = progressive, RestartInterval = 1
+                    IccProfile = Profile(transfer),
+                    InferCicpTransferFunctionFromIccProfile = true,
+                    UseStandardQuantizationTables = true,
+                    Distance = 0.9f,
+                    Subsampling = ChromaSubsampling.None,
+                    Progressive = progressive,
+                    ProgressiveRefinementBits = progressive ? 2 : 0,
+                    OptimizeHuffmanTables = progressive,
+                    RestartInterval = 1
                 };
                 byte[] actual = Encode(pixels, 8, 8, PixelComponentLayout.YCbCr, options);
                 Assert.Equal(Encode(pixels, 8, 8, PixelComponentLayout.YCbCr,
                     options with { InferCicpTransferFunctionFromIccProfile = false, CicpTransferFunction = transfer }), actual);
                 JpegDocument document = Read(actual, options);
-                Assert.Equal(new[] { 0, 1, 1 }, document.Components.Values.Select(component => component.Quantizer));
+                Assert.Equal([0, 1, 1], document.Components.Values.Select(component => component.Quantizer));
                 Assert.Equal(selectorProbe ? 1 : 0, document.Blocks[new(3, 0, 0)].Coefficients[1]);
                 if (!selectorProbe)
                 {
@@ -279,14 +304,19 @@ public sealed class EncoderIccTransferFunctionTests
         float[] pixels = Enumerable.Repeat(-0.1f, 64).ToArray();
         var options = new JpegliEncoderOptions
         {
-            IccProfile = Profile(transfer), Distance = 1f, AdaptiveQuantization = false,
-            AllowOutOfRangeFloatSamples = true, Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 1
+            IccProfile = Profile(transfer),
+            Distance = 1f,
+            AdaptiveQuantization = false,
+            AllowOutOfRangeFloatSamples = true,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 1
         };
         Assert.Equal(-614, Assert.Single(Read(Encode(pixels, 8, 8, PixelComponentLayout.Gray, options), options)
             .Blocks).Value.Coefficients[0]);
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
-        var error = Assert.Throws<ArgumentException>(() => Encode(output, pixels, 8, 8, PixelComponentLayout.Gray,
+        ArgumentException error = Assert.Throws<ArgumentException>(() => Encode(output, pixels, 8, 8, PixelComponentLayout.Gray,
             options with { InferCicpTransferFunctionFromIccProfile = true }, TestContext.Current.CancellationToken));
         Assert.Equal("pixels", error.ParamName);
         Assert.Equal(0, destination.Length);
@@ -297,17 +327,18 @@ public sealed class EncoderIccTransferFunctionTests
     [Fact]
     public void LookupAndEncodingHonorPreCancellationBeforeOutput()
     {
-        byte[] profile = Profile(18, 132 + 5500 * 12 + 3, 5500);
+        byte[] profile = Profile(18, 132 + (5500 * 12) + 3, 5500);
         var canceled = new CancellationToken(true);
-        var lookupError = Assert.Throws<OperationCanceledException>(() =>
+        OperationCanceledException lookupError = Assert.Throws<OperationCanceledException>(() =>
             IccProfile.LookupTransferFunction(profile, canceled));
         Assert.Equal(canceled, lookupError.CancellationToken);
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
-        var error = Assert.Throws<OperationCanceledException>(() => Encode(output, new byte[] { 255, 0, 0 },
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() => Encode(output, new byte[] { 255, 0, 0 },
             1, 1, PixelComponentLayout.Rgb, new()
             {
-                IccProfile = profile, InferCicpTransferFunctionFromIccProfile = true
+                IccProfile = profile,
+                InferCicpTransferFunctionFromIccProfile = true
             }, canceled));
         Assert.Equal(canceled, error.CancellationToken);
         Assert.Equal(0, destination.Length);
@@ -317,12 +348,16 @@ public sealed class EncoderIccTransferFunctionTests
     [Fact]
     public void NonSeekableEncodingPreservesIccBytesAndCancellationBetweenChunks()
     {
-        byte[] profile = Profile(16, 2 * IccChunkBytes + 7);
+        byte[] profile = Profile(16, (2 * IccChunkBytes) + 7);
         byte[] pixels = Pattern(19, 17, PixelLayout.Rgb24);
         var options = new JpegliEncoderOptions
         {
-            IccProfile = SlicedProfile(profile), InferCicpTransferFunctionFromIccProfile = true,
-            Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2, Comment = "after ICC"
+            IccProfile = SlicedProfile(profile),
+            InferCicpTransferFunctionFromIccProfile = true,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2,
+            Comment = "after ICC"
         };
         byte[] complete = Encode(pixels, 19, 17, PixelComponentLayout.Rgb, options);
         using var destination = new MemoryStream();
@@ -339,9 +374,11 @@ public sealed class EncoderIccTransferFunctionTests
         using var partialOutput = new WriteOnlyStream(partial, () =>
         {
             if (partial.Length >= firstChunkEnd)
+            {
                 cancellation.Cancel();
+            }
         });
-        var error = Assert.Throws<OperationCanceledException>(() => Encode(partialOutput, pixels, 19, 17,
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() => Encode(partialOutput, pixels, 19, 17,
             PixelComponentLayout.Rgb, options, cancellation.Token));
         Assert.Equal(cancellation.Token, error.CancellationToken);
         Assert.Equal(firstChunkEnd, partial.Length);
@@ -351,7 +388,7 @@ public sealed class EncoderIccTransferFunctionTests
 
     private static byte[] Profile(int transfer, int offset = 208, int count = 3)
     {
-        byte[] profile = Enumerable.Repeat((byte)0xa7, Math.Max(132 + count * 12, offset + 12)).ToArray();
+        byte[] profile = Enumerable.Repeat((byte)0xa7, Math.Max(132 + (count * 12), offset + 12)).ToArray();
         WriteUInt32(profile, 128, (uint)count);
         WriteEntry(profile, 0, "abcd"u8, uint.MaxValue, uint.MaxValue);
         WriteEntry(profile, count - 1, "cicp"u8, (uint)offset, 12);
@@ -361,7 +398,7 @@ public sealed class EncoderIccTransferFunctionTests
 
     private static void WriteEntry(byte[] profile, int index, ReadOnlySpan<byte> signature, uint offset, uint size)
     {
-        int start = 132 + index * 12;
+        int start = 132 + (index * 12);
         signature.CopyTo(profile.AsSpan(start, 4));
         WriteUInt32(profile, start + 4, offset);
         WriteUInt32(profile, start + 8, size);
@@ -389,27 +426,59 @@ public sealed class EncoderIccTransferFunctionTests
     private static byte[] MalformedProfile(string kind)
     {
         byte[] profile = Profile(16);
-        const int entry = 132 + 2 * 12;
+        const int entry = 132 + (2 * 12);
         switch (kind)
         {
-            case "empty": return [];
-            case "short header": return profile[..131];
-            case "no tags": WriteUInt32(profile, 128, 0); break;
-            case "no cicp entry": profile[entry] = (byte)'x'; break;
-            case "incomplete entry": WriteUInt32(profile, 128, 1); return profile[..143];
-            case "incomplete table": WriteUInt32(profile, 128, 8); break;
-            case "maximum count": WriteUInt32(profile, 128, uint.MaxValue); break;
-            case "overflowing count": WriteUInt32(profile, 128, 0x40000003); break;
-            case "short declared size": WriteUInt32(profile, entry + 8, 11); break;
-            case "zero declared size": WriteUInt32(profile, entry + 8, 0); break;
-            case "maximum offset": WriteUInt32(profile, entry + 4, uint.MaxValue); break;
-            case "offset at end": WriteUInt32(profile, entry + 4, (uint)profile.Length); break;
-            case "offset after end": WriteUInt32(profile, entry + 4, (uint)profile.Length + 1); break;
-            case "eleven payload bytes": WriteUInt32(profile, entry + 4, (uint)profile.Length - 11); break;
-            case "truncated payload": return profile[..^1];
-            case "wrong payload signature": profile[208] = (byte)'C'; break;
-            case "wrong entry signature": profile[entry] = (byte)'C'; break;
-            default: throw new ArgumentOutOfRangeException(nameof(kind));
+            case "empty":
+                return [];
+            case "short header":
+                return profile[..131];
+            case "no tags":
+                WriteUInt32(profile, 128, 0);
+                break;
+            case "no cicp entry":
+                profile[entry] = (byte)'x';
+                break;
+            case "incomplete entry":
+                WriteUInt32(profile, 128, 1);
+                return profile[..143];
+            case "incomplete table":
+                WriteUInt32(profile, 128, 8);
+                break;
+            case "maximum count":
+                WriteUInt32(profile, 128, uint.MaxValue);
+                break;
+            case "overflowing count":
+                WriteUInt32(profile, 128, 0x40000003);
+                break;
+            case "short declared size":
+                WriteUInt32(profile, entry + 8, 11);
+                break;
+            case "zero declared size":
+                WriteUInt32(profile, entry + 8, 0);
+                break;
+            case "maximum offset":
+                WriteUInt32(profile, entry + 4, uint.MaxValue);
+                break;
+            case "offset at end":
+                WriteUInt32(profile, entry + 4, (uint)profile.Length);
+                break;
+            case "offset after end":
+                WriteUInt32(profile, entry + 4, (uint)profile.Length + 1);
+                break;
+            case "eleven payload bytes":
+                WriteUInt32(profile, entry + 4, (uint)profile.Length - 11);
+                break;
+            case "truncated payload":
+                return profile[..^1];
+            case "wrong payload signature":
+                profile[208] = (byte)'C';
+                break;
+            case "wrong entry signature":
+                profile[entry] = (byte)'C';
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(kind));
         }
         return profile;
     }
@@ -424,7 +493,10 @@ public sealed class EncoderIccTransferFunctionTests
             Assert.Equal(0xff, jpeg[position]);
             int marker = jpeg[position + 1];
             if (marker == 0xda)
+            {
                 break;
+            }
+
             int length = (jpeg[position + 2] << 8) | jpeg[position + 3];
             Assert.InRange(length, 2, jpeg.Length - position - 2);
             if (marker == 0xe2)
@@ -433,7 +505,10 @@ public sealed class EncoderIccTransferFunctionTests
                 Assert.True(payload[..12].SequenceEqual("ICC_PROFILE\0"u8));
                 Assert.Equal(expectedSequence++, payload[12]);
                 if (declaredCount == 0)
+                {
                     declaredCount = payload[13];
+                }
+
                 Assert.Equal(declaredCount, payload[13]);
                 profile.Write(payload[14..]);
             }
@@ -447,13 +522,17 @@ public sealed class EncoderIccTransferFunctionTests
     {
         PixelComponentLayout.Gray => 1,
         PixelComponentLayout.Rgba or PixelComponentLayout.Bgra => 4,
+        PixelComponentLayout.Rgb => 3,
+        PixelComponentLayout.Bgr => 3,
+        PixelComponentLayout.YCbCr => 3,
+        PixelComponentLayout.Xyb => 3,
         _ => 3
     };
 
     private static Array Source(int kind, int width, int height, PixelComponentLayout layout, int stride)
     {
         int components = Components(layout);
-        int length = (height - 1) * stride + width * components;
+        int length = ((height - 1) * stride) + (width * components);
         Array source = kind switch
         {
             0 => new byte[length],
@@ -461,19 +540,30 @@ public sealed class EncoderIccTransferFunctionTests
             _ => Enumerable.Repeat(float.NaN, length).ToArray()
         };
         for (int row = 0; row < height; row++)
+        {
             for (int column = 0; column < width; column++)
+            {
                 for (int channel = 0; channel < (layout == PixelComponentLayout.Gray ? 1 : 3); channel++)
                 {
                     int targetChannel = layout == PixelComponentLayout.Bgra ? 2 - channel : channel;
-                    int offset = row * stride + column * components + targetChannel;
-                    int value = 24 + (11 * column + 19 * row + 37 * channel) % 208;
+                    int offset = (row * stride) + (column * components) + targetChannel;
+                    int value = 24 + (((11 * column) + (19 * row) + (37 * channel)) % 208);
                     if (source is byte[] bytes)
+                    {
                         bytes[offset] = (byte)value;
+                    }
                     else if (source is ushort[] words)
-                        words[offset] = (ushort)(value * 257 + (column + row + channel) % 113);
+                    {
+                        words[offset] = (ushort)((value * 257) + ((column + row + channel) % 113));
+                    }
                     else
-                        ((float[])source)[offset] = (value + (column + row + channel) % 113 / 257f) / 255f;
+                    {
+                        ((float[])source)[offset] = (value + ((column + row + channel) % 113 / 257f)) / 255f;
+                    }
                 }
+            }
+        }
+
         return source;
     }
 
@@ -496,14 +586,21 @@ public sealed class EncoderIccTransferFunctionTests
                 PixelComponentLayout.YCbCr => PixelLayout.YCbCr24,
                 PixelComponentLayout.Rgba => PixelLayout.Rgba32,
                 PixelComponentLayout.Bgra => PixelLayout.Bgra32,
+                PixelComponentLayout.Rgb => PixelLayout.Rgb24,
+                PixelComponentLayout.Bgr => PixelLayout.Rgb24,
+                PixelComponentLayout.Xyb => PixelLayout.Rgb24,
                 _ => PixelLayout.Rgb24
             };
             JpegliEncoder.Encode(output, bytes, width, height, byteLayout, options, stride, cancellationToken);
         }
         else if (pixels is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, layout, options, stride, cancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])pixels, width, height, layout, options, stride, cancellationToken);
+        }
     }
 
     private static JpegDocument Read(byte[] jpeg, JpegliEncoderOptions options) =>

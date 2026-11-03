@@ -5,7 +5,10 @@ internal sealed record QualityMetrics(double RgbMse, double RgbPsnrDb, double Lu
     public static QualityMetrics Compare(PpmImage source, PpmImage decoded)
     {
         if (source.Width != decoded.Width || source.Height != decoded.Height)
+        {
             throw new InvalidDataException("Decoder changed image dimensions.");
+        }
+
         double squareError = 0;
         for (int index = 0; index < source.Pixels.Length; index++)
         {
@@ -27,18 +30,22 @@ internal sealed record QualityMetrics(double RgbMse, double RgbPsnrDb, double Lu
                 {
                     for (int x = left; x < Math.Min(left + 8, source.Width); x++)
                     {
-                        int offset = (y * source.Width + x) * 3;
+                        int offset = ((y * source.Width) + x) * 3;
                         double sx = Luma(source.Pixels, offset), sy = Luma(decoded.Pixels, offset);
-                        sumX += sx; sumY += sy; sumXX += sx * sx; sumYY += sy * sy; sumXY += sx * sy;
+                        sumX += sx;
+                        sumY += sy;
+                        sumXX += sx * sx;
+                        sumYY += sy * sy;
+                        sumXY += sx * sy;
                         count++;
                     }
                 }
                 double meanX = sumX / count, meanY = sumY / count;
-                double varianceX = Math.Max(0, sumXX / count - meanX * meanX);
-                double varianceY = Math.Max(0, sumYY / count - meanY * meanY);
-                double covariance = sumXY / count - meanX * meanY;
-                double ssim = ((2 * meanX * meanY + c1) * (2 * covariance + c2)) /
-                    ((meanX * meanX + meanY * meanY + c1) * (varianceX + varianceY + c2));
+                double varianceX = Math.Max(0, (sumXX / count) - (meanX * meanX));
+                double varianceY = Math.Max(0, (sumYY / count) - (meanY * meanY));
+                double covariance = (sumXY / count) - (meanX * meanY);
+                double ssim = ((2 * meanX * meanY) + c1) * ((2 * covariance) + c2) /
+                    (((meanX * meanX) + (meanY * meanY) + c1) * (varianceX + varianceY + c2));
                 ssimSum += ssim * count;
                 pixelCount += count;
             }
@@ -47,5 +54,5 @@ internal sealed record QualityMetrics(double RgbMse, double RgbPsnrDb, double Lu
     }
 
     private static double Luma(byte[] pixels, int offset) =>
-        .299 * pixels[offset] + .587 * pixels[offset + 1] + .114 * pixels[offset + 2];
+        (.299 * pixels[offset]) + (.587 * pixels[offset + 1]) + (.114 * pixels[offset + 2]);
 }

@@ -1,3 +1,5 @@
+namespace DotJpegli.Performance;
+
 using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
@@ -9,8 +11,6 @@ using System.Text;
 using System.Text.Json;
 using DotJpegli.Parity;
 
-namespace DotJpegli.Performance;
-
 internal static class Program
 {
     private const string UpstreamPin = "031a0077f5799a6041004267fc12b956c1f52a20";
@@ -21,13 +21,13 @@ internal static class Program
         string? output = null;
         try
         {
-            if (args.SequenceEqual(new[] { "--self-test" }))
+            if (args.SequenceEqual(["--self-test"]))
             {
                 SelfTest.Run();
                 Console.WriteLine("Performance evidence self-test passed (synthetic timings only; no benchmark executed).");
                 return 0;
             }
-            if (args.SequenceEqual(new[] { "--self-test-kernel-comparison" }))
+            if (args.SequenceEqual(["--self-test-kernel-comparison"]))
             {
                 KernelComparison.SelfTest();
                 Console.WriteLine("Kernel comparison self-test passed (synthetic samples only; no benchmark executed).");
@@ -35,66 +35,100 @@ internal static class Program
             }
             RequireCi();
             if (args.Contains("--compare-kernels", StringComparer.Ordinal))
+            {
                 return await KernelComparison.Run(args);
-            Options options = Options.Parse(args);
+            }
+
+            var options = Options.Parse(args);
             if (Directory.Exists(options.Output) && Directory.EnumerateFileSystemEntries(options.Output).Any())
+            {
                 throw new InvalidDataException("Evidence output directory must be empty to prevent stale evidence.");
-            Directory.CreateDirectory(options.Output);
+            }
+
+            _ = Directory.CreateDirectory(options.Output);
             output = options.Output;
             string inputs = Path.Combine(output, "inputs"), jpegs = Path.Combine(output, "jpegs");
-            Directory.CreateDirectory(inputs);
-            Directory.CreateDirectory(jpegs);
+            _ = Directory.CreateDirectory(inputs);
+            _ = Directory.CreateDirectory(jpegs);
             string worker = Path.Combine(Path.GetTempPath(), "DotJpegli-performance-native-" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(worker);
+            _ = Directory.CreateDirectory(worker);
             string nativeVersion = (await Native(options.Native, worker, output, "version")).Trim();
-            if (nativeVersion != UpstreamPin) throw new InvalidDataException("Native encoder does not report the pinned upstream revision.");
-            var images = ReadCorpus(options.Corpus);
-            if (options.Diagnostic is { } selection) images = images.Where(image => selection.Images.Contains(image.Id, StringComparer.Ordinal)).ToList();
+            if (nativeVersion != UpstreamPin)
+            {
+                throw new InvalidDataException("Native encoder does not report the pinned upstream revision.");
+            }
+
+            List<(string Id, string Category, string SourcePath, PpmImage Image)> images = ReadCorpus(options.Corpus);
+            if (options.Diagnostic is { } selection)
+            {
+                images = images.Where(image => selection.Images.Contains(image.Id, StringComparer.Ordinal)).ToList();
+            }
+
             var sources = new List<SourceImage>();
             var cases = new List<CaseResult>();
             Policy policy = options.Diagnostic?.Policy ?? new Policy();
             int expectedCases = options.Diagnostic?.ExpectedCases ?? 256;
-            var configurations = from sampling in options.Diagnostic?.Samplings ?? Evidence.Samplings
-                                 from progression in options.Diagnostic?.Progressions ?? Evidence.Progressions
-                                 from distance in options.Diagnostic?.Distances ?? Evidence.Distances
-                                 select (sampling, progression, distance);
+            IEnumerable<(int sampling, int progression, float distance)> configurations = from sampling in options.Diagnostic?.Samplings ?? Evidence.Samplings
+                                                                                          from progression in options.Diagnostic?.Progressions ?? Evidence.Progressions
+                                                                                          from distance in options.Diagnostic?.Distances ?? Evidence.Distances
+                                                                                          select (sampling, progression, distance);
             object environment = EnvironmentDetails();
             await WriteJson(output, "run.json", new
             {
-                schemaVersion = 1, startedAtUtc = DateTimeOffset.UtcNow, expectedCases, diagnostic = options.Diagnostic, upstreamPin = UpstreamPin,
+                schemaVersion = 1,
+                startedAtUtc = DateTimeOffset.UtcNow,
+                expectedCases,
+                diagnostic = options.Diagnostic,
+                upstreamPin = UpstreamPin,
                 testedRevision = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA"),
                 githubRunId = Environment.GetEnvironmentVariable("GITHUB_RUN_ID"),
-                nativeExecutableSha256 = HashFile(options.Native), managedEncoderSha256 = HashFile(typeof(JpegliEncoder).Assembly.Location),
+                nativeExecutableSha256 = HashFile(options.Native),
+                managedEncoderSha256 = HashFile(typeof(JpegliEncoder).Assembly.Location),
                 managedRunnerSha256 = HashFile(Assembly.GetExecutingAssembly().Location),
-                corpusManifestSha256 = HashFile(Path.Combine(AppContext.BaseDirectory, "corpus.json")), policy, environment
+                corpusManifestSha256 = HashFile(Path.Combine(AppContext.BaseDirectory, "corpus.json")),
+                policy,
+                environment
             });
-            await WriteJson(output, "summary.json", new { schemaVersion = 1, mode = options.Diagnostic is null ? "acceptance" : "diagnostic", status = "incomplete", valid = false, passed = (bool?)null,
-                runMetadata = "run.json", progress = "progress.json", rawMeasurements = "cases.json" });
+            await WriteJson(output, "summary.json", new
+            {
+                schemaVersion = 1,
+                mode = options.Diagnostic is null ? "acceptance" : "diagnostic",
+                status = "incomplete",
+                valid = false,
+                passed = (bool?)null,
+                runMetadata = "run.json",
+                progress = "progress.json",
+                rawMeasurements = "cases.json"
+            });
             await File.WriteAllTextAsync(Path.Combine(output, "report.md"),
                 (options.Diagnostic is null ? "# Performance parity: INCOMPLETE\n\n" : "# Targeted performance diagnostic: INCOMPLETE\n\n") +
                 "Measurement has not completed; no passing parity verdict is available. " +
                 "run.json retains the machine, policy and executable identities; progress.json and cases.json retain completed work.\n");
-            foreach (var (id, category, sourcePath, image) in images)
+            foreach ((string? id, string? category, string? sourcePath, PpmImage? image) in images)
             {
                 string input = Path.Combine(inputs, id + ".ppm");
                 image.Write(input);
                 sources.Add(new(id, category, sourcePath, HashFile(input), Hash(image.Pixels), image.Width, image.Height));
                 await WriteJson(output, "sources.json", sources);
-                foreach (var (sampling, progression, distance) in configurations)
+                foreach ((int sampling, int progression, float distance) in configurations)
                 {
                     int caseIndex = cases.Count;
                     var settings = new JpegliEncoderOptions
                     {
-                        ColorSpace = JpegColorSpace.YCbCr, Distance = distance, ProgressiveLevel = progression,
+                        ColorSpace = JpegColorSpace.YCbCr,
+                        Distance = distance,
+                        ProgressiveLevel = progression,
                         Subsampling = sampling == 444 ? ChromaSubsampling.None : ChromaSubsampling.Quarter,
-                        OptimizeHuffmanTables = true, AdaptiveQuantization = true, ForceBaseline = true,
+                        OptimizeHuffmanTables = true,
+                        AdaptiveQuantization = true,
+                        ForceBaseline = true,
                         MaxDegreeOfParallelism = policy.ManagedWorkers
                     };
                     string stem = $"{id}_{sampling}_p{progression}_d{distance.ToString("0", CultureInfo.InvariantCulture)}";
                     string managedPath = Path.Combine(jpegs, stem + "_managed.jpg"), nativePath = Path.Combine(jpegs, stem + "_native.jpg");
                     byte[] managedJpeg = Encode(image, settings);
                     await File.WriteAllBytesAsync(managedPath, managedJpeg);
-                    var calibration = await BenchmarkNative(options, worker, image, input, distance, sampling, progression, policy.MinimumIterations, policy);
+                    NativeSample calibration = await BenchmarkNative(options, worker, image, input, distance, sampling, progression, policy.MinimumIterations, policy);
                     int iterations = Evidence.Iterations(calibration.NsPerEncode, policy);
                     var blocks = new List<BlockSample>();
                     long nativeBytes = 0;
@@ -114,17 +148,28 @@ internal static class Program
                             managedSample = BenchmarkManaged(image, settings, managedJpeg, iterations, policy.Warmups);
                             nativeSample = await BenchmarkNative(options, worker, image, input, distance, sampling, progression, iterations, policy, nativePath);
                         }
-                        if (block != 0 && nativeSample.Bytes != nativeBytes) throw new InvalidDataException("Native byte count changed across independent blocks.");
+                        if (block != 0 && nativeSample.Bytes != nativeBytes)
+                        {
+                            throw new InvalidDataException("Native byte count changed across independent blocks.");
+                        }
+
                         string nativeHash = HashFile(nativePath);
                         if (expectedNativeHash is not null && nativeHash != expectedNativeHash)
+                        {
                             throw new InvalidDataException("Native JPEG bytes changed across independent blocks.");
+                        }
+
                         expectedNativeHash = nativeHash;
                         nativeBytes = nativeSample.Bytes;
                         blocks.Add(new(block, nativeFirst ? "native-managed" : "managed-native", managedSample.NsPerEncode, nativeSample.NsPerEncode,
                             managedSample.Gen0Collections, managedSample.Gen1Collections, managedSample.Gen2Collections, managedSample.AllocatedBytes));
                     }
                     byte[] nativeJpeg = await File.ReadAllBytesAsync(nativePath);
-                    if (nativeJpeg.LongLength != nativeBytes) throw new InvalidDataException("Retained native JPEG does not match measured output size.");
+                    if (nativeJpeg.LongLength != nativeBytes)
+                    {
+                        throw new InvalidDataException("Retained native JPEG does not match measured output size.");
+                    }
+
                     string? structure = JpegStructure.Compare(managedJpeg, nativeJpeg, image, sampling, progression);
                     TimingStatistics managedStats = Evidence.Statistics(blocks.Select(block => block.ManagedNsPerEncode).ToArray());
                     TimingStatistics nativeStats = Evidence.Statistics(blocks.Select(block => block.NativeNsPerEncode).ToArray());
@@ -138,24 +183,53 @@ internal static class Program
                 Console.WriteLine($"Measured {id} ({category}); {cases.Count}/{expectedCases} cases retained.");
             }
             if (options.Diagnostic is not null)
+            {
                 return await CompleteDiagnostic(options, cases, policy, expectedCases);
+            }
+
             Evaluation evaluation = Evidence.Evaluate(cases, policy);
             string status = !evaluation.Valid ? "invalid" : evaluation.Passed ? "passed" : "failed";
             var summary = new
             {
-                schemaVersion = 1, status, evaluation.Valid, evaluation.Passed,
-                coverageComplete = cases.Count == 256, stoppedAfterCounterexample = false,
+                schemaVersion = 1,
+                status,
+                evaluation.Valid,
+                evaluation.Passed,
+                coverageComplete = cases.Count == 256,
+                stoppedAfterCounterexample = false,
                 scope = "Encode latency noninferiority for RGB8 to YCbCr, Kodak24 and eight fixed controls, distances1/4, 444/420, progression0/2, one managed/native worker on this CI CPU; no universal speed claim",
-                upstreamPin = UpstreamPin, nativeVersion, testedRevision = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA"),
-                githubRevision = Environment.GetEnvironmentVariable("GITHUB_SHA"), githubRunId = Environment.GetEnvironmentVariable("GITHUB_RUN_ID"),
-                nativeExecutableSha256 = HashFile(options.Native), managedEncoderSha256 = HashFile(typeof(JpegliEncoder).Assembly.Location),
-                managedRunnerSha256 = HashFile(Assembly.GetExecutingAssembly().Location), corpusManifestSha256 = HashFile(Path.Combine(AppContext.BaseDirectory, "corpus.json")),
-                naturalImages = sources.Count(source => source.Category == "natural"), controlledImages = sources.Count(source => source.Category == "controlled"), cases = cases.Count,
-                distances = Evidence.Distances, samplings = Evidence.Samplings, progressiveLevels = Evidence.Progressions, policy,
-                settings = new { sourcePrecision = "RGB8", outputColorSpace = "YCbCr", adaptiveQuantization = true, optimizeHuffman = true,
-                    forceBaselineQuantizers = true, managedWorkers = 1, nativeWorkers = 1, smoothing = 0, restartInterval = 0,
-                    jfif = "1.01; unit0; densities1; no ICC or other metadata" },
-                method = new { latency = "Sum per-encode monotonic elapsed times / iterations, then median of seven independent blocks for each encoder; ratio managed median/native median",
+                upstreamPin = UpstreamPin,
+                nativeVersion,
+                testedRevision = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA"),
+                githubRevision = Environment.GetEnvironmentVariable("GITHUB_SHA"),
+                githubRunId = Environment.GetEnvironmentVariable("GITHUB_RUN_ID"),
+                nativeExecutableSha256 = HashFile(options.Native),
+                managedEncoderSha256 = HashFile(typeof(JpegliEncoder).Assembly.Location),
+                managedRunnerSha256 = HashFile(Assembly.GetExecutingAssembly().Location),
+                corpusManifestSha256 = HashFile(Path.Combine(AppContext.BaseDirectory, "corpus.json")),
+                naturalImages = sources.Count(source => source.Category == "natural"),
+                controlledImages = sources.Count(source => source.Category == "controlled"),
+                cases = cases.Count,
+                distances = Evidence.Distances,
+                samplings = Evidence.Samplings,
+                progressiveLevels = Evidence.Progressions,
+                policy,
+                settings = new
+                {
+                    sourcePrecision = "RGB8",
+                    outputColorSpace = "YCbCr",
+                    adaptiveQuantization = true,
+                    optimizeHuffman = true,
+                    forceBaselineQuantizers = true,
+                    managedWorkers = 1,
+                    nativeWorkers = 1,
+                    smoothing = 0,
+                    restartInterval = 0,
+                    jfif = "1.01; unit0; densities1; no ICC or other metadata"
+                },
+                method = new
+                {
+                    latency = "Sum per-encode monotonic elapsed times / iterations, then median of seven independent blocks for each encoder; ratio managed median/native median",
                     scope = "Complete in-memory encoder creation/configuration, RGB8 input, JPEG buffer creation and encode/finalization; no file I/O, subprocess startup, warmup, buffer verification or native free in timed region",
                     calibration = "Native-only unreported trial with three iterations after five warmups; ceil(50ms/calibration latency), clamped3..100; same count for both encoders",
                     order = "Alternate native-managed and managed-native by case index plus block index; native process fresh per block; five untimed encode warmups per block for both",
@@ -163,8 +237,12 @@ internal static class Program
                     gc = "Natural managed collection inside timed encode is included; no forced collections or no-GC region; collection/allocation diagnostics retained",
                     percentiles = "Linear interpolation between sorted block samples, p10/p50/p90; MAD=median absolute deviation/median; any case over10%MAD invalidates evidence",
                     minimumInterval = "At least1ms summed encode interval per block; calibration50ms is a target, capped tiny-image loops may be shorter",
-                    structures = "Untimed one JPEG per encoder: frame/component/sampling/precision, all DQT values, scan script and JFIF compared" },
-                environment, groups = evaluation.Groups, invalidReasons = evaluation.InvalidReasons, failures = evaluation.Failures
+                    structures = "Untimed one JPEG per encoder: frame/component/sampling/precision, all DQT values, scan script and JFIF compared"
+                },
+                environment,
+                groups = evaluation.Groups,
+                invalidReasons = evaluation.InvalidReasons,
+                failures = evaluation.Failures
             };
             await WriteJson(output, "summary.json", summary);
             await File.WriteAllTextAsync(Path.Combine(output, "report.md"), Report(status, cases, evaluation));
@@ -192,35 +270,65 @@ internal static class Program
         if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" ||
             string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GITHUB_RUN_ID")) ||
             string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GITHUB_SHA")))
+        {
             throw new InvalidOperationException("Benchmarks may execute only in GitHub Actions. Use --self-test locally for synthetic evidence checks.");
+        }
+
         if (AppContext.TryGetSwitch("System.Runtime.TieredCompilation", out bool tiering) && tiering)
+        {
             throw new InvalidOperationException("Tiered compilation must be disabled for this fixed protocol.");
+        }
 #endif
     }
 
     internal static List<(string Id, string Category, string SourcePath, PpmImage Image)> ReadCorpus(string corpus)
     {
         string[] files = Directory.GetFiles(corpus, "*.ppm", SearchOption.AllDirectories);
-        if (files.Length != 24) throw new InvalidDataException("The natural corpus requires exactly24 Kodak P6 PPM inputs.");
-        using JsonDocument manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "corpus.json")));
+        if (files.Length != 24)
+        {
+            throw new InvalidDataException("The natural corpus requires exactly24 Kodak P6 PPM inputs.");
+        }
+
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "corpus.json")));
         var images = new List<(string Id, string Category, string SourcePath, PpmImage Image)>();
         foreach (JsonElement item in manifest.RootElement.GetProperty("images").EnumerateArray())
         {
             string id = Path.GetFileNameWithoutExtension(item.GetProperty("name").GetString() ?? throw new InvalidDataException("Missing manifest image name."));
             string[] candidates = files.Where(path => Path.GetFileNameWithoutExtension(path) == id).ToArray();
-            if (candidates.Length != 1) throw new InvalidDataException($"Missing or duplicate Kodak image {id}.");
+            if (candidates.Length != 1)
+            {
+                throw new InvalidDataException($"Missing or duplicate Kodak image {id}.");
+            }
+
             string path = candidates[0];
-            if (HashFile(path) != item.GetProperty("ppmSha256").GetString()) throw new InvalidDataException($"Kodak PPM hash mismatch: {id}.");
-            PpmImage image = PpmImage.Read(path);
+            if (HashFile(path) != item.GetProperty("ppmSha256").GetString())
+            {
+                throw new InvalidDataException($"Kodak PPM hash mismatch: {id}.");
+            }
+
+            var image = PpmImage.Read(path);
             if (image.Width != item.GetProperty("width").GetInt32() || image.Height != item.GetProperty("height").GetInt32())
+            {
                 throw new InvalidDataException($"Kodak dimensions mismatch: {id}.");
+            }
+
             images.Add((id, "natural", Path.GetRelativePath(corpus, path).Replace('\\', '/'), image));
         }
         if (images.Count != 24 || !images.Select(item => item.Id).Order().SequenceEqual(Evidence.ImageIds("natural").Order()))
+        {
             throw new InvalidDataException("The pinned manifest does not cover Kodak24 exactly.");
-        foreach (var (name, image) in ControlledCorpus.Create()) images.Add((name, "controlled", "generated:" + name, image));
+        }
+
+        foreach ((string? name, PpmImage? image) in ControlledCorpus.Create())
+        {
+            images.Add((name, "controlled", "generated:" + name, image));
+        }
+
         if (!images.Where(item => item.Category == "controlled").Select(item => item.Id).Order().SequenceEqual(Evidence.ControlledIds.Order()))
+        {
             throw new InvalidDataException("Controlled generator does not cover all eight fixed inputs exactly.");
+        }
+
         return images;
     }
 
@@ -229,7 +337,13 @@ internal static class Program
     private static ManagedSample BenchmarkManaged(PpmImage image, JpegliEncoderOptions settings, byte[] expected, int iterations, int warmups)
     {
         for (int warmup = 0; warmup < warmups; warmup++)
-            if (!Encode(image, settings).AsSpan().SequenceEqual(expected)) throw new InvalidDataException("Managed warmup output is not deterministic.");
+        {
+            if (!Encode(image, settings).AsSpan().SequenceEqual(expected))
+            {
+                throw new InvalidDataException("Managed warmup output is not deterministic.");
+            }
+        }
+
         long ticks = 0, allocatedStart = GC.GetTotalAllocatedBytes(precise: true);
         int gen0 = GC.CollectionCount(0), gen1 = GC.CollectionCount(1), gen2 = GC.CollectionCount(2);
         for (int iteration = 0; iteration < iterations; iteration++)
@@ -238,7 +352,11 @@ internal static class Program
             byte[] bytes = Encode(image, settings);
             ticks += Stopwatch.GetTimestamp() - start;
             // Verify/use the result after stopping the timer, as the native runner does.
-            if (!bytes.AsSpan().SequenceEqual(expected)) throw new InvalidDataException("Managed timed output is not deterministic.");
+            if (!bytes.AsSpan().SequenceEqual(expected))
+            {
+                throw new InvalidDataException("Managed timed output is not deterministic.");
+            }
+
             GC.KeepAlive(bytes);
         }
         return new(ticks * (1_000_000_000.0 / Stopwatch.Frequency) / iterations, GC.CollectionCount(0) - gen0,
@@ -250,13 +368,17 @@ internal static class Program
     {
         var args = new List<string> { "benchmark", input, distance.ToString("R", CultureInfo.InvariantCulture), sampling.ToString(CultureInfo.InvariantCulture),
             progression.ToString(CultureInfo.InvariantCulture), policy.Warmups.ToString(CultureInfo.InvariantCulture), iterations.ToString(CultureInfo.InvariantCulture), "1" };
-        if (jpegOutput is not null) args.Add(jpegOutput);
+        if (jpegOutput is not null)
+        {
+            args.Add(jpegOutput);
+        }
+
         return ParseNativeSample(await Native(options.Native, worker, options.Output, args.ToArray()), image.Width, image.Height, distance, sampling, progression, iterations, policy);
     }
 
     internal static NativeSample ParseNativeSample(string text, int width, int height, float distance, int sampling, int progression, int iterations, Policy policy)
     {
-        using JsonDocument json = JsonDocument.Parse(text);
+        using var json = JsonDocument.Parse(text);
         JsonElement result = json.RootElement;
         if (result.GetProperty("upstreamPin").GetString() != UpstreamPin || result.GetProperty("width").GetInt32() != width ||
             result.GetProperty("height").GetInt32() != height || result.GetProperty("distance").GetSingle() != distance ||
@@ -264,23 +386,40 @@ internal static class Program
             result.GetProperty("warmups").GetInt32() != policy.Warmups || result.GetProperty("iterations").GetInt32() != iterations ||
             result.GetProperty("repeats").GetInt32() != 1 || !result.GetProperty("deterministic").GetBoolean() ||
             !result.GetProperty("adaptiveQuantization").GetBoolean() || !result.GetProperty("optimizeHuffman").GetBoolean() || result.GetProperty("threads").GetInt32() != 1)
+        {
             throw new InvalidDataException("Native measurement contradicts the fixed settings or identity.");
+        }
+
         JsonElement[] samples = result.GetProperty("samplesNsPerEncode").EnumerateArray().ToArray();
         long bytes = result.GetProperty("bytes").GetInt64();
         if (samples.Length != 1 || !double.IsFinite(samples[0].GetDouble()) || samples[0].GetDouble() <= 0 || bytes <= 0)
+        {
             throw new InvalidDataException("Native benchmark returned invalid or missing timing samples/output bytes.");
+        }
+
         return new(samples[0].GetDouble(), bytes);
     }
 
     private static async Task<string> Native(string executable, string workingDirectory, string output, params string[] args)
     {
-        var start = new ProcessStartInfo(executable) { WorkingDirectory = workingDirectory, RedirectStandardOutput = true, RedirectStandardError = true,
-            UseShellExecute = false, CreateNoWindow = true };
-        foreach (string argument in args) start.ArgumentList.Add(argument);
-        using var process = Process.Start(start) ?? throw new InvalidOperationException("Native process could not start.");
+        var start = new ProcessStartInfo(executable)
+        {
+            WorkingDirectory = workingDirectory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        foreach (string argument in args)
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        using Process process = Process.Start(start) ?? throw new InvalidOperationException("Native process could not start.");
         Task<string> stdout = process.StandardOutput.ReadToEndAsync(), stderr = process.StandardError.ReadToEndAsync();
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(10));
-        try { await process.WaitForExitAsync(timeout.Token); }
+        try
+        { await process.WaitForExitAsync(timeout.Token); }
         catch (OperationCanceledException)
         {
             process.Kill(entireProcessTree: true);
@@ -289,7 +428,11 @@ internal static class Program
         }
         string standardOutput = await stdout, standardError = await stderr;
         await File.AppendAllTextAsync(Path.Combine(output, "native.log"), $"{JsonSerializer.Serialize(args)} exit={process.ExitCode}\n{standardOutput}{standardError}\n");
-        if (process.ExitCode != 0) throw new InvalidDataException($"Native {args[0]} failed with exit{process.ExitCode}: {standardError}");
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidDataException($"Native {args[0]} failed with exit{process.ExitCode}: {standardError}");
+        }
+
         return standardOutput;
     }
 
@@ -311,22 +454,42 @@ internal static class Program
                     || line.StartsWith("CPU architecture", StringComparison.Ordinal) || line.StartsWith("CPU part", StringComparison.Ordinal)
                     || line.StartsWith("CPU variant", StringComparison.Ordinal) || line.StartsWith("CPU revision", StringComparison.Ordinal))
                     .Select(line => line.Trim()).Distinct(StringComparer.Ordinal));
-            if (string.IsNullOrEmpty(cpu)) cpu = "not supplied";
+            if (string.IsNullOrEmpty(cpu))
+            {
+                cpu = "not supplied";
+            }
+
             affinity = File.ReadLines("/proc/self/status").FirstOrDefault(line => line.StartsWith("Cpus_allowed_list:", StringComparison.Ordinal))?.Split(':', 2)[1].Trim();
         }
-        return new { cpu, affinity, os = RuntimeInformation.OSDescription, RuntimeInformation.OSArchitecture, RuntimeInformation.ProcessArchitecture,
-            runtime = RuntimeInformation.FrameworkDescription, runtimeVersion = Environment.Version.ToString(),
-            corelibInformationalVersion, runtimeProductVersion = RuntimeProductVersion(corelibInformationalVersion),
+        return new
+        {
+            cpu,
+            affinity,
+            os = RuntimeInformation.OSDescription,
+            RuntimeInformation.OSArchitecture,
+            RuntimeInformation.ProcessArchitecture,
+            runtime = RuntimeInformation.FrameworkDescription,
+            runtimeVersion = Environment.Version.ToString(),
+            corelibInformationalVersion,
+            runtimeProductVersion = RuntimeProductVersion(corelibInformationalVersion),
             encoderTargetFramework = typeof(JpegliEncoder).Assembly.GetCustomAttribute<System.Runtime.Versioning.TargetFrameworkAttribute>()?.FrameworkName,
             explicitNet11Simd,
             logicalProcessors = Environment.ProcessorCount,
-            Stopwatch.Frequency, Stopwatch.IsHighResolution, Vector.IsHardwareAccelerated, vectorFloatWidth = Vector<float>.Count,
-            vector128 = Vector128.IsHardwareAccelerated, vector256 = Vector256.IsHardwareAccelerated, vector512 = Vector512.IsHardwareAccelerated,
-            serverGc = System.Runtime.GCSettings.IsServerGC, gcLatencyMode = System.Runtime.GCSettings.LatencyMode.ToString(),
+            Stopwatch.Frequency,
+            Stopwatch.IsHighResolution,
+            Vector.IsHardwareAccelerated,
+            vectorFloatWidth = Vector<float>.Count,
+            vector128 = Vector128.IsHardwareAccelerated,
+            vector256 = Vector256.IsHardwareAccelerated,
+            vector512 = Vector512.IsHardwareAccelerated,
+            serverGc = System.Runtime.GCSettings.IsServerGC,
+            gcLatencyMode = System.Runtime.GCSettings.LatencyMode.ToString(),
             dotnetTieredCompilation = Environment.GetEnvironmentVariable("DOTNET_TieredCompilation"),
             complusTieredCompilation = Environment.GetEnvironmentVariable("COMPlus_TieredCompilation"),
             instrumentation = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_INSTRUMENTATION"),
-            githubRunnerOs = Environment.GetEnvironmentVariable("RUNNER_OS"), githubRunnerArchitecture = Environment.GetEnvironmentVariable("RUNNER_ARCH") };
+            githubRunnerOs = Environment.GetEnvironmentVariable("RUNNER_OS"),
+            githubRunnerArchitecture = Environment.GetEnvironmentVariable("RUNNER_ARCH")
+        };
     }
 
     // Environment.Version is numeric and cannot identify a prerelease build.
@@ -336,36 +499,50 @@ internal static class Program
     private static string Report(string status, List<CaseResult> cases, Evaluation evaluation)
     {
         var text = new StringBuilder();
-        text.AppendLine(CultureInfo.InvariantCulture, $"# Performance parity: {status.ToUpperInvariant()}");
-        text.AppendLine();
-        text.AppendLine(CultureInfo.InvariantCulture, $"{cases.Count}/256 cases: RGB8 YCbCr, Kodak24 plus eight fixed controls, distances1/4, 444/420 and progression0/2, one worker on this CI host. Pinned upstream `{UpstreamPin}`.");
-        text.AppendLine(CultureInfo.InvariantCulture, $"Tested revision: `{Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA")}`.");
-        text.AppendLine();
-        text.AppendLine("All cases are measured even when a latency bound fails, so the report identifies every measured regression. A passing verdict requires complete, valid coverage and all fixed bounds.");
-        text.AppendLine();
-        text.AppendLine("Fixed latency noninferiority limits: geometric mean managed/native median latency ratio <=1.05 in each corpus/sampling/progression group; every case <=1.10. A faster case cannot excuse a slower case. No universal performance claim is made.");
-        text.AppendLine();
-        text.AppendLine("Seven alternating order blocks, five untimed warmups before each block. The native-only three-iteration calibration targets50ms and selects a shared count clamped3..100. Medians use all seven blocks; no outliers are discarded. Complete in-memory encode calls are timed individually and their elapsed times summed; subprocess startup, file I/O, verification and native buffer free are excluded. Managed collections inside encode are included. Tiered compilation is disabled.");
-        text.AppendLine();
-        text.AppendLine("Evidence is invalid if a block interval is below1ms, any case has relative MAD >10%, inputs/settings/coverage differ, or an untimed JPEG structure comparison fails. Invalid evidence cannot establish parity.");
-        text.AppendLine();
-        text.AppendLine("| Corpus | Sampling | Progression | Cases | Geometric mean ratio | Worst ratio | Verdict |");
-        text.AppendLine("| --- | --- | --- | ---: | ---: | ---: | --- |");
+        _ = text.AppendLine(CultureInfo.InvariantCulture, $"# Performance parity: {status.ToUpperInvariant()}");
+        _ = text.AppendLine();
+        _ = text.AppendLine(CultureInfo.InvariantCulture, $"{cases.Count}/256 cases: RGB8 YCbCr, Kodak24 plus eight fixed controls, distances1/4, 444/420 and progression0/2, one worker on this CI host. Pinned upstream `{UpstreamPin}`.");
+        _ = text.AppendLine(CultureInfo.InvariantCulture, $"Tested revision: `{Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA")}`.");
+        _ = text.AppendLine();
+        _ = text.AppendLine("All cases are measured even when a latency bound fails, so the report identifies every measured regression. A passing verdict requires complete, valid coverage and all fixed bounds.");
+        _ = text.AppendLine();
+        _ = text.AppendLine("Fixed latency noninferiority limits: geometric mean managed/native median latency ratio <=1.05 in each corpus/sampling/progression group; every case <=1.10. A faster case cannot excuse a slower case. No universal performance claim is made.");
+        _ = text.AppendLine();
+        _ = text.AppendLine("Seven alternating order blocks, five untimed warmups before each block. The native-only three-iteration calibration targets50ms and selects a shared count clamped3..100. Medians use all seven blocks; no outliers are discarded. Complete in-memory encode calls are timed individually and their elapsed times summed; subprocess startup, file I/O, verification and native buffer free are excluded. Managed collections inside encode are included. Tiered compilation is disabled.");
+        _ = text.AppendLine();
+        _ = text.AppendLine("Evidence is invalid if a block interval is below1ms, any case has relative MAD >10%, inputs/settings/coverage differ, or an untimed JPEG structure comparison fails. Invalid evidence cannot establish parity.");
+        _ = text.AppendLine();
+        _ = text.AppendLine("| Corpus | Sampling | Progression | Cases | Geometric mean ratio | Worst ratio | Verdict |");
+        _ = text.AppendLine("| --- | --- | --- | ---: | ---: | ---: | --- |");
         foreach (GroupResult group in evaluation.Groups)
-            text.AppendLine(FormattableString.Invariant($"| {group.Category} | {group.Sampling} | {group.ProgressiveLevel} | {group.Cases} | {group.GeometricMeanRatio:F6} | {group.WorstRatio:F6} | {(!group.Valid ? "INVALID" : group.Passed ? "PASS" : "FAIL")} |"));
-        text.AppendLine();
-        text.AppendLine("| Case | Managed median (ms) | Native median (ms) | Ratio | Managed MAD | Native MAD |");
-        text.AppendLine("| --- | ---: | ---: | ---: | ---: | ---: |");
+        {
+            _ = text.AppendLine(FormattableString.Invariant($"| {group.Category} | {group.Sampling} | {group.ProgressiveLevel} | {group.Cases} | {group.GeometricMeanRatio:F6} | {group.WorstRatio:F6} | {(!group.Valid ? "INVALID" : group.Passed ? "PASS" : "FAIL")} |"));
+        }
+
+        _ = text.AppendLine();
+        _ = text.AppendLine("| Case | Managed median (ms) | Native median (ms) | Ratio | Managed MAD | Native MAD |");
+        _ = text.AppendLine("| --- | ---: | ---: | ---: | ---: | ---: |");
         foreach (CaseResult item in cases)
-            text.AppendLine(FormattableString.Invariant($"| {Evidence.Label(item)} | {item.Managed.Median / 1_000_000:F3} | {item.Native.Median / 1_000_000:F3} | {item.MedianRatio:F3} | {item.Managed.RelativeMad:P1} | {item.Native.RelativeMad:P1} |"));
-        text.AppendLine();
-        text.AppendLine("Exact input/JPEG files, SHA256 identities, per-block raw samples, p10/p50/p90, relative MAD, allocations/collections, calibration counts and native command outputs are retained alongside this report. summary.json records CPU, affinity, OS, runtime, vector widths, policy, revision and group verdicts.");
-        foreach (var (label, reasons) in new[] { ("Invalid evidence", evaluation.InvalidReasons), ("Failed bounds", evaluation.Failures) })
+        {
+            _ = text.AppendLine(FormattableString.Invariant($"| {Evidence.Label(item)} | {item.Managed.Median / 1_000_000:F3} | {item.Native.Median / 1_000_000:F3} | {item.MedianRatio:F3} | {item.Managed.RelativeMad:P1} | {item.Native.RelativeMad:P1} |"));
+        }
+
+        _ = text.AppendLine();
+        _ = text.AppendLine("Exact input/JPEG files, SHA256 identities, per-block raw samples, p10/p50/p90, relative MAD, allocations/collections, calibration counts and native command outputs are retained alongside this report. summary.json records CPU, affinity, OS, runtime, vector widths, policy, revision and group verdicts.");
+        foreach ((string? label, string[]? reasons) in new[] { ("Invalid evidence", evaluation.InvalidReasons), ("Failed bounds", evaluation.Failures) })
+        {
             if (reasons.Length > 0)
             {
-                text.AppendLine(); text.AppendLine(label + ":"); text.AppendLine();
-                foreach (string reason in reasons) text.AppendLine("- " + reason);
+                _ = text.AppendLine();
+                _ = text.AppendLine(label + ":");
+                _ = text.AppendLine();
+                foreach (string reason in reasons)
+                {
+                    _ = text.AppendLine("- " + reason);
+                }
             }
+        }
+
         return text.ToString();
     }
 
@@ -376,24 +553,47 @@ internal static class Program
         string status = !evaluation.Valid ? "invalid" : evaluation.Failures.Length > 0 ? "selected-case-bound-exceeded" : "selected-cases-within-bound";
         await WriteJson(options.Output, "summary.json", new
         {
-            schemaVersion = 1, mode = "diagnostic", status, evaluation.Valid, passed = (bool?)null, parityVerdict = "not-evaluated",
-            selectedCoverageComplete = cases.Count == expectedCases, fullCoverageComplete = false,
-            scope = "Selected cases only; no full parity verdict or aggregate acceptance claim", instrumentation, expectedCases, cases = cases.Count,
+            schemaVersion = 1,
+            mode = "diagnostic",
+            status,
+            evaluation.Valid,
+            passed = (bool?)null,
+            parityVerdict = "not-evaluated",
+            selectedCoverageComplete = cases.Count == expectedCases,
+            fullCoverageComplete = false,
+            scope = "Selected cases only; no full parity verdict or aggregate acceptance claim",
+            instrumentation,
+            expectedCases,
+            cases = cases.Count,
             testedRevision = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA"),
-            policy, selection = options.Diagnostic, invalidReasons = evaluation.InvalidReasons, failures = evaluation.Failures,
-            runMetadata = "run.json", rawMeasurements = "cases.json"
+            policy,
+            selection = options.Diagnostic,
+            invalidReasons = evaluation.InvalidReasons,
+            failures = evaluation.Failures,
+            runMetadata = "run.json",
+            rawMeasurements = "cases.json"
         });
         var report = new StringBuilder("# Targeted performance diagnostic\n\n");
         if (instrumentation is not null)
-            report.AppendLine(CultureInfo.InvariantCulture, $"**Instrumented CPU diagnostic only. Timings do not establish latency acceptance.** {instrumentation}\n");
-        report.AppendLine(CultureInfo.InvariantCulture, $"Status: {status}. {cases.Count}/{expectedCases} selected cases measured. **Full performance parity is not evaluated.**");
-        report.AppendLine(CultureInfo.InvariantCulture, $"Tested revision: `{Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA")}`.");
-        report.AppendLine(CultureInfo.InvariantCulture, $"\n{policy.Blocks} alternating blocks, {policy.Warmups} untimed warmups per block, {policy.MinimumIterations}..{policy.MaximumIterations} shared iterations. The selected-case latency bound is managed/native <=1.10. No group or whole-corpus acceptance verdict is inferred.\n");
-        report.AppendLine("| Case | Managed median (ms) | Native median (ms) | Ratio | Managed MAD | Native MAD |\n| --- | ---: | ---: | ---: | ---: | ---: |");
+        {
+            _ = report.AppendLine(CultureInfo.InvariantCulture, $"**Instrumented CPU diagnostic only. Timings do not establish latency acceptance.** {instrumentation}\n");
+        }
+
+        _ = report.AppendLine(CultureInfo.InvariantCulture, $"Status: {status}. {cases.Count}/{expectedCases} selected cases measured. **Full performance parity is not evaluated.**");
+        _ = report.AppendLine(CultureInfo.InvariantCulture, $"Tested revision: `{Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA")}`.");
+        _ = report.AppendLine(CultureInfo.InvariantCulture, $"\n{policy.Blocks} alternating blocks, {policy.Warmups} untimed warmups per block, {policy.MinimumIterations}..{policy.MaximumIterations} shared iterations. The selected-case latency bound is managed/native <=1.10. No group or whole-corpus acceptance verdict is inferred.\n");
+        _ = report.AppendLine("| Case | Managed median (ms) | Native median (ms) | Ratio | Managed MAD | Native MAD |\n| --- | ---: | ---: | ---: | ---: | ---: |");
         foreach (CaseResult item in cases)
-            report.AppendLine(FormattableString.Invariant($"| {Evidence.Label(item)} | {item.Managed.Median / 1_000_000:F3} | {item.Native.Median / 1_000_000:F3} | {item.MedianRatio:F3} | {item.Managed.RelativeMad:P1} | {item.Native.RelativeMad:P1} |"));
-        foreach (string reason in evaluation.InvalidReasons.Concat(evaluation.Failures)) report.AppendLine("\n- " + reason);
-        report.AppendLine("\nRaw samples, allocations, JPEG structure matching, input hashes, settings and host identity are retained. Exit 0 means selected cases were valid and within their individual bound; it does not mean full parity passed. Exit 1 identifies a stable selected-case bound failure; exit 2 identifies invalid evidence.");
+        {
+            _ = report.AppendLine(FormattableString.Invariant($"| {Evidence.Label(item)} | {item.Managed.Median / 1_000_000:F3} | {item.Native.Median / 1_000_000:F3} | {item.MedianRatio:F3} | {item.Managed.RelativeMad:P1} | {item.Native.RelativeMad:P1} |"));
+        }
+
+        foreach (string reason in evaluation.InvalidReasons.Concat(evaluation.Failures))
+        {
+            _ = report.AppendLine("\n- " + reason);
+        }
+
+        _ = report.AppendLine("\nRaw samples, allocations, JPEG structure matching, input hashes, settings and host identity are retained. Exit 0 means selected cases were valid and within their individual bound; it does not mean full parity passed. Exit 1 identifies a stable selected-case bound failure; exit 2 identifies invalid evidence.");
         await File.WriteAllTextAsync(Path.Combine(options.Output, "report.md"), report.ToString());
         Console.WriteLine($"Targeted diagnostic: {status}; no full parity verdict; evidence: {options.Output}");
         return !evaluation.Valid ? 2 : evaluation.Failures.Length > 0 ? 1 : 0;
@@ -414,18 +614,37 @@ internal sealed record Options(string Native, string Corpus, string Output, Diag
         bool diagnostic = args.Contains("--diagnostic", StringComparer.Ordinal);
         string[] pairs = args.Where(argument => argument != "--diagnostic").ToArray();
         if (args.Count(argument => argument == "--diagnostic") > 1 || pairs.Length % 2 != 0)
+        {
             throw new ArgumentException("Options require name/value pairs; --diagnostic is a flag.");
+        }
+
         for (int index = 0; index < pairs.Length; index += 2)
         {
-            if (!values.TryAdd(pairs[index], pairs[index + 1])) throw new ArgumentException("Duplicate option.");
+            if (!values.TryAdd(pairs[index], pairs[index + 1]))
+            {
+                throw new ArgumentException("Duplicate option.");
+            }
         }
         string[] paths = ["--native", "--corpus", "--output"];
         foreach (string key in paths)
-            if (!values.TryGetValue(key, out string? path) || !Path.IsPathFullyQualified(path)) throw new ArgumentException("Native, corpus and output must be absolute paths.");
+        {
+            if (!values.TryGetValue(key, out string? path) || !Path.IsPathFullyQualified(path))
+            {
+                throw new ArgumentException("Native, corpus and output must be absolute paths.");
+            }
+        }
+
         if (!File.Exists(values["--native"]) || !Directory.Exists(values["--corpus"]))
+        {
             throw new ArgumentException("Native executable and corpus directory must exist.");
+        }
+
         var selectionValues = values.Where(pair => !paths.Contains(pair.Key, StringComparer.Ordinal)).ToDictionary();
-        if (!diagnostic && selectionValues.Count > 0) throw new ArgumentException("Selection and count overrides require --diagnostic; the full acceptance protocol cannot be overridden.");
+        if (!diagnostic && selectionValues.Count > 0)
+        {
+            throw new ArgumentException("Selection and count overrides require --diagnostic; the full acceptance protocol cannot be overridden.");
+        }
+
         return new(Path.GetFullPath(values["--native"]), Path.GetFullPath(values["--corpus"]), Path.GetFullPath(values["--output"]),
             diagnostic ? DiagnosticSelection.Parse(selectionValues) : null);
     }

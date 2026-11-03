@@ -6,13 +6,24 @@ internal static class StandardBitOperations
     internal static int LeadingZeroCount(uint value)
     {
         if (value == 0)
+        {
             return 32;
+        }
+
         int count = 0;
-        if (value < 0x10000) { count += 16; value <<= 16; }
-        if (value < 0x1000000) { count += 8; value <<= 8; }
-        if (value < 0x10000000) { count += 4; value <<= 4; }
-        if (value < 0x40000000) { count += 2; value <<= 2; }
-        if (value < 0x80000000) count++;
+        if (value < 0x10000)
+        { count += 16; value <<= 16; }
+        if (value < 0x1000000)
+        { count += 8; value <<= 8; }
+        if (value < 0x10000000)
+        { count += 4; value <<= 4; }
+        if (value < 0x40000000)
+        { count += 2; value <<= 2; }
+        if (value < 0x80000000)
+        {
+            count++;
+        }
+
         return count;
     }
 
@@ -22,13 +33,24 @@ internal static class StandardBitOperations
     internal static int TrailingZeroCount(uint value)
     {
         if (value == 0)
+        {
             return 32;
+        }
+
         int count = 0;
-        if ((value & 0xffff) == 0) { count += 16; value >>= 16; }
-        if ((value & 0xff) == 0) { count += 8; value >>= 8; }
-        if ((value & 0xf) == 0) { count += 4; value >>= 4; }
-        if ((value & 3) == 0) { count += 2; value >>= 2; }
-        if ((value & 1) == 0) count++;
+        if ((value & 0xffff) == 0)
+        { count += 16; value >>= 16; }
+        if ((value & 0xff) == 0)
+        { count += 8; value >>= 8; }
+        if ((value & 0xf) == 0)
+        { count += 4; value >>= 4; }
+        if ((value & 3) == 0)
+        { count += 2; value >>= 2; }
+        if ((value & 1) == 0)
+        {
+            count++;
+        }
+
         return count;
     }
 

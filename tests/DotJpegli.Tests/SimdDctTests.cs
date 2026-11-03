@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class SimdDctTests
 {
@@ -39,21 +39,28 @@ public sealed class SimdDctTests
         {
             float[] actual = new float[64];
             ForwardDct.TransformVector(samples, actual);
-            double tolerance = Math.Max(0.0002, samples.Max(value => Math.Abs(value)) * 0.000004);
+            double tolerance = Math.Max(0.0002, samples.Max(Math.Abs) * 0.000004);
             for (int v = 0; v < 8; v++)
+            {
                 for (int u = 0; u < 8; u++)
                 {
                     double sum = 0;
                     for (int y = 0; y < 8; y++)
+                    {
                         for (int x = 0; x < 8; x++)
-                            sum += samples[y * 8 + x]
-                                * Math.Cos((2 * x + 1) * u * Math.PI / 16)
-                                * Math.Cos((2 * y + 1) * v * Math.PI / 16);
+                        {
+                            sum += samples[(y * 8) + x]
+                                * Math.Cos(((2 * x) + 1) * u * Math.PI / 16)
+                                * Math.Cos(((2 * y) + 1) * v * Math.PI / 16);
+                        }
+                    }
+
                     double expected = sum * 0.25
                         * (u == 0 ? 1 / Math.Sqrt(2) : 1)
                         * (v == 0 ? 1 / Math.Sqrt(2) : 1);
-                    Assert.InRange(Math.Abs(expected - actual[v * 8 + u]), 0, tolerance);
+                    Assert.InRange(Math.Abs(expected - actual[(v * 8) + u]), 0, tolerance);
                 }
+            }
         }
     }
 
@@ -80,8 +87,12 @@ public sealed class SimdDctTests
             transform(buffer.AsSpan(inputStart, 64), buffer.AsSpan(outputStart));
             AssertSameBits(expected, buffer.AsSpan(outputStart, 64));
             for (int i = 0; i < buffer.Length; i++)
+            {
                 if (i < outputStart || i >= outputStart + 64)
+                {
                     Assert.Equal(BitConverter.SingleToInt32Bits(original[i]), BitConverter.SingleToInt32Bits(buffer[i]));
+                }
+            }
         }
     }
 
@@ -89,11 +100,16 @@ public sealed class SimdDctTests
     public void AllPathsValidateLengthsBeforeWritingOutput()
     {
         foreach (DctTransform transform in Transforms)
+        {
             foreach (int inputLength in new[] { 0, 63, 64, 65 })
+            {
                 foreach (int outputLength in new[] { 0, 63, 72 })
                 {
                     if (inputLength == 64 && outputLength >= 64)
+                    {
                         continue;
+                    }
+
                     float[] samples = Enumerable.Repeat(1.25f, inputLength).ToArray();
                     float[] coefficients = Enumerable.Repeat(-54321.125f, outputLength).ToArray();
                     float[] original = (float[])coefficients.Clone();
@@ -101,6 +117,8 @@ public sealed class SimdDctTests
                     Assert.Equal(inputLength != 64 ? "samples" : "coefficients", error.ParamName);
                     AssertSameBits(original, coefficients);
                 }
+            }
+        }
     }
 
     private static IEnumerable<float[]> SampleBlocks()
@@ -109,9 +127,9 @@ public sealed class SimdDctTests
         yield return Enumerable.Range(0, 64).Select(i => i % 2 == 0 ? -0f : 0f).ToArray();
         yield return Enumerable.Repeat(40.125f, 64).ToArray();
         yield return Enumerable.Repeat(-127.875f, 64).ToArray();
-        yield return Enumerable.Range(0, 64).Select(i => (i / 8 + i % 8) % 2 == 0 ? 127.625f : -128.375f).ToArray();
+        yield return Enumerable.Range(0, 64).Select(i => ((i / 8) + (i % 8)) % 2 == 0 ? 127.625f : -128.375f).ToArray();
         yield return Enumerable.Range(0, 64).Select(i => (i - 31.5f) * 0.125f).ToArray();
-        yield return Enumerable.Range(0, 64).Select(i => (i % 5 - 2) * 16384.125f).ToArray();
+        yield return Enumerable.Range(0, 64).Select(i => ((i % 5) - 2) * 16384.125f).ToArray();
         yield return Enumerable.Range(0, 64).Select(i => BitConverter.Int32BitsToSingle(
             (i % 2 == 0 ? 0 : int.MinValue) | (i + 1))).ToArray();
         yield return Enumerable.Range(0, 64).Select(i => MathF.ScaleB(i - 31.5f, -126)).ToArray();
@@ -128,9 +146,12 @@ public sealed class SimdDctTests
         {
             float[] samples = new float[64];
             for (int i = 0; i < samples.Length; i++)
+            {
                 samples[i] = block < 24
-                    ? (float)(random.NextDouble() * 256 - 128)
-                    : MathF.ScaleB((float)(random.NextDouble() * 2 - 1), random.Next(-16, 17));
+                    ? (float)((random.NextDouble() * 256) - 128)
+                    : MathF.ScaleB((float)((random.NextDouble() * 2) - 1), random.Next(-16, 17));
+            }
+
             yield return samples;
         }
     }
@@ -139,7 +160,9 @@ public sealed class SimdDctTests
     {
         Assert.Equal(expected.Length, actual.Length);
         for (int i = 0; i < expected.Length; i++)
+        {
             Assert.True(BitConverter.SingleToInt32Bits(expected[i]) == BitConverter.SingleToInt32Bits(actual[i]),
                 $"Coefficient {i}: expected {expected[i]:R}, actual {actual[i]:R}.");
+        }
     }
 }

@@ -1,11 +1,15 @@
+namespace DotJpegli.Internal;
+
+#if !NETSTANDARD2_1
 using System.Numerics;
+#endif
 using System.Runtime.CompilerServices;
+#if !NETSTANDARD2_1
 using System.Runtime.InteropServices;
+#endif
 #if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
 #endif
-
-namespace DotJpegli.Internal;
 
 // Diagnostic preferences are carried by immutable encode options and captured
 // by each analysis/quantizer. Independent encodes never share a mutable choice.
@@ -24,7 +28,7 @@ internal static class KernelPolicy
     internal const int MinimumTiledPixels = 32 * 1024;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static bool UseSelectionNetwork(KernelPreference preference, int width)
+    internal static bool UseSelectionNetwork(KernelPreference preference, int _)
         => preference switch
         {
             // ARM64 and x64 comparisons do not establish a portable AQ guard.
@@ -52,7 +56,10 @@ internal static class KernelPolicy
         return false;
 #else
         if (width < 8 || height < 8 || (long)width * height < MinimumTiledPixels)
+        {
             return false;
+        }
+
         return UseTiledZigZagForConfiguration(width, height, Vector.IsHardwareAccelerated,
             Vector<float>.Count, Vector256.IsHardwareAccelerated, Vector512.IsHardwareAccelerated,
             RuntimeInformation.ProcessArchitecture == Architecture.X64);

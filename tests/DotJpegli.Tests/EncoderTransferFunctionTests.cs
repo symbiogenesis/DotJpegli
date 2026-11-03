@@ -1,9 +1,9 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderTransferFunctionTests
 {
@@ -17,14 +17,20 @@ public sealed class EncoderTransferFunctionTests
         {
             var options = new JpegliEncoderOptions
             {
-                Progressive = progressive, ProgressiveRefinementBits = progressive ? 2 : 0,
-                RestartInterval = 1, UseStandardQuantizationTables = progressive
+                Progressive = progressive,
+                ProgressiveRefinementBits = progressive ? 2 : 0,
+                RestartInterval = 1,
+                UseStandardQuantizationTables = progressive
             };
             byte[] expected = EncodeSource(pixels, width, height, PixelComponentLayout.Rgb, options);
             for (int code = 0; code <= 255; code++)
+            {
                 if (code is not (16 or 18))
+                {
                     Assert.Equal(expected, EncodeSource(pixels, width, height, PixelComponentLayout.Rgb,
                         options with { CicpTransferFunction = code }));
+                }
+            }
         }
     }
 
@@ -43,25 +49,33 @@ public sealed class EncoderTransferFunctionTests
     {
         const int width = 19, height = 17;
         Array pixels = Source(kind, width, height, layout);
-        Array before = (Array)pixels.Clone();
+        var before = (Array)pixels.Clone();
         var options = new JpegliEncoderOptions
         {
-            CicpTransferFunction = transfer, Distance = 2.375f, Subsampling = sampling,
-            AdaptiveQuantization = false, Progressive = true, ProgressiveRefinementBits = 2,
-            RestartInterval = 2, SmoothingFactor = 37
+            CicpTransferFunction = transfer,
+            Distance = 2.375f,
+            Subsampling = sampling,
+            AdaptiveQuantization = false,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2,
+            SmoothingFactor = 37
         };
         byte[] jpeg = EncodeSource(pixels, width, height, layout, options);
         JpegDocument document = Read(jpeg, options);
         bool is420 = layout != PixelComponentLayout.Gray && sampling == ChromaSubsampling.Quarter;
         for (int component = 0; component < (layout == PixelComponentLayout.Gray ? 1 : 3); component++)
+        {
             AssertPerceptualTableSamples(document.Quantizers[component], options.Distance.Value,
                 component, transfer, is420);
+        }
+
         Assert.False(jpeg.SequenceEqual(EncodeSource(pixels, width, height, layout,
             options with { CicpTransferFunction = 2 })));
         Assert.Equal(before, pixels);
         ColorComponents channels = layout == PixelComponentLayout.Gray
             ? ColorComponents.Grey : ColorComponents.RedGreenBlue;
-        ImageResult decoded = ImageResult.FromMemory(jpeg, channels);
+        var decoded = ImageResult.FromMemory(jpeg, channels);
         Assert.Equal((width, height), (decoded.Width, decoded.Height));
     }
 
@@ -82,13 +96,18 @@ public sealed class EncoderTransferFunctionTests
         {
             var options = new JpegliEncoderOptions
             {
-                CicpTransferFunction = transfer, Distance = 2.375f, SamplingFactors = factors[mode],
-                Subsampling = ChromaSubsampling.Quarter, AdaptiveQuantization = false
+                CicpTransferFunction = transfer,
+                Distance = 2.375f,
+                SamplingFactors = factors[mode],
+                Subsampling = ChromaSubsampling.Quarter,
+                AdaptiveQuantization = false
             };
             JpegDocument document = Read(EncodeSource(pixels, 17, 19, PixelComponentLayout.YCbCr, options), options);
             for (int component = 0; component < 3; component++)
+            {
                 AssertPerceptualTableSamples(document.Quantizers[component], options.Distance.Value,
                     component, transfer, mode == 0);
+            }
         }
     }
 
@@ -98,6 +117,7 @@ public sealed class EncoderTransferFunctionTests
     public void DirectYCbCrAndGrayscaleConstantsAreNotTransferConverted(int transfer)
     {
         foreach (PixelComponentLayout layout in new[] { PixelComponentLayout.Gray, PixelComponentLayout.YCbCr })
+        {
             foreach (int kind in new[] { 0, 1, 2 })
             {
                 int channels = layout == PixelComponentLayout.Gray ? 1 : 3;
@@ -106,8 +126,10 @@ public sealed class EncoderTransferFunctionTests
                 Array pixels = ConvertSource(bytes, kind);
                 var options = new JpegliEncoderOptions
                 {
-                    CicpTransferFunction = transfer, Distance = 2.375f,
-                    AdaptiveQuantization = false, Subsampling = ChromaSubsampling.None
+                    CicpTransferFunction = transfer,
+                    Distance = 2.375f,
+                    AdaptiveQuantization = false,
+                    Subsampling = ChromaSubsampling.None
                 };
                 JpegDocument document = Read(EncodeSource(pixels, 8, 8, layout, options), options);
                 foreach ((BlockKey key, Block block) in document.Blocks)
@@ -119,6 +141,7 @@ public sealed class EncoderTransferFunctionTests
                     Assert.All(block.Coefficients[1..], coefficient => Assert.Equal(0, coefficient));
                 }
             }
+        }
     }
 
     [Theory]
@@ -132,14 +155,17 @@ public sealed class EncoderTransferFunctionTests
         {
             PixelComponentLayout compactLayout = layout is PixelComponentLayout.Gray or PixelComponentLayout.YCbCr
                 ? layout : PixelComponentLayout.Rgb;
-            int stride = width * Components(layout) + 13;
+            int stride = (width * Components(layout)) + 13;
             Array compact = Source(kind, width, height, compactLayout);
             Array padded = Source(kind, width, height, layout, stride, 17);
-            Array before = (Array)padded.Clone();
+            var before = (Array)padded.Clone();
             var options = new JpegliEncoderOptions
             {
-                CicpTransferFunction = transfer, Progressive = true, ProgressiveRefinementBits = 2,
-                SmoothingFactor = 37, RestartInterval = 2
+                CicpTransferFunction = transfer,
+                Progressive = true,
+                ProgressiveRefinementBits = 2,
+                SmoothingFactor = 37,
+                RestartInterval = 2
             };
             Assert.Equal(EncodeSource(compact, width, height, compactLayout, options),
                 EncodeSource(padded, width, height, layout, options, stride));
@@ -159,8 +185,10 @@ public sealed class EncoderTransferFunctionTests
         Array pixels = Source(kind, width, height, layout);
         var options = new JpegliEncoderOptions
         {
-            CicpTransferFunction = transfer, UseStandardQuantizationTables = standard,
-            AdaptiveQuantization = adaptive, OptimizeHuffmanTables = false,
+            CicpTransferFunction = transfer,
+            UseStandardQuantizationTables = standard,
+            AdaptiveQuantization = adaptive,
+            OptimizeHuffmanTables = false,
             Subsampling = layout == PixelComponentLayout.YCbCr ? ChromaSubsampling.HalfVertical : ChromaSubsampling.Quarter,
             SmoothingFactor = 37
         };
@@ -176,8 +204,10 @@ public sealed class EncoderTransferFunctionTests
         {
             JpegliEncoderOptions variant = options with
             {
-                Progressive = progressive, ProgressiveRefinementBits = bits,
-                OptimizeHuffmanTables = optimize, RestartInterval = interval
+                Progressive = progressive,
+                ProgressiveRefinementBits = bits,
+                OptimizeHuffmanTables = optimize,
+                RestartInterval = interval
             };
             byte[] jpeg = EncodeSource(pixels, width, height, layout, variant);
             AssertCoefficients(reference, Read(jpeg, variant));
@@ -195,8 +225,11 @@ public sealed class EncoderTransferFunctionTests
             Array pixels = Source(2, 19, 17, layout);
             var options = new JpegliEncoderOptions
             {
-                UseStandardQuantizationTables = true, Distance = 1.45f,
-                Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 1
+                UseStandardQuantizationTables = true,
+                Distance = 1.45f,
+                Progressive = true,
+                ProgressiveRefinementBits = 2,
+                RestartInterval = 1
             };
             byte[] expected = EncodeSource(pixels, 19, 17, layout, options);
             JpegDocument reference = Read(expected, options);
@@ -205,15 +238,23 @@ public sealed class EncoderTransferFunctionTests
             Assert.Equal(reference.Components, actual.Components);
             Assert.Equal(reference.Quantizers.Keys, actual.Quantizers.Keys);
             foreach ((int selector, byte[] quantizer) in reference.Quantizers)
+            {
                 Assert.Equal(quantizer, actual.Quantizers[selector]);
+            }
+
             if (layout == PixelComponentLayout.YCbCr)
-                Assert.Equal(new[] { 0, 1, 1 }, actual.Components.Values.Select(component => component.Quantizer));
+            {
+                Assert.Equal([0, 1, 1], actual.Components.Values.Select(component => component.Quantizer));
+            }
+
             JpegliEncoderOptions uniform = options with { AdaptiveQuantization = false };
             Assert.Equal(EncodeSource(pixels, 19, 17, layout, uniform),
                 EncodeSource(pixels, 19, 17, layout, uniform with { CicpTransferFunction = transfer }));
             // Grayscale AQ multipliers are fixed at 0.5 and ignore distance inference.
             if (layout == PixelComponentLayout.Gray)
+            {
                 Assert.Equal(expected, hinted);
+            }
         }
     }
 
@@ -231,10 +272,12 @@ public sealed class EncoderTransferFunctionTests
             using var output = new WriteOnlyStream(destination);
             var options = new JpegliEncoderOptions
             {
-                CicpTransferFunction = transfer, UseStandardQuantizationTables = true,
-                IccProfile = new byte[] { 1, 2, 3 }, Comment = "must not be written"
+                CicpTransferFunction = transfer,
+                UseStandardQuantizationTables = true,
+                IccProfile = new byte[] { 1, 2, 3 },
+                Comment = "must not be written"
             };
-            var error = Assert.Throws<ArgumentOutOfRangeException>(() => EncodeSource(output, pixels,
+            ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() => EncodeSource(output, pixels,
                 1, 1, PixelComponentLayout.Rgb, options, TestContext.Current.CancellationToken));
             Assert.Equal(nameof(JpegliEncoderOptions.CicpTransferFunction), error.ParamName);
             Assert.Equal(0, destination.Length);
@@ -252,16 +295,22 @@ public sealed class EncoderTransferFunctionTests
         Array pixels = Source(kind, width, height, PixelComponentLayout.YCbCr);
         var options = new JpegliEncoderOptions
         {
-            CicpTransferFunction = transfer, Progressive = true, ProgressiveRefinementBits = 2,
-            RestartInterval = 2, IccProfile = new byte[] { 0, 16, 18, 255 },
+            CicpTransferFunction = transfer,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2,
+            IccProfile = new byte[] { 0, 16, 18, 255 },
             ExifData = new byte[] { 73, 73, 42, 0, 8, 0, 0, 0 },
-            XmpPacket = "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"/>", Comment = "unchanged transfer metadata",
-            DensityUnit = JpegDensityUnit.DotsPerInch, HorizontalDensity = 144, VerticalDensity = 96
+            XmpPacket = "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"/>",
+            Comment = "unchanged transfer metadata",
+            DensityUnit = JpegDensityUnit.DotsPerInch,
+            HorizontalDensity = 144,
+            VerticalDensity = 96
         };
         byte[] complete = EncodeSource(pixels, width, height, PixelComponentLayout.YCbCr, options);
         Assert.Equal(MetadataHeaders(EncodeSource(pixels, width, height, PixelComponentLayout.YCbCr,
             options with { CicpTransferFunction = 2 })), MetadataHeaders(complete));
-        var plain = options with { IccProfile = default, ExifData = default, XmpPacket = null, Comment = null };
+        JpegliEncoderOptions plain = options with { IccProfile = default, ExifData = default, XmpPacket = null, Comment = null };
         Assert.Equal(MetadataHeaders(EncodeSource(pixels, width, height, PixelComponentLayout.YCbCr,
             plain with { CicpTransferFunction = 2 })), MetadataHeaders(
             EncodeSource(pixels, width, height, PixelComponentLayout.YCbCr, plain)));
@@ -274,7 +323,7 @@ public sealed class EncoderTransferFunctionTests
         Assert.False(output.Closed);
         using var empty = new MemoryStream();
         var canceled = new CancellationToken(true);
-        var preError = Assert.Throws<OperationCanceledException>(() => EncodeSource(empty, pixels, width, height,
+        OperationCanceledException preError = Assert.Throws<OperationCanceledException>(() => EncodeSource(empty, pixels, width, height,
             PixelComponentLayout.YCbCr, options, canceled));
         Assert.Equal(canceled, preError.CancellationToken);
         Assert.Equal(0, empty.Length);
@@ -285,9 +334,11 @@ public sealed class EncoderTransferFunctionTests
         using var partialOutput = new WriteOnlyStream(partial, () =>
         {
             if (partial.Length >= stopAfter)
+            {
                 cancellation.Cancel();
+            }
         });
-        var error = Assert.Throws<OperationCanceledException>(() => EncodeSource(partialOutput, pixels, width, height,
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() => EncodeSource(partialOutput, pixels, width, height,
             PixelComponentLayout.YCbCr, options, cancellation.Token));
         Assert.Equal(cancellation.Token, error.CancellationToken);
         Assert.False(partialOutput.Closed);
@@ -303,8 +354,12 @@ public sealed class EncoderTransferFunctionTests
         float[] pixels = Enumerable.Repeat(-0.1f, 64).ToArray();
         var options = new JpegliEncoderOptions
         {
-            Distance = 1f, AllowOutOfRangeFloatSamples = true, AdaptiveQuantization = false,
-            Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 1
+            Distance = 1f,
+            AllowOutOfRangeFloatSamples = true,
+            AdaptiveQuantization = false,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 1
         };
         // Original JPEG units are -25.5, giving unquantized DC -1228. The
         // default DC quantizer 2 makes -614 representable; either HDR hint
@@ -313,7 +368,7 @@ public sealed class EncoderTransferFunctionTests
         Assert.Equal((byte)2, reference.Quantizers[0][0]);
         Assert.Equal(-614, Assert.Single(reference.Blocks).Value.Coefficients[0]);
         using var output = new MemoryStream();
-        var error = Assert.Throws<ArgumentException>(() => EncodeSource(output, pixels, 8, 8,
+        ArgumentException error = Assert.Throws<ArgumentException>(() => EncodeSource(output, pixels, 8, 8,
             PixelComponentLayout.Gray, options with { CicpTransferFunction = transfer },
             TestContext.Current.CancellationToken));
         Assert.Equal("pixels", error.ParamName);
@@ -332,13 +387,19 @@ public sealed class EncoderTransferFunctionTests
         byte[] pixels = Enumerable.Repeat((byte)64, 64 * 3).ToArray();
         var options = new JpegliEncoderOptions
         {
-            CicpTransferFunction = transfer, Distance = distance, AdaptiveQuantization = false,
-            Progressive = true, ProgressiveRefinementBits = 2
+            CicpTransferFunction = transfer,
+            Distance = distance,
+            AdaptiveQuantization = false,
+            Progressive = true,
+            ProgressiveRefinementBits = 2
         };
         byte[] jpeg = EncodeSource(pixels, 8, 8, PixelComponentLayout.YCbCr, options);
         JpegDocument document = Read(jpeg, options);
         foreach (byte[] table in document.Quantizers.Values)
+        {
             Assert.All(table, entry => Assert.Equal((byte)expectedQuantizer, entry));
+        }
+
         Assert.Equal((8, 8), (ImageResult.FromMemory(jpeg).Width, ImageResult.FromMemory(jpeg).Height));
     }
 
@@ -381,34 +442,41 @@ public sealed class EncoderTransferFunctionTests
         const float strength = 0.0467278957f, defaultCrMultiplier = 0.607888103f;
         foreach (bool sharedSelectorProbe in new[] { false, true })
         {
-            double correctThreshold = 0.57988f + strength * crMultiplier;
-            double wrongThreshold = 0.57988f + strength *
-                (sharedSelectorProbe ? wrongCrMultiplier : defaultCrMultiplier);
+            double correctThreshold = 0.57988f + (strength * crMultiplier);
+            double wrongThreshold = 0.57988f + (strength *
+                (sharedSelectorProbe ? wrongCrMultiplier : defaultCrMultiplier));
             double target = (correctThreshold + wrongThreshold) / 2d;
             Assert.True(Math.Abs(correctThreshold - wrongThreshold) > 0.0001d);
             double amplitude = target * chroma[1] / (4d * Math.Sqrt(2d));
             float[] pixels = new float[8 * 8 * 3];
             for (int row = 0; row < 8; row++)
+            {
                 for (int column = 0; column < 8; column++)
                 {
-                    int offset = (row * 8 + column) * 3;
+                    int offset = ((row * 8) + column) * 3;
                     pixels[offset] = pixels[offset + 1] = 128f / 255f;
-                    pixels[offset + 2] = (float)((128d + amplitude *
-                        Math.Cos(Math.PI * (2 * column + 1) / 16d)) / 255d);
+                    pixels[offset + 2] = (float)((128d + (amplitude *
+                        Math.Cos(Math.PI * ((2 * column) + 1) / 16d))) / 255d);
                 }
+            }
+
             foreach (bool progressive in new[] { false, true })
             {
                 var options = new JpegliEncoderOptions
                 {
-                    CicpTransferFunction = transfer, UseStandardQuantizationTables = true,
-                    Distance = 0.9f, Subsampling = ChromaSubsampling.None,
-                    Progressive = progressive, ProgressiveRefinementBits = progressive ? 2 : 0,
-                    OptimizeHuffmanTables = progressive, RestartInterval = 1
+                    CicpTransferFunction = transfer,
+                    UseStandardQuantizationTables = true,
+                    Distance = 0.9f,
+                    Subsampling = ChromaSubsampling.None,
+                    Progressive = progressive,
+                    ProgressiveRefinementBits = progressive ? 2 : 0,
+                    OptimizeHuffmanTables = progressive,
+                    RestartInterval = 1
                 };
                 JpegDocument document = Read(EncodeSource(pixels, 8, 8, PixelComponentLayout.YCbCr, options), options);
                 Assert.Equal(ToWireOrder(y), document.Quantizers[0]);
                 Assert.Equal(ToWireOrder(chroma), document.Quantizers[1]);
-                Assert.Equal(new[] { 0, 1, 1 }, document.Components.Values.Select(component => component.Quantizer));
+                Assert.Equal([0, 1, 1], document.Components.Values.Select(component => component.Quantizer));
                 Assert.Equal(sharedSelectorProbe ? 1 : 0, document.Blocks[new(3, 0, 0)].Coefficients[1]);
                 Assert.All(document.Blocks[new(3, 0, 0)].Coefficients[2..], coefficient => Assert.Equal(0, coefficient));
                 if (!sharedSelectorProbe)
@@ -517,26 +585,37 @@ public sealed class EncoderTransferFunctionTests
                     ]
                 )
             };
-        var (tables, inferredDistance, grayDistance, multipliers) = fixture;
+        (ushort[][]? tables, float inferredDistance, float grayDistance, float[][]? multipliers) = fixture;
         var options = new JpegliEncoderOptions
         {
-            CicpTransferFunction = transfer, Distance = distance,
+            CicpTransferFunction = transfer,
+            Distance = distance,
             Subsampling = is420 ? ChromaSubsampling.Quarter : ChromaSubsampling.None,
-            Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 1
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 1
         };
         byte[] pixels = Pattern(19, 17, PixelLayout.YCbCr24);
         JpegDocument document = Read(EncodeSource(pixels, 19, 17, PixelComponentLayout.YCbCr, options), options);
         for (int component = 0; component < tables.Length; component++)
+        {
             Assert.Equal(ToWireOrder(tables[component]), document.Quantizers[component]);
+        }
+
         Assert.InRange(MathF.Abs(inferredDistance - Quantization.QuantValuesToDistance(tables,
             cicpTransferFunction: transfer)), 0f, 0.000001f);
         float[][] actualMultipliers = Quantization.CreateAdaptiveZeroBiasMultipliers(tables,
             is420 ? 2 : 1, is420 ? 2 : 1, false, cicpTransferFunction: transfer);
         int[] frequencies = [1, 9, 63];
         for (int component = 0; component < tables.Length; component++)
+        {
             for (int index = 0; index < frequencies.Length; index++)
+            {
                 Assert.InRange(MathF.Abs(multipliers[component][index] -
                     actualMultipliers[component][frequencies[index]]), 0f, 0.000001f);
+            }
+        }
+
         if (!is420)
         {
             Array gray = Source(2, 19, 17, PixelComponentLayout.Gray);
@@ -567,14 +646,20 @@ public sealed class EncoderTransferFunctionTests
         float globalScale = 1.73966010f;
         globalScale *= transfer == 16 ? 0.4f : 0.5f;
         if (is420)
+        {
             globalScale *= 1.22f;
+        }
+
         for (int index = 0; index < positions.Length; index++)
         {
             float distanceScale = distance < 1.5f ? distance : MathF.Max(0.5f * distance,
                 (float)Math.Pow(1.5f, 1d - exponents[index]) * MathF.Pow(distance, exponents[index]));
             float scale = globalScale * distanceScale;
             if (is420 && component > 0)
+            {
                 scale *= chroma420Rescale[index];
+            }
+
             Assert.Equal((byte)Math.Clamp(MathF.Round(scale * matrices[component][index],
                 MidpointRounding.AwayFromZero), 1f, 255f), table[positions[index]]);
         }
@@ -589,11 +674,17 @@ public sealed class EncoderTransferFunctionTests
             Assert.Equal(0xff, jpeg[offset]);
             int marker = jpeg[offset + 1];
             if (marker == 0xda)
+            {
                 break;
+            }
+
             int length = (jpeg[offset + 2] << 8) | jpeg[offset + 3];
             Assert.InRange(length, 2, jpeg.Length - offset - 2);
-            if (marker is >= 0xe0 and <= 0xef or 0xfe)
+            if (marker is (>= 0xe0 and <= 0xef) or 0xfe)
+            {
                 metadata.Write(jpeg.AsSpan(offset, length + 2));
+            }
+
             offset += length + 2;
         }
         return metadata.ToArray();
@@ -606,7 +697,10 @@ public sealed class EncoderTransferFunctionTests
         Assert.Equal(expected.Components, actual.Components);
         Assert.Equal(expected.Quantizers.Keys, actual.Quantizers.Keys);
         foreach ((int selector, byte[] table) in expected.Quantizers)
+        {
             Assert.Equal(table, actual.Quantizers[selector]);
+        }
+
         Assert.Equal(expected.Blocks.Count, actual.Blocks.Count);
         foreach ((BlockKey key, Block block) in expected.Blocks.Where(pair => !pair.Value.IsDummy))
         {
@@ -619,6 +713,10 @@ public sealed class EncoderTransferFunctionTests
     {
         PixelComponentLayout.Gray => 1,
         PixelComponentLayout.Rgba or PixelComponentLayout.Bgra => 4,
+        PixelComponentLayout.Rgb => 3,
+        PixelComponentLayout.Bgr => 3,
+        PixelComponentLayout.YCbCr => 3,
+        PixelComponentLayout.Xyb => 3,
         _ => 3
     };
 
@@ -634,8 +732,11 @@ public sealed class EncoderTransferFunctionTests
     {
         int components = Components(layout);
         if (stride == 0)
+        {
             stride = width * components;
-        int length = (height - 1) * stride + width * components + trailing;
+        }
+
+        int length = ((height - 1) * stride) + (width * components) + trailing;
         Array pixels = kind switch
         {
             0 => Enumerable.Repeat(byte.MaxValue, length).ToArray(),
@@ -644,18 +745,29 @@ public sealed class EncoderTransferFunctionTests
         };
         bool bgr = layout is PixelComponentLayout.Bgr or PixelComponentLayout.Bgra;
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < (layout == PixelComponentLayout.Gray ? 1 : 3); channel++)
                 {
-                    int offset = y * stride + x * components + (bgr ? 2 - channel : channel);
-                    int value = 24 + (11 * x + 19 * y + 37 * channel + 7 * (x / 8) * (channel + 1)) % 208;
+                    int offset = (y * stride) + (x * components) + (bgr ? 2 - channel : channel);
+                    int value = 24 + (((11 * x) + (19 * y) + (37 * channel) + (7 * (x / 8) * (channel + 1))) % 208);
                     if (pixels is byte[] bytes)
+                    {
                         bytes[offset] = (byte)value;
+                    }
                     else if (pixels is ushort[] words)
-                        words[offset] = (ushort)(value * 257 + (11 * x + 17 * y + 29 * channel) % 113);
+                    {
+                        words[offset] = (ushort)((value * 257) + (((11 * x) + (17 * y) + (29 * channel)) % 113));
+                    }
                     else
-                        ((float[])pixels)[offset] = (value + (11 * x + 17 * y + 29 * channel) % 113 / 257f) / 255f;
+                    {
+                        ((float[])pixels)[offset] = (value + (((11 * x) + (17 * y) + (29 * channel)) % 113 / 257f)) / 255f;
+                    }
                 }
+            }
+        }
+
         return pixels;
     }
 
@@ -666,6 +778,8 @@ public sealed class EncoderTransferFunctionTests
         PixelComponentLayout.Bgra => PixelLayout.Bgra32,
         PixelComponentLayout.Gray => PixelLayout.Gray8,
         PixelComponentLayout.YCbCr => PixelLayout.YCbCr24,
+        PixelComponentLayout.Rgb => PixelLayout.Rgb24,
+        PixelComponentLayout.Xyb => PixelLayout.Rgb24,
         _ => PixelLayout.Rgb24
     };
 
@@ -681,11 +795,17 @@ public sealed class EncoderTransferFunctionTests
         PixelComponentLayout layout, JpegliEncoderOptions options, CancellationToken cancellationToken, int stride = 0)
     {
         if (pixels is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, ByteLayout(layout), options, stride, cancellationToken);
+        }
         else if (pixels is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, layout, options, stride, cancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])pixels, width, height, layout, options, stride, cancellationToken);
+        }
     }
 
     private static JpegDocument Read(byte[] jpeg, JpegliEncoderOptions options) =>

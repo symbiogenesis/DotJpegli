@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using System.Text;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class MetadataReviewTests
 {
@@ -10,7 +10,7 @@ public sealed class MetadataReviewTests
     public void BigEndianUnicodeUserCommentKeepsItsMeaningAfterUnrelatedEdit()
     {
         byte[] comment = [.. "UNICODE\0"u8, 0, 0x41, 0, 0x42];
-        ExifMetadata metadata = ExifMetadata.Parse(BigEndianPhotoField(0x9286, 7, comment));
+        var metadata = ExifMetadata.Parse(BigEndianPhotoField(0x9286, 7, comment));
         metadata.SetAscii(ExifDirectory.Image, 0x013b, "Ada");
         byte[] encoded = metadata.ToArray();
         byte[] retained = ReadPhotoField(encoded, 0x9286);
@@ -28,7 +28,7 @@ public sealed class MetadataReviewTests
     public void BigEndianUndefinedTablesRetainTheirEmbeddedNumericalByteOrder(int tag, string hex)
     {
         byte[] payload = Convert.FromHexString(hex);
-        ExifMetadata metadata = ExifMetadata.Parse(BigEndianPhotoField((ushort)tag, 7, payload));
+        var metadata = ExifMetadata.Parse(BigEndianPhotoField((ushort)tag, 7, payload));
         metadata.SetUnsignedShort(ExifDirectory.Image, 0x0112, 3);
         byte[] encoded = metadata.ToArray();
         Assert.Equal("MM"u8.ToArray(), encoded[..2]);
@@ -39,7 +39,7 @@ public sealed class MetadataReviewTests
     public void BigEndianTypedValuesRemainCanonicalInTheApiAndWriteBackInTheSourceByteOrder()
     {
         byte[] rational = Convert.FromHexString("0000000300000008");
-        ExifMetadata metadata = ExifMetadata.Parse(BigEndianPhotoField(0x829a, 5, rational));
+        var metadata = ExifMetadata.Parse(BigEndianPhotoField(0x829a, 5, rational));
         Assert.Equal(Convert.FromHexString("0300000008000000"),
             metadata.GetEntry(ExifDirectory.Photo, 0x829a)!.Value.ToArray());
         metadata.SetUnsignedRational(ExifDirectory.Photo, 0x829a, 4, 5);
@@ -47,7 +47,7 @@ public sealed class MetadataReviewTests
         byte[] encoded = metadata.ToArray();
         Assert.Equal("MM"u8.ToArray(), encoded[..2]);
         Assert.Equal(Convert.FromHexString("0000000400000005"), ReadPhotoField(encoded, 0x829a));
-        ExifMetadata again = ExifMetadata.Parse(encoded);
+        var again = ExifMetadata.Parse(encoded);
         Assert.Equal(6u, again.GetUnsignedInteger(ExifDirectory.Image, 0x0112));
         Assert.Equal(Convert.FromHexString("0400000005000000"),
             again.GetEntry(ExifDirectory.Photo, 0x829a)!.Value.ToArray());
@@ -87,9 +87,12 @@ public sealed class MetadataReviewTests
         int count = Read16(tiff, directory, big);
         for (int index = 0; index < count; index++)
         {
-            int entry = directory + 2 + 12 * index;
+            int entry = directory + 2 + (12 * index);
             if (Read16(tiff, entry, big) != tag)
+            {
                 continue;
+            }
+
             int elementSize = Read16(tiff, entry + 2, big) switch { 3 => 2, 4 => 4, 5 => 8, _ => 1 };
             int length = checked((int)Read32(tiff, entry + 4, big) * elementSize);
             int offset = length <= 4 ? entry + 8 : checked((int)Read32(tiff, entry + 8, big));

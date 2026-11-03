@@ -1,9 +1,9 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderStandardQuantizationTests
 {
@@ -34,15 +34,15 @@ public sealed class EncoderStandardQuantizationTests
         58,59,52,45,38,31,39,46,53,60,61,54,47,55,62,63
     ];
 
-    public static TheoryData<float> DirectDistances => new()
-    {
+    public static TheoryData<float> DirectDistances =>
+    [
         float.Epsilon, 0.001f, MathF.BitDecrement(0.1f), 0.1f,
         MathF.BitIncrement(0.1f), 0.125f, 0.375f, 1.45f,
         MathF.BitDecrement(4.6f), 4.6f, MathF.BitIncrement(4.6f),
         MathF.BitDecrement(6.4f), 6.4f, MathF.BitIncrement(6.4f),
         12.5f, MathF.BitDecrement(25f), 25f, MathF.BitIncrement(25f),
         30f, float.MaxValue
-    };
+    ];
 
     public static TheoryData<int, bool> SamplingModes
     {
@@ -50,8 +50,13 @@ public sealed class EncoderStandardQuantizationTests
         {
             var result = new TheoryData<int, bool>();
             for (int mode = 0; mode < Enum.GetValues<ChromaSubsampling>().Length + 3; mode++)
+            {
                 foreach (bool adaptive in new[] { false, true })
+                {
                     result.Add(mode, adaptive);
+                }
+            }
+
             return result;
         }
     }
@@ -71,7 +76,7 @@ public sealed class EncoderStandardQuantizationTests
             Assert.Equal(expected, EncodeSource(pixels, 19, 17, layout,
                 options with { UseStandardQuantizationTables = false }));
             JpegDocument document = Read(expected, options);
-            Assert.Equal(layout == PixelComponentLayout.Gray ? new[] { 0 } : new[] { 0, 1, 2 },
+            Assert.Equal(layout == PixelComponentLayout.Gray ? new[] { 0 } : [0, 1, 2],
                 document.Components.Values.Select(component => component.Quantizer));
             Assert.False(expected.SequenceEqual(EncodeSource(pixels, 19, 17, layout,
                 options with { UseStandardQuantizationTables = true })));
@@ -89,7 +94,9 @@ public sealed class EncoderStandardQuantizationTests
         {
             var options = new JpegliEncoderOptions
             {
-                UseStandardQuantizationTables = true, Quality = quality, AdaptiveQuantization = false,
+                UseStandardQuantizationTables = true,
+                Quality = quality,
+                AdaptiveQuantization = false,
                 Subsampling = ChromaSubsampling.None
             };
             float distance = QualityDistance(quality);
@@ -138,7 +145,9 @@ public sealed class EncoderStandardQuantizationTests
         {
             Assert.Equal(0f, actual[component][0]);
             for (int index = 0; index < frequencies.Length; index++)
+            {
                 Assert.InRange(MathF.Abs(expected[component][index] - actual[component][frequencies[index]]), 0f, 0.000001f);
+            }
         }
         ushort[][] unitTables = Enumerable.Range(0, 3).Select(_ => Enumerable.Repeat((ushort)1, 64).ToArray()).ToArray();
         Assert.InRange(MathF.Abs(0.00768749788f - Quantization.QuantValuesToDistance(unitTables, sharedChromaTable: true)), 0f, 0.000001f);
@@ -161,11 +170,11 @@ public sealed class EncoderStandardQuantizationTests
         const float distance = 1.351f, strength = 0.0467278957f;
         const float correctCrMultiplier = 0.847996712f, wrongCrMultiplier = 0.866299152f;
         const float cbMultiplier = 1.11422992f;
-        double correctThreshold = 0.57988f + strength * correctCrMultiplier;
-        double wrongThreshold = 0.57988f + strength * wrongCrMultiplier;
+        double correctThreshold = 0.57988f + (strength * correctCrMultiplier);
+        double wrongThreshold = 0.57988f + (strength * wrongCrMultiplier);
         double target = 0.5d * (correctThreshold + wrongThreshold);
         Assert.True(target > correctThreshold && target < wrongThreshold);
-        Assert.True(target < 0.58146f + strength * cbMultiplier);
+        Assert.True(target < 0.58146f + (strength * cbMultiplier));
 
         // A constant Y=128 spatial field has the pinned independent scalar AQ
         // strength above whenever its first AC quantizer is below 9. A cosine
@@ -175,18 +184,25 @@ public sealed class EncoderStandardQuantizationTests
         double amplitude = target * chromaQuantizer / (4d * Math.Sqrt(2d));
         float[] pixels = new float[8 * 8 * 3];
         for (int y = 0; y < 8; y++)
+        {
             for (int x = 0; x < 8; x++)
             {
-                int offset = (y * 8 + x) * 3;
+                int offset = ((y * 8) + x) * 3;
                 pixels[offset] = 128f / 255f;
                 pixels[offset + 1] = pixels[offset + 2] =
-                    (float)((128d + amplitude * Math.Cos(Math.PI * (2 * x + 1) / 16d)) / 255d);
+                    (float)((128d + (amplitude * Math.Cos(Math.PI * ((2 * x) + 1) / 16d))) / 255d);
             }
+        }
+
         var options = new JpegliEncoderOptions
         {
-            UseStandardQuantizationTables = true, Distance = distance, Subsampling = ChromaSubsampling.None,
-            Progressive = progressive, ProgressiveRefinementBits = progressive ? 2 : 0,
-            OptimizeHuffmanTables = optimize, RestartInterval = 1
+            UseStandardQuantizationTables = true,
+            Distance = distance,
+            Subsampling = ChromaSubsampling.None,
+            Progressive = progressive,
+            ProgressiveRefinementBits = progressive ? 2 : 0,
+            OptimizeHuffmanTables = optimize,
+            RestartInterval = 1
         };
         JpegDocument document = Read(EncodeSource(pixels, 8, 8, PixelComponentLayout.YCbCr, options), options);
         AssertStandardTables(document, distance, grayscale: false);
@@ -206,15 +222,20 @@ public sealed class EncoderStandardQuantizationTests
     public void DistanceBranchesAndExtremesKeepBaselineQuantizersAndConstantDc(float distance)
     {
         foreach (bool grayscale in new[] { false, true })
+        {
             foreach (bool progressive in new[] { false, true })
             {
                 PixelComponentLayout layout = grayscale ? PixelComponentLayout.Gray : PixelComponentLayout.YCbCr;
                 byte[] pixels = ConstantPlanes(8, 8, grayscale);
                 var options = new JpegliEncoderOptions
                 {
-                    UseStandardQuantizationTables = true, Distance = distance, Quality = 0f,
-                    AdaptiveQuantization = false, Progressive = progressive,
-                    ProgressiveRefinementBits = progressive ? 2 : 0, RestartInterval = 1
+                    UseStandardQuantizationTables = true,
+                    Distance = distance,
+                    Quality = 0f,
+                    AdaptiveQuantization = false,
+                    Progressive = progressive,
+                    ProgressiveRefinementBits = progressive ? 2 : 0,
+                    RestartInterval = 1
                 };
                 byte[] jpeg = EncodeSource(pixels, 8, 8, layout, options);
                 JpegDocument document = Read(jpeg, options);
@@ -227,16 +248,27 @@ public sealed class EncoderStandardQuantizationTests
                     Assert.Equal(dc, block.Coefficients[0]);
                     Assert.All(block.Coefficients[1..], value => Assert.Equal(0, value));
                 }
-                if (distance <= 0.1f || distance >= 25f)
+                if (distance is <= 0.1f or >= 25f)
+                {
                     foreach (byte[] table in document.Quantizers.Values)
+                    {
                         Assert.All(table, value => Assert.Equal(distance <= 0.1f ? (byte)1 : (byte)255, value));
+                    }
+                }
+
                 if (distance == MathF.BitDecrement(25f))
+                {
                     foreach (byte[] table in document.Quantizers.Values)
+                    {
                         Assert.All(table, value => Assert.Equal((byte)255, value));
-                ImageResult decoded = ImageResult.FromMemory(jpeg,
+                    }
+                }
+
+                var decoded = ImageResult.FromMemory(jpeg,
                     grayscale ? ColorComponents.Grey : ColorComponents.RedGreenBlue);
                 Assert.Equal((8, 8), (decoded.Width, decoded.Height));
             }
+        }
     }
 
     [Theory]
@@ -247,8 +279,11 @@ public sealed class EncoderStandardQuantizationTests
         byte[] pixels = Pattern(width, height, PixelLayout.YCbCr24);
         JpegliEncoderOptions options = SamplingOptions(mode) with
         {
-            UseStandardQuantizationTables = true, Quality = 92f,
-            AdaptiveQuantization = adaptive, OptimizeHuffmanTables = false, SmoothingFactor = 37
+            UseStandardQuantizationTables = true,
+            Quality = 92f,
+            AdaptiveQuantization = adaptive,
+            OptimizeHuffmanTables = false,
+            SmoothingFactor = 37
         };
         byte[] baseline = EncodeSource(pixels, width, height, PixelComponentLayout.YCbCr, options);
         JpegDocument reference = Read(baseline, options);
@@ -261,8 +296,10 @@ public sealed class EncoderStandardQuantizationTests
         {
             JpegliEncoderOptions variant = options with
             {
-                Progressive = progressive, ProgressiveRefinementBits = bits,
-                RestartInterval = interval, OptimizeHuffmanTables = optimize
+                Progressive = progressive,
+                ProgressiveRefinementBits = bits,
+                RestartInterval = interval,
+                OptimizeHuffmanTables = optimize
             };
             byte[] jpeg = EncodeSource(pixels, width, height, PixelComponentLayout.YCbCr, variant);
             JpegDocument actual = Read(jpeg, variant);
@@ -272,8 +309,10 @@ public sealed class EncoderStandardQuantizationTests
         }
         // Upstream disables AQ when either axis of the luma is subsampled.
         if (mode is 12 or 13)
+        {
             Assert.Equal(baseline, EncodeSource(pixels, width, height, PixelComponentLayout.YCbCr,
                 options with { AdaptiveQuantization = !adaptive }));
+        }
     }
 
     [Fact]
@@ -285,8 +324,12 @@ public sealed class EncoderStandardQuantizationTests
         {
             JpegliEncoderOptions options = SamplingOptions(mode) with
             {
-                UseStandardQuantizationTables = true, Quality = 50f, AdaptiveQuantization = false,
-                Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 1
+                UseStandardQuantizationTables = true,
+                Quality = 50f,
+                AdaptiveQuantization = false,
+                Progressive = true,
+                ProgressiveRefinementBits = 2,
+                RestartInterval = 1
             };
             JpegDocument document = Read(EncodeSource(pixels, width, height, PixelComponentLayout.YCbCr, options), options);
             AssertStandardTables(document, QualityDistance(50f), grayscale: false);
@@ -314,11 +357,15 @@ public sealed class EncoderStandardQuantizationTests
             PixelComponentLayout compactLayout = layout is PixelComponentLayout.Gray or PixelComponentLayout.YCbCr
                 ? layout : PixelComponentLayout.Rgb;
             Array compact = Source(kind, width, height, compactLayout);
-            int stride = width * Components(layout) + 13;
+            int stride = (width * Components(layout)) + 13;
             var options = new JpegliEncoderOptions
             {
-                UseStandardQuantizationTables = true, Distance = 0.375f, Progressive = true,
-                ProgressiveRefinementBits = 2, RestartInterval = 2, SmoothingFactor = 37
+                UseStandardQuantizationTables = true,
+                Distance = 0.375f,
+                Progressive = true,
+                ProgressiveRefinementBits = 2,
+                RestartInterval = 2,
+                SmoothingFactor = 37
             };
             byte[] expected = EncodeSource(compact, width, height, compactLayout, options);
             foreach (int trailing in new[] { 0, 17 })
@@ -341,7 +388,7 @@ public sealed class EncoderStandardQuantizationTests
         foreach (float invalid in new[] { 0f, -1f, float.NaN, float.NegativeInfinity, float.PositiveInfinity })
         {
             using var destination = new MemoryStream();
-            var error = Assert.Throws<ArgumentOutOfRangeException>(() => EncodeSource(destination, pixels, 1, 1,
+            ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() => EncodeSource(destination, pixels, 1, 1,
                 PixelComponentLayout.Rgb, new() { UseStandardQuantizationTables = true, Distance = invalid },
                 TestContext.Current.CancellationToken));
             Assert.Equal(nameof(JpegliEncoderOptions.Distance), error.ParamName);
@@ -350,22 +397,24 @@ public sealed class EncoderStandardQuantizationTests
         foreach (float invalid in new[] { -1f, 101f, float.NaN, float.NegativeInfinity, float.PositiveInfinity })
         {
             using var destination = new MemoryStream();
-            var error = Assert.Throws<ArgumentOutOfRangeException>(() => EncodeSource(destination, pixels, 1, 1,
+            ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() => EncodeSource(destination, pixels, 1, 1,
                 PixelComponentLayout.Rgb, new() { UseStandardQuantizationTables = true, Distance = 1f, Quality = invalid },
                 TestContext.Current.CancellationToken));
             Assert.Equal(nameof(JpegliEncoderOptions.Quality), error.ParamName);
             Assert.Equal(0, destination.Length);
         }
         if (pixels is float[] floats)
+        {
             foreach (float invalid in new[] { -0.01f, 1.01f, float.NaN, float.NegativeInfinity, float.PositiveInfinity })
             {
                 floats[^1] = invalid;
                 using var destination = new MemoryStream();
-                var error = Assert.ThrowsAny<ArgumentException>(() => EncodeSource(destination, floats, 1, 1,
+                ArgumentException error = Assert.ThrowsAny<ArgumentException>(() => EncodeSource(destination, floats, 1, 1,
                     PixelComponentLayout.Rgb, new() { UseStandardQuantizationTables = true }, TestContext.Current.CancellationToken));
                 Assert.Equal("pixels", error.ParamName);
                 Assert.Equal(0, destination.Length);
             }
+        }
     }
 
     [Theory]
@@ -378,16 +427,21 @@ public sealed class EncoderStandardQuantizationTests
         float[] pixels = Enumerable.Repeat(-0.1f, 64).ToArray();
         var options = new JpegliEncoderOptions
         {
-            UseStandardQuantizationTables = true, AllowOutOfRangeFloatSamples = true,
-            Quality = 100f, Distance = 25f, AdaptiveQuantization = false, Progressive = progressive,
-            ProgressiveRefinementBits = progressive ? 2 : 0, OptimizeHuffmanTables = optimize
+            UseStandardQuantizationTables = true,
+            AllowOutOfRangeFloatSamples = true,
+            Quality = 100f,
+            Distance = 25f,
+            AdaptiveQuantization = false,
+            Progressive = progressive,
+            ProgressiveRefinementBits = progressive ? 2 : 0,
+            OptimizeHuffmanTables = optimize
         };
         byte[] jpeg = EncodeSource(pixels, 8, 8, PixelComponentLayout.Gray, options);
         JpegDocument document = Read(jpeg, options);
         Assert.All(Assert.Single(document.Quantizers).Value, value => Assert.Equal((byte)255, value));
         Assert.Equal(-5, Assert.Single(document.Blocks).Value.Coefficients[0]);
         using var destination = new MemoryStream();
-        var error = Assert.Throws<ArgumentException>(() => EncodeSource(destination, pixels, 8, 8,
+        ArgumentException error = Assert.Throws<ArgumentException>(() => EncodeSource(destination, pixels, 8, 8,
             PixelComponentLayout.Gray, options with { Distance = 0.1f, Quality = 0f }, TestContext.Current.CancellationToken));
         Assert.Equal("pixels", error.ParamName);
         Assert.Equal(0, destination.Length);
@@ -403,8 +457,11 @@ public sealed class EncoderStandardQuantizationTests
         Array pixels = Source(kind, width, height, PixelComponentLayout.YCbCr);
         var options = new JpegliEncoderOptions
         {
-            UseStandardQuantizationTables = true, Distance = 0.375f, Progressive = true,
-            ProgressiveRefinementBits = 2, RestartInterval = 2
+            UseStandardQuantizationTables = true,
+            Distance = 0.375f,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2
         };
         byte[] complete = EncodeSource(pixels, width, height, PixelComponentLayout.YCbCr, options);
         using var destination = new MemoryStream();
@@ -415,7 +472,7 @@ public sealed class EncoderStandardQuantizationTests
 
         using var empty = new MemoryStream();
         var canceled = new CancellationToken(true);
-        var preError = Assert.Throws<OperationCanceledException>(() => EncodeSource(empty, pixels, width, height,
+        OperationCanceledException preError = Assert.Throws<OperationCanceledException>(() => EncodeSource(empty, pixels, width, height,
             PixelComponentLayout.YCbCr, options, canceled));
         Assert.Equal(canceled, preError.CancellationToken);
         Assert.Equal(0, empty.Length);
@@ -426,9 +483,11 @@ public sealed class EncoderStandardQuantizationTests
         using var partialOutput = new WriteOnlyStream(partial, () =>
         {
             if (partial.Length >= cancelAfter)
+            {
                 cancellation.Cancel();
+            }
         });
-        var error = Assert.Throws<OperationCanceledException>(() => EncodeSource(partialOutput, pixels, width, height,
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() => EncodeSource(partialOutput, pixels, width, height,
             PixelComponentLayout.YCbCr, options, cancellation.Token));
         Assert.Equal(cancellation.Token, error.CancellationToken);
         Assert.False(partialOutput.Closed);
@@ -437,8 +496,8 @@ public sealed class EncoderStandardQuantizationTests
     }
 
     private static float QualityDistance(float quality) => quality == 100f ? 0.01f
-        : quality >= 30f ? 0.1f + (100f - quality) * 0.09f
-        : (53f / 3000f) * quality * quality - (23f / 20f) * quality + 25f;
+        : quality >= 30f ? 0.1f + ((100f - quality) * 0.09f)
+        : (53f / 3000f * quality * quality) - (23f / 20f * quality) + 25f;
 
     private static byte[] ExpectedTable(float distance, bool chroma)
     {
@@ -446,15 +505,18 @@ public sealed class EncoderStandardQuantizationTests
         // libjpeg scale; the perceptual frequency exponents and 420 corrections
         // do not apply. Arithmetic preserves C++ single-precision operations.
         float linearQuality = distance <= 0.1f ? 1f
-            : distance <= 4.6f ? (200f / 9f) * (distance - 0.1f)
-            : distance <= 6.4f ? 5000f / (100f - (distance - 0.1f) / 0.09f)
-            : distance < 25f ? 530000f / (3450f - 300f * MathF.Sqrt((848f * distance - 5330f) / 120f))
+            : distance <= 4.6f ? 200f / 9f * (distance - 0.1f)
+            : distance <= 6.4f ? 5000f / (100f - ((distance - 0.1f) / 0.09f))
+            : distance < 25f ? 530000f / (3450f - (300f * MathF.Sqrt(((848f * distance) - 5330f) / 120f)))
             : 5000f;
         float scale = 0.01f * linearQuality;
         ReadOnlySpan<byte> basis = chroma ? Chrominance : Luminance;
         byte[] result = new byte[64];
         for (int index = 0; index < result.Length; index++)
+        {
             result[index] = (byte)Math.Clamp(MathF.Round(scale * basis[index], MidpointRounding.AwayFromZero), 1f, 255f);
+        }
+
         return result;
     }
 
@@ -462,18 +524,23 @@ public sealed class EncoderStandardQuantizationTests
     {
         byte[] result = new byte[64];
         for (int index = 0; index < result.Length; index++)
+        {
             result[index] = natural[Zigzag[index]];
+        }
+
         return result;
     }
 
     private static void AssertStandardTables(JpegDocument document, float distance, bool grayscale)
     {
-        Assert.Equal(grayscale ? new[] { 0 } : new[] { 0, 1 }, document.Quantizers.Keys);
-        Assert.Equal(grayscale ? new[] { 0 } : new[] { 0, 1, 1 },
+        Assert.Equal(grayscale ? new[] { 0 } : [0, 1], document.Quantizers.Keys);
+        Assert.Equal(grayscale ? new[] { 0 } : [0, 1, 1],
             document.Components.Values.Select(component => component.Quantizer));
         Assert.Equal(ToWireOrder(ExpectedTable(distance, chroma: false)), document.Quantizers[0]);
         if (!grayscale)
+        {
             Assert.Equal(ToWireOrder(ExpectedTable(distance, chroma: true)), document.Quantizers[1]);
+        }
     }
 
     private static void AssertCoefficients(JpegDocument expected, JpegDocument actual)
@@ -483,7 +550,10 @@ public sealed class EncoderStandardQuantizationTests
         Assert.Equal(expected.Components, actual.Components);
         Assert.Equal(expected.Quantizers.Keys, actual.Quantizers.Keys);
         foreach ((int selector, byte[] table) in expected.Quantizers)
+        {
             Assert.Equal(table, actual.Quantizers[selector]);
+        }
+
         Assert.Equal(expected.Blocks.Count, actual.Blocks.Count);
         foreach ((BlockKey key, Block block) in expected.Blocks.Where(pair => !pair.Value.IsDummy))
         {
@@ -512,6 +582,10 @@ public sealed class EncoderStandardQuantizationTests
     {
         PixelComponentLayout.Gray => 1,
         PixelComponentLayout.Rgba or PixelComponentLayout.Bgra => 4,
+        PixelComponentLayout.Rgb => 3,
+        PixelComponentLayout.Bgr => 3,
+        PixelComponentLayout.YCbCr => 3,
+        PixelComponentLayout.Xyb => 3,
         _ => 3
     };
 
@@ -520,8 +594,11 @@ public sealed class EncoderStandardQuantizationTests
     {
         int components = Components(layout);
         if (stride == 0)
+        {
             stride = width * components;
-        int length = (height - 1) * stride + width * components + trailing;
+        }
+
+        int length = ((height - 1) * stride) + (width * components) + trailing;
         Array result = kind switch
         {
             0 => Enumerable.Repeat(byte.MaxValue, length).ToArray(),
@@ -530,18 +607,29 @@ public sealed class EncoderStandardQuantizationTests
         };
         bool bgr = layout is PixelComponentLayout.Bgr or PixelComponentLayout.Bgra;
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < (layout == PixelComponentLayout.Gray ? 1 : 3); channel++)
                 {
-                    int offset = y * stride + x * components + (bgr ? 2 - channel : channel);
-                    byte value = (byte)(24 + (11 * x + 19 * y + 37 * channel + 7 * (x / 8) * (channel + 1)) % 208);
+                    int offset = (y * stride) + (x * components) + (bgr ? 2 - channel : channel);
+                    byte value = (byte)(24 + (((11 * x) + (19 * y) + (37 * channel) + (7 * (x / 8) * (channel + 1))) % 208));
                     if (result is byte[] bytes)
+                    {
                         bytes[offset] = value;
+                    }
                     else if (result is ushort[] words)
+                    {
                         words[offset] = (ushort)(value * 257);
+                    }
                     else
+                    {
                         ((float[])result)[offset] = value / 255f;
+                    }
                 }
+            }
+        }
+
         return result;
     }
 
@@ -552,6 +640,8 @@ public sealed class EncoderStandardQuantizationTests
         PixelComponentLayout.Bgra => PixelLayout.Bgra32,
         PixelComponentLayout.Gray => PixelLayout.Gray8,
         PixelComponentLayout.YCbCr => PixelLayout.YCbCr24,
+        PixelComponentLayout.Rgb => PixelLayout.Rgb24,
+        PixelComponentLayout.Xyb => PixelLayout.Rgb24,
         _ => PixelLayout.Rgb24
     };
 
@@ -567,11 +657,17 @@ public sealed class EncoderStandardQuantizationTests
         PixelComponentLayout layout, JpegliEncoderOptions options, CancellationToken cancellationToken, int stride = 0)
     {
         if (pixels is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, ByteLayout(layout), options, stride, cancellationToken);
+        }
         else if (pixels is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, layout, options, stride, cancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])pixels, width, height, layout, options, stride, cancellationToken);
+        }
     }
 
     private static JpegDocument Read(byte[] jpeg, JpegliEncoderOptions options) =>

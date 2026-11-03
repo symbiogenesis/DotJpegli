@@ -41,9 +41,14 @@ internal static class XybQuantization
     internal static ushort[] CreateTableForDistance(float distance, int component, bool forceBaseline = true)
     {
         if (!float.IsFinite(distance) || distance <= 0f)
+        {
             throw new ArgumentOutOfRangeException(nameof(distance), "Distance must be finite and greater than zero.");
+        }
+
         if (component is < 0 or > 2)
+        {
             throw new ArgumentOutOfRangeException(nameof(component), "XYB has three components.");
+        }
 
         ReadOnlySpan<float> matrix = BaseMatrices.Slice(component * 64, 64);
         ushort[] table = new ushort[64];

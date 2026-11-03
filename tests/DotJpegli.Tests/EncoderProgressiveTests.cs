@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using StbImageSharp;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderProgressiveTests
 {
@@ -11,12 +11,17 @@ public sealed class EncoderProgressiveTests
         {
             var modes = new TheoryData<PixelLayout, ChromaSubsampling, bool, bool>();
             foreach (bool optimize in new[] { false, true })
+            {
                 foreach (bool adaptive in new[] { false, true })
                 {
                     modes.Add(PixelLayout.Gray8, ChromaSubsampling.Quarter, optimize, adaptive);
                     foreach (ChromaSubsampling sampling in Enum.GetValues<ChromaSubsampling>())
+                    {
                         modes.Add(PixelLayout.Rgb24, sampling, optimize, adaptive);
+                    }
                 }
+            }
+
             return modes;
         }
     }
@@ -32,13 +37,15 @@ public sealed class EncoderProgressiveTests
         byte[] pixels = Pattern(width, height, layout);
         var options = new JpegliEncoderOptions
         {
-            Quality = 90, Subsampling = sampling,
-            OptimizeHuffmanTables = optimize, AdaptiveQuantization = adaptive
+            Quality = 90,
+            Subsampling = sampling,
+            OptimizeHuffmanTables = optimize,
+            AdaptiveQuantization = adaptive
         };
         Assert.False(options.Progressive);
         byte[] baseline = Encode(pixels, width, height, layout, options);
         Assert.Equal(baseline, Encode(pixels, width, height, layout, options with { Progressive = false }));
-        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        var reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
         ColorComponents channels = layout == PixelLayout.Gray8 ? ColorComponents.Grey : ColorComponents.RedGreenBlue;
         byte[] expectedPixels = ImageResult.FromMemory(baseline, channels).Data;
 
@@ -46,14 +53,18 @@ public sealed class EncoderProgressiveTests
         {
             byte[] jpeg = Encode(pixels, width, height, layout, options with
             {
-                Progressive = true, RestartInterval = interval
+                Progressive = true,
+                RestartInterval = interval
             });
-            JpegDocument actual = JpegDocument.Read(jpeg, progressive: true, expectedInterval: interval);
+            var actual = JpegDocument.Read(jpeg, progressive: true, expectedInterval: interval);
             Assert.Equal(reference.Width, actual.Width);
             Assert.Equal(reference.Height, actual.Height);
             Assert.Equal(reference.Components, actual.Components);
             foreach ((int selector, byte[] quantizer) in reference.Quantizers)
+            {
                 Assert.Equal(quantizer, actual.Quantizers[selector]);
+            }
+
             Assert.Equal(reference.Blocks.Count, actual.Blocks.Count);
             foreach ((BlockKey key, Block expected) in reference.Blocks)
             {
@@ -65,9 +76,11 @@ public sealed class EncoderProgressiveTests
                     Assert.All(block.Coefficients[1..], coefficient => Assert.Equal(0, coefficient));
                 }
                 else
+                {
                     Assert.Equal(expected.Coefficients, block.Coefficients);
+                }
             }
-            ImageResult decoded = ImageResult.FromMemory(jpeg, channels);
+            var decoded = ImageResult.FromMemory(jpeg, channels);
             Assert.Equal(width, decoded.Width);
             Assert.Equal(height, decoded.Height);
             Assert.Equal(expectedPixels, decoded.Data);
@@ -91,15 +104,20 @@ public sealed class EncoderProgressiveTests
             byte[] pixels = Pattern(width, height, layout);
             var options = new JpegliEncoderOptions
             {
-                Subsampling = sampling, OptimizeHuffmanTables = optimize, RestartInterval = 2
+                Subsampling = sampling,
+                OptimizeHuffmanTables = optimize,
+                RestartInterval = 2
             };
             byte[] baseline = Encode(pixels, width, height, layout, options);
             byte[] progressive = Encode(pixels, width, height, layout, options with { Progressive = true });
-            JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 2);
-            JpegDocument actual = JpegDocument.Read(progressive, progressive: true, expectedInterval: 2);
+            var reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 2);
+            var actual = JpegDocument.Read(progressive, progressive: true, expectedInterval: 2);
             Assert.Equal(reference.Blocks.Count, actual.Blocks.Count);
             foreach ((BlockKey key, Block block) in reference.Blocks.Where(pair => !pair.Value.IsDummy))
+            {
                 Assert.Equal(block.Coefficients, actual.Blocks[key].Coefficients);
+            }
+
             ColorComponents channels = layout == PixelLayout.Gray8 ? ColorComponents.Grey : ColorComponents.RedGreenBlue;
             Assert.Equal(ImageResult.FromMemory(baseline, channels).Data,
                 ImageResult.FromMemory(progressive, channels).Data);
@@ -121,17 +139,19 @@ public sealed class EncoderProgressiveTests
         var options = new JpegliEncoderOptions
         {
             Subsampling = ChromaSubsampling.Quarter,
-            AdaptiveQuantization = false, OptimizeHuffmanTables = optimize
+            AdaptiveQuantization = false,
+            OptimizeHuffmanTables = optimize
         };
         byte[] baseline = Encode(pixels, width, height, layout, options);
-        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        var reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
         foreach (int interval in new[] { 0, 1, 7 })
         {
             byte[] jpeg = Encode(pixels, width, height, layout, options with
             {
-                Progressive = true, RestartInterval = interval
+                Progressive = true,
+                RestartInterval = interval
             });
-            JpegDocument actual = JpegDocument.Read(jpeg, progressive: true, expectedInterval: interval);
+            var actual = JpegDocument.Read(jpeg, progressive: true, expectedInterval: interval);
             AssertBaselineParity(baseline, reference, jpeg, actual, layout);
             Assert.Empty(actual.Scans[0].EobRuns);
             foreach (Scan scan in actual.Scans.Skip(1))
@@ -140,12 +160,14 @@ public sealed class EncoderProgressiveTests
                 int realBlocks = reference.Blocks.Count(pair =>
                     pair.Key.Component == component && !pair.Value.IsDummy);
                 int runLimit = optimize ? (interval == 0 ? realBlocks : interval) : 1;
-                int[] expectedRuns = Enumerable.Range(0, (realBlocks - 1) / runLimit + 1)
-                    .Select(index => Math.Min(runLimit, realBlocks - index * runLimit)).ToArray();
+                int[] expectedRuns = Enumerable.Range(0, ((realBlocks - 1) / runLimit) + 1)
+                    .Select(index => Math.Min(runLimit, realBlocks - (index * runLimit))).ToArray();
                 Assert.Equal(expectedRuns, scan.EobRuns);
                 Assert.Equal(realBlocks, scan.EobRuns.Sum());
                 if (optimize && interval != 1)
+                {
                     Assert.True(scan.EobRuns.Count < realBlocks);
+                }
             }
         }
     }
@@ -157,16 +179,24 @@ public sealed class EncoderProgressiveTests
         byte[] pixels = FlatPixels(width, height, PixelLayout.Gray8);
         byte[] texture = Pattern(width, height, PixelLayout.Gray8);
         foreach (int block in new[] { 7, 15 })
+        {
             for (int y = 0; y < height; y++)
-                texture.AsSpan(y * width + block * 8, 8).CopyTo(pixels.AsSpan(y * width + block * 8, 8));
+            {
+                texture.AsSpan((y * width) + (block * 8), 8).CopyTo(pixels.AsSpan((y * width) + (block * 8), 8));
+            }
+        }
+
         var options = new JpegliEncoderOptions { Quality = 90, AdaptiveQuantization = false };
         byte[] baseline = Encode(pixels, width, height, PixelLayout.Gray8, options);
         byte[] jpeg = Encode(pixels, width, height, PixelLayout.Gray8, options with { Progressive = true });
-        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
-        JpegDocument actual = JpegDocument.Read(jpeg, progressive: true, expectedInterval: 0);
+        var reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        var actual = JpegDocument.Read(jpeg, progressive: true, expectedInterval: 0);
         AssertBaselineParity(baseline, reference, jpeg, actual, PixelLayout.Gray8);
         foreach (int block in new[] { 7, 15 })
+        {
             Assert.Contains(reference.Blocks[new(1, block, 0)].Coefficients[1..], coefficient => coefficient != 0);
+        }
+
         Assert.Equal(7, actual.Scans[1].EobRuns[0]);
         Assert.Contains(actual.Scans[1].EobRuns, run => run > 1);
         Assert.True(actual.Scans[1].EobRuns.Count < 20);
@@ -182,8 +212,8 @@ public sealed class EncoderProgressiveTests
         var options = new JpegliEncoderOptions { AdaptiveQuantization = false };
         byte[] baseline = Encode(pixels, width, height, PixelLayout.Gray8, options);
         byte[] jpeg = Encode(pixels, width, height, PixelLayout.Gray8, options with { Progressive = true });
-        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
-        JpegDocument actual = JpegDocument.Read(jpeg, progressive: true, expectedInterval: 0);
+        var reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        var actual = JpegDocument.Read(jpeg, progressive: true, expectedInterval: 0);
         Assert.Equal(new[] { 32767, 257 }, actual.Scans[1].EobRuns);
         AssertBaselineParity(baseline, reference, jpeg, actual, PixelLayout.Gray8);
     }
@@ -197,7 +227,9 @@ public sealed class EncoderProgressiveTests
         byte[] pixels = Pattern(width, height, PixelLayout.Rgb24);
         var options = new JpegliEncoderOptions
         {
-            Progressive = true, RestartInterval = 2, OptimizeHuffmanTables = optimize
+            Progressive = true,
+            RestartInterval = 2,
+            OptimizeHuffmanTables = optimize
         };
         byte[] expected = Encode(pixels, width, height, PixelLayout.Rgb24, options);
         using var destination = new MemoryStream();
@@ -206,7 +238,7 @@ public sealed class EncoderProgressiveTests
             cancellationToken: TestContext.Current.CancellationToken);
         Assert.False(output.Closed);
         Assert.Equal(expected, destination.ToArray());
-        JpegDocument.Read(destination.ToArray(), progressive: true, expectedInterval: 2);
+        _ = JpegDocument.Read(destination.ToArray(), progressive: true, expectedInterval: 2);
     }
 
     [Theory]
@@ -218,10 +250,12 @@ public sealed class EncoderProgressiveTests
         byte[] pixels = Pattern(width, height, PixelLayout.Rgb24);
         var options = new JpegliEncoderOptions
         {
-            Progressive = true, RestartInterval = 2, OptimizeHuffmanTables = optimize
+            Progressive = true,
+            RestartInterval = 2,
+            OptimizeHuffmanTables = optimize
         };
         byte[] complete = Encode(pixels, width, height, PixelLayout.Rgb24, options);
-        JpegDocument document = JpegDocument.Read(complete, progressive: true, expectedInterval: 2);
+        var document = JpegDocument.Read(complete, progressive: true, expectedInterval: 2);
         // Cancel after entropy begins in the second AC scan, after DC and Y AC
         // have completed. This catches tokens checked only in the first scan.
         int cancelAfter = document.Scans[2].DataStart + 1;
@@ -230,7 +264,9 @@ public sealed class EncoderProgressiveTests
         using var output = new WriteOnlyStream(destination, () =>
         {
             if (destination.Length >= cancelAfter)
+            {
                 cancellation.Cancel();
+            }
         });
         OperationCanceledException exception = Assert.Throws<OperationCanceledException>(() =>
             JpegliEncoder.Encode(output, pixels, width, height, options: options, cancellationToken: cancellation.Token));
@@ -249,20 +285,25 @@ public sealed class EncoderProgressiveTests
     {
         const int width = 17, height = 9;
         byte[] rgb = Pattern(width, height, PixelLayout.Rgb24);
-        int stride = width * bytesPerPixel + 13;
-        byte[] source = new byte[(height - 1) * stride + width * bytesPerPixel];
+        int stride = (width * bytesPerPixel) + 13;
+        byte[] source = new byte[((height - 1) * stride) + (width * bytesPerPixel)];
         bool bgr = layout is PixelLayout.Bgr24 or PixelLayout.Bgra32;
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
             {
-                int input = (y * width + x) * 3;
-                int output = y * stride + x * bytesPerPixel;
+                int input = ((y * width) + x) * 3;
+                int output = (y * stride) + (x * bytesPerPixel);
                 source[output + (bgr ? 2 : 0)] = rgb[input];
                 source[output + 1] = rgb[input + 1];
                 source[output + (bgr ? 0 : 2)] = rgb[input + 2];
                 if (bytesPerPixel == 4)
+                {
                     source[output + 3] = (byte)(x * 17);
+                }
             }
+        }
+
         var options = new JpegliEncoderOptions { Progressive = true, RestartInterval = 2 };
         Assert.Equal(Encode(rgb, width, height, PixelLayout.Rgb24, options),
             JpegliEncoder.Encode(source, width, height, layout, options, stride,
@@ -280,10 +321,16 @@ public sealed class EncoderProgressiveTests
         Assert.Equal(reference.Height, actual.Height);
         Assert.Equal(reference.Components, actual.Components);
         foreach ((int selector, byte[] quantizer) in reference.Quantizers)
+        {
             Assert.Equal(quantizer, actual.Quantizers[selector]);
+        }
+
         Assert.Equal(reference.Blocks.Count, actual.Blocks.Count);
         foreach ((BlockKey key, Block block) in reference.Blocks.Where(pair => !pair.Value.IsDummy))
+        {
             Assert.Equal(block.Coefficients, actual.Blocks[key].Coefficients);
+        }
+
         ColorComponents channels = layout == PixelLayout.Gray8 ? ColorComponents.Grey : ColorComponents.RedGreenBlue;
         Assert.Equal(baselinePixels ?? ImageResult.FromMemory(baseline, channels).Data,
             ImageResult.FromMemory(progressive, channels).Data);
@@ -294,8 +341,13 @@ public sealed class EncoderProgressiveTests
         int channels = layout == PixelLayout.Gray8 ? 1 : 3;
         byte[] pixels = new byte[width * height * channels];
         for (int pixel = 0; pixel < width * height; pixel++)
+        {
             for (int channel = 0; channel < channels; channel++)
-                pixels[pixel * channels + channel] = (byte)(96 + channel * 40);
+            {
+                pixels[(pixel * channels) + channel] = (byte)(96 + (channel * 40));
+            }
+        }
+
         return pixels;
     }
 
@@ -304,10 +356,17 @@ public sealed class EncoderProgressiveTests
         int channels = layout == PixelLayout.Gray8 ? 1 : 3;
         byte[] pixels = new byte[width * height * channels];
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < channels; channel++)
-                    pixels[(y * width + x) * channels + channel] =
-                        (byte)(24 + (11 * x + 19 * y + 37 * channel + 7 * (x / 8) * (channel + 1)) % 208);
+                {
+                    pixels[(((y * width) + x) * channels) + channel] =
+                        (byte)(24 + (((11 * x) + (19 * y) + (37 * channel) + (7 * (x / 8) * (channel + 1))) % 208));
+                }
+            }
+        }
+
         return pixels;
     }
 
@@ -373,7 +432,10 @@ public sealed class EncoderProgressiveTests
                         Assert.Equal(progressive ? 0xc2
                             : quantizers.Values.Any(table => table.Length == 128) ? 0xc1 : 0xc0, marker);
                         if (marker == 0xc1)
+                        {
                             Assert.True(extendedQuantization);
+                        }
+
                         frameCount++;
                         Assert.Equal(8, jpeg[position++]);
                         height = Word(jpeg, position);
@@ -412,7 +474,10 @@ public sealed class EncoderProgressiveTests
                             for (int bits = 1; bits <= 16; bits++)
                             {
                                 for (int i = 0; i < counts[bits - 1]; i++)
+                                {
                                     codes.Add((bits << 16) | code++, jpeg[position++]);
+                                }
+
                                 code <<= 1;
                             }
                             tables[selector] = codes;
@@ -453,7 +518,7 @@ public sealed class EncoderProgressiveTests
                                 descriptor.SpectralStart, descriptor.SpectralEnd,
                                 descriptor.SuccessiveHigh, descriptor.SuccessiveLow)).ToList();
                         Assert.InRange(scans.Count, 0, expectedScans.Count - 1);
-                        var expectedScan = expectedScans[scans.Count];
+                        (int[] Components, int First, int Last, int High, int Low) expectedScan = expectedScans[scans.Count];
                         Assert.Equal(expectedScan.Components, selectors.Select(selector => selector.Component));
                         Assert.Equal(expectedScan.First, first);
                         Assert.Equal(expectedScan.Last, last);
@@ -463,11 +528,16 @@ public sealed class EncoderProgressiveTests
                         {
                             int[] bits = coefficientBits[selector.Component];
                             if (first > 0)
+                            {
                                 Assert.NotEqual(-1, bits[0]); // DC precedes AC for this component.
+                            }
+
                             for (int coefficient = first; coefficient <= last; coefficient++)
                             {
                                 if (high == 0)
+                                {
                                     Assert.Equal(-1, bits[coefficient]);
+                                }
                                 else
                                 {
                                     Assert.Equal(high, bits[coefficient]);
@@ -482,7 +552,9 @@ public sealed class EncoderProgressiveTests
                             {
                                 Assert.All(selectors, selector => Assert.Equal(0x10, selector.Ac));
                                 if (high != 0)
+                                {
                                     Assert.All(selectors, selector => Assert.Equal(0, selector.Dc));
+                                }
                             }
                         }
                         else
@@ -508,28 +580,41 @@ public sealed class EncoderProgressiveTests
                             blocks, acBands, progressive, scanInterval);
                         scans.Add(scan);
                         continue;
+                    default:
+                        break;
                 }
                 position = end;
             }
             Assert.Equal(1, frameCount);
             Assert.False(pendingDri); // Every DRI must define a following scan.
             if (expectedRestartRows == 0)
+            {
                 Assert.Equal(expectedInterval == 0 ? 0 : 1, driCount);
+            }
+
             Assert.All(coefficientBits.Values, bits => Assert.All(bits, bit => Assert.Equal(0, bit)));
             if (expectedScanScript is not null)
+            {
                 Assert.Equal(expectedScanScript.Count, scans.Count);
+            }
             else
             {
-                Assert.Equal(progressive ? (expectedRefinementBits + 1) * (expectedInterleaveDc ? 1 : components.Count)
-                    + components.Count * acRefinementBits.Sum(bits => bits + 1) : 1, scans.Count);
+                Assert.Equal(progressive ? ((expectedRefinementBits + 1) * (expectedInterleaveDc ? 1 : components.Count))
+                    + (components.Count * acRefinementBits.Sum(bits => bits + 1)) : 1, scans.Count);
                 int bandCount = progressive ? acScanEnds.Count : 1;
                 Assert.Equal(blocks.Count(pair => !pair.Value.IsDummy)
                     * (progressive ? acRefinementBits.Sum(bits => bits + 1) : 1), acBands.Count);
                 foreach (BlockKey key in blocks.Where(pair => !pair.Value.IsDummy).Select(pair => pair.Key))
+                {
                     for (int band = 0; band < bandCount; band++)
+                    {
                         for (int low = 0; low <= (progressive ? acRefinementBits[band] : 0); low++)
+                        {
                             Assert.Contains((key, band == 0 ? 1 : acScanEnds[band - 1] + 1,
                                 progressive ? acScanEnds[band] : 63, low), acBands);
+                        }
+                    }
+                }
             }
             Assert.Equal(components.Values.Select(component => component.Quantizer).Distinct().Count(), quantizers.Count);
             Assert.All(components.Values, component => Assert.True(quantizers.ContainsKey(component.Quantizer)));
@@ -551,19 +636,38 @@ public sealed class EncoderProgressiveTests
             }
             int[][] dcComponents = interleaveDc ? [components] : components.Select(component => new[] { component }).ToArray();
             foreach (int[] selected in dcComponents)
+            {
                 result.Add((selected, 0, 0, 0, dcBits));
+            }
+
             for (int band = 0; band < ends.Count; band++)
+            {
                 foreach (int component in components)
+                {
                     result.Add(([component], band == 0 ? 1 : ends[band - 1] + 1, ends[band], 0, acBits[band]));
+                }
+            }
+
             for (int low = Math.Max(dcBits, acBits.Max()) - 1; low >= 0; low--)
             {
                 if (dcBits > low)
+                {
                     foreach (int[] selected in dcComponents)
+                    {
                         result.Add((selected, 0, 0, low + 1, low));
+                    }
+                }
+
                 for (int band = 0; band < ends.Count; band++)
+                {
                     if (acBits[band] > low)
+                    {
                         foreach (int component in components)
+                        {
                             result.Add(([component], band == 0 ? 1 : ends[band - 1] + 1, ends[band], low + 1, low));
+                        }
+                    }
+                }
             }
             return result;
         }
@@ -589,7 +693,10 @@ public sealed class EncoderProgressiveTests
                 segments.Add(new(bytes.ToArray(), next));
                 bytes.Clear();
                 if (next is >= 0xd0 and <= 0xd7)
+                {
                     continue;
+                }
+
                 Assert.True(next is 0xc4 or 0xda or 0xdd or 0xd9, $"Unexpected scan terminator 0x{next:x2}.");
                 position -= 2; // The outer marker reader consumes the next scan/table/EOI.
                 return segments;
@@ -611,33 +718,38 @@ public sealed class EncoderProgressiveTests
             int units = interleaved ? mcuColumns * Ceiling(height, 8 * maxV)
                 : acColumns * Ceiling(height * firstComponent.V, 8 * maxV);
             scan.CodingUnits = units;
-            Assert.Equal(interval == 0 ? 1 : (units - 1) / interval + 1, segments.Count);
+            Assert.Equal(interval == 0 ? 1 : ((units - 1) / interval) + 1, segments.Count);
             int unit = 0;
             for (int segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
             {
                 EntropySegment segment = segments[segmentIndex];
                 if (segmentIndex != segments.Count - 1)
                 {
-                    Assert.Equal(0xd0 + segmentIndex % 8, segment.Terminator);
+                    Assert.Equal(0xd0 + (segmentIndex % 8), segment.Terminator);
                     scan.RestartMarkers.Add(segment.Terminator);
                 }
                 else
+                {
                     Assert.False(segment.Terminator is >= 0xd0 and <= 0xd7); // No final restart marker.
+                }
+
                 var reader = new EntropyBits(segment.Bytes);
                 var previousDc = components.Keys.ToDictionary(component => component, _ => 0);
                 int remainingEobBlocks = 0;
                 int endUnit = interval == 0 ? units : Math.Min(units, unit + interval);
                 for (; unit < endUnit; unit++)
+                {
                     foreach (Selector selector in scan.Selectors)
                     {
                         Component component = components[selector.Component];
                         int horizontal = interleaved ? component.H : 1;
                         int vertical = interleaved ? component.V : 1;
                         for (int y = 0; y < vertical; y++)
+                        {
                             for (int x = 0; x < horizontal; x++)
                             {
-                                int blockX = interleaved ? unit % mcuColumns * horizontal + x : unit % acColumns;
-                                int blockY = interleaved ? unit / mcuColumns * vertical + y : unit / acColumns;
+                                int blockX = interleaved ? (unit % mcuColumns * horizontal) + x : unit % acColumns;
+                                int blockY = interleaved ? (unit / mcuColumns * vertical) + y : unit / acColumns;
                                 var key = new BlockKey(selector.Component, blockX, blockY);
                                 bool dummy = blockX >= Ceiling(width * component.H, 8 * maxH)
                                     || blockY >= Ceiling(height * component.V, 8 * maxV);
@@ -649,7 +761,9 @@ public sealed class EncoderProgressiveTests
                                     coefficients[0] = previousDc[selector.Component] << scan.Low;
                                     Assert.True(blocks.TryAdd(key, new(dummy, difference, coefficients)));
                                     if (dummy)
+                                    {
                                         Assert.Equal(0, difference);
+                                    }
                                 }
                                 else if (dcScan)
                                 {
@@ -669,19 +783,30 @@ public sealed class EncoderProgressiveTests
                                 {
                                     Block block = blocks[key];
                                     if (scan.High == 0)
+                                    {
                                         ReadAc(reader, tables[selector.Ac], block.Coefficients,
                                             progressive, Math.Max(1, scan.First), scan.Last,
                                             scan.Low, scan.EobRuns, ref remainingEobBlocks);
+                                    }
                                     else
+                                    {
                                         ReadAcRefinement(reader, tables[selector.Ac], block.Coefficients,
                                             scan.First, scan.Last, scan.Low, scan.EobRuns, ref remainingEobBlocks);
+                                    }
+
                                     if (dummy)
+                                    {
                                         Assert.All(block.Coefficients[1..], coefficient => Assert.Equal(0, coefficient));
+                                    }
                                     else
+                                    {
                                         Assert.True(acBands.Add((key, Math.Max(1, scan.First), scan.Last, scan.Low)));
+                                    }
                                 }
                             }
+                        }
                     }
+                }
                 // Every segment must contain exactly its expected coding units,
                 // followed by no more than seven one-bits for byte alignment.
                 Assert.Equal(0, remainingEobBlocks); // Runs cannot cross a restart or the end of a scan.
@@ -719,7 +844,10 @@ public sealed class EncoderProgressiveTests
                         remainingEobBlocks = run - 1; // Includes the current block's remaining coefficients.
                     }
                     else
+                    {
                         Assert.Equal(0, symbol); // Baseline allows only a single-block EOB.
+                    }
+
                     return;
                 }
                 Assert.InRange(symbol & 15, 1, 10);
@@ -739,6 +867,7 @@ public sealed class EncoderProgressiveTests
         {
             int coefficient = first;
             if (remainingEobBlocks == 0)
+            {
                 while (coefficient <= last)
                 {
                     int symbol = reader.Symbol(table), run = symbol >> 4, size = symbol & 15;
@@ -755,7 +884,9 @@ public sealed class EncoderProgressiveTests
                     while (coefficient <= last)
                     {
                         if (coefficients[coefficient] != 0)
+                        {
                             CorrectAc(reader, coefficients, coefficient, low);
+                        }
                         else if (zeros != 0)
                         {
                             zeros--;
@@ -777,11 +908,18 @@ public sealed class EncoderProgressiveTests
                     Assert.Equal(0, zeros);
                     Assert.Equal(size == 1, inserted);
                 }
+            }
+
             if (remainingEobBlocks > 0)
             {
                 for (; coefficient <= last; coefficient++)
+                {
                     if (coefficients[coefficient] != 0)
+                    {
                         CorrectAc(reader, coefficients, coefficient, low);
+                    }
+                }
+
                 remainingEobBlocks--;
             }
         }
@@ -791,10 +929,12 @@ public sealed class EncoderProgressiveTests
             int bit = 1 << low;
             Assert.Equal(0, Math.Abs(coefficients[coefficient]) & bit);
             if (reader.UnsignedValue(1) != 0)
+            {
                 coefficients[coefficient] += coefficients[coefficient] > 0 ? bit : -bit;
+            }
         }
 
-        private static int Word(byte[] bytes, int position) => bytes[position] * 256 + bytes[position + 1];
+        private static int Word(byte[] bytes, int position) => (bytes[position] * 256) + bytes[position + 1];
         private static int Ceiling(int value, int divisor) => (value + divisor - 1) / divisor;
     }
 
@@ -806,16 +946,16 @@ public sealed class EncoderProgressiveTests
         {
             // Read the available prefix once instead of checking the entropy
             // boundary for every bit of every canonical Huffman candidate.
-            int available = Math.Min(16, bytes.Length * 8 - position);
+            int available = Math.Min(16, (bytes.Length * 8) - this.position);
             Assert.True(available > 0, "Unexpected end of entropy data.");
-            int prefix = Peek(available);
+            int prefix = this.Peek(available);
             int code = 0;
             for (int length = 1; length <= available; length++)
             {
                 code = (code << 1) | ((prefix >> (available - length)) & 1);
                 if (table.TryGetValue((length << 16) | code, out int symbol))
                 {
-                    position += length;
+                    this.position += length;
                     return symbol;
                 }
             }
@@ -826,7 +966,7 @@ public sealed class EncoderProgressiveTests
         public int SignedValue(int count)
         {
             Assert.InRange(count, 0, 11);
-            int value = UnsignedValue(count);
+            int value = this.UnsignedValue(count);
             return count == 0 || value >= (1 << (count - 1)) ? value : value - (1 << count) + 1;
         }
 
@@ -834,10 +974,13 @@ public sealed class EncoderProgressiveTests
         {
             Assert.InRange(count, 0, 14);
             if (count == 0)
+            {
                 return 0;
-            Assert.True(position <= bytes.Length * 8 - count, "Unexpected end of entropy data.");
-            int value = Peek(count);
-            position += count;
+            }
+
+            Assert.True(this.position <= (bytes.Length * 8) - count, "Unexpected end of entropy data.");
+            int value = this.Peek(count);
+            this.position += count;
             return value;
         }
 
@@ -845,26 +988,34 @@ public sealed class EncoderProgressiveTests
         // reader's independent canonical-code decoder and segment validation.
         private int Peek(int count)
         {
-            int first = position / 8, offset = position % 8;
+            int first = this.position / 8, offset = this.position % 8;
             int word = bytes[first] << 16;
             if (offset + count > 8)
+            {
                 word |= bytes[first + 1] << 8;
+            }
+
             if (offset + count > 16)
+            {
                 word |= bytes[first + 2];
+            }
+
             return (word >> (24 - offset - count)) & ((1 << count) - 1);
         }
 
         public void AssertOnlyPaddingRemains()
         {
-            Assert.InRange(bytes.Length * 8 - position, 0, 7);
-            while (position < bytes.Length * 8)
-                Assert.Equal(1, Bit());
+            Assert.InRange((bytes.Length * 8) - this.position, 0, 7);
+            while (this.position < bytes.Length * 8)
+            {
+                Assert.Equal(1, this.Bit());
+            }
         }
 
         private int Bit()
         {
-            Assert.True(position < bytes.Length * 8, "Unexpected end of entropy data.");
-            return (bytes[position / 8] >> (7 - position++ % 8)) & 1;
+            Assert.True(this.position < bytes.Length * 8, "Unexpected end of entropy data.");
+            return (bytes[this.position / 8] >> (7 - (this.position++ % 8))) & 1;
         }
     }
 
@@ -873,7 +1024,7 @@ public sealed class EncoderProgressiveTests
         public bool Closed { get; private set; }
         public override bool CanRead => false;
         public override bool CanSeek => false;
-        public override bool CanWrite => !Closed;
+        public override bool CanWrite => !this.Closed;
         public override long Length => throw new NotSupportedException();
         public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
         public override void Flush() => inner.Flush();
@@ -897,7 +1048,7 @@ public sealed class EncoderProgressiveTests
         }
         protected override void Dispose(bool disposing)
         {
-            Closed = true;
+            this.Closed = true;
             base.Dispose(disposing);
         }
     }

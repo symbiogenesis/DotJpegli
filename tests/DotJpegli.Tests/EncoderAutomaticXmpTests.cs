@@ -1,10 +1,10 @@
+namespace DotJpegli.Tests;
+
 using System.Security.Cryptography;
 using System.Text;
 using System.Xml.Linq;
 using StbImageSharp;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderAutomaticXmpTests
 {
@@ -59,8 +59,8 @@ public sealed class EncoderAutomaticXmpTests
     public void DisabledPartitioningStillRejectsOversizedPacketsBeforeOutput()
     {
         using var destination = new MemoryStream();
-        var error = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            JpegliEncoder.Encode(destination, new byte[] { 255, 0, 0 }, 1, 1,
+        ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            JpegliEncoder.Encode(destination, [255, 0, 0], 1, 1,
                 options: new() { XmpPacket = SizedPacket(MaximumStandardBytes + 1) },
                 cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(nameof(JpegliEncoderOptions.XmpPacket), error.ParamName);
@@ -71,7 +71,7 @@ public sealed class EncoderAutomaticXmpTests
     [InlineData(ChunkBytes)]
     [InlineData(ChunkBytes + 1)]
     [InlineData(2 * ChunkBytes)]
-    [InlineData(2 * ChunkBytes + 1)]
+    [InlineData((2 * ChunkBytes) + 1)]
     public void RootSerializationUsesExactChunkSizesAndDropsOuterPadding(int extensionBytes)
     {
         const string prefix = "<r:RDF xmlns:r=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><r:Description><blob xmlns=\"urn:test\">";
@@ -90,7 +90,7 @@ public sealed class EncoderAutomaticXmpTests
     {
         string packet = kind switch { 0 => "\ud800", 1 => "\udc00", _ => "opaque before\ud800after" };
         using var destination = new MemoryStream();
-        var error = Assert.Throws<ArgumentException>(() =>
+        ArgumentException error = Assert.Throws<ArgumentException>(() =>
             Encode(destination, new() { XmpPacket = packet, AutoPartitionXmp = true }, TestContext.Current.CancellationToken));
         Assert.Equal(nameof(JpegliEncoderOptions.XmpPacket), error.ParamName);
         Assert.Equal(0, destination.Length);
@@ -99,9 +99,9 @@ public sealed class EncoderAutomaticXmpTests
     [Fact]
     public void MalformedUtf16BeyondSizeDetectionFailsBeforeOutput()
     {
-        string packet = SizedPacket(2 * ChunkBytes + 1).Replace("</blob>", "\ud800</blob>", StringComparison.Ordinal);
+        string packet = SizedPacket((2 * ChunkBytes) + 1).Replace("</blob>", "\ud800</blob>", StringComparison.Ordinal);
         using var destination = new MemoryStream();
-        var error = Assert.Throws<ArgumentException>(() =>
+        ArgumentException error = Assert.Throws<ArgumentException>(() =>
             Encode(destination, new() { XmpPacket = packet, AutoPartitionXmp = true }, TestContext.Current.CancellationToken));
         Assert.Equal(nameof(JpegliEncoderOptions.XmpPacket), error.ParamName);
         Assert.Equal(0, destination.Length);
@@ -126,7 +126,7 @@ public sealed class EncoderAutomaticXmpTests
         Assert.DoesNotContain("<?xml", serialization, StringComparison.Ordinal);
         Assert.DoesNotContain("<?xpacket", serialization, StringComparison.Ordinal);
         AssertRootPreserved(packet, extension);
-        XElement actualRoot = XElement.Parse(serialization, LoadOptions.PreserveWhitespace);
+        var actualRoot = XElement.Parse(serialization, LoadOptions.PreserveWhitespace);
         XElement actualRdf = actualRoot.Name == Rdf + "RDF" ? actualRoot : Assert.Single(actualRoot.Elements(Rdf + "RDF"));
         Assert.Equal(2, actualRdf.Elements(Rdf + "Description").Count());
         Assert.Equal("en", actualRdf.AncestorsAndSelf().Select(element => (string?)element.Attribute(XNamespace.Xml + "lang")).First(value => value is not null));
@@ -145,7 +145,7 @@ public sealed class EncoderAutomaticXmpTests
         byte[] jpeg = Encode(new() { XmpPacket = packet, AutoPartitionXmp = true });
         byte[] extension = AssertAutomaticPacket(jpeg);
         AssertRootPreserved(packet, extension);
-        List<Segment> chunks = ReadHeaders(jpeg).Where(segment => HasSignature(segment, ExtensionSignature)).ToList();
+        var chunks = ReadHeaders(jpeg).Where(segment => HasSignature(segment, ExtensionSignature)).ToList();
         Assert.Equal(3, chunks.Count);
         Assert.Equal(0xf0, chunks[0].Payload.Span[^1]);
         Assert.Equal(0x9f, chunks[1].Payload.Span[ExtensionHeaderBytes]);
@@ -201,8 +201,8 @@ public sealed class EncoderAutomaticXmpTests
         packet = packet.Replace("PAYLOAD", new string('a', MaximumStandardBytes), StringComparison.Ordinal);
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
-        var error = Assert.Throws<ArgumentException>(() =>
-            JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1,
+        ArgumentException error = Assert.Throws<ArgumentException>(() =>
+            JpegliEncoder.Encode(output, [255, 0, 0], 1, 1,
                 options: new() { XmpPacket = packet, AutoPartitionXmp = true, ExifData = new byte[] { 1, 2, 3 } },
                 cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(nameof(JpegliEncoderOptions.XmpPacket), error.ParamName);
@@ -216,8 +216,8 @@ public sealed class EncoderAutomaticXmpTests
     public void ExplicitExtensionConflictsWithAutomaticModeBeforeOutput(string? standard)
     {
         using var destination = new MemoryStream();
-        var error = Assert.Throws<ArgumentException>(() =>
-            JpegliEncoder.Encode(destination, new byte[] { 255, 0, 0 }, 1, 1,
+        ArgumentException error = Assert.Throws<ArgumentException>(() =>
+            JpegliEncoder.Encode(destination, [255, 0, 0], 1, 1,
                 options: new() { XmpPacket = standard, AutoPartitionXmp = true, ExtendedXmpPacket = "extension" },
                 cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(nameof(JpegliEncoderOptions.AutoPartitionXmp), error.ParamName);
@@ -239,10 +239,13 @@ public sealed class EncoderAutomaticXmpTests
         byte[] expected = JpegliEncoder.Encode(pixels, width, height, options: options, cancellationToken: TestContext.Current.CancellationToken);
         byte[] actual = JpegliEncoder.Encode(pixels, width, height, options: options with
         {
-            XmpPacket = SizedPacket(2 * ChunkBytes + 1), AutoPartitionXmp = true,
-            ExifData = new byte[] { 1, 2, 3 }, IccProfile = new byte[] { 4, 5, 6 }, Comment = "metadata 😀"
+            XmpPacket = SizedPacket((2 * ChunkBytes) + 1),
+            AutoPartitionXmp = true,
+            ExifData = new byte[] { 1, 2, 3 },
+            IccProfile = new byte[] { 4, 5, 6 },
+            Comment = "metadata 😀"
         }, cancellationToken: TestContext.Current.CancellationToken);
-        AssertAutomaticPacket(actual);
+        _ = AssertAutomaticPacket(actual);
         int expectedStart = ReadHeaders(expected).First(segment => segment.Code == 0xdb).Start;
         int actualStart = ReadHeaders(actual).First(segment => segment.Code == 0xdb).Start;
         Assert.True(expected.AsSpan(expectedStart).SequenceEqual(actual.AsSpan(actualStart)));
@@ -253,7 +256,7 @@ public sealed class EncoderAutomaticXmpTests
     [Fact]
     public void NonseekableOutputMatchesMemoryEncodingAndRemainsOpen()
     {
-        var options = AutomaticOptions();
+        JpegliEncoderOptions options = AutomaticOptions();
         byte[] expected = Encode(options);
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
@@ -270,7 +273,7 @@ public sealed class EncoderAutomaticXmpTests
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
         var token = new CancellationToken(true);
-        var error = Assert.Throws<OperationCanceledException>(() => Encode(output, AutomaticOptions(), token));
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() => Encode(output, AutomaticOptions(), token));
         Assert.Equal(token, error.CancellationToken);
         Assert.Equal(0, destination.Length);
         Assert.False(output.Closed);
@@ -282,7 +285,7 @@ public sealed class EncoderAutomaticXmpTests
     [InlineData(2)]
     public void CancellationAtAutomaticXmpBoundariesStopsWithoutClosingOutput(int xmpSegment)
     {
-        var options = AutomaticOptions();
+        JpegliEncoderOptions options = AutomaticOptions();
         byte[] complete = Encode(options);
         Segment segment = ReadHeaders(complete).Where(value => value.Code == 0xe1).ElementAt(xmpSegment);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
@@ -290,9 +293,11 @@ public sealed class EncoderAutomaticXmpTests
         using var output = new WriteOnlyStream(destination, afterWrite: () =>
         {
             if (destination.Length >= segment.End)
+            {
                 cancellation.Cancel();
+            }
         });
-        var error = Assert.Throws<OperationCanceledException>(() => Encode(output, options, cancellation.Token));
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() => Encode(output, options, cancellation.Token));
         Assert.Equal(cancellation.Token, error.CancellationToken);
         Assert.Equal(complete[..segment.End], destination.ToArray());
         Assert.False(output.Closed);
@@ -304,14 +309,14 @@ public sealed class EncoderAutomaticXmpTests
     [InlineData(2)]
     public void IoFailureWithinAutomaticXmpPropagatesWithoutClosingOutput(int xmpSegment)
     {
-        var options = AutomaticOptions();
+        JpegliEncoderOptions options = AutomaticOptions();
         byte[] complete = Encode(options);
         Segment segment = ReadHeaders(complete).Where(value => value.Code == 0xe1).ElementAt(xmpSegment);
         int boundary = segment.Start + 11;
         var expected = new IOException("Injected automatic-XMP write failure.");
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination, failureBoundary: boundary, failure: expected);
-        var error = Assert.Throws<IOException>(() => Encode(output, options, TestContext.Current.CancellationToken));
+        IOException error = Assert.Throws<IOException>(() => Encode(output, options, TestContext.Current.CancellationToken));
         Assert.Same(expected, error);
         Assert.Equal(complete[..boundary], destination.ToArray());
         Assert.False(output.Closed);
@@ -319,7 +324,9 @@ public sealed class EncoderAutomaticXmpTests
 
     private static JpegliEncoderOptions AutomaticOptions() => new()
     {
-        XmpPacket = SizedPacket(2 * ChunkBytes + 1), AutoPartitionXmp = true, ExtendedXmpPacket = ""
+        XmpPacket = SizedPacket((2 * ChunkBytes) + 1),
+        AutoPartitionXmp = true,
+        ExtendedXmpPacket = ""
     };
 
     private static string SizedPacket(int bytes)
@@ -330,11 +337,11 @@ public sealed class EncoderAutomaticXmpTests
     }
 
     private static byte[] Encode(JpegliEncoderOptions options) =>
-        JpegliEncoder.Encode(new byte[] { 255, 0, 0 }, 1, 1, options: options,
+        JpegliEncoder.Encode([255, 0, 0], 1, 1, options: options,
             cancellationToken: TestContext.Current.CancellationToken);
 
     private static void Encode(Stream output, JpegliEncoderOptions options, CancellationToken token) =>
-        JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1, options: options, cancellationToken: token);
+        JpegliEncoder.Encode(output, [255, 0, 0], 1, 1, options: options, cancellationToken: token);
 
     // Decode marker lengths, digest fields and offsets independently of the encoder.
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms",
@@ -344,7 +351,7 @@ public sealed class EncoderAutomaticXmpTests
         List<Segment> segments = ReadHeaders(jpeg);
         Segment standard = Assert.Single(segments, segment => HasSignature(segment, StandardSignature));
         Assert.InRange(standard.Length, 2, 65_535);
-        List<Segment> chunks = segments.Where(segment => HasSignature(segment, ExtensionSignature)).ToList();
+        var chunks = segments.Where(segment => HasSignature(segment, ExtensionSignature)).ToList();
         Assert.NotEmpty(chunks);
         int standardIndex = segments.IndexOf(standard);
         Assert.Equal(chunks, segments.Skip(standardIndex + 1).Take(chunks.Count).ToList());
@@ -372,9 +379,9 @@ public sealed class EncoderAutomaticXmpTests
         Assert.Equal(Convert.ToHexString(MD5.HashData(bytes)), digest);
         Assert.False(bytes.AsSpan().StartsWith(new byte[] { 0xef, 0xbb, 0xbf }));
         string packet = new UTF8Encoding(false, true).GetString(bytes);
-        XElement extensionRoot = XElement.Parse(packet, LoadOptions.PreserveWhitespace);
+        var extensionRoot = XElement.Parse(packet, LoadOptions.PreserveWhitespace);
         Assert.True(extensionRoot.Name == Rdf + "RDF" || extensionRoot.Name == Meta + "xmpmeta");
-        XDocument document = XDocument.Parse(Encoding.UTF8.GetString(standard.Payload.Span[StandardSignature.Length..]));
+        var document = XDocument.Parse(Encoding.UTF8.GetString(standard.Payload.Span[StandardSignature.Length..]));
         string[] links = document.Descendants().Attributes(Note + "HasExtendedXMP").Select(attribute => attribute.Value)
             .Concat(document.Descendants(Note + "HasExtendedXMP").Select(element => element.Value)).ToArray();
         Assert.Equal(digest, Assert.Single(links));
@@ -390,19 +397,19 @@ public sealed class EncoderAutomaticXmpTests
     private static void AssertRootPreserved(string original, byte[] extension)
     {
         XElement expected = XDocument.Parse(original, LoadOptions.PreserveWhitespace).Root!;
-        XElement actual = XElement.Parse(new UTF8Encoding(false, true).GetString(extension), LoadOptions.PreserveWhitespace);
+        var actual = XElement.Parse(new UTF8Encoding(false, true).GetString(extension), LoadOptions.PreserveWhitespace);
         Assert.True(XNode.DeepEquals(expected, actual), "The automatic extension must preserve the complete XML root and its metadata.");
     }
 
     private static long ReadUInt32(ReadOnlySpan<byte> field) =>
-        (long)field[0] * 16_777_216 + field[1] * 65_536 + field[2] * 256 + field[3];
+        ((long)field[0] * 16_777_216) + (field[1] * 65_536) + (field[2] * 256) + field[3];
 
     private static bool HasSignature(Segment segment, byte[] signature) =>
         segment.Code == 0xe1 && segment.Payload.Span.StartsWith(signature);
 
     private sealed record Segment(int Code, int Start, int Length, ReadOnlyMemory<byte> Payload)
     {
-        public int End => Start + Length + 2;
+        public int End => this.Start + this.Length + 2;
     }
 
     private static List<Segment> ReadHeaders(byte[] jpeg)
@@ -416,12 +423,14 @@ public sealed class EncoderAutomaticXmpTests
             int start = position;
             Assert.Equal(0xff, jpeg[position++]);
             int code = jpeg[position++];
-            int length = jpeg[position] * 256 + jpeg[position + 1];
+            int length = (jpeg[position] * 256) + jpeg[position + 1];
             Assert.InRange(length, 2, jpeg.Length - position);
             result.Add(new(code, start, length, jpeg.AsMemory(position + 2, length - 2)));
             position += length;
             if (code == 0xda)
+            {
                 return result;
+            }
         }
     }
 
@@ -430,31 +439,33 @@ public sealed class EncoderAutomaticXmpTests
         public bool Closed { get; private set; }
         public override bool CanRead => false;
         public override bool CanSeek => false;
-        public override bool CanWrite => !Closed;
+        public override bool CanWrite => !this.Closed;
         public override long Length => throw new NotSupportedException();
         public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
         public override void Flush() => inner.Flush();
         public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
+        public override void Write(byte[] buffer, int offset, int count) => this.Write(buffer.AsSpan(offset, count));
         public override void Write(ReadOnlySpan<byte> buffer)
         {
             int count = failureBoundary is long boundary ? (int)Math.Min(buffer.Length, boundary - inner.Length) : buffer.Length;
             inner.Write(buffer[..count]);
             if (failureBoundary is long end && inner.Length >= end)
+            {
                 throw failure!;
+            }
+
             afterWrite?.Invoke();
         }
         public override void WriteByte(byte value)
         {
-            Span<byte> buffer = stackalloc byte[1];
-            buffer[0] = value;
-            Write(buffer);
+            Span<byte> buffer = [value];
+            this.Write(buffer);
         }
         protected override void Dispose(bool disposing)
         {
-            Closed = true;
+            this.Closed = true;
             base.Dispose(disposing);
         }
     }

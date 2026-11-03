@@ -1,3 +1,5 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -6,8 +8,6 @@ using DotJpegli.Internal;
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class WideGamutGammaIccProfileTests
 {
@@ -98,18 +98,18 @@ public sealed class WideGamutGammaIccProfileTests
         Assert.Equal("mntr", Signature(profile, 12));
         Assert.Equal("RGB ", Signature(profile, 16));
         Assert.Equal("XYZ ", Signature(profile, 20));
-        Assert.Equal(new[] { 2019, 12, 1, 0, 0, 0 },
-            Enumerable.Range(0, 6).Select(index => UInt16(profile, 24 + index * 2)));
+        Assert.Equal([2019, 12, 1, 0, 0, 0],
+            Enumerable.Range(0, 6).Select(index => UInt16(profile, 24 + (index * 2))));
         Assert.Equal("acsp", Signature(profile, 36));
         Assert.Equal("APPL", Signature(profile, 40));
         Assert.All(profile[44..68], value => Assert.Equal(0, value));
-        Assert.Equal(new[] { 0x0000f6d6, 0x00010000, 0x0000d32d },
-            Enumerable.Range(0, 3).Select(index => Int32(profile, 68 + index * 4)));
+        Assert.Equal([0x0000f6d6, 0x00010000, 0x0000d32d],
+            Enumerable.Range(0, 3).Select(index => Int32(profile, 68 + (index * 4))));
         Assert.Equal("jxl ", Signature(profile, 80));
         Assert.All(profile[100..128], value => Assert.Equal(0, value));
 
         Dictionary<string, Tag> tags = Tags(profile);
-        Assert.Equal(new[] { "desc", "cprt", "wtpt", "chad", "rXYZ", "gXYZ", "bXYZ", "rTRC", "gTRC", "bTRC" },
+        Assert.Equal(["desc", "cprt", "wtpt", "chad", "rXYZ", "gXYZ", "bXYZ", "rTRC", "gTRC", "bTRC"],
             tags.Keys);
         // Upstream spells P3's primaries token DCI even with a D65 white.
         Assert.Equal((rec2020 ? "RGB_D65_202_Per_g" : "RGB_D65_DCI_Per_g") + suffix,
@@ -121,8 +121,11 @@ public sealed class WideGamutGammaIccProfileTests
         Assert.Equal(20, white.Length);
         double[] expectedWhite = [0.964203, 1, 0.824905];
         for (int channel = 0; channel < 3; channel++)
-            AssertClose(expectedWhite[channel], Fixed(profile, white.Offset + 8 + channel * 4),
+        {
+            AssertClose(expectedWhite[channel], Fixed(profile, white.Offset + 8 + (channel * 4)),
                 0.5 / 65536, $"media white channel {channel}");
+        }
+
         Assert.Equal("sf32", Signature(profile, tags["chad"].Offset));
         Assert.Equal(44, tags["chad"].Length);
         foreach (string color in new[] { "r", "g", "b" })
@@ -163,7 +166,7 @@ public sealed class WideGamutGammaIccProfileTests
     {
         foreach (bool rec2020 in new[] { false, true })
         {
-            var error = Assert.Throws<ArgumentOutOfRangeException>(() => Create(rec2020, gamma));
+            ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() => Create(rec2020, gamma));
             Assert.Equal("gamma", error.ParamName);
         }
     }
@@ -218,9 +221,12 @@ public sealed class WideGamutGammaIccProfileTests
             Assert.Equal(expected, Int32(profile, curve.Offset + 12));
             double serializedGamma = Fixed(profile, curve.Offset + 12);
             foreach (double sample in Enumerable.Range(0, 256).Select(value => value / 255.0)
-                .Concat(new[] { 1e-8, 0.04045, 0.5, 0.999, 0.9999, 0.99999 }))
+                .Concat([1e-8, 0.04045, 0.5, 0.999, 0.9999, 0.99999]))
+            {
                 AssertClose(Math.Pow(sample, gamma), Math.Pow(sample, serializedGamma), 0.000006,
                     $"decoded sample {sample:R}, gamma {gamma:R}");
+            }
+
             Assert.Equal(0, Math.Pow(0, serializedGamma));
             Assert.Equal(1, Math.Pow(1, serializedGamma));
             Assert.Equal(curve, tags["gTRC"]);
@@ -269,7 +275,9 @@ public sealed class WideGamutGammaIccProfileTests
         double[,] matrix = PrimariesToD65(rec2020), adaptation = BradfordD65ToD50();
         double[] values = [0, 1e-8, 0.001, 0.04045, 0.25, 0.5, 0.75, 1];
         foreach (double r in values)
+        {
             foreach (double g in values)
+            {
                 foreach (double b in values)
                 {
                     double[] input = [r, g, b];
@@ -281,18 +289,25 @@ public sealed class WideGamutGammaIccProfileTests
                         for (int channel = 0; channel < 3; channel++)
                         {
                             string color = new[] { "r", "g", "b" }[channel];
-                            actual += Fixed(profile, tags[color + "XYZ"].Offset + 8 + row * 4)
+                            actual += Fixed(profile, tags[color + "XYZ"].Offset + 8 + (row * 4))
                                 * Math.Pow(input[channel], Fixed(profile, tags[color + "TRC"].Offset + 12));
                         }
                         AssertClose(expected[row], actual, 0.0001,
                             $"D50 XYZ channel {row}, gamma {gamma:R}, RGB ({r:R}, {g:R}, {b:R})");
                     }
                 }
+            }
+        }
+
         Tag chad = tags["chad"];
         for (int row = 0; row < 3; row++)
+        {
             for (int column = 0; column < 3; column++)
-                AssertClose(adaptation[row, column], Fixed(profile, chad.Offset + 8 + (row * 3 + column) * 4),
+            {
+                AssertClose(adaptation[row, column], Fixed(profile, chad.Offset + 8 + (((row * 3) + column) * 4)),
                     0.5 / 65536, $"Bradford adaptation entry ({row}, {column})");
+            }
+        }
     }
 
     [Theory]
@@ -311,7 +326,7 @@ public sealed class WideGamutGammaIccProfileTests
     public void ExplicitEmbeddingPreservesCodingDecodedPixelsAndPaddedTypedInputsAcrossScans(
         bool rec2020, int sourceKind, JpegColorSpace colorSpace, bool progressive, int refinement)
     {
-        const int width = 19, height = 17, stride = width * 4 + 5;
+        const int width = 19, height = 17, stride = (width * 4) + 5;
         Array pixels = Source(sourceKind, width, height, stride), originalPixels = (Array)pixels.Clone();
         byte[] profile = Create(rec2020, 2.2);
         byte[] backing = Enumerable.Repeat((byte)0x5b, profile.Length + 11).ToArray();
@@ -319,10 +334,14 @@ public sealed class WideGamutGammaIccProfileTests
         byte[] originalBacking = backing.ToArray();
         var options = new JpegliEncoderOptions
         {
-            ColorSpace = colorSpace, IccProfile = backing.AsMemory(3, profile.Length),
-            InferCicpTransferFunctionFromIccProfile = true, Distance = 1.375f,
-            SmoothingFactor = 37, Progressive = progressive,
-            ProgressiveRefinementBits = refinement, RestartInterval = 2
+            ColorSpace = colorSpace,
+            IccProfile = backing.AsMemory(3, profile.Length),
+            InferCicpTransferFunctionFromIccProfile = true,
+            Distance = 1.375f,
+            SmoothingFactor = 37,
+            Progressive = progressive,
+            ProgressiveRefinementBits = refinement,
+            RestartInterval = 2
         };
         byte[] actual = Encode(pixels, width, height, stride, options);
         (byte[]? embedded, byte[] coding) = ReadIccAndCoding(actual);
@@ -332,10 +351,10 @@ public sealed class WideGamutGammaIccProfileTests
         Assert.Equal(coding, ReadIccAndCoding(reference).Coding);
         Assert.Equal(actual, Encode(pixels, width, height, stride,
             options with { InferCicpTransferFunctionFromIccProfile = false }));
-        ImageResult decoded = ImageResult.FromMemory(actual, ColorComponents.RedGreenBlue);
+        var decoded = ImageResult.FromMemory(actual, ColorComponents.RedGreenBlue);
         Assert.Equal((width, height), (decoded.Width, decoded.Height));
         Assert.Equal(ImageResult.FromMemory(reference, ColorComponents.RedGreenBlue).Data, decoded.Data);
-        JpegDocument document = JpegDocument.Read(actual, progressive, 2, refinement);
+        var document = JpegDocument.Read(actual, progressive, 2, refinement);
         Assert.Equal(3, document.Components.Count);
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
@@ -355,19 +374,19 @@ public sealed class WideGamutGammaIccProfileTests
     private static Dictionary<string, Tag> Tags(byte[] profile, int count = 10)
     {
         Assert.Equal(count, Int32(profile, 128));
-        int tableEnd = 132 + count * 12;
+        int tableEnd = 132 + (count * 12);
         var result = new Dictionary<string, Tag>();
         var extents = new HashSet<Tag>();
         for (int index = 0; index < count; index++)
         {
-            int entry = 132 + index * 12;
+            int entry = 132 + (index * 12);
             var tag = new Tag(Int32(profile, entry + 4), Int32(profile, entry + 8));
             Assert.Equal(0, tag.Offset % 4);
             Assert.InRange(tag.Offset, tableEnd, profile.Length - 8);
             Assert.InRange(tag.Length, 8, profile.Length - tag.Offset);
             Assert.Equal(0, Int32(profile, tag.Offset + 4));
             Assert.True(result.TryAdd(Signature(profile, entry), tag));
-            extents.Add(tag);
+            _ = extents.Add(tag);
         }
         Assert.Equal(count - 2, extents.Count);
         Tag[] ordered = extents.OrderBy(tag => tag.Offset).ToArray();
@@ -412,8 +431,13 @@ public sealed class WideGamutGammaIccProfileTests
         }
         double[] scale = Solve(primaries, D65White());
         for (int row = 0; row < 3; row++)
+        {
             for (int channel = 0; channel < 3; channel++)
+            {
                 primaries[row, channel] *= scale[channel];
+            }
+        }
+
         return primaries;
     }
 
@@ -429,10 +453,15 @@ public sealed class WideGamutGammaIccProfileTests
         {
             double[] adapted = new double[3];
             for (int row = 0; row < 3; row++)
+            {
                 adapted[row] = bradford[row, column] * destination[row] / source[row];
+            }
+
             double[] xyz = Solve(bradford, adapted);
             for (int row = 0; row < 3; row++)
+            {
                 result[row, column] = xyz[row];
+            }
         }
         return result;
     }
@@ -443,28 +472,47 @@ public sealed class WideGamutGammaIccProfileTests
         for (int row = 0; row < 3; row++)
         {
             for (int column = 0; column < 3; column++)
+            {
                 augmented[row, column] = matrix[row, column];
+            }
+
             augmented[row, 3] = vector[row];
         }
         for (int column = 0; column < 3; column++)
         {
             int pivot = column;
             for (int row = column + 1; row < 3; row++)
+            {
                 if (Math.Abs(augmented[row, column]) > Math.Abs(augmented[pivot, column]))
+                {
                     pivot = row;
+                }
+            }
+
             for (int index = column; index < 4; index++)
+            {
                 (augmented[column, index], augmented[pivot, index]) =
                     (augmented[pivot, index], augmented[column, index]);
+            }
+
             double divisor = augmented[column, column];
             for (int index = column; index < 4; index++)
+            {
                 augmented[column, index] /= divisor;
+            }
+
             for (int row = 0; row < 3; row++)
             {
                 if (row == column)
+                {
                     continue;
+                }
+
                 double factor = augmented[row, column];
                 for (int index = column; index < 4; index++)
+                {
                     augmented[row, index] -= factor * augmented[column, index];
+                }
             }
         }
         return [augmented[0, 3], augmented[1, 3], augmented[2, 3]];
@@ -474,8 +522,13 @@ public sealed class WideGamutGammaIccProfileTests
     {
         double[] result = new double[3];
         for (int row = 0; row < 3; row++)
+        {
             for (int column = 0; column < 3; column++)
+            {
                 result[row] += matrix[row, column] * vector[column];
+            }
+        }
+
         return result;
     }
 
@@ -503,7 +556,10 @@ public sealed class WideGamutGammaIccProfileTests
                 profile = jpeg[(offset + 18)..end];
             }
             else
+            {
                 coding.Write(jpeg.AsSpan(offset, end - offset));
+            }
+
             offset = end;
         }
         coding.Write(jpeg.AsSpan(offset));
@@ -513,43 +569,56 @@ public sealed class WideGamutGammaIccProfileTests
     private static Array Source(int kind, int width, int height, int stride)
     {
         int rowLength = width * 4;
-        byte[] bytes = Enumerable.Repeat((byte)0xad, (height - 1) * stride + rowLength).ToArray();
+        byte[] bytes = Enumerable.Repeat((byte)0xad, ((height - 1) * stride) + rowLength).ToArray();
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < 3; channel++)
-                    bytes[y * stride + x * 4 + channel] = (byte)((x * 73 + y * 29 + channel * 61) % 256);
+                {
+                    bytes[(y * stride) + (x * 4) + channel] = (byte)(((x * 73) + (y * 29) + (channel * 61)) % 256);
+                }
+            }
+        }
+
         return kind switch
         {
             0 => bytes,
-            1 => bytes.Select((value, index) => (ushort)Math.Clamp(value * 257 + index % 47 - 23, 0, 65535)).ToArray(),
+            1 => bytes.Select((value, index) => (ushort)Math.Clamp((value * 257) + (index % 47) - 23, 0, 65535)).ToArray(),
             _ => bytes.Select((value, index) => index % stride >= rowLength || index % stride % 4 == 3
-                ? float.NaN : Math.Clamp(value / 255f + (index % 47 - 23) / 65535f, 0f, 1f)).ToArray()
+                ? float.NaN : Math.Clamp((value / 255f) + (((index % 47) - 23) / 65535f), 0f, 1f)).ToArray()
         };
     }
 
     private static byte[] Encode(Array source, int width, int height, int stride,
         JpegliEncoderOptions options) => source switch
-    {
-        byte[] bytes => JpegliEncoder.Encode(bytes, width, height, PixelLayout.Bgra32,
-            options, stride, TestContext.Current.CancellationToken),
-        ushort[] words => JpegliEncoder.Encode(words, width, height, PixelComponentLayout.Bgra,
-            options, stride, TestContext.Current.CancellationToken),
-        _ => JpegliEncoder.Encode((float[])source, width, height, PixelComponentLayout.Bgra,
-            options, stride, TestContext.Current.CancellationToken)
-    };
+        {
+            byte[] bytes => JpegliEncoder.Encode(bytes, width, height, PixelLayout.Bgra32,
+                options, stride, TestContext.Current.CancellationToken),
+            ushort[] words => JpegliEncoder.Encode(words, width, height, PixelComponentLayout.Bgra,
+                options, stride, TestContext.Current.CancellationToken),
+            _ => JpegliEncoder.Encode((float[])source, width, height, PixelComponentLayout.Bgra,
+                options, stride, TestContext.Current.CancellationToken)
+        };
 
     private static void Encode(Stream output, Array source, int width, int height, int stride,
         JpegliEncoderOptions options)
     {
         if (source is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, PixelLayout.Bgra32,
                 options, stride, TestContext.Current.CancellationToken);
+        }
         else if (source is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, PixelComponentLayout.Bgra,
                 options, stride, TestContext.Current.CancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])source, width, height, PixelComponentLayout.Bgra,
                 options, stride, TestContext.Current.CancellationToken);
+        }
     }
 
     private static int Int32(byte[] bytes, int offset) => BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(offset, 4));

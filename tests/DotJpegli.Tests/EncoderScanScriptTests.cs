@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderScanScriptTests
 {
@@ -17,7 +17,9 @@ public sealed class EncoderScanScriptTests
         byte[] pixels = Pattern(width, height, PixelLayout.Rgb24);
         var options = new JpegliEncoderOptions
         {
-            Quality = 90, OptimizeHuffmanTables = optimize, SmoothingFactor = 37,
+            Quality = 90,
+            OptimizeHuffmanTables = optimize,
+            SmoothingFactor = 37,
             SamplingFactors = asymmetric ? new(new(1, 2), new(2, 1), new(1, 1)) : null,
             RestartRows = 1
         };
@@ -32,7 +34,7 @@ public sealed class EncoderScanScriptTests
             // The script selects sequential output even when Progressive is true.
             byte[] jpeg = Encode(pixels, width, height, PixelLayout.Rgb24,
                 options with { Progressive = true, ScanScript = script });
-            AssertRealParity(baseline, jpeg, options, script, progressive: false);
+            _ = AssertRealParity(baseline, jpeg, options, script, progressive: false);
         }
     }
 
@@ -48,9 +50,12 @@ public sealed class EncoderScanScriptTests
         JpegScan[] script = RegroupedProgressiveScript();
         var options = new JpegliEncoderOptions
         {
-            Quality = 90, OptimizeHuffmanTables = optimize, SmoothingFactor = 37,
+            Quality = 90,
+            OptimizeHuffmanTables = optimize,
+            SmoothingFactor = 37,
             SamplingFactors = new(new(1, 2), new(2, 1), new(1, 1)),
-            RestartInterval = rows ? 0 : 2, RestartRows = rows ? 1 : 0
+            RestartInterval = rows ? 0 : 2,
+            RestartRows = rows ? 1 : 0
         };
         byte[] baseline = Encode(pixels, width, height, PixelLayout.Rgb24, options);
         byte[] jpeg = Encode(pixels, width, height, PixelLayout.Rgb24, options with { ScanScript = script });
@@ -76,7 +81,7 @@ public sealed class EncoderScanScriptTests
         var options = new JpegliEncoderOptions { Quality = 90, OptimizeHuffmanTables = optimize, RestartInterval = 1 };
         byte[] baseline = Encode(pixels, width, height, PixelLayout.Gray8, options);
         byte[] jpeg = Encode(pixels, width, height, PixelLayout.Gray8, options with { ScanScript = script });
-        AssertRealParity(baseline, jpeg, options, script, progressive: true, grayscale: true);
+        _ = AssertRealParity(baseline, jpeg, options, script, progressive: true, grayscale: true);
     }
 
     [Theory]
@@ -89,11 +94,13 @@ public sealed class EncoderScanScriptTests
         const int width = 17, height = 19;
         bool grayscale = colorSpace == JpegColorSpace.Grayscale;
         byte[] pixels = Pattern(width, height, PixelLayout.Rgb24);
-        var quantizers = Enumerable.Range(0, grayscale ? 1 : 3)
-            .Select(component => (ReadOnlyMemory<ushort>)Enumerable.Repeat((ushort)(8 + component * 3), 64).ToArray()).ToArray();
+        ReadOnlyMemory<ushort>[] quantizers = Enumerable.Range(0, grayscale ? 1 : 3)
+            .Select(component => (ReadOnlyMemory<ushort>)Enumerable.Repeat((ushort)(8 + (component * 3)), 64).ToArray()).ToArray();
         var options = new JpegliEncoderOptions
         {
-            ColorSpace = colorSpace, QuantizationTables = quantizers, RestartRows = 1,
+            ColorSpace = colorSpace,
+            QuantizationTables = quantizers,
+            RestartRows = 1,
             IccProfile = colorSpace == JpegColorSpace.Xyb ? JpegliIccProfiles.CreateXybProfile() : default
         };
         JpegScan[] script = grayscale
@@ -113,22 +120,43 @@ public sealed class EncoderScanScriptTests
     {
         byte[] pixels = [17, 121, 234];
         var script = new List<JpegScan>();
-        for (int component = 0; component < 3; component++) script.Add(new([component], 0, 0, 0, 10));
+        for (int component = 0; component < 3; component++)
+        {
+            script.Add(new([component], 0, 0, 0, 10));
+        }
+
         for (int low = 9; low >= 0; low--)
-            for (int component = 0; component < 3; component++) script.Add(new([component], 0, 0, low + 1, low));
+        {
+            for (int component = 0; component < 3; component++)
+            {
+                script.Add(new([component], 0, 0, low + 1, low));
+            }
+        }
+
         for (int component = 0; component < 2; component++)
         {
             int last = component == 0 ? 63 : 62;
-            for (int coefficient = 1; coefficient <= last; coefficient++) script.Add(new([component], coefficient, coefficient, 0, 1));
-            if (last == 62) script.Add(new([component], 63, 63));
-            for (int coefficient = 1; coefficient <= last; coefficient++) script.Add(new([component], coefficient, coefficient, 1, 0));
+            for (int coefficient = 1; coefficient <= last; coefficient++)
+            {
+                script.Add(new([component], coefficient, coefficient, 0, 1));
+            }
+
+            if (last == 62)
+            {
+                script.Add(new([component], 63, 63));
+            }
+
+            for (int coefficient = 1; coefficient <= last; coefficient++)
+            {
+                script.Add(new([component], coefficient, coefficient, 1, 0));
+            }
         }
         script.Add(new([2], 1, 63));
         Assert.Equal(285, script.Count);
         var options = new JpegliEncoderOptions { OptimizeHuffmanTables = optimize };
         byte[] baseline = Encode(pixels, 1, 1, PixelLayout.Rgb24, options);
         byte[] jpeg = Encode(pixels, 1, 1, PixelLayout.Rgb24, options with { ScanScript = script });
-        AssertRealParity(baseline, jpeg, options, script, true);
+        _ = AssertRealParity(baseline, jpeg, options, script, true);
     }
 
     [Theory]
@@ -141,15 +169,18 @@ public sealed class EncoderScanScriptTests
         JpegScan[] script = RegroupedProgressiveScript();
         var options = new JpegliEncoderOptions { ScanScript = script, OptimizeHuffmanTables = optimize, RestartRows = 1 };
         byte[] complete = Encode(pixels, width, height, PixelLayout.Rgb24, options);
-        JpegDocument document = JpegDocument.Read(complete, true, 0, expectedRestartRows: 1, expectedScanScript: script);
+        var document = JpegDocument.Read(complete, true, 0, expectedRestartRows: 1, expectedScanScript: script);
         int cancelAfter = document.Scans[12].DataStart + 1;
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination, () =>
         {
-            if (destination.Length >= cancelAfter) cancellation.Cancel();
+            if (destination.Length >= cancelAfter)
+            {
+                cancellation.Cancel();
+            }
         });
-        Assert.Throws<OperationCanceledException>(() => JpegliEncoder.Encode(output, pixels, width, height,
+        _ = Assert.Throws<OperationCanceledException>(() => JpegliEncoder.Encode(output, pixels, width, height,
             PixelLayout.Rgb24, options, cancellationToken: cancellation.Token));
         Assert.False(output.Closed);
         Assert.InRange(destination.Length, cancelAfter, complete.Length - 1);
@@ -162,23 +193,28 @@ public sealed class EncoderScanScriptTests
     [InlineData(2)]
     public void PaddedTypedInputsAndNonseekableStreamsUseTheSameCustomScript(int precision)
     {
-        const int width = 33, height = 19, stride = width * 4 + 7;
+        const int width = 33, height = 19, stride = (width * 4) + 7;
         byte[] rgb = Pattern(width, height, PixelLayout.Rgb24);
-        var source = new byte[width * height * 4];
+        byte[] source = new byte[width * height * 4];
         for (int pixel = 0; pixel < width * height; pixel++)
         {
             rgb.AsSpan(pixel * 3, 3).CopyTo(source.AsSpan(pixel * 4));
-            source[pixel * 4 + 3] = 17;
+            source[(pixel * 4) + 3] = 17;
         }
-        var bytes = new byte[(height - 1) * stride + width * 4];
+        byte[] bytes = new byte[((height - 1) * stride) + (width * 4)];
         for (int row = 0; row < height; row++)
+        {
             source.AsSpan(row * width * 4, width * 4).CopyTo(bytes.AsSpan(row * stride));
+        }
+
         ushort[] words = bytes.Select(value => (ushort)(value * 257)).ToArray();
         float[] floats = bytes.Select(value => value / 255f).ToArray();
         JpegScan[] script = RegroupedProgressiveScript();
         var options = new JpegliEncoderOptions
         {
-            Quality = 90, OptimizeHuffmanTables = true, RestartRows = 1,
+            Quality = 90,
+            OptimizeHuffmanTables = true,
+            RestartRows = 1,
             SamplingFactors = new(new(2, 1), new(1, 1), new(1, 2)),
             Comment = "custom scan script"
         };
@@ -191,14 +227,20 @@ public sealed class EncoderScanScriptTests
         byte[] baseline = EncodeSource(options);
         JpegliEncoderOptions custom = options with { ScanScript = script };
         byte[] jpeg = EncodeSource(custom);
-        AssertRealParity(baseline, jpeg, options, script, progressive: true);
+        _ = AssertRealParity(baseline, jpeg, options, script, progressive: true);
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
         switch (precision)
         {
-            case 0: JpegliEncoder.Encode(output, bytes, width, height, PixelLayout.Rgba32, custom, stride, TestContext.Current.CancellationToken); break;
-            case 1: JpegliEncoder.Encode(output, words, width, height, PixelComponentLayout.Rgba, custom, stride, TestContext.Current.CancellationToken); break;
-            default: JpegliEncoder.Encode(output, floats, width, height, PixelComponentLayout.Rgba, custom, stride, TestContext.Current.CancellationToken); break;
+            case 0:
+                JpegliEncoder.Encode(output, bytes, width, height, PixelLayout.Rgba32, custom, stride, TestContext.Current.CancellationToken);
+                break;
+            case 1:
+                JpegliEncoder.Encode(output, words, width, height, PixelComponentLayout.Rgba, custom, stride, TestContext.Current.CancellationToken);
+                break;
+            default:
+                JpegliEncoder.Encode(output, floats, width, height, PixelComponentLayout.Rgba, custom, stride, TestContext.Current.CancellationToken);
+                break;
         }
         Assert.False(output.Closed);
         Assert.Equal(jpeg, destination.ToArray());
@@ -222,6 +264,7 @@ public sealed class EncoderScanScriptTests
                 ScanScript = [new([0, 1, 2], 0, 0), new([0], 1, 63), new([1], 1, 63), new([2], 1, 63)]
             }));
         foreach (ChromaSubsampling sampling in new[] { ChromaSubsampling.None, ChromaSubsampling.Quarter })
+        {
             foreach (int level in new[] { 1, 2 })
             {
                 JpegliEncoderOptions preset = options with { Subsampling = sampling, ProgressiveLevel = level };
@@ -230,6 +273,8 @@ public sealed class EncoderScanScriptTests
                     Encode(pixels, width, height, PixelLayout.Rgb24,
                         options with { Subsampling = sampling, ScanScript = script }));
             }
+        }
+
         Assert.Equal(Encode(pixels, width, height, PixelLayout.Rgb24, options),
             Encode(pixels, width, height, PixelLayout.Rgb24, options with { ScanScript = null }));
     }
@@ -249,7 +294,11 @@ public sealed class EncoderScanScriptTests
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination, () =>
         {
-            if (mutated) return;
+            if (mutated)
+            {
+                return;
+            }
+
             mutated = true;
             selectors.Clear();
             selectors.Add(2);
@@ -263,47 +312,60 @@ public sealed class EncoderScanScriptTests
         Assert.Equal(expected, destination.ToArray());
     }
 
-    public static IEnumerable<object[]> InvalidScripts()
+    public static TheoryData<int> InvalidScriptIndices => [with(Enumerable.Range(0, InvalidScripts().Count()))];
+
+    private static IEnumerable<JpegScan[]> InvalidScripts()
     {
-        yield return [Array.Empty<JpegScan>()];
-        yield return [new JpegScan[] { null! }];
-        yield return [new JpegScan[] { new(null!) }];
-        yield return [new JpegScan[] { new([]) }];
-        yield return [new JpegScan[] { new([0, 0, 1]) }];
-        yield return [new JpegScan[] { new([1, 0, 2]) }];
-        yield return [new JpegScan[] { new([-1, 0, 1]) }];
-        yield return [new JpegScan[] { new([0, 1, 3]) }];
-        yield return [new JpegScan[] { new([0, 1]) }];
-        yield return [new JpegScan[] { new([0, 1, 2]), new([0]) }];
-        yield return [new JpegScan[] { new([0, 1, 2], 0, 63, 0, 1) }];
-        yield return [new JpegScan[] { new([0, 1, 2], 0, 0), new([0, 1], 1, 63), new([2], 1, 63) }];
-        yield return [new JpegScan[] { new([0], 1, 63), new([0, 1, 2], 0, 0), new([1], 1, 63), new([2], 1, 63) }];
-        yield return [new JpegScan[] { new([0, 1, 2], 0, 0), new([0], 1, 32), new([0], 32, 63), new([1], 1, 63), new([2], 1, 63) }];
-        yield return [new JpegScan[] { new([0, 1, 2], 0, 0), new([0], 1, 63, 1, 0), new([1], 1, 63), new([2], 1, 63) }];
-        yield return [new JpegScan[] { new([0, 1, 2], 0, 0), new([0], 1, 63, 0, 2), new([0], 1, 63, 2, 0), new([1], 1, 63), new([2], 1, 63) }];
-        yield return [new JpegScan[] { new([0, 1, 2], 0, 0), new([0], 1, 63, 0, 1), new([1], 1, 63), new([2], 1, 63) }];
-        yield return [new JpegScan[] { new([0, 1, 2], 0, 0), new([0], 1, 62), new([1], 1, 63), new([2], 1, 63) }];
-        yield return [new JpegScan[] { new([0, 1, 2], 0, 0), new([0], 1, 63, 0, 11), new([1], 1, 63), new([2], 1, 63) }];
-        yield return [new JpegScan[] { new([0, 1, 2], -1, 63) }];
-        yield return [new JpegScan[] { new([0, 1, 2], 0, 64) }];
-        yield return [Enumerable.Repeat(new JpegScan([0], 0, 0), 286).ToArray()];
+        yield return Array.Empty<JpegScan>();
+        yield return new JpegScan[] { null! };
+        yield return new JpegScan[] { new(null!) };
+        yield return new JpegScan[] { new([]) };
+        yield return new JpegScan[] { new([0, 0, 1]) };
+        yield return new JpegScan[] { new([1, 0, 2]) };
+        yield return new JpegScan[] { new([-1, 0, 1]) };
+        yield return new JpegScan[] { new([0, 1, 3]) };
+        yield return new JpegScan[] { new([0, 1]) };
+        yield return new JpegScan[] { new([0, 1, 2]), new([0]) };
+        yield return new JpegScan[] { new([0, 1, 2], 0, 63, 0, 1) };
+        yield return new JpegScan[] { new([0, 1, 2], 0, 0), new([0, 1], 1, 63), new([2], 1, 63) };
+        yield return new JpegScan[] { new([0], 1, 63), new([0, 1, 2], 0, 0), new([1], 1, 63), new([2], 1, 63) };
+        yield return new JpegScan[] { new([0, 1, 2], 0, 0), new([0], 1, 32), new([0], 32, 63), new([1], 1, 63), new([2], 1, 63) };
+        yield return new JpegScan[] { new([0, 1, 2], 0, 0), new([0], 1, 63, 1, 0), new([1], 1, 63), new([2], 1, 63) };
+        yield return new JpegScan[] { new([0, 1, 2], 0, 0), new([0], 1, 63, 0, 2), new([0], 1, 63, 2, 0), new([1], 1, 63), new([2], 1, 63) };
+        yield return new JpegScan[] { new([0, 1, 2], 0, 0), new([0], 1, 63, 0, 1), new([1], 1, 63), new([2], 1, 63) };
+        yield return new JpegScan[] { new([0, 1, 2], 0, 0), new([0], 1, 62), new([1], 1, 63), new([2], 1, 63) };
+        yield return new JpegScan[] { new([0, 1, 2], 0, 0), new([0], 1, 63, 0, 11), new([1], 1, 63), new([2], 1, 63) };
+        yield return new JpegScan[] { new([0, 1, 2], -1, 63) };
+        yield return new JpegScan[] { new([0, 1, 2], 0, 64) };
+        yield return Enumerable.Repeat(new JpegScan([0], 0, 0), 286).ToArray();
         // Separate initial AC scans exceed the pinned limit of 252 AC contexts,
         // even though their per-coefficient history and final coverage are valid.
         var contexts = new List<JpegScan> { new([0, 1, 2], 0, 0) };
         for (int component = 0; component < 2; component++)
+        {
             for (int coefficient = 1; coefficient <= 63; coefficient++)
+            {
                 contexts.Add(new([component], coefficient, coefficient, 0, 1));
+            }
+        }
+
         for (int component = 0; component < 2; component++)
+        {
             for (int first = 1; first <= 63; first++)
+            {
                 contexts.Add(new([component], first, first, 1, 0));
+            }
+        }
+
         contexts.Add(new([2], 1, 63));
-        yield return [contexts.ToArray()];
+        yield return contexts.ToArray();
     }
 
     [Theory]
-    [MemberData(nameof(InvalidScripts))]
-    public void InvalidScriptsAreRejectedBeforeAnyOutput(IReadOnlyList<JpegScan> script)
+    [MemberData(nameof(InvalidScriptIndices))]
+    public void InvalidScriptsAreRejectedBeforeAnyOutput(int scriptIndex)
     {
+        IReadOnlyList<JpegScan> script = InvalidScripts().ElementAt(scriptIndex);
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
         ArgumentException exception = Assert.ThrowsAny<ArgumentException>(() => JpegliEncoder.Encode(
@@ -356,29 +418,58 @@ public sealed class EncoderScanScriptTests
     private static JpegScan[] PresetScript(int level, bool interleaveDc)
     {
         var script = new List<JpegScan>();
-        if (interleaveDc) script.Add(new([0, 1, 2], 0, 0));
-        else for (int component = 0; component < 3; component++) script.Add(new([component], 0, 0));
+        if (interleaveDc)
+        {
+            script.Add(new([0, 1, 2], 0, 0));
+        }
+        else
+        {
+            for (int component = 0; component < 3; component++)
+            {
+                script.Add(new([component], 0, 0));
+            }
+        }
+
         if (level == 2)
-            for (int component = 0; component < 3; component++) script.Add(new([component], 1, 2));
-        for (int component = 0; component < 3; component++) script.Add(new([component], level == 1 ? 1 : 3, 63, 0, level));
+        {
+            for (int component = 0; component < 3; component++)
+            {
+                script.Add(new([component], 1, 2));
+            }
+        }
+
+        for (int component = 0; component < 3; component++)
+        {
+            script.Add(new([component], level == 1 ? 1 : 3, 63, 0, level));
+        }
+
         for (int low = level - 1; low >= 0; low--)
-            for (int component = 0; component < 3; component++) script.Add(new([component], level == 1 ? 1 : 3, 63, low + 1, low));
+        {
+            for (int component = 0; component < 3; component++)
+            {
+                script.Add(new([component], level == 1 ? 1 : 3, 63, low + 1, low));
+            }
+        }
+
         return script.ToArray();
     }
 
     private static JpegDocument AssertRealParity(byte[] baseline, byte[] jpeg, JpegliEncoderOptions options,
         IReadOnlyList<JpegScan> script, bool progressive, bool grayscale = false)
     {
-        JpegDocument reference = JpegDocument.Read(baseline, false, options.RestartInterval,
+        var reference = JpegDocument.Read(baseline, false, options.RestartInterval,
             expectedRestartRows: options.RestartRows);
-        JpegDocument actual = JpegDocument.Read(jpeg, progressive, options.RestartInterval,
+        var actual = JpegDocument.Read(jpeg, progressive, options.RestartInterval,
             expectedRestartRows: options.RestartRows, expectedScanScript: script);
         Assert.Equal(reference.Width, actual.Width);
         Assert.Equal(reference.Height, actual.Height);
         Assert.Equal(reference.Components, actual.Components);
         foreach ((int selector, byte[] quantizer) in reference.Quantizers)
+        {
             Assert.Equal(quantizer, actual.Quantizers[selector]);
-        var real = reference.Blocks.Where(pair => !pair.Value.IsDummy).ToArray();
+        }
+
+        KeyValuePair<BlockKey, Block>[] real = reference.Blocks.Where(pair => !pair.Value.IsDummy).ToArray();
         Assert.Equal(real.Length, actual.Blocks.Count(pair => !pair.Value.IsDummy));
         foreach ((BlockKey key, Block expected) in real)
         {

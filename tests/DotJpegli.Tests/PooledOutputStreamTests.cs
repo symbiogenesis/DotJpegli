@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class PooledOutputStreamTests
 {
@@ -30,7 +30,10 @@ public sealed class PooledOutputStreamTests
         byte[] first = stream.ToArray();
         Assert.Equal(input, first);
         if (first.Length != 0)
+        {
             first[0] ^= 0xff;
+        }
+
         Assert.Equal(input, stream.ToArray());
         stream.Dispose();
         // Later renters and disposal must never change the returned JPEG.
@@ -43,13 +46,13 @@ public sealed class PooledOutputStreamTests
     public void DisposalAndRejectedWritesLeaveNoPartialOutput()
     {
         var stream = new PooledOutputStream();
-        Assert.Throws<ArgumentOutOfRangeException>(() => stream.Write(new byte[3], 1, 3));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => stream.Write(new byte[3], 1, 3));
         Assert.Empty(stream.ToArray());
         stream.WriteByte(0xff);
         stream.Dispose();
         stream.Dispose();
         Assert.False(stream.CanWrite);
-        Assert.Throws<ObjectDisposedException>(() => stream.WriteByte(1));
-        Assert.Throws<ObjectDisposedException>(() => stream.ToArray());
+        _ = Assert.Throws<ObjectDisposedException>(() => stream.WriteByte(1));
+        _ = Assert.Throws<ObjectDisposedException>(stream.ToArray);
     }
 }

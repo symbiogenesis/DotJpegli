@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in LICENSE.jpegli or at https://developers.google.com/open-source/licenses/bsd.
 
+namespace DotJpegli.Internal;
+
 using System.Numerics;
 using System.Runtime.CompilerServices;
-
-namespace DotJpegli.Internal;
 
 internal static class ColorConversion
 {

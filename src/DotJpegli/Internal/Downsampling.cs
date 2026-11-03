@@ -1,13 +1,13 @@
 // Copyright (c) the JPEG XL Project Authors.
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
 
+namespace DotJpegli.Internal;
+
 using System.Numerics;
-using System.Runtime.CompilerServices;
 #if !NETSTANDARD2_1
+using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 #endif
-
-namespace DotJpegli.Internal;
 
 // Managed adaptation of the horizontal 2/3/4 and vertical 2/3/4 downsampling
 // methods and ApplyInputSmoothing in
@@ -36,16 +36,16 @@ internal static class Downsampling
         }
 
         float neighborWeight = smoothingFactor / 1024f;
-        float centerWeight = 1f - 8f * neighborWeight;
+        float centerWeight = 1f - (8f * neighborWeight);
         // Express pixel and sample boundaries in integer units of 1/factor,
         // avoiding drift at block/MCU boundaries for ratios such as 3/2 and 4/3.
         for (int row = 0; row < 8; row++)
         {
-            int yStart = (blockY * 8 + row) * maxVertical;
+            int yStart = ((blockY * 8) + row) * maxVertical;
             int yEnd = yStart + maxVertical;
             for (int column = 0; column < 8; column++)
             {
-                int xStart = (blockX * 8 + column) * maxHorizontal;
+                int xStart = ((blockX * 8) + column) * maxHorizontal;
                 int xEnd = xStart + maxHorizontal;
                 float total = 0f;
                 for (int y = yStart / componentVertical; y * componentVertical < yEnd; y++)
@@ -60,15 +60,15 @@ internal static class Downsampling
                         horizontal += ReadSample(pixels, width, height, stride, component, x, y,
                             neighborWeight, centerWeight) * xWeight;
                     }
-                    total += (horizontal / maxHorizontal) * yWeight;
+                    total += horizontal / maxHorizontal * yWeight;
                 }
-                samples[row * 8 + column] = total / maxVertical - 128f;
+                samples[(row * 8) + column] = (total / maxVertical) - 128f;
             }
         }
     }
 
     internal static void FillBlock(ReadOnlySpan<byte> pixels, int width, int height, int stride,
-        int bytesPerPixel, PixelLayout layout, int component, int left, int top,
+        int _, PixelLayout layout, int component, int left, int top,
         int sampleWidth, int sampleHeight, Span<float> samples, int smoothingFactor = 0)
         => FillBlock(new PixelSource(pixels, layout), width, height, stride, component, left, top,
             sampleWidth, sampleHeight, samples, smoothingFactor);
@@ -78,9 +78,13 @@ internal static class Downsampling
         Span<float> samples, int smoothingFactor = 0)
     {
         if (Vector.IsHardwareAccelerated && CanUseVector && smoothingFactor == 0)
+        {
             FillBlockVector(pixels, width, height, stride, component, left, top, sampleWidth, sampleHeight, samples);
+        }
         else
+        {
             FillBlockScalar(pixels, width, height, stride, component, left, top, sampleWidth, sampleHeight, samples, smoothingFactor);
+        }
     }
 
     // Explicit paths make operation ordering and fallback behavior testable.
@@ -98,15 +102,20 @@ internal static class Downsampling
         bool directQuarter = sampleWidth == 2 && sampleHeight == 2
             && CanUseQuarterVector;
         if ((direct || directQuarter) && left >= 0 && top >= 0
-            && left <= width - 8 * sampleWidth && top <= height - 8 * sampleHeight)
+            && left <= width - (8 * sampleWidth) && top <= height - (8 * sampleHeight))
         {
             ReadOnlySpan<float> plane = pixels.GetConvertedPlane(component);
             if (!plane.IsEmpty)
             {
                 if (direct)
+                {
                     FillConvertedBlock(plane, width, left, top, samples);
+                }
                 else
+                {
                     FillConvertedQuarterBlock(plane, width, left, top, samples);
+                }
+
                 return;
             }
         }
@@ -125,7 +134,9 @@ internal static class Downsampling
                 Span<float> destination = samples.Slice(row * 8, 8);
                 pixels.ReadRowVector(width, height, stride, component, left, top + row, destination);
                 for (int column = 0; column < 8; column += lanes)
+                {
                     (PortableVector.Load(destination.Slice(column, lanes)) - center).CopyTo(destination.Slice(column, lanes));
+                }
             }
             return;
         }
@@ -133,11 +144,15 @@ internal static class Downsampling
         {
             for (int dy = 0; dy < sampleHeight; dy++)
             {
-                pixels.ReadRowVector(width, height, stride, component, left, top + row * sampleHeight + dy,
+                pixels.ReadRowVector(width, height, stride, component, left, top + (row * sampleHeight) + dy,
                     rawRow[..(8 * sampleWidth)]);
                 for (int dx = 0; dx < sampleWidth; dx++)
+                {
                     for (int column = 0; column < 8; column++)
-                        terms[(dy * sampleWidth + dx) * 8 + column] = rawRow[column * sampleWidth + dx];
+                    {
+                        terms[(((dy * sampleWidth) + dx) * 8) + column] = rawRow[(column * sampleWidth) + dx];
+                    }
+                }
             }
 
             for (int column = 0; column < 8; column += lanes)
@@ -148,17 +163,19 @@ internal static class Downsampling
                 {
                     Vector<float> second = AverageRowVector(terms, 1, column, sampleWidth, quarter);
                     if (sampleHeight == 2)
+                    {
                         sample = (first + second) * new Vector<float>(quarter ? 0.25f : 0.5f);
+                    }
                     else
                     {
                         Vector<float> third = AverageRowVector(terms, 2, column, sampleWidth, quarter);
                         sample = sampleHeight == 3
-                            ? ((first + second) + third) * new Vector<float>(1f / 3f)
-                            : ((first + second) + (third + AverageRowVector(terms, 3, column, sampleWidth, quarter)))
+                            ? (first + second + third) * new Vector<float>(1f / 3f)
+                            : (first + second + (third + AverageRowVector(terms, 3, column, sampleWidth, quarter)))
                                 * new Vector<float>(0.25f);
                     }
                 }
-                (sample - center).CopyTo(samples.Slice(row * 8 + column, lanes));
+                (sample - center).CopyTo(samples.Slice((row * 8) + column, lanes));
             }
         }
     }
@@ -177,10 +194,12 @@ internal static class Downsampling
         var center = new Vector<float>(128f);
         for (int row = 0; row < 8; row++)
         {
-            int source = (top + row) * width + left;
+            int source = ((top + row) * width) + left;
             for (int column = 0; column < 8; column += lanes)
+            {
                 (PortableVector.Load(plane.Slice(source + column, lanes)) - center)
-                    .CopyTo(samples.Slice(row * 8 + column, lanes));
+                    .CopyTo(samples.Slice((row * 8) + column, lanes));
+            }
         }
     }
 
@@ -194,11 +213,11 @@ internal static class Downsampling
             var center = Vector256.Create(128f);
             for (int row = 0; row < 8; row++)
             {
-                int source = (top + row * 2) * width + left;
+                int source = ((top + (row * 2)) * width) + left;
                 Vector256<float> first = PairwiseSums256(plane.Slice(source, 16));
                 Vector256<float> second = PairwiseSums256(plane.Slice(source + width, 16));
                 // Downsample2x2 adds each row's pairs before the single scale.
-                ((first + second) * scale - center).CopyTo(samples.Slice(row * 8, 8));
+                (((first + second) * scale) - center).CopyTo(samples.Slice(row * 8, 8));
             }
         }
         else
@@ -206,21 +225,23 @@ internal static class Downsampling
             var scale = Vector128.Create(0.25f);
             var center = Vector128.Create(128f);
             for (int row = 0; row < 8; row++)
+            {
                 for (int column = 0; column < 8; column += 4)
                 {
-                    int source = (top + row * 2) * width + left + column * 2;
+                    int source = ((top + (row * 2)) * width) + left + (column * 2);
                     Vector128<float> first = PairwiseSums128(plane.Slice(source, 8));
                     Vector128<float> second = PairwiseSums128(plane.Slice(source + width, 8));
-                    ((first + second) * scale - center).CopyTo(samples.Slice(row * 8 + column, 4));
+                    (((first + second) * scale) - center).CopyTo(samples.Slice((row * 8) + column, 4));
                 }
+            }
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static Vector256<float> PairwiseSums256(ReadOnlySpan<float> samples)
     {
-        Vector256<float> first = Vector256.Create(samples[..8]);
-        Vector256<float> second = Vector256.Create(samples[8..]);
+        var first = Vector256.Create(samples[..8]);
+        var second = Vector256.Create(samples[8..]);
 #if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
         return PairwiseSumsNet11(first, second);
 #else
@@ -231,8 +252,8 @@ internal static class Downsampling
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static Vector128<float> PairwiseSums128(ReadOnlySpan<float> samples)
     {
-        Vector128<float> first = Vector128.Create(samples[..4]);
-        Vector128<float> second = Vector128.Create(samples[4..]);
+        var first = Vector128.Create(samples[..4]);
+        var second = Vector128.Create(samples[4..]);
 #if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
         return PairwiseSumsNet11(first, second);
 #else
@@ -247,8 +268,8 @@ internal static class Downsampling
     {
         var even = Vector256.Create(0, 2, 4, 6, 0, 2, 4, 6);
         var odd = Vector256.Create(1, 3, 5, 7, 1, 3, 5, 7);
-        Vector256<float> evenSamples = Vector256.Create(Vector256.Shuffle(first, even).GetLower(), Vector256.Shuffle(second, even).GetLower());
-        Vector256<float> oddSamples = Vector256.Create(Vector256.Shuffle(first, odd).GetLower(), Vector256.Shuffle(second, odd).GetLower());
+        var evenSamples = Vector256.Create(Vector256.Shuffle(first, even).GetLower(), Vector256.Shuffle(second, even).GetLower());
+        var oddSamples = Vector256.Create(Vector256.Shuffle(first, odd).GetLower(), Vector256.Shuffle(second, odd).GetLower());
         return evenSamples + oddSamples;
     }
 
@@ -257,8 +278,8 @@ internal static class Downsampling
     {
         var even = Vector128.Create(0, 2, 0, 2);
         var odd = Vector128.Create(1, 3, 1, 3);
-        Vector128<float> evenSamples = Vector128.Create(Vector128.Shuffle(first, even).GetLower(), Vector128.Shuffle(second, even).GetLower());
-        Vector128<float> oddSamples = Vector128.Create(Vector128.Shuffle(first, odd).GetLower(), Vector128.Shuffle(second, odd).GetLower());
+        var evenSamples = Vector128.Create(Vector128.Shuffle(first, even).GetLower(), Vector128.Shuffle(second, even).GetLower());
+        var oddSamples = Vector128.Create(Vector128.Shuffle(first, odd).GetLower(), Vector128.Shuffle(second, odd).GetLower());
         return evenSamples + oddSamples;
     }
 
@@ -276,31 +297,42 @@ internal static class Downsampling
     private static void FillConvertedQuarterBlock(ReadOnlySpan<float> plane, int width, int left, int top, Span<float> samples)
     {
         for (int row = 0; row < 8; row++)
+        {
             for (int column = 0; column < 8; column++)
             {
-                int source = (top + row * 2) * width + left + column * 2;
-                samples[row * 8 + column] = ((plane[source] + plane[source + 1])
-                    + (plane[source + width] + plane[source + width + 1])) * 0.25f - 128f;
+                int source = ((top + (row * 2)) * width) + left + (column * 2);
+                samples[(row * 8) + column] = ((plane[source] + plane[source + 1]
+                    + (plane[source + width] + plane[source + width + 1])) * 0.25f) - 128f;
             }
+        }
     }
 
 #endif
     private static Vector<float> AverageRowVector(ReadOnlySpan<float> terms, int row, int column,
         int sampleWidth, bool quarter)
     {
-        int start = row * sampleWidth * 8 + column;
+        int start = (row * sampleWidth * 8) + column;
         int lanes = Vector<float>.Count;
         Vector<float> first = PortableVector.Load(terms.Slice(start, lanes));
         if (sampleWidth == 1)
+        {
             return first;
+        }
+
         Vector<float> second = PortableVector.Load(terms.Slice(start + 8, lanes));
         if (sampleWidth == 2)
+        {
             return quarter ? first + second : (first + second) * new Vector<float>(0.5f);
+        }
+
         Vector<float> third = PortableVector.Load(terms.Slice(start + 16, lanes));
         if (sampleWidth == 3)
-            return ((first + second) + third) * new Vector<float>(1f / 3f);
+        {
+            return (first + second + third) * new Vector<float>(1f / 3f);
+        }
+
         Vector<float> fourth = PortableVector.Load(terms.Slice(start + 24, lanes));
-        return ((first + second) + (third + fourth)) * new Vector<float>(0.25f);
+        return (first + second + (third + fourth)) * new Vector<float>(0.25f);
     }
 
     internal static void FillBlockScalar(PixelSource pixels, int width, int height, int stride,
@@ -308,13 +340,13 @@ internal static class Downsampling
         Span<float> samples, int smoothingFactor = 0)
     {
         float neighborWeight = smoothingFactor / 1024f;
-        float centerWeight = 1f - 8f * neighborWeight;
+        float centerWeight = 1f - (8f * neighborWeight);
         for (int row = 0; row < 8; row++)
         {
-            int y = top + row * sampleHeight;
+            int y = top + (row * sampleHeight);
             for (int column = 0; column < 8; column++)
             {
-                int x = left + column * sampleWidth;
+                int x = left + (column * sampleWidth);
                 float sample;
                 if (sampleWidth == 2 && sampleHeight == 2)
                 {
@@ -327,7 +359,7 @@ internal static class Downsampling
                     float bottomRight = ReadSample(pixels, width, height, stride, component, x + 1, y + 1,
                         neighborWeight, centerWeight);
                     // Downsample2x2 scales only once, after summing both row pairs.
-                    sample = ((first + right) + (bottom + bottomRight)) * 0.25f;
+                    sample = (first + right + (bottom + bottomRight)) * 0.25f;
                 }
                 else
                 {
@@ -340,23 +372,27 @@ internal static class Downsampling
                         float second = ReadRowSample(pixels, width, height, stride, component, x, y + 1,
                             sampleWidth, neighborWeight, centerWeight);
                         if (sampleHeight == 2)
+                        {
                             sample = (sample + second) * 0.5f;
+                        }
                         else
                         {
                             float third = ReadRowSample(pixels, width, height, stride, component, x, y + 2,
                                 sampleWidth, neighborWeight, centerWeight);
                             if (sampleHeight == 3)
-                                sample = ((sample + second) + third) * (1f / 3f);
+                            {
+                                sample = (sample + second + third) * (1f / 3f);
+                            }
                             else
                             {
                                 float fourth = ReadRowSample(pixels, width, height, stride, component, x, y + 3,
                                     sampleWidth, neighborWeight, centerWeight);
-                                sample = ((sample + second) + (third + fourth)) * 0.25f;
+                                sample = (sample + second + (third + fourth)) * 0.25f;
                             }
                         }
                     }
                 }
-                samples[row * 8 + column] = sample - 128f;
+                samples[(row * 8) + column] = sample - 128f;
             }
         }
     }
@@ -367,18 +403,27 @@ internal static class Downsampling
         float first = ReadSample(pixels, width, height, stride, component, x, y,
             neighborWeight, centerWeight);
         if (sampleWidth == 1)
+        {
             return first;
+        }
+
         float second = ReadSample(pixels, width, height, stride, component, x + 1, y,
             neighborWeight, centerWeight);
         if (sampleWidth == 2)
+        {
             return (first + second) * 0.5f;
+        }
+
         float third = ReadSample(pixels, width, height, stride, component, x + 2, y,
             neighborWeight, centerWeight);
         if (sampleWidth == 3)
-            return ((first + second) + third) * (1f / 3f);
+        {
+            return (first + second + third) * (1f / 3f);
+        }
+
         float fourth = ReadSample(pixels, width, height, stride, component, x + 3, y,
             neighborWeight, centerWeight);
-        return ((first + second) + (third + fourth)) * 0.25f;
+        return (first + second + (third + fourth)) * 0.25f;
     }
 
     private static float ReadSample(PixelSource pixels, int width, int height, int stride,
@@ -386,7 +431,9 @@ internal static class Downsampling
     {
         float center = ReadRawSample(pixels, width, height, stride, component, x, y);
         if (neighborWeight == 0f)
+        {
             return center;
+        }
 
         // Smooth converted, uncentered samples before downsampling. Keep x and
         // y in the padded image so each raw neighbor clamps independently.
@@ -400,12 +447,9 @@ internal static class Downsampling
         float bottomRight = ReadRawSample(pixels, width, height, stride, component, x + 1, y + 1);
         // Preserve upstream's left-to-right sum of the eight neighbors.
         float neighbors = topLeft + top + topRight + left + right + bottomLeft + bottom + bottomRight;
-        return center * centerWeight + neighbors * neighborWeight;
+        return (center * centerWeight) + (neighbors * neighborWeight);
     }
 
     private static float ReadRawSample(PixelSource pixels, int width, int height, int stride,
-        int component, int x, int y)
-    {
-        return pixels.ReadSampleAt(Math.Clamp(x, 0, width - 1), Math.Clamp(y, 0, height - 1), stride, component);
-    }
+        int component, int x, int y) => pixels.ReadSampleAt(Math.Clamp(x, 0, width - 1), Math.Clamp(y, 0, height - 1), stride, component);
 }

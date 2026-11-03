@@ -1,7 +1,6 @@
+namespace DotJpegli.Compatibility;
 #if NETSTANDARD2_1
 using System.Diagnostics.CodeAnalysis;
-
-namespace DotJpegli.Compatibility;
 
 internal static class StandardSpanExtensions
 {
@@ -18,8 +17,13 @@ internal static class StandardSpanExtensions
     internal static bool ContainsAnyExceptInRange(this Span<ushort> span, ushort lowInclusive, ushort highInclusive)
     {
         foreach (ushort value in span)
+        {
             if (value < lowInclusive || value > highInclusive)
+            {
                 return true;
+            }
+        }
+
         return false;
     }
 
@@ -27,8 +31,13 @@ internal static class StandardSpanExtensions
     {
         int count = 0;
         foreach (short item in span)
+        {
             if (item == value)
+            {
                 count++;
+            }
+        }
+
         return count;
     }
 
@@ -37,8 +46,13 @@ internal static class StandardSpanExtensions
     internal static bool ContainsAnyInRange(this Span<int> span, int lowInclusive, int highInclusive)
     {
         foreach (int value in span)
+        {
             if (value >= lowInclusive && value <= highInclusive)
+            {
                 return true;
+            }
+        }
+
         return false;
     }
 
@@ -47,8 +61,13 @@ internal static class StandardSpanExtensions
     internal static bool ContainsAnyInRange(this Span<long> span, long lowInclusive, long highInclusive)
     {
         foreach (long value in span)
+        {
             if (value >= lowInclusive && value <= highInclusive)
+            {
                 return true;
+            }
+        }
+
         return false;
     }
 
@@ -57,8 +76,13 @@ internal static class StandardSpanExtensions
     internal static bool ContainsAnyExcept(this Span<long> span, long value)
     {
         foreach (long item in span)
+        {
             if (item != value)
+            {
                 return true;
+            }
+        }
+
         return false;
     }
 
@@ -66,8 +90,11 @@ internal static class StandardSpanExtensions
     // span storage and the same comparison without a second temporary array.
     internal static void Sort<T>(this Span<T> span, Comparison<T> comparison)
     {
-        for (int parent = span.Length / 2 - 1; parent >= 0; parent--)
+        for (int parent = (span.Length / 2) - 1; parent >= 0; parent--)
+        {
             SiftDown(span, parent, comparison);
+        }
+
         for (int end = span.Length - 1; end > 0; end--)
         {
             (span[0], span[end]) = (span[end], span[0]);
@@ -79,11 +106,17 @@ internal static class StandardSpanExtensions
     {
         while (parent < span.Length / 2)
         {
-            int child = parent * 2 + 1;
+            int child = (parent * 2) + 1;
             if (child + 1 < span.Length && comparison(span[child], span[child + 1]) < 0)
+            {
                 child++;
+            }
+
             if (comparison(span[parent], span[child]) >= 0)
+            {
                 return;
+            }
+
             (span[parent], span[child]) = (span[child], span[parent]);
             parent = child;
         }

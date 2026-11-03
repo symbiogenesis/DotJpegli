@@ -1,9 +1,9 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 // StbImageSharp stores its failure reason in a process-wide static field.
 // Exact rejection assertions must not overlap decoder calls in other tests.
@@ -32,15 +32,19 @@ public sealed class FractionalEncoderSamplingTests
     {
         var sampling = new JpegSamplingFactors(new(yh, yv), new(cbh, cbv), new(crh, crv));
         foreach ((int width, int height) in new[] { (1, 1), (1, 33), (11, 13), (17, 19), (145, 49) })
+        {
             foreach (bool adaptive in new[] { false, true })
             {
                 byte[] pixels = Pattern(width, height, PixelLayout.Rgb24);
                 var options = new JpegliEncoderOptions
                 {
-                    Quality = 90, SamplingFactors = sampling, AdaptiveQuantization = adaptive,
-                    SmoothingFactor = adaptive ? 73 : 0, OptimizeHuffmanTables = adaptive
+                    Quality = 90,
+                    SamplingFactors = sampling,
+                    AdaptiveQuantization = adaptive,
+                    SmoothingFactor = adaptive ? 73 : 0,
+                    OptimizeHuffmanTables = adaptive
                 };
-                JpegDocument baseline = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.Rgb24, options), false, 0);
+                var baseline = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.Rgb24, options), false, 0);
                 AssertGeometry(baseline, sampling, interleaved: true);
 
                 foreach ((bool progressive, int refinement, bool separateDc) in new[]
@@ -48,23 +52,27 @@ public sealed class FractionalEncoderSamplingTests
                     (false, 0, false), (true, 0, false), (true, 2, false), (true, 2, true)
                 })
                 {
-                    var scanOptions = options with
+                    JpegliEncoderOptions scanOptions = options with
                     {
-                        Progressive = progressive, ProgressiveRefinementBits = refinement,
-                        ProgressiveInterleaveDc = !separateDc, RestartInterval = 1,
+                        Progressive = progressive,
+                        ProgressiveRefinementBits = refinement,
+                        ProgressiveInterleaveDc = !separateDc,
+                        RestartInterval = 1,
                         OptimizeHuffmanTables = !options.OptimizeHuffmanTables
                     };
-                    JpegDocument actual = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.Rgb24, scanOptions),
+                    var actual = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.Rgb24, scanOptions),
                         progressive, 1, refinement, expectedInterleaveDc: !separateDc);
                     AssertRealCoefficients(baseline, actual);
                     AssertGeometry(actual, sampling, interleaved: !separateDc);
                     if (width == 145)
+                    {
                         Assert.Contains(actual.Scans, scan => scan.RestartMarkers.Count > 8);
+                    }
                 }
 
                 JpegScan[] script = [new([2]), new([0, 1])];
-                var grouped = options with { ScanScript = script, RestartRows = 1 };
-                JpegDocument groupedDocument = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.Rgb24, grouped),
+                JpegliEncoderOptions grouped = options with { ScanScript = script, RestartRows = 1 };
+                var groupedDocument = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.Rgb24, grouped),
                     false, 0, expectedRestartRows: 1, expectedScanScript: script);
                 AssertRealCoefficients(baseline, groupedDocument);
                 AssertGeometry(groupedDocument, sampling, interleaved: false);
@@ -76,6 +84,7 @@ public sealed class FractionalEncoderSamplingTests
                     Assert.Equal(columns, scan.RestartInterval);
                 }
             }
+        }
     }
 
     [Theory]
@@ -98,12 +107,12 @@ public sealed class FractionalEncoderSamplingTests
         {
             byte[] pixels = Pattern(width, height, PixelLayout.Rgb24);
             var options = new JpegliEncoderOptions { Quality = 90, SamplingFactors = sampling, AdaptiveQuantization = false };
-            JpegDocument document = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.YCbCr24, options), false, 0);
+            var document = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.YCbCr24, options), false, 0);
             foreach ((BlockKey key, Block block) in document.Blocks.Where(pair => !pair.Value.IsDummy))
             {
                 Component component = document.Components[key.Component];
                 double[] samples = FractionalDownsamplingTests.AreaBlock(
-                    (x, y) => pixels[(y * width + x) * 3 + key.Component - 1],
+                    (x, y) => pixels[(((y * width) + x) * 3) + key.Component - 1],
                     width, height, key.X, key.Y, MaxHorizontal(sampling), MaxVertical(sampling), component.H, component.V);
                 for (int index = 0; index < 64; index++)
                 {
@@ -111,13 +120,19 @@ public sealed class FractionalEncoderSamplingTests
                     double coefficient = IndependentDct.Coefficient(samples, u, v);
                     double quantized = coefficient / document.Quantizers[component.Quantizer][index];
                     if (index != 0 && Math.Abs(quantized) < zeroBias[key.Component - 1] - 0.001)
+                    {
                         Assert.Equal(0, block.Coefficients[index]);
+                    }
                     else if (index == 0 || Math.Abs(quantized) > zeroBias[key.Component - 1] + 0.001)
+                    {
                         // The tolerance admits float DCT rounding at exact half
                         // ties; it still detects a one-step error away from ties.
                         Assert.InRange(Math.Abs(block.Coefficients[index] - quantized), 0, 0.502);
+                    }
                     else
+                    {
                         Assert.InRange(Math.Abs(block.Coefficients[index]), 0, 1);
+                    }
                 }
             }
         }
@@ -135,18 +150,22 @@ public sealed class FractionalEncoderSamplingTests
         {
             var options = new JpegliEncoderOptions
             {
-                Quality = 90, SamplingFactors = sampling, AdaptiveQuantization = adaptive,
-                Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2
+                Quality = 90,
+                SamplingFactors = sampling,
+                AdaptiveQuantization = adaptive,
+                Progressive = true,
+                ProgressiveRefinementBits = 2,
+                RestartInterval = 2
             };
             // Direct YCbCr lets the independent oracle measure area coverage
             // without depending on the encoder's RGB conversion arithmetic.
-            JpegDocument document = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.YCbCr24, options), true, 2, 2);
+            var document = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.YCbCr24, options), true, 2, 2);
             AssertGeometry(document, sampling, interleaved: true);
             foreach ((BlockKey key, Block block) in document.Blocks.Where(pair => !pair.Value.IsDummy))
             {
                 Component component = document.Components[key.Component];
                 double[] samples = FractionalDownsamplingTests.AreaBlock(
-                    (x, y) => pixels[(y * width + x) * 3 + key.Component - 1],
+                    (x, y) => pixels[(((y * width) + x) * 3) + key.Component - 1],
                     width, height, key.X, key.Y, MaxHorizontal(sampling), MaxVertical(sampling), component.H, component.V);
                 double dc = samples.Sum() / (8 * document.Quantizers[component.Quantizer][0]);
                 Assert.InRange(Math.Abs(block.Coefficients[0] - dc), 0, 0.501);
@@ -163,7 +182,7 @@ public sealed class FractionalEncoderSamplingTests
         byte[] pixels = Pattern(width, height, PixelLayout.Rgb24);
         var sampling = new JpegSamplingFactors(new(maximum, 1), new(chroma, 1), new(1, 1));
         var options = new JpegliEncoderOptions { Quality = quality, SamplingFactors = sampling, RestartInterval = 2 };
-        JpegDocument document = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.Rgb24, options), false, 2);
+        var document = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.Rgb24, options), false, 2);
         var analysis = new AdaptiveQuantization(width, height, 1);
         float[] strengths = new float[analysis.BlocksWide];
         ushort[][] tables = Enumerable.Range(0, 3).Select(component => Quantization.CreateTable(quality, component)).ToArray();
@@ -185,14 +204,19 @@ public sealed class FractionalEncoderSamplingTests
                     adaptiveQuantization: true, adaptiveStrength: strengths[column], adaptiveMultipliers: multipliers[1]);
                 Block actual = document.Blocks[new(2, blockX, blockY)];
                 for (int index = 1; index < 64; index++)
+                {
                     Assert.Equal(expected[JpegConstants.ZigZag[index]], actual.Coefficients[index]);
+                }
 
                 // Truncating the ratio before multiplying loses within-MCU
                 // phase and eventually points at a different analysis column.
                 int alternativeColumn = blockX * (maximum / chroma);
                 Quantization.Quantize(coefficients, tables[1], alternative, 1, Quantization.QualityToDistance(quality),
                     adaptiveQuantization: true, adaptiveStrength: strengths[alternativeColumn], adaptiveMultipliers: multipliers[1]);
-                if (!expected.AsSpan(1).SequenceEqual(alternative.AsSpan(1))) sensitive++;
+                if (!expected.AsSpan(1).SequenceEqual(alternative.AsSpan(1)))
+                {
+                    sensitive++;
+                }
             }
         }
         Assert.True(sensitive > 0, "The fixture must distinguish truncation before scaling.");
@@ -201,30 +225,36 @@ public sealed class FractionalEncoderSamplingTests
     [Fact]
     public void PaddedByteWordFloatAndNonseekableStreamInputsKeepFractionalSampling()
     {
-        const int width = 17, height = 25, stride = width * 4 + 7;
+        const int width = 17, height = 25, stride = (width * 4) + 7;
         byte[] compact = Pattern(width, height, PixelLayout.Rgb24);
-        byte[] padded = Enumerable.Repeat((byte)0xe5, (height - 1) * stride + width * 4).ToArray();
-        float[] floats = compact.Select((value, index) => (value + index % 7 / 8f) / 255f).ToArray();
+        byte[] padded = Enumerable.Repeat((byte)0xe5, ((height - 1) * stride) + (width * 4)).ToArray();
+        float[] floats = compact.Select((value, index) => (value + (index % 7 / 8f)) / 255f).ToArray();
         float[] paddedFloats = Enumerable.Repeat(float.NaN, padded.Length).ToArray();
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
             {
-                int input = (y * width + x) * 3, output = y * stride + x * 4;
+                int input = ((y * width) + x) * 3, output = (y * stride) + (x * 4);
                 for (int component = 0; component < 3; component++)
                 {
                     padded[output + 2 - component] = compact[input + component];
                     paddedFloats[output + 2 - component] = floats[input + component];
                 }
-                padded[output + 3] = (byte)(17 * x + 29 * y);
+                padded[output + 3] = (byte)((17 * x) + (29 * y));
             }
+        }
+
         ushort[] words = padded.Select(value => (ushort)(value * 257)).ToArray();
         var sampling = new JpegSamplingFactors(new(3, 1), new(2, 2), new(1, 3));
         foreach (bool progressive in new[] { false, true })
         {
             var options = new JpegliEncoderOptions
             {
-                SamplingFactors = sampling, SmoothingFactor = 73, Progressive = progressive,
-                ProgressiveRefinementBits = progressive ? 2 : 0, RestartRows = 1
+                SamplingFactors = sampling,
+                SmoothingFactor = 73,
+                Progressive = progressive,
+                ProgressiveRefinementBits = progressive ? 2 : 0,
+                RestartRows = 1
             };
             byte[] expected = Encode(compact, width, height, PixelLayout.Rgb24, options);
             Assert.Equal(expected, JpegliEncoder.Encode(padded, width, height, PixelLayout.Bgra32,
@@ -242,7 +272,7 @@ public sealed class FractionalEncoderSamplingTests
                 options, cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal(floatExpected, JpegliEncoder.Encode(paddedFloats, width, height, PixelComponentLayout.Bgra,
                 options, stride, TestContext.Current.CancellationToken));
-            JpegDocument document = JpegDocument.Read(floatExpected, progressive, 0, progressive ? 2 : 0, expectedRestartRows: 1);
+            var document = JpegDocument.Read(floatExpected, progressive, 0, progressive ? 2 : 0, expectedRestartRows: 1);
             AssertGeometry(document, sampling, interleaved: true);
         }
     }
@@ -255,7 +285,7 @@ public sealed class FractionalEncoderSamplingTests
     public void IndependentEntropyReaderVerifiesFractionalFramesRejectedByStbResampling(bool vertical, bool progressive)
     {
         const int width = 17, height = 19;
-        var sampling = vertical ? new JpegSamplingFactors(new(1, 3), new(1, 2), new(1, 1))
+        JpegSamplingFactors sampling = vertical ? new JpegSamplingFactors(new(1, 3), new(1, 2), new(1, 1))
             : new JpegSamplingFactors(new(3, 1), new(2, 1), new(1, 1));
         var options = new JpegliEncoderOptions { SamplingFactors = sampling, Progressive = progressive, RestartInterval = 2 };
         byte[] jpeg = Encode(Pattern(width, height, PixelLayout.Rgb24), width, height, PixelLayout.Rgb24, options);
@@ -276,19 +306,21 @@ public sealed class FractionalEncoderSamplingTests
         var sampling = new JpegSamplingFactors(new(2, 1), new(3, 1), new(1, 1));
         var options = new JpegliEncoderOptions
         {
-            ColorSpace = colorSpace, SamplingFactors = sampling, Quality = 90,
+            ColorSpace = colorSpace,
+            SamplingFactors = sampling,
+            Quality = 90,
             IccProfile = colorSpace == JpegColorSpace.Xyb ? JpegliIccProfiles.CreateXybProfile() : default
         };
-        JpegDocument baseline = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.Rgb24, options), false, 0);
-        Assert.Equal(new[] { 82, 71, 66 }, baseline.Components.Keys);
+        var baseline = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.Rgb24, options), false, 0);
+        Assert.Equal([82, 71, 66], baseline.Components.Keys);
         AssertGeometry(baseline, sampling, interleaved: true);
-        var progressive = options with { Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2 };
-        JpegDocument actual = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.Rgb24, progressive), true, 2, 2);
+        JpegliEncoderOptions progressive = options with { Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2 };
+        var actual = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.Rgb24, progressive), true, 2, 2);
         AssertRealCoefficients(baseline, actual);
         AssertGeometry(actual, sampling, interleaved: true);
         JpegScan[] script = [new([2]), new([0, 1])];
-        var grouped = options with { ScanScript = script, RestartRows = 1 };
-        JpegDocument separate = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.Rgb24, grouped), false, 0,
+        JpegliEncoderOptions grouped = options with { ScanScript = script, RestartRows = 1 };
+        var separate = JpegDocument.Read(Encode(pixels, width, height, PixelLayout.Rgb24, grouped), false, 0,
             expectedRestartRows: 1, expectedScanScript: script);
         AssertRealCoefficients(baseline, separate);
         AssertGeometry(separate, sampling, interleaved: false);
@@ -299,10 +331,16 @@ public sealed class FractionalEncoderSamplingTests
         Assert.Equal(reference.Width, actual.Width);
         Assert.Equal(reference.Height, actual.Height);
         Assert.Equal(reference.Components, actual.Components);
-        foreach ((int selector, byte[] table) in reference.Quantizers) Assert.Equal(table, actual.Quantizers[selector]);
+        foreach ((int selector, byte[] table) in reference.Quantizers)
+        {
+            Assert.Equal(table, actual.Quantizers[selector]);
+        }
+
         Assert.Equal(reference.Blocks.Count(pair => !pair.Value.IsDummy), actual.Blocks.Count(pair => !pair.Value.IsDummy));
         foreach ((BlockKey key, Block block) in reference.Blocks.Where(pair => !pair.Value.IsDummy))
+        {
             Assert.Equal(block.Coefficients, actual.Blocks[key].Coefficients);
+        }
     }
 
     private static void AssertGeometry(JpegDocument document, JpegSamplingFactors sampling, bool interleaved)
@@ -312,7 +350,10 @@ public sealed class FractionalEncoderSamplingTests
         int mcuColumns = Ceiling(document.Width, 8 * maxH), mcuRows = Ceiling(document.Height, 8 * maxV);
         Assert.Equal(mcuColumns * mcuRows, document.McuCount);
         if (interleaved)
+        {
             Assert.Equal(document.McuCount * factors.Sum(factor => factor.Horizontal * factor.Vertical), document.Blocks.Count);
+        }
+
         for (int index = 0; index < 3; index++)
         {
             int id = document.Components.Keys.ElementAt(index);

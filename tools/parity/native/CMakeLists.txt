@@ -4,18 +4,18 @@ project(DotJpegliParityNative LANGUAGES C CXX)
 set(JPEGLI_PIN "031a0077f5799a6041004267fc12b956c1f52a20")
 set(JPEGLI_SOURCE_DIR "" CACHE PATH "Unmodified pinned google/jpegli Git checkout")
 if(NOT IS_ABSOLUTE "${JPEGLI_SOURCE_DIR}")
-  message(FATAL_ERROR "JPEGLI_SOURCE_DIR must be an absolute Git checkout path")
+    message(FATAL_ERROR "JPEGLI_SOURCE_DIR must be an absolute Git checkout path")
 endif()
 find_package(Git REQUIRED)
 execute_process(COMMAND "${GIT_EXECUTABLE}" -C "${JPEGLI_SOURCE_DIR}" rev-parse HEAD
-  OUTPUT_VARIABLE JPEGLI_HEAD OUTPUT_STRIP_TRAILING_WHITESPACE RESULT_VARIABLE GIT_RESULT)
+    OUTPUT_VARIABLE JPEGLI_HEAD OUTPUT_STRIP_TRAILING_WHITESPACE RESULT_VARIABLE GIT_RESULT)
 if(NOT GIT_RESULT EQUAL 0 OR NOT JPEGLI_HEAD STREQUAL JPEGLI_PIN)
-  message(FATAL_ERROR "Expected unmodified google/jpegli revision ${JPEGLI_PIN}; got ${JPEGLI_HEAD}")
+    message(FATAL_ERROR "Expected unmodified google/jpegli revision ${JPEGLI_PIN}; got ${JPEGLI_HEAD}")
 endif()
 execute_process(COMMAND "${GIT_EXECUTABLE}" -C "${JPEGLI_SOURCE_DIR}" diff --quiet --ignore-submodules=none HEAD --
-  RESULT_VARIABLE GIT_DIRTY)
+    RESULT_VARIABLE GIT_DIRTY)
 if(NOT GIT_DIRTY EQUAL 0)
-  message(FATAL_ERROR "Reference checkout has tracked changes")
+    message(FATAL_ERROR "Reference checkout has tracked changes")
 endif()
 
 # Build the original encoder/decoder, without tools, tests, or benchmarks.

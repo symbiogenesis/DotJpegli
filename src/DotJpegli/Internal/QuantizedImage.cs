@@ -1,7 +1,9 @@
-using System.Buffers;
-using System.Numerics;
-
 namespace DotJpegli.Internal;
+
+using System.Buffers;
+#if !NETSTANDARD2_1
+using System.Numerics;
+#endif
 
 /// <summary>Reuses full coefficients across histogram, spectral and refinement passes.</summary>
 internal sealed class QuantizedImage : IDisposable
@@ -16,7 +18,7 @@ internal sealed class QuantizedImage : IDisposable
     {
         this.components = components;
         this.widths = widths;
-        IsZigZagOrdered = zigZagOrdered;
+        this.IsZigZagOrdered = zigZagOrdered;
     }
 
     internal bool IsZigZagOrdered { get; }
@@ -26,15 +28,15 @@ internal sealed class QuantizedImage : IDisposable
         AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, CancellationToken cancellationToken,
         bool zigZagOrdered = false, KernelPreference narrowZigZagKernel = KernelPreference.Automatic)
     {
-        var widths = new int[tables.Length];
-        var heights = new int[tables.Length];
+        int[] widths = new int[tables.Length];
+        int[] heights = new int[tables.Length];
         long rentedBytes = 0;
         for (int component = 0; component < tables.Length; component++)
         {
             JpegComponentSampling factor = sampling[component];
-            widths[component] = (width * factor.Horizontal + 8 * sampling.MaxHorizontal - 1)
+            widths[component] = ((width * factor.Horizontal) + (8 * sampling.MaxHorizontal) - 1)
                 / (8 * sampling.MaxHorizontal);
-            heights[component] = (height * factor.Vertical + 8 * sampling.MaxVertical - 1)
+            heights[component] = ((height * factor.Vertical) + (8 * sampling.MaxVertical) - 1)
                 / (8 * sampling.MaxVertical);
             long length = (long)widths[component] * heights[component] * 64;
             // Account for the shared pool's power-of-two buckets as well as
@@ -42,7 +44,9 @@ internal sealed class QuantizedImage : IDisposable
             rentedBytes += (long)BitOperations.RoundUpToPowerOf2((ulong)length) * sizeof(short);
         }
         if (rentedBytes > MaximumBytes)
+        {
             return null;
+        }
 
         var image = new QuantizedImage(new short[tables.Length][], widths, zigZagOrdered);
         try
@@ -66,8 +70,8 @@ internal sealed class QuantizedImage : IDisposable
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 pixels.ParallelRows?.PrepareRow(top, cancellationToken);
-                if (adaptive is not null)
-                    adaptive.ComputeRow(pixels, stride, top, tables[pixels.AnalysisComponent][1], strengths!, cancellationToken);
+                adaptive?.ComputeRow(pixels, stride, top, tables[pixels.AnalysisComponent][1], strengths, cancellationToken);
+
                 for (int component = 0; component < tables.Length; component++)
                 {
                     JpegComponentSampling factor = sampling[component];
@@ -75,19 +79,25 @@ internal sealed class QuantizedImage : IDisposable
                         && factor.Vertical == vertical ? pixels.GetConvertedPlane(component) : default;
                     int planeWidth = width, planeHeight = height;
                     if (smoothingFactor == 0 && sampling.Is420 && component != 0)
+                    {
                         plane = pixels.GetConverted420ChromaPlane(component, out planeWidth, out planeHeight);
+                    }
+
                     int firstRow = top / (vertical * 8) * factor.Vertical;
                     for (int row = 0; row < factor.Vertical && firstRow + row < heights[component]; row++)
+                    {
                         for (int x = 0; x < widths[component]; x++)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
                             int y = firstRow + row;
-                            float strength = adaptive is null ? 0f : strengths![row * adaptive.BlocksWide
-                                + x * horizontal / factor.Horizontal];
+                            float strength = adaptive is null ? 0f : strengths[(row * adaptive.BlocksWide)
+                                + (x * horizontal / factor.Horizontal)];
                             Span<short> quantized = image.Block(component, x, y);
                             if (pixels.ParallelRows is { } parallelRows)
+                            {
                                 parallelRows.CopyBlock(component, x, y, samples);
-                            else if (!plane.IsEmpty && x * 8 + 8 <= planeWidth && y * 8 + 8 <= planeHeight)
+                            }
+                            else if (!plane.IsEmpty && (x * 8) + 8 <= planeWidth && (y * 8) + 8 <= planeHeight)
                             {
                                 ForwardDct.TransformQuantizePlane(plane, planeWidth, x * 8, y * 8,
                                     quantizers[component], quantized, strength, zigZagOrdered);
@@ -114,8 +124,11 @@ internal sealed class QuantizedImage : IDisposable
                                 adaptiveStrength: strength);
                             EntropyEncoder.ValidateAc(natural);
                             if (zigZagOrdered)
+                            {
                                 ZigZagOrdering.Reorder(natural, quantized);
+                            }
                         }
+                    }
                 }
             }
             return image;
@@ -128,18 +141,18 @@ internal sealed class QuantizedImage : IDisposable
     }
 
     private Span<short> Block(int component, int x, int y)
-        => components[component].AsSpan((y * widths[component] + x) * 64, 64);
+        => this.components[component].AsSpan(((y * this.widths[component]) + x) * 64, 64);
 
     internal ReadOnlySpan<short> GetBlock(int component, int x, int y)
-        => Block(component, x, y);
+        => this.Block(component, x, y);
 
     public void Dispose()
     {
-        for (int component = 0; component < components.Length; component++)
+        for (int component = 0; component < this.components.Length; component++)
         {
-            if (components[component] is { } buffer)
+            if (this.components[component] is { } buffer)
             {
-                components[component] = null!;
+                this.components[component] = null!;
                 ArrayPool<short>.Shared.Return(buffer);
             }
         }

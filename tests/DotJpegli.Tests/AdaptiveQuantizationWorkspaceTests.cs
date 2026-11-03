@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers;
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class AdaptiveQuantizationWorkspaceTests
 {
@@ -15,11 +15,16 @@ public sealed class AdaptiveQuantizationWorkspaceTests
     {
         const int width = 67, stride = width + 7;
         int mcuHeight = sampling * 8;
-        int height = mcuHeight * 3 + 3;
+        int height = (mcuHeight * 3) + 3;
         byte[] samples = new byte[height * stride];
         for (int row = 0; row < height; row++)
+        {
             for (int column = 0; column < width; column++)
-                samples[row * stride + column] = (byte)((row * 29 + column * 13 + row * column * 7) & 255);
+            {
+                samples[(row * stride) + column] = (byte)(((row * 29) + (column * 13) + (row * column * 7)) & 255);
+            }
+        }
+
         PixelSource pixels = new PixelSource(samples, PixelLayout.Gray8)
             .WithConvertedPlanes(width, height, stride, TestContext.Current.CancellationToken);
         using IDisposable? storage = pixels.ConvertedStorage;
@@ -27,6 +32,7 @@ public sealed class AdaptiveQuantizationWorkspaceTests
         using (var analysis = new AdaptiveQuantization(width, height, sampling, pool))
         {
             foreach (bool vector in new[] { false, true })
+            {
                 foreach (int row in new[] { 0, 1, 2, 3, 3, 0, 2, 1, 2, 3 })
                 {
                     using var fresh = new AdaptiveQuantization(width, height, sampling);
@@ -49,9 +55,13 @@ public sealed class AdaptiveQuantizationWorkspaceTests
                             TestContext.Current.CancellationToken);
                     }
                     for (int index = 0; index < expected.Length; index++)
+                    {
                         Assert.Equal(BitConverter.SingleToInt32Bits(expected[index]),
                             BitConverter.SingleToInt32Bits(actual[index]));
+                    }
                 }
+            }
+
             Assert.Equal(5, pool.Rents);
             Assert.Equal(5, pool.Outstanding.Count);
         }
@@ -63,7 +73,7 @@ public sealed class AdaptiveQuantizationWorkspaceTests
     public void PartialConstructionReturnsEverySuccessfulRental()
     {
         var pool = new DirtyPool(throwOnRent: 3);
-        Assert.Throws<InvalidOperationException>(() => new AdaptiveQuantization(67, 19, 2, pool));
+        _ = Assert.Throws<InvalidOperationException>(() => new AdaptiveQuantization(67, 19, 2, pool));
         Assert.Equal(2, pool.Returns);
         Assert.Empty(pool.Outstanding);
     }
@@ -75,7 +85,7 @@ public sealed class AdaptiveQuantizationWorkspaceTests
         var analysis = new AdaptiveQuantization(19, 23, 2, pool);
         try
         {
-            Assert.Throws<InvalidOperationException>(() => { _ = analysis.Strengths.Length; });
+            _ = Assert.Throws<InvalidOperationException>(() => { _ = analysis.Strengths.Length; });
             Assert.Equal(4, pool.Outstanding.Count);
             Assert.Equal(6, analysis.Strengths.Length);
             Assert.Equal(5, pool.Outstanding.Count);
@@ -87,8 +97,8 @@ public sealed class AdaptiveQuantizationWorkspaceTests
         analysis.Dispose();
         Assert.Equal(5, pool.Returns);
         Assert.Empty(pool.Outstanding);
-        Assert.Throws<ObjectDisposedException>(() => { _ = analysis.Strengths.Length; });
-        Assert.Throws<ObjectDisposedException>(() => analysis.ComputeRow(new byte[19 * 23], 19, 1,
+        _ = Assert.Throws<ObjectDisposedException>(() => { _ = analysis.Strengths.Length; });
+        _ = Assert.Throws<ObjectDisposedException>(() => analysis.ComputeRow(new byte[19 * 23], 19, 1,
             PixelLayout.Gray8, 0, 4, new float[6], TestContext.Current.CancellationToken));
     }
 
@@ -110,21 +120,23 @@ public sealed class AdaptiveQuantizationWorkspaceTests
 
         public override float[] Rent(int minimumLength)
         {
-            Rents++;
-            if (Rents == throwOnRent)
+            this.Rents++;
+            if (this.Rents == throwOnRent)
+            {
                 throw new InvalidOperationException("Injected rental failure.");
+            }
             // Oversized, poisoned arrays expose accidental reads of uninitialized
             // scratch or of padding belonging to the pool rather than the image.
             float[] buffer = new float[minimumLength + 17];
             Array.Fill(buffer, float.NaN);
-            Outstanding.Add(buffer);
+            this.Outstanding.Add(buffer);
             return buffer;
         }
 
         public override void Return(float[] array, bool clearArray = false)
         {
-            Assert.True(Outstanding.Remove(array), "A rental was returned more than once.");
-            Returns++;
+            Assert.True(this.Outstanding.Remove(array), "A rental was returned more than once.");
+            this.Returns++;
             Array.Fill(array, float.NaN);
         }
     }

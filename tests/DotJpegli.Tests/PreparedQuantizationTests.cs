@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using System.Runtime.InteropServices;
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class PreparedQuantizationTests
 {
@@ -17,6 +17,7 @@ public sealed class PreparedQuantizationTests
     {
         var random = new Random(5941);
         foreach (bool adaptive in new[] { false, true })
+        {
             for (int block = 0; block < 48; block++)
             {
                 ushort[] table = new ushort[72];
@@ -25,8 +26,8 @@ public sealed class PreparedQuantizationTests
                 for (int i = 0; i < 64; i++)
                 {
                     table[i] = (ushort)random.Next(1, block < 24 ? 256 : 32768);
-                    coefficients[i] = block < 24 ? (float)(random.NextDouble() * 8192 - 4096)
-                        : MathF.ScaleB((float)(random.NextDouble() * 2 - 1), random.Next(-149, 128));
+                    coefficients[i] = block < 24 ? (float)((random.NextDouble() * 8192) - 4096)
+                        : MathF.ScaleB((float)((random.NextDouble() * 2) - 1), random.Next(-149, 128));
                     multipliers[i] = (float)random.NextDouble() * 2.5f;
                 }
                 Array.Fill(coefficients, float.NaN, 64, 8);
@@ -40,6 +41,7 @@ public sealed class PreparedQuantizationTests
                 Quantization.QuantizePrepared(coefficients, prepared, actual.AsSpan(3), strength, previousDc: 37);
                 Assert.Equal(expected, actual);
             }
+        }
     }
 
     [Fact]
@@ -54,7 +56,7 @@ public sealed class PreparedQuantizationTests
                 float center = (integer + 0.5f) * divisor;
                 float[] values = [MathF.BitDecrement(center), center, MathF.BitIncrement(center)];
                 float[] coefficients = Enumerable.Range(0, 64)
-                    .Select(i => (i % 2 == 0 ? 1 : -1) * values[(i / 2) % 3]).ToArray();
+                    .Select(i => (i % 2 == 0 ? 1 : -1) * values[i / 2 % 3]).ToArray();
                 short[] expected = new short[64], actual = new short[64];
                 Quantization.QuantizeScalar(coefficients, table, expected, 0, 1f, grayscale: true);
                 Quantization.QuantizePrepared(coefficients, prepared, actual);
@@ -69,12 +71,16 @@ public sealed class PreparedQuantizationTests
         ushort[] table = Enumerable.Repeat((ushort)1, 64).ToArray();
         var prepared = Quantization.PreparedTable.Create(table, 0, 1f);
         for (int position = 0; position < 64; position++)
+        {
             foreach (float value in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity, -1024.5f, 1023.5f })
             {
                 float[] coefficients = Enumerable.Repeat(17.25f, 64).ToArray();
                 coefficients[position] = value;
                 if (position < 63)
+                {
                     coefficients[position + 1] = float.NaN;
+                }
+
                 short[] expected = Enumerable.Repeat((short)-23456, 72).ToArray();
                 short[] actual = (short[])expected.Clone();
                 ArgumentException expectedError = Assert.ThrowsAny<ArgumentException>(() =>
@@ -85,6 +91,7 @@ public sealed class PreparedQuantizationTests
                 Assert.Equal(expectedError.Message, actualError.Message);
                 Assert.Equal(expected, actual);
             }
+        }
     }
 
     [Fact]
@@ -137,8 +144,11 @@ public sealed class PreparedQuantizationTests
         float[] coefficients = new float[64];
         short[] output = Enumerable.Repeat((short)-23456, 64).ToArray();
         foreach (float strength in new[] { float.NaN, float.PositiveInfinity, -float.Epsilon })
+        {
             Assert.Equal("adaptiveStrength", Assert.Throws<ArgumentOutOfRangeException>(() =>
                 Quantization.QuantizePrepared(coefficients, adaptive, output, strength)).ParamName);
+        }
+
         Assert.All(output, value => Assert.Equal((short)-23456, value));
         var uniform = Quantization.PreparedTable.Create(table, 0, 1f, grayscale: true, adaptiveMultipliers: [float.NaN]);
         Quantization.QuantizePrepared(coefficients, uniform, output, float.NaN);

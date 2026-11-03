@@ -1,3 +1,5 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -6,8 +8,6 @@ using DotJpegli.Internal;
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class GammaIccProfileTests
 {
@@ -78,19 +78,19 @@ public sealed class GammaIccProfileTests
             Assert.Equal("mntr", Signature(profile, 12));
             Assert.Equal(grayscale ? "GRAY" : "RGB ", Signature(profile, 16));
             Assert.Equal("XYZ ", Signature(profile, 20));
-            Assert.Equal(new[] { 2019, 12, 1, 0, 0, 0 },
-                Enumerable.Range(0, 6).Select(index => UInt16(profile, 24 + index * 2)));
+            Assert.Equal([2019, 12, 1, 0, 0, 0],
+                Enumerable.Range(0, 6).Select(index => UInt16(profile, 24 + (index * 2))));
             Assert.Equal("acsp", Signature(profile, 36));
             Assert.Equal("APPL", Signature(profile, 40));
             Assert.All(profile[44..68], value => Assert.Equal(0, value));
-            Assert.Equal(new[] { 0x0000f6d6, 0x00010000, 0x0000d32d },
-                Enumerable.Range(0, 3).Select(index => Int32(profile, 68 + index * 4)));
+            Assert.Equal([0x0000f6d6, 0x00010000, 0x0000d32d],
+                Enumerable.Range(0, 3).Select(index => Int32(profile, 68 + (index * 4))));
             Assert.Equal("jxl ", Signature(profile, 80));
             Assert.All(profile[100..128], value => Assert.Equal(0, value));
             Dictionary<string, Tag> tags = Tags(profile);
             Assert.Equal(grayscale
                 ? new[] { "desc", "cprt", "wtpt", "kTRC" }
-                : new[] { "desc", "cprt", "wtpt", "chad", "rXYZ", "gXYZ", "bXYZ", "rTRC", "gTRC", "bTRC" },
+                : ["desc", "cprt", "wtpt", "chad", "rXYZ", "gXYZ", "bXYZ", "rTRC", "gTRC", "bTRC"],
                 tags.Keys);
             string description = (grayscale ? "Gra_D65_Per_g" : "RGB_D65_SRG_Per_g") + fixture.Suffix;
             Assert.Equal(description, Text(profile, tags["desc"]));
@@ -102,8 +102,11 @@ public sealed class GammaIccProfileTests
             double[] expectedWhite = grayscale
                 ? [0.3127 / 0.3290, 1, (1 - 0.3127 - 0.3290) / 0.3290] : [0.964203, 1, 0.824905];
             for (int channel = 0; channel < 3; channel++)
-                AssertClose(expectedWhite[channel], Fixed(profile, white.Offset + 8 + channel * 4),
+            {
+                AssertClose(expectedWhite[channel], Fixed(profile, white.Offset + 8 + (channel * 4)),
                     0.5 / 65536, $"media white channel {channel}");
+            }
+
             Assert.Equal(grayscale ? 4 : 8, tags.Values.Distinct().Count());
             if (!grayscale)
             {
@@ -151,7 +154,7 @@ public sealed class GammaIccProfileTests
     {
         foreach (bool grayscale in new[] { false, true })
         {
-            var error = Assert.Throws<ArgumentOutOfRangeException>(() => Create(grayscale, gamma));
+            ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() => Create(grayscale, gamma));
             Assert.Equal("gamma", error.ParamName);
         }
     }
@@ -206,9 +209,12 @@ public sealed class GammaIccProfileTests
             Assert.Equal(expected, Int32(profile, curve.Offset + 12));
             double serializedGamma = Fixed(profile, curve.Offset + 12);
             foreach (double sample in Enumerable.Range(0, 256).Select(value => value / 255.0)
-                .Concat(new[] { 1e-8, 0.04045, 0.5, 0.999, 0.9999, 0.99999 }))
+                .Concat([1e-8, 0.04045, 0.5, 0.999, 0.9999, 0.99999]))
+            {
                 AssertClose(Math.Pow(sample, gamma), Math.Pow(sample, serializedGamma), 0.000006,
                     $"decoded sample {sample:R}, gamma {gamma:R}");
+            }
+
             Assert.Equal(0, Math.Pow(0, serializedGamma));
             Assert.Equal(1, Math.Pow(1, serializedGamma));
             if (!grayscale)
@@ -260,13 +266,15 @@ public sealed class GammaIccProfileTests
         }
         double[] samples = [0, 0.01, 0.25, 0.5, 0.75, 1];
         foreach (double r in samples)
+        {
             foreach (double g in samples)
+            {
                 foreach (double b in samples)
                 {
                     double lr = Math.Pow(r, 2.2), lg = Math.Pow(g, 2.2), lb = Math.Pow(b, 2.2);
-                    double[] expected = [0.4360747 * lr + 0.3850649 * lg + 0.1430804 * lb,
-                        0.2225045 * lr + 0.7168786 * lg + 0.0606169 * lb,
-                        0.0139322 * lr + 0.0971045 * lg + 0.7141733 * lb];
+                    double[] expected = [(0.4360747 * lr) + (0.3850649 * lg) + (0.1430804 * lb),
+                        (0.2225045 * lr) + (0.7168786 * lg) + (0.0606169 * lb),
+                        (0.0139322 * lr) + (0.0971045 * lg) + (0.7141733 * lb)];
                     double[] encoded = [r, g, b];
                     for (int row = 0; row < 3; row++)
                     {
@@ -274,13 +282,15 @@ public sealed class GammaIccProfileTests
                         for (int channel = 0; channel < 3; channel++)
                         {
                             string color = new[] { "r", "g", "b" }[channel];
-                            actual += Fixed(profile, tags[color + "XYZ"].Offset + 8 + row * 4)
+                            actual += Fixed(profile, tags[color + "XYZ"].Offset + 8 + (row * 4))
                                 * Math.Pow(encoded[channel], Fixed(profile, tags[color + "TRC"].Offset + 12));
                         }
                         AssertClose(expected[row], actual, 0.0001,
                             $"D50 XYZ channel {row}, gamma RGB ({r:R}, {g:R}, {b:R})");
                     }
                 }
+            }
+        }
     }
 
     [Theory]
@@ -299,7 +309,7 @@ public sealed class GammaIccProfileTests
         const int width = 19, height = 17;
         bool grayscale = colorSpace == JpegColorSpace.Grayscale;
         PixelComponentLayout layout = grayscale ? PixelComponentLayout.Gray : PixelComponentLayout.Bgra;
-        int components = grayscale ? 1 : 4, stride = width * components + 5;
+        int components = grayscale ? 1 : 4, stride = (width * components) + 5;
         Array pixels = Source(sourceKind, width, height, components, stride), originalPixels = (Array)pixels.Clone();
         byte[] profile = Create(grayscale, 2.2);
         byte[] backing = Enumerable.Repeat((byte)0x5b, profile.Length + 11).ToArray();
@@ -307,10 +317,14 @@ public sealed class GammaIccProfileTests
         byte[] originalBacking = backing.ToArray();
         var options = new JpegliEncoderOptions
         {
-            ColorSpace = colorSpace, IccProfile = backing.AsMemory(3, profile.Length),
-            InferCicpTransferFunctionFromIccProfile = true, Distance = 1.375f,
-            SmoothingFactor = 37, Progressive = progressive,
-            ProgressiveRefinementBits = refinement, RestartInterval = 2
+            ColorSpace = colorSpace,
+            IccProfile = backing.AsMemory(3, profile.Length),
+            InferCicpTransferFunctionFromIccProfile = true,
+            Distance = 1.375f,
+            SmoothingFactor = 37,
+            Progressive = progressive,
+            ProgressiveRefinementBits = refinement,
+            RestartInterval = 2
         };
         byte[] actual = Encode(pixels, width, height, layout, options, stride);
         (byte[]? embedded, byte[] coding, _) = ReadIccAndCoding(actual);
@@ -321,10 +335,10 @@ public sealed class GammaIccProfileTests
         Assert.Equal(actual, Encode(pixels, width, height, layout,
             options with { InferCicpTransferFunctionFromIccProfile = false }, stride));
         ColorComponents channels = grayscale ? ColorComponents.Grey : ColorComponents.RedGreenBlue;
-        ImageResult decoded = ImageResult.FromMemory(actual, channels);
+        var decoded = ImageResult.FromMemory(actual, channels);
         Assert.Equal((width, height), (decoded.Width, decoded.Height));
         Assert.Equal(ImageResult.FromMemory(reference, channels).Data, decoded.Data);
-        JpegDocument document = JpegDocument.Read(actual, progressive, 2, refinement);
+        var document = JpegDocument.Read(actual, progressive, 2, refinement);
         Assert.Equal(grayscale ? 1 : 3, document.Components.Count);
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
@@ -350,7 +364,7 @@ public sealed class GammaIccProfileTests
         using (var output = new WriteOnlyStream(destination))
         {
             var canceled = new CancellationToken(true);
-            var error = Assert.Throws<OperationCanceledException>(() =>
+            OperationCanceledException error = Assert.Throws<OperationCanceledException>(() =>
                 Encode(output, pixels, 3, 1, layout, options, stride, canceled));
             Assert.Equal(canceled, error.CancellationToken);
             Assert.Equal(0, destination.Length);
@@ -361,9 +375,11 @@ public sealed class GammaIccProfileTests
         using var stream = new WriteOnlyStream(destination, () =>
         {
             if (destination.Length >= boundary)
+            {
                 cancellation.Cancel();
+            }
         });
-        var interrupted = Assert.Throws<OperationCanceledException>(() =>
+        OperationCanceledException interrupted = Assert.Throws<OperationCanceledException>(() =>
             Encode(stream, pixels, 3, 1, layout, options, stride, cancellation.Token));
         Assert.Equal(cancellation.Token, interrupted.CancellationToken);
         Assert.Equal(complete[..boundary], destination.ToArray());
@@ -376,19 +392,19 @@ public sealed class GammaIccProfileTests
 
     private static Dictionary<string, Tag> Tags(byte[] profile)
     {
-        int count = Int32(profile, 128), tableEnd = 132 + count * 12;
+        int count = Int32(profile, 128), tableEnd = 132 + (count * 12);
         var result = new Dictionary<string, Tag>();
         var extents = new HashSet<Tag>();
         for (int index = 0; index < count; index++)
         {
-            int entry = 132 + index * 12;
+            int entry = 132 + (index * 12);
             var tag = new Tag(Int32(profile, entry + 4), Int32(profile, entry + 8));
             Assert.Equal(0, tag.Offset % 4);
             Assert.InRange(tag.Offset, tableEnd, profile.Length - 8);
             Assert.InRange(tag.Length, 8, profile.Length - tag.Offset);
             Assert.Equal(0, Int32(profile, tag.Offset + 4));
             Assert.True(result.TryAdd(Signature(profile, entry), tag));
-            extents.Add(tag);
+            _ = extents.Add(tag);
         }
         Tag[] ordered = extents.OrderBy(tag => tag.Offset).ToArray();
         Assert.Equal(tableEnd, ordered[0].Offset);
@@ -439,7 +455,10 @@ public sealed class GammaIccProfileTests
                 iccEnd = end;
             }
             else
+            {
                 coding.Write(jpeg.AsSpan(offset, end - offset));
+            }
+
             offset = end;
         }
         coding.Write(jpeg.AsSpan(offset));
@@ -449,40 +468,53 @@ public sealed class GammaIccProfileTests
     private static Array Source(int kind, int width, int height, int components, int stride)
     {
         int rowLength = width * components;
-        byte[] bytes = Enumerable.Repeat((byte)0xad, (height - 1) * stride + rowLength).ToArray();
+        byte[] bytes = Enumerable.Repeat((byte)0xad, ((height - 1) * stride) + rowLength).ToArray();
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < (components == 1 ? 1 : 3); channel++)
-                    bytes[y * stride + x * components + channel] = (byte)((x * 73 + y * 29 + channel * 61) % 256);
+                {
+                    bytes[(y * stride) + (x * components) + channel] = (byte)(((x * 73) + (y * 29) + (channel * 61)) % 256);
+                }
+            }
+        }
+
         return kind switch
         {
             0 => bytes,
-            1 => bytes.Select((value, index) => (ushort)Math.Clamp(value * 257 + index % 47 - 23, 0, 65535)).ToArray(),
-            _ => bytes.Select((value, index) => index % stride >= rowLength || components == 4 && index % stride % 4 == 3
-                ? float.NaN : Math.Clamp(value / 255f + (index % 47 - 23) / 65535f, 0f, 1f)).ToArray()
+            1 => bytes.Select((value, index) => (ushort)Math.Clamp((value * 257) + (index % 47) - 23, 0, 65535)).ToArray(),
+            _ => bytes.Select((value, index) => index % stride >= rowLength || (components == 4 && index % stride % 4 == 3)
+                ? float.NaN : Math.Clamp((value / 255f) + (((index % 47) - 23) / 65535f), 0f, 1f)).ToArray()
         };
     }
 
     private static byte[] Encode(Array pixels, int width, int height, PixelComponentLayout layout,
         JpegliEncoderOptions options, int stride) => pixels switch
-    {
-        byte[] bytes => JpegliEncoder.Encode(bytes, width, height, (PixelLayout)(int)layout,
-            options, stride, TestContext.Current.CancellationToken),
-        ushort[] words => JpegliEncoder.Encode(words, width, height, layout,
-            options, stride, TestContext.Current.CancellationToken),
-        _ => JpegliEncoder.Encode((float[])pixels, width, height, layout,
-            options, stride, TestContext.Current.CancellationToken)
-    };
+        {
+            byte[] bytes => JpegliEncoder.Encode(bytes, width, height, (PixelLayout)(int)layout,
+                options, stride, TestContext.Current.CancellationToken),
+            ushort[] words => JpegliEncoder.Encode(words, width, height, layout,
+                options, stride, TestContext.Current.CancellationToken),
+            _ => JpegliEncoder.Encode((float[])pixels, width, height, layout,
+                options, stride, TestContext.Current.CancellationToken)
+        };
 
     private static void Encode(Stream output, Array pixels, int width, int height, PixelComponentLayout layout,
         JpegliEncoderOptions options, int stride, CancellationToken cancellationToken)
     {
         if (pixels is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, (PixelLayout)(int)layout, options, stride, cancellationToken);
+        }
         else if (pixels is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, layout, options, stride, cancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])pixels, width, height, layout, options, stride, cancellationToken);
+        }
     }
 
     private static int Int32(byte[] bytes, int offset) => BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(offset, 4));

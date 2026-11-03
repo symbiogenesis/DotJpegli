@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class DownsamplingTests
 {
@@ -44,11 +44,13 @@ public sealed class DownsamplingTests
         Downsampling.FillBlock(rgb, 3, 3, 9, 3, PixelLayout.Rgb24, component,
             0, 0, 2, vertical, samples);
         for (int row = 0; row < 8; row++)
+        {
             for (int column = 0; column < 8; column++)
             {
-                int fixtureRow = Math.Min(row, expected.Length / 2 - 1);
-                Assert.Equal(expected[fixtureRow * 2 + Math.Min(column, 1)],
-                    BitConverter.SingleToUInt32Bits(samples[row * 8 + column]));
+                int fixtureRow = Math.Min(row, (expected.Length / 2) - 1);
+                Assert.Equal(expected[(fixtureRow * 2) + Math.Min(column, 1)],
+                    BitConverter.SingleToUInt32Bits(samples[(row * 8) + column]));
             }
+        }
     }
 }

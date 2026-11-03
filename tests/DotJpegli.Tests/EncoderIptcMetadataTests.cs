@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using System.Security.Cryptography;
 using StbImageSharp;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderIptcMetadataTests
 {
@@ -17,13 +17,13 @@ public sealed class EncoderIptcMetadataTests
         byte[] reference = Encode(new());
         Assert.Equal("42F2E14F627342F0603E9BA08653777959192031987F82F32BFB9664F0EC7DD6",
             Convert.ToHexString(SHA256.HashData(reference)));
-        Assert.Equal(reference, JpegliEncoder.Encode(new byte[] { 255, 0, 0 }, 1, 1,
+        Assert.Equal(reference, JpegliEncoder.Encode([255, 0, 0], 1, 1,
             cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(reference, Encode(new() { IptcData = ReadOnlyMemory<byte>.Empty }));
         Assert.Equal(reference, Encode(new() { IptcData = OpaqueBytes(7).AsMemory(3, 0) }));
         Assert.DoesNotContain(ReadHeaders(reference), segment => segment.Code == 0xed);
 
-        var metadata = AllMetadata() with { IptcData = default };
+        JpegliEncoderOptions metadata = AllMetadata() with { IptcData = default };
         byte[] existingMetadata = Encode(metadata);
         Assert.Equal(existingMetadata, Encode(metadata with { IptcData = ReadOnlyMemory<byte>.Empty }));
         Assert.DoesNotContain(ReadHeaders(existingMetadata), segment => segment.Code == 0xed);
@@ -66,22 +66,25 @@ public sealed class EncoderIptcMetadataTests
     public void OversizedIptcIsRejectedBeforeAnyOutputForEveryInputTypeAndGrayscale(string format, bool grayscale)
     {
         Array pixels = Pixels(format, grayscale, 1, 1);
-        var options = AllMetadata() with
+        JpegliEncoderOptions options = AllMetadata() with
         {
             IptcData = new byte[MaximumIptcBytes + 1],
-            Progressive = true, ProgressiveRefinementBits = 2,
-            OptimizeHuffmanTables = false, RestartInterval = 2,
-            SmoothingFactor = 37, AllowOutOfRangeFloatSamples = true
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            OptimizeHuffmanTables = false,
+            RestartInterval = 2,
+            SmoothingFactor = 37,
+            AllowOutOfRangeFloatSamples = true
         };
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
-        var error = Assert.Throws<ArgumentOutOfRangeException>(() =>
+        ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() =>
             Encode(output, pixels, 1, 1, grayscale, options, TestContext.Current.CancellationToken));
         Assert.Equal(nameof(JpegliEncoderOptions.IptcData), error.ParamName);
         Assert.Equal(0, destination.Length);
         Assert.False(output.Closed);
 
-        var memoryError = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(pixels, 1, 1, grayscale, options));
+        ArgumentOutOfRangeException memoryError = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(pixels, 1, 1, grayscale, options));
         Assert.Equal(nameof(JpegliEncoderOptions.IptcData), memoryError.ParamName);
     }
 
@@ -118,12 +121,15 @@ public sealed class EncoderIptcMetadataTests
     {
         // Odd dimensions exercise partial MCUs; ignored row elements exercise stride.
         const int width = 33, height = 19;
-        int stride = width * (grayscale ? 1 : 3) + 5;
+        int stride = (width * (grayscale ? 1 : 3)) + 5;
         Array pixels = Pixels(format, grayscale, width, height, stride);
         var options = new JpegliEncoderOptions
         {
-            Progressive = progressive, ProgressiveRefinementBits = refinement,
-            OptimizeHuffmanTables = optimize, RestartInterval = 2, SmoothingFactor = 37
+            Progressive = progressive,
+            ProgressiveRefinementBits = refinement,
+            OptimizeHuffmanTables = optimize,
+            RestartInterval = 2,
+            SmoothingFactor = 37
         };
         byte[] reference = Encode(pixels, width, height, grayscale, options, stride);
         byte[] actual = Encode(pixels, width, height, grayscale,
@@ -136,8 +142,8 @@ public sealed class EncoderIptcMetadataTests
         // restart markers, entropy padding and byte stuffing.
         Assert.True(reference.AsSpan(expectedStart).SequenceEqual(actual.AsSpan(actualStart)));
         ColorComponents channels = grayscale ? ColorComponents.Grey : ColorComponents.RedGreenBlue;
-        ImageResult expectedImage = ImageResult.FromMemory(reference, channels);
-        ImageResult actualImage = ImageResult.FromMemory(actual, channels);
+        var expectedImage = ImageResult.FromMemory(reference, channels);
+        var actualImage = ImageResult.FromMemory(actual, channels);
         Assert.Equal(width, actualImage.Width);
         Assert.Equal(height, actualImage.Height);
         Assert.Equal(expectedImage.Data, actualImage.Data);
@@ -146,7 +152,7 @@ public sealed class EncoderIptcMetadataTests
     [Fact]
     public void NonseekableOutputMatchesMemoryEncodingAndRemainsOpen()
     {
-        var options = AllMetadata() with { Progressive = true, ProgressiveRefinementBits = 2 };
+        JpegliEncoderOptions options = AllMetadata() with { Progressive = true, ProgressiveRefinementBits = 2 };
         byte[] expected = Encode(options);
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
@@ -163,7 +169,7 @@ public sealed class EncoderIptcMetadataTests
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
         var token = new CancellationToken(true);
-        var error = Assert.Throws<OperationCanceledException>(() => Encode(output, AllMetadata(), token));
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() => Encode(output, AllMetadata(), token));
         Assert.Equal(token, error.CancellationToken);
         Assert.Equal(0, destination.Length);
         Assert.False(output.Closed);
@@ -183,9 +189,11 @@ public sealed class EncoderIptcMetadataTests
         using var output = new WriteOnlyStream(destination, afterWrite: () =>
         {
             if (destination.Length >= boundary)
+            {
                 cancellation.Cancel();
+            }
         });
-        var error = Assert.Throws<OperationCanceledException>(() => Encode(output, options, cancellation.Token));
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() => Encode(output, options, cancellation.Token));
         Assert.Equal(cancellation.Token, error.CancellationToken);
         Assert.Equal(complete[..boundary], destination.ToArray());
         Assert.False(output.Closed);
@@ -213,7 +221,7 @@ public sealed class EncoderIptcMetadataTests
         var failure = new IOException("Injected IPTC APP13 write failure.");
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination, failureBoundary: boundary, failure: failure);
-        var error = Assert.Throws<IOException>(() => Encode(output, options, TestContext.Current.CancellationToken));
+        IOException error = Assert.Throws<IOException>(() => Encode(output, options, TestContext.Current.CancellationToken));
         Assert.Same(failure, error);
         Assert.Equal(complete[..boundary], destination.ToArray());
         Assert.False(output.Closed);
@@ -221,16 +229,19 @@ public sealed class EncoderIptcMetadataTests
 
     private static JpegliEncoderOptions AllMetadata() => new()
     {
-        ExifData = OpaqueBytes(19), ExtendedXmpPacket = new string('a', ExtendedXmpChunkBytes + 1),
-        IccProfile = OpaqueBytes(IccChunkBytes + 1), IptcData = OpaqueBytes(13), Comment = "after IPTC"
+        ExifData = OpaqueBytes(19),
+        ExtendedXmpPacket = new string('a', ExtendedXmpChunkBytes + 1),
+        IccProfile = OpaqueBytes(IccChunkBytes + 1),
+        IptcData = OpaqueBytes(13),
+        Comment = "after IPTC"
     };
 
     private static byte[] Encode(JpegliEncoderOptions options) =>
-        JpegliEncoder.Encode(new byte[] { 255, 0, 0 }, 1, 1, options: options,
+        JpegliEncoder.Encode([255, 0, 0], 1, 1, options: options,
             cancellationToken: TestContext.Current.CancellationToken);
 
     private static void Encode(Stream output, JpegliEncoderOptions options, CancellationToken token) =>
-        JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1, options: options, cancellationToken: token);
+        JpegliEncoder.Encode(output, [255, 0, 0], 1, 1, options: options, cancellationToken: token);
 
     private static byte[] Encode(Array pixels, int width, int height, bool grayscale, JpegliEncoderOptions options, int stride = 0)
     {
@@ -264,16 +275,24 @@ public sealed class EncoderIptcMetadataTests
     {
         int rowElements = width * (grayscale ? 1 : 3);
         if (stride == 0)
+        {
             stride = rowElements;
-        byte[] bytes = Enumerable.Repeat((byte)0xf1, (height - 1) * stride + rowElements).ToArray();
+        }
+
+        byte[] bytes = Enumerable.Repeat((byte)0xf1, ((height - 1) * stride) + rowElements).ToArray();
         for (int y = 0; y < height; y++)
+        {
             for (int index = 0; index < rowElements; index++)
-                bytes[y * stride + index] = (byte)(index * 73 + y * 19);
+            {
+                bytes[(y * stride) + index] = (byte)((index * 73) + (y * 19));
+            }
+        }
+
         return format switch
         {
             "byte" => bytes,
-            "ushort" => bytes.Select((value, index) => (ushort)(value * 251 + index % 6)).ToArray(),
-            "float" => bytes.Select((value, index) => (value * 251 + index % 6) / 65535f).ToArray(),
+            "ushort" => bytes.Select((value, index) => (ushort)((value * 251) + (index % 6))).ToArray(),
+            "float" => bytes.Select((value, index) => ((value * 251) + (index % 6)) / 65535f).ToArray(),
             _ => throw new ArgumentException("Unknown pixel format.", nameof(format))
         };
     }
@@ -282,8 +301,11 @@ public sealed class EncoderIptcMetadataTests
     {
         byte[] bytes = new byte[length];
         for (int index = 0; index < length; index++)
-            bytes[index] = (byte)(index * 73 + 19);
-        ReadOnlySpan<byte> prefix = new byte[] { 0xff, 0xd8, 0xff, 0xed, 0, 0, 0xff, 0xda };
+        {
+            bytes[index] = (byte)((index * 73) + 19);
+        }
+
+        ReadOnlySpan<byte> prefix = [0xff, 0xd8, 0xff, 0xed, 0, 0, 0xff, 0xda];
         prefix[..Math.Min(length, prefix.Length)].CopyTo(bytes);
         return bytes;
     }
@@ -301,11 +323,13 @@ public sealed class EncoderIptcMetadataTests
         Assert.Equal(0x04, payload[19]);
         Assert.Equal(0, payload[20]); // Empty Pascal resource name.
         Assert.Equal(0, payload[21]); // Name padding to even length.
-        long storedLength = (long)payload[22] * 16_777_216 + payload[23] * 65_536 + payload[24] * 256 + payload[25];
+        long storedLength = ((long)payload[22] * 16_777_216) + (payload[23] * 65_536) + (payload[24] * 256) + payload[25];
         Assert.Equal(data.Length, storedLength);
         Assert.True(payload.Slice(ResourceHeaderBytes, data.Length).SequenceEqual(data));
         if (padding != 0)
+        {
             Assert.Equal(0, payload[^1]);
+        }
         // The exact payload length excludes any digest resource, terminator or
         // additional image resource after the sole 0x0404 IPTC resource.
     }
@@ -315,7 +339,7 @@ public sealed class EncoderIptcMetadataTests
 
     private sealed record Segment(int Code, int Start, int Length, ReadOnlyMemory<byte> Payload)
     {
-        public int End => Start + Length + 2;
+        public int End => this.Start + this.Length + 2;
     }
 
     // Read JPEG's big-endian lengths independently of the writer. Marker-looking
@@ -331,12 +355,14 @@ public sealed class EncoderIptcMetadataTests
             int start = position;
             Assert.Equal(0xff, jpeg[position++]);
             int code = jpeg[position++];
-            int length = jpeg[position] * 256 + jpeg[position + 1];
+            int length = (jpeg[position] * 256) + jpeg[position + 1];
             Assert.InRange(length, 2, jpeg.Length - position);
             segments.Add(new(code, start, length, jpeg.AsMemory(position + 2, length - 2)));
             position += length;
             if (code == 0xda)
+            {
                 return segments;
+            }
         }
     }
 
@@ -346,31 +372,33 @@ public sealed class EncoderIptcMetadataTests
         public bool Closed { get; private set; }
         public override bool CanRead => false;
         public override bool CanSeek => false;
-        public override bool CanWrite => !Closed;
+        public override bool CanWrite => !this.Closed;
         public override long Length => throw new NotSupportedException();
         public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
         public override void Flush() => inner.Flush();
         public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
+        public override void Write(byte[] buffer, int offset, int count) => this.Write(buffer.AsSpan(offset, count));
         public override void Write(ReadOnlySpan<byte> buffer)
         {
             int count = failureBoundary is long boundary ? (int)Math.Min(buffer.Length, boundary - inner.Length) : buffer.Length;
             inner.Write(buffer[..count]);
             if (failureBoundary is long end && inner.Length >= end)
+            {
                 throw failure!;
+            }
+
             afterWrite?.Invoke();
         }
         public override void WriteByte(byte value)
         {
-            Span<byte> buffer = stackalloc byte[1];
-            buffer[0] = value;
-            Write(buffer);
+            Span<byte> buffer = [value];
+            this.Write(buffer);
         }
         protected override void Dispose(bool disposing)
         {
-            Closed = true;
+            this.Closed = true;
             base.Dispose(disposing);
         }
     }

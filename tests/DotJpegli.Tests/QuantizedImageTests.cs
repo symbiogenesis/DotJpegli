@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class QuantizedImageTests
 {
@@ -26,20 +26,20 @@ public sealed class QuantizedImageTests
         ushort[][] tables = Enumerable.Range(0, 3)
             .Select(component => Quantization.CreateTableForDistance(1.45f, component)).ToArray();
         float[][]? multipliers = adaptive ? Quantization.CreateAdaptiveZeroBiasMultipliers(tables, 1, 1, false) : null;
-        var analysis = adaptive ? new AdaptiveQuantization(width, height, sampling.MaxVertical) : null;
+        AdaptiveQuantization? analysis = adaptive ? new AdaptiveQuantization(width, height, sampling.MaxVertical) : null;
         using QuantizedImage image = QuantizedImage.Create(pixels, width, height, width * 3, sampling, tables,
             1.45f, 37, analysis, multipliers, TestContext.Current.CancellationToken)!;
         Assert.NotNull(image);
-        var strengths = new float[((width + 7) / 8) * sampling.MaxVertical];
-        var samples = new float[64];
-        var transformed = new float[64];
-        var expected = new short[64];
-        var actual = new short[64];
+        float[] strengths = new float[(width + 7) / 8 * sampling.MaxVertical];
+        float[] samples = new float[64];
+        float[] transformed = new float[64];
+        short[] expected = new short[64];
+        short[] actual = new short[64];
         for (int component = 0; component < 3; component++)
         {
             JpegComponentSampling factor = sampling[component];
-            int columns = (width * factor.Horizontal + sampling.MaxHorizontal * 8 - 1) / (sampling.MaxHorizontal * 8);
-            int rows = (height * factor.Vertical + sampling.MaxVertical * 8 - 1) / (sampling.MaxVertical * 8);
+            int columns = ((width * factor.Horizontal) + (sampling.MaxHorizontal * 8) - 1) / (sampling.MaxHorizontal * 8);
+            int rows = ((height * factor.Vertical) + (sampling.MaxVertical * 8) - 1) / (sampling.MaxVertical * 8);
             for (int y = 0; y < rows; y++)
             {
                 int top = y / factor.Vertical * sampling.MaxVertical * 8;
@@ -49,8 +49,8 @@ public sealed class QuantizedImageTests
                     Downsampling.FillBlock(pixels, width, height, width * 3, component, x, y,
                         sampling.MaxHorizontal, sampling.MaxVertical, factor.Horizontal, factor.Vertical, samples, 37);
                     ForwardDct.Transform(samples, transformed);
-                    float strength = !adaptive ? 0f : strengths[(y % factor.Vertical) * analysis!.BlocksWide
-                        + x * sampling.MaxHorizontal / factor.Horizontal];
+                    float strength = !adaptive ? 0f : strengths[(y % factor.Vertical * analysis!.BlocksWide)
+                        + (x * sampling.MaxHorizontal / factor.Horizontal)];
                     Quantization.Quantize(transformed, tables[component], expected, component, 1.45f,
                         adaptiveQuantization: adaptive, adaptiveStrength: strength,
                         adaptiveMultipliers: multipliers is null ? default : multipliers[component]);
@@ -65,10 +65,12 @@ public sealed class QuantizedImageTests
     public void OrderedTinyAndOddPlaneEdgesMatchUnfusedStreamingBlocks()
     {
         foreach ((int width, int height) in new[] { (1, 1), (19, 17) })
+        {
             foreach (ChromaSubsampling subsampling in new[] { ChromaSubsampling.None, ChromaSubsampling.Quarter })
+            {
                 foreach (bool adaptive in new[] { false, true })
                 {
-                    JpegSamplingFactors sampling = JpegSamplingFactors.FromSubsampling(subsampling);
+                    var sampling = JpegSamplingFactors.FromSubsampling(subsampling);
                     int horizontal = sampling.MaxHorizontal, vertical = sampling.MaxVertical;
                     int stride = width * 3;
                     PixelSource original = new(TestImages.Gradient(width, height), PixelLayout.Rgb24);
@@ -86,15 +88,15 @@ public sealed class QuantizedImageTests
                     using QuantizedImage planar = QuantizedImage.Create(converted, width, height, stride, sampling,
                         tables, 4f, 0, adaptive ? new(width, height, vertical) : null, multipliers,
                         TestContext.Current.CancellationToken, zigZagOrdered: true)!;
-                    var analysis = adaptive ? new AdaptiveQuantization(width, height, vertical) : null;
-                    float[] strengths = new float[((width + 7) / 8) * vertical];
+                    AdaptiveQuantization? analysis = adaptive ? new AdaptiveQuantization(width, height, vertical) : null;
+                    float[] strengths = new float[(width + 7) / 8 * vertical];
                     float[] samples = new float[64], transformed = new float[64];
                     short[] natural = new short[64], expected = new short[64];
                     for (int component = 0; component < 3; component++)
                     {
                         JpegComponentSampling factor = sampling[component];
-                        int columns = (width * factor.Horizontal + horizontal * 8 - 1) / (horizontal * 8);
-                        int rows = (height * factor.Vertical + vertical * 8 - 1) / (vertical * 8);
+                        int columns = ((width * factor.Horizontal) + (horizontal * 8) - 1) / (horizontal * 8);
+                        int rows = ((height * factor.Vertical) + (vertical * 8) - 1) / (vertical * 8);
                         for (int y = 0; y < rows; y++)
                         {
                             int top = y / factor.Vertical * vertical * 8;
@@ -105,8 +107,8 @@ public sealed class QuantizedImageTests
                                 Downsampling.FillBlock(original, width, height, stride, component, x, y,
                                     horizontal, vertical, factor.Horizontal, factor.Vertical, samples);
                                 ForwardDct.Transform(samples, transformed);
-                                float strength = !adaptive ? 0f : strengths[(y % factor.Vertical) * analysis!.BlocksWide
-                                    + x * horizontal / factor.Horizontal];
+                                float strength = !adaptive ? 0f : strengths[(y % factor.Vertical * analysis!.BlocksWide)
+                                    + (x * horizontal / factor.Horizontal)];
                                 Quantization.Quantize(transformed, tables[component], natural, component, 4f,
                                     adaptiveQuantization: adaptive, adaptiveStrength: strength,
                                     adaptiveMultipliers: multipliers is null ? default : multipliers[component]);
@@ -118,6 +120,8 @@ public sealed class QuantizedImageTests
                         }
                     }
                 }
+            }
+        }
     }
 
     [Fact]

@@ -1,11 +1,11 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
 using DotJpegli.Internal;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class SrgbGrayscaleIccProfileTests
 {
@@ -47,8 +47,8 @@ public sealed class SrgbGrayscaleIccProfileTests
         Assert.Equal("mntr", Signature(profile, 12));
         Assert.Equal("GRAY", Signature(profile, 16));
         Assert.Equal("XYZ ", Signature(profile, 20));
-        Assert.Equal(new[] { 2019, 12, 1, 0, 0, 0 },
-            Enumerable.Range(0, 6).Select(index => UInt16(profile, 24 + index * 2)));
+        Assert.Equal([2019, 12, 1, 0, 0, 0],
+            Enumerable.Range(0, 6).Select(index => UInt16(profile, 24 + (index * 2))));
         Assert.Equal("acsp", Signature(profile, 36));
         Assert.Equal("APPL", Signature(profile, 40));
         Assert.All(profile[44..64], value => Assert.Equal(0, value));
@@ -61,7 +61,7 @@ public sealed class SrgbGrayscaleIccProfileTests
         Assert.All(profile[100..128], value => Assert.Equal(0, value));
 
         Dictionary<string, Tag> tags = Tags(profile);
-        Assert.Equal(new[] { "cprt", "desc", "kTRC", "wtpt" }, tags.Keys.Order());
+        Assert.Equal(["cprt", "desc", "kTRC", "wtpt"], tags.Keys.Order());
         Assert.Equal("Gra_D65_Per_SRG", Text(profile, tags["desc"]));
         Assert.Equal("CC0", Text(profile, tags["cprt"]));
         Tag white = tags["wtpt"];
@@ -70,8 +70,11 @@ public sealed class SrgbGrayscaleIccProfileTests
         // Upstream's GRAY branch retains its D65 media white without a chad tag.
         double[] d65 = [0.3127 / 0.3290, 1, (1 - 0.3127 - 0.3290) / 0.3290];
         for (int channel = 0; channel < d65.Length; channel++)
-            AssertClose(d65[channel], Fixed(profile, white.Offset + 8 + channel * 4),
+        {
+            AssertClose(d65[channel], Fixed(profile, white.Offset + 8 + (channel * 4)),
                 0.5 / 65536, $"D65 media white channel {channel}");
+        }
+
         Assert.Equal(2, IccProfile.LookupTransferFunction(profile, TestContext.Current.CancellationToken));
 
         Tag curve = tags["kTRC"];
@@ -81,8 +84,10 @@ public sealed class SrgbGrayscaleIccProfileTests
         Assert.Equal(0, UInt16(profile, curve.Offset + 10));
         double[] expected = [2.4, 1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045];
         for (int index = 0; index < expected.Length; index++)
-            AssertClose(expected[index], Fixed(profile, curve.Offset + 12 + index * 4),
+        {
+            AssertClose(expected[index], Fixed(profile, curve.Offset + 12 + (index * 4)),
                 0.5 / 65536, $"sRGB curve parameter {index}");
+        }
     }
 
     [Fact]
@@ -129,19 +134,26 @@ public sealed class SrgbGrayscaleIccProfileTests
     {
         const int width = 19, height = 17;
         int components = converted ? 4 : 1, rowLength = width * components, stride = rowLength + 5;
-        byte[] bytes = Enumerable.Repeat((byte)0xad, (height - 1) * stride + rowLength).ToArray();
+        byte[] bytes = Enumerable.Repeat((byte)0xad, ((height - 1) * stride) + rowLength).ToArray();
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < (converted ? 3 : 1); channel++)
-                    bytes[y * stride + x * components + channel] = (byte)((x * 73 + y * 29 + channel * 61) % 256);
+                {
+                    bytes[(y * stride) + (x * components) + channel] = (byte)(((x * 73) + (y * 29) + (channel * 61)) % 256);
+                }
+            }
+        }
+
         Array pixels = kind switch
         {
             0 => bytes,
-            1 => bytes.Select((value, index) => (ushort)Math.Clamp(value * 257 + index % 47 - 23, 0, 65535)).ToArray(),
-            _ => bytes.Select((value, index) => index % stride >= rowLength || converted && index % stride % 4 == 3
-                ? float.NaN : Math.Clamp(value / 255f + (index % 47 - 23) / 65535f, 0f, 1f)).ToArray()
+            1 => bytes.Select((value, index) => (ushort)Math.Clamp((value * 257) + (index % 47) - 23, 0, 65535)).ToArray(),
+            _ => bytes.Select((value, index) => index % stride >= rowLength || (converted && index % stride % 4 == 3)
+                ? float.NaN : Math.Clamp((value / 255f) + (((index % 47) - 23) / 65535f), 0f, 1f)).ToArray()
         };
-        Array originalPixels = (Array)pixels.Clone();
+        var originalPixels = (Array)pixels.Clone();
         PixelComponentLayout layout = converted ? PixelComponentLayout.Bgra : PixelComponentLayout.Gray;
         byte[] profile = JpegliIccProfiles.CreateSrgbGrayscaleProfile();
         byte[] backing = Enumerable.Repeat((byte)0x5b, profile.Length + 11).ToArray();
@@ -149,10 +161,14 @@ public sealed class SrgbGrayscaleIccProfileTests
         byte[] originalBacking = backing.ToArray();
         var options = new JpegliEncoderOptions
         {
-            ColorSpace = JpegColorSpace.Grayscale, IccProfile = backing.AsMemory(3, profile.Length),
-            InferCicpTransferFunctionFromIccProfile = true, Distance = 1.375f,
-            SmoothingFactor = 37, Progressive = progressive,
-            ProgressiveRefinementBits = refinement, RestartInterval = 2
+            ColorSpace = JpegColorSpace.Grayscale,
+            IccProfile = backing.AsMemory(3, profile.Length),
+            InferCicpTransferFunctionFromIccProfile = true,
+            Distance = 1.375f,
+            SmoothingFactor = 37,
+            Progressive = progressive,
+            ProgressiveRefinementBits = refinement,
+            RestartInterval = 2
         };
         byte[] actual = Encode(pixels, width, height, stride, layout, options);
         (byte[] embedded, byte[] coding) = ReadIccAndCoding(actual);
@@ -163,11 +179,13 @@ public sealed class SrgbGrayscaleIccProfileTests
         Assert.Equal(actual, Encode(pixels, width, height, stride, layout,
             options with { InferCicpTransferFunctionFromIccProfile = false }));
         if (!converted)
+        {
             Assert.Equal(actual, Encode(pixels, width, height, stride, layout,
                 options with { ColorSpace = JpegColorSpace.Automatic }));
+        }
         // This independent entropy reader validates the grayscale component,
         // restart intervals and baseline or progressive/refinement scan script.
-        JpegDocument document = JpegDocument.Read(actual, progressive, 2, refinement);
+        var document = JpegDocument.Read(actual, progressive, 2, refinement);
         Assert.Equal(width, document.Width);
         Assert.Equal(height, document.Height);
         Assert.Equal(1, Assert.Single(document.Components).Key);
@@ -183,13 +201,13 @@ public sealed class SrgbGrayscaleIccProfileTests
 
     private static Dictionary<string, Tag> Tags(byte[] profile)
     {
-        int count = Int32(profile, 128), end = 132 + count * 12;
+        int count = Int32(profile, 128), end = 132 + (count * 12);
         Assert.Equal(4, count);
         var result = new Dictionary<string, Tag>();
         var extents = new HashSet<Tag>();
         for (int index = 0; index < count; index++)
         {
-            int entry = 132 + index * 12;
+            int entry = 132 + (index * 12);
             var tag = new Tag(Int32(profile, entry + 4), Int32(profile, entry + 8));
             Assert.Equal(0, tag.Offset % 4);
             Assert.InRange(tag.Offset, end, profile.Length - 8);
@@ -229,7 +247,7 @@ public sealed class SrgbGrayscaleIccProfileTests
         double gamma = Fixed(profile, curve.Offset + 12), a = Fixed(profile, curve.Offset + 16),
             b = Fixed(profile, curve.Offset + 20), c = Fixed(profile, curve.Offset + 24),
             threshold = Fixed(profile, curve.Offset + 28);
-        return value >= threshold ? Math.Pow(a * value + b, gamma) : c * value;
+        return value >= threshold ? Math.Pow((a * value) + b, gamma) : c * value;
     }
 
     private static (byte[] Icc, byte[] Coding) ReadIccAndCoding(byte[] jpeg)
@@ -254,7 +272,10 @@ public sealed class SrgbGrayscaleIccProfileTests
                 profile = jpeg[(offset + 18)..end];
             }
             else
+            {
                 coding.Write(jpeg.AsSpan(offset, end - offset));
+            }
+
             offset = end;
         }
         coding.Write(jpeg.AsSpan(offset));
@@ -264,27 +285,33 @@ public sealed class SrgbGrayscaleIccProfileTests
 
     private static byte[] Encode(Array source, int width, int height, int stride,
         PixelComponentLayout layout, JpegliEncoderOptions options) => source switch
-    {
-        byte[] bytes => JpegliEncoder.Encode(bytes, width, height, (PixelLayout)(int)layout,
-            options, stride, TestContext.Current.CancellationToken),
-        ushort[] words => JpegliEncoder.Encode(words, width, height, layout,
-            options, stride, TestContext.Current.CancellationToken),
-        _ => JpegliEncoder.Encode((float[])source, width, height, layout,
-            options, stride, TestContext.Current.CancellationToken)
-    };
+        {
+            byte[] bytes => JpegliEncoder.Encode(bytes, width, height, (PixelLayout)(int)layout,
+                options, stride, TestContext.Current.CancellationToken),
+            ushort[] words => JpegliEncoder.Encode(words, width, height, layout,
+                options, stride, TestContext.Current.CancellationToken),
+            _ => JpegliEncoder.Encode((float[])source, width, height, layout,
+                options, stride, TestContext.Current.CancellationToken)
+        };
 
     private static void Encode(Stream output, Array source, int width, int height, int stride,
         PixelComponentLayout layout, JpegliEncoderOptions options)
     {
         if (source is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, (PixelLayout)(int)layout,
                 options, stride, TestContext.Current.CancellationToken);
+        }
         else if (source is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, layout,
                 options, stride, TestContext.Current.CancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])source, width, height, layout,
                 options, stride, TestContext.Current.CancellationToken);
+        }
     }
 
     private static int Int32(byte[] profile, int offset) => BinaryPrimitives.ReadInt32BigEndian(profile.AsSpan(offset, 4));

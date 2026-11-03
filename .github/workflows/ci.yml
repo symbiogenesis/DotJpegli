@@ -76,6 +76,15 @@ jobs:
       - name: Verify all solution dependency locks
         if: matrix.target.library == 'net11.0'
         run: dotnet restore DotJpegli.slnx --locked-mode
+      - name: Verify EditorConfig rules
+        if: matrix.os == 'ubuntu-latest' && matrix.target.library == 'net11.0'
+        env:
+          Configuration: Release
+        run: |
+          dotnet format DotJpegli.slnx --framework net10.0 --no-restore --verify-no-changes --severity info
+          dotnet format DotJpegli.slnx --framework net11.0 --no-restore --verify-no-changes --severity info
+          dotnet format src/DotJpegli/DotJpegli.csproj --framework netstandard2.1 --no-restore --verify-no-changes --severity info
+          DotJpegliLibraryTargetFramework=netstandard2.1 dotnet format tests/DotJpegli.Tests/DotJpegli.Tests.csproj --framework net10.0 --no-restore --verify-no-changes --severity info
       - name: Restore selected library dependencies for tests
         run: dotnet restore tests/DotJpegli.Tests/DotJpegli.Tests.csproj --locked-mode -p:DotJpegliLibraryTargetFramework=${{ matrix.target.library }}
       - run: dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release -f ${{ matrix.target.framework }} --no-restore -p:DotJpegliLibraryTargetFramework=${{ matrix.target.library }}

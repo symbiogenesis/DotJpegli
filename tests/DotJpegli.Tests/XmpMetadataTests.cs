@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using System.Xml.Linq;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class XmpMetadataTests
 {
@@ -18,7 +18,7 @@ public sealed class XmpMetadataTests
         var metadata = new XmpMetadata();
         Assert.Null(metadata.GetSimpleProperty(Title));
         metadata.SetSimpleProperty(Title, "A café 日本語 😀 & <title>");
-        XElement root = XElement.Parse(metadata.ToPacket());
+        var root = XElement.Parse(metadata.ToPacket());
         XElement description = Assert.Single(root.Descendants(Rdf + "Description"));
         Assert.Equal("", (string?)description.Attribute(Rdf + "about"));
         Assert.Equal("A café 日本語 😀 & <title>", Assert.Single(description.Elements(Test + "title")).Value);
@@ -31,12 +31,12 @@ public sealed class XmpMetadataTests
     [Fact]
     public void ExplicitEditRemovesDuplicateAttributeAndElementFormsAcrossDescriptions()
     {
-        XmpMetadata metadata = XmpMetadata.Parse(Packet(
+        var metadata = XmpMetadata.Parse(Packet(
             "<rdf:Description t:title='attribute'><t:title>first</t:title><t:title>second</t:title><t:other>keep</t:other></rdf:Description>" +
             "<rdf:Description rdf:about=''><t:title>third</t:title></rdf:Description>"));
         Assert.Equal("attribute", metadata.GetSimpleProperty(Title));
         metadata.SetSimpleProperty(Title, "replacement");
-        XElement root = XElement.Parse(metadata.ToPacket());
+        var root = XElement.Parse(metadata.ToPacket());
         Assert.Equal("replacement", Assert.Single(root.Descendants(Test + "title")).Value);
         Assert.DoesNotContain(root.Descendants(Rdf + "Description").Attributes(), attribute => attribute.Name == Test + "title");
         Assert.Equal("keep", Assert.Single(root.Descendants(Test + "other")).Value);
@@ -49,11 +49,11 @@ public sealed class XmpMetadataTests
     {
         const string structure = "<t:unknown rdf:parseType='Resource' xmlns:q='urn:qualifier' q:meaning='t:Thing'>" +
             "<rdf:value xml:lang='fr'>qualifié</rdf:value><q:role>owner</q:role></t:unknown>";
-        XmpMetadata metadata = XmpMetadata.Parse("<?xpacket begin='\uFEFF' id='packet'?>" + Packet(
+        var metadata = XmpMetadata.Parse("<?xpacket begin='\uFEFF' id='packet'?>" + Packet(
             "<rdf:Description rdf:about='' xmlns:p='urn:prefix'>" + structure + "</rdf:Description>") + "<?xpacket end='w'?>");
         XElement original = new(XDocument.Parse(metadata.ToPacket()).Descendants(Test + "unknown").Single());
         metadata.SetSimpleProperty(Title, "added");
-        XDocument document = XDocument.Parse(metadata.ToPacket());
+        var document = XDocument.Parse(metadata.ToPacket());
         XElement unknown = Assert.Single(document.Descendants(Test + "unknown"));
         Assert.True(XNode.DeepEquals(original, unknown));
         Assert.Equal("urn:prefix", unknown.Parent!.GetNamespaceOfPrefix("p")?.NamespaceName);
@@ -63,7 +63,7 @@ public sealed class XmpMetadataTests
     [Fact]
     public void StructuredPropertyUsesOwnedCopiesAndCarriesInheritedNamespaceContext()
     {
-        XElement parent = XElement.Parse("<wrapper xmlns:t='urn:test' xmlns:q='urn:qualifier' xml:lang='fr'>" +
+        var parent = XElement.Parse("<wrapper xmlns:t='urn:test' xmlns:q='urn:qualifier' xml:lang='fr'>" +
             "<t:structure q:type='q:Owner'><q:name>original</q:name></t:structure></wrapper>");
         XElement caller = parent.Elements().Single();
         XmpPropertyName name = new(Test.NamespaceName, "structure");
@@ -77,13 +77,13 @@ public sealed class XmpMetadataTests
         first.Elements().Single().Value = "getter mutation";
         Assert.Equal("original", metadata.GetProperty(name)!.Elements().Single().Value);
         Assert.Same(parent, caller.Parent);
-        Assert.Throws<InvalidOperationException>(() => metadata.GetSimpleProperty(name));
+        _ = Assert.Throws<InvalidOperationException>(() => metadata.GetSimpleProperty(name));
     }
 
     [Fact]
     public void AttributePropertyCopyIncludesNamespacesAndInheritedLanguage()
     {
-        XmpMetadata metadata = XmpMetadata.Parse(Packet("<rdf:Description t:title='value' xml:lang='en' xmlns:q='urn:q'/>"));
+        var metadata = XmpMetadata.Parse(Packet("<rdf:Description t:title='value' xml:lang='en' xmlns:q='urn:q'/>"));
         XElement property = metadata.GetProperty(Title)!;
         Assert.Equal(Test + "title", property.Name);
         Assert.Equal("value", property.Value);
@@ -94,7 +94,7 @@ public sealed class XmpMetadataTests
     [Fact]
     public void LocalizedEditsPreserveOtherLanguagesAndQualifiersAndWriteDefaultFirst()
     {
-        XmpMetadata metadata = XmpMetadata.Parse(Packet("<rdf:Description xmlns:dc='" + Dc.NamespaceName + "'>" +
+        var metadata = XmpMetadata.Parse(Packet("<rdf:Description xmlns:dc='" + Dc.NamespaceName + "'>" +
             "<dc:rights xmlns:q='urn:q' q:source='keep'><rdf:Alt>" +
             "<rdf:li xml:lang='fr' q:role='keep'>Droits</rdf:li><rdf:li xml:lang='x-default'>Old</rdf:li>" +
             "<rdf:li xml:lang='en'>Rights</rdf:li></rdf:Alt></dc:rights></rdf:Description>"));
@@ -124,8 +124,8 @@ public sealed class XmpMetadataTests
         Assert.Empty(metadata.GetStringArray(Creator));
         metadata.SetStringArray(Creator, ["first", "second", "first"], ordered: true);
         XElement sequence = Assert.Single(XElement.Parse(metadata.ToPacket()).Descendants(Rdf + "Seq"));
-        Assert.Equal(new[] { "first", "second", "first" }, sequence.Elements(Rdf + "li").Select(item => item.Value));
-        Assert.Equal(new[] { "first", "second", "first" }, metadata.GetStringArray(Creator));
+        Assert.Equal(["first", "second", "first"], sequence.Elements(Rdf + "li").Select(item => item.Value));
+        Assert.Equal(["first", "second", "first"], metadata.GetStringArray(Creator));
         metadata.SetStringArray(Creator, [], ordered: false);
         Assert.Empty(Assert.Single(XElement.Parse(metadata.ToPacket()).Descendants(Rdf + "Bag")).Elements());
         Assert.Empty(metadata.GetStringArray(Creator));
@@ -134,21 +134,21 @@ public sealed class XmpMetadataTests
     [Fact]
     public void ConvenienceReadersRetainAttributePrecedenceAndIndependentArraySnapshots()
     {
-        XmpMetadata metadata = XmpMetadata.Parse(Packet("<rdf:Description xmlns:dc='" + Dc.NamespaceName +
+        var metadata = XmpMetadata.Parse(Packet("<rdf:Description xmlns:dc='" + Dc.NamespaceName +
             "' t:title='attribute' dc:creator='attribute' dc:rights='attribute'>" +
             "<t:title>element</t:title><dc:creator><rdf:Seq><rdf:li>element</rdf:li></rdf:Seq></dc:creator>" +
             "<dc:rights><rdf:Alt><rdf:li xml:lang='en'>element</rdf:li></rdf:Alt></dc:rights></rdf:Description>"));
         Assert.Equal("attribute", metadata.GetSimpleProperty(Title));
-        Assert.Throws<InvalidOperationException>(() => metadata.GetStringArray(Creator));
-        Assert.Throws<InvalidOperationException>(() => metadata.GetLocalizedText(Rights, "en"));
+        _ = Assert.Throws<InvalidOperationException>(() => metadata.GetStringArray(Creator));
+        _ = Assert.Throws<InvalidOperationException>(() => metadata.GetLocalizedText(Rights, "en"));
 
         metadata.SetStringArray(Creator, ["first", "second"], ordered: true);
         IReadOnlyList<string> snapshot = metadata.GetStringArray(Creator);
         metadata.GetProperty(Creator)!.Element(Rdf + "Seq")!.Elements().First().Value = "getter mutation";
-        Assert.Equal(new[] { "first", "second" }, metadata.GetStringArray(Creator));
+        Assert.Equal(["first", "second"], metadata.GetStringArray(Creator));
         metadata.SetStringArray(Creator, ["replacement"]);
-        Assert.Equal(new[] { "first", "second" }, snapshot);
-        Assert.Equal(new[] { "replacement" }, metadata.GetStringArray(Creator));
+        Assert.Equal(["first", "second"], snapshot);
+        Assert.Equal(["replacement"], metadata.GetStringArray(Creator));
     }
 
     [Fact]
@@ -157,12 +157,12 @@ public sealed class XmpMetadataTests
         var metadata = new XmpMetadata();
         metadata.SetSimpleProperty(Rights, "literal");
         string before = metadata.ToPacket();
-        Assert.Throws<InvalidOperationException>(() => metadata.GetLocalizedText(Rights, "en"));
-        Assert.Throws<InvalidOperationException>(() => metadata.SetLocalizedText(Rights, "en", "new"));
-        Assert.Throws<InvalidOperationException>(() => metadata.GetStringArray(Rights));
+        _ = Assert.Throws<InvalidOperationException>(() => metadata.GetLocalizedText(Rights, "en"));
+        _ = Assert.Throws<InvalidOperationException>(() => metadata.SetLocalizedText(Rights, "en", "new"));
+        _ = Assert.Throws<InvalidOperationException>(() => metadata.GetStringArray(Rights));
         Assert.Equal(before, metadata.ToPacket());
         metadata.SetProperty(Title, new XElement(Test + "title", new XAttribute(Rdf + "resource", "urn:value")));
-        Assert.Throws<InvalidOperationException>(() => metadata.GetSimpleProperty(Title));
+        _ = Assert.Throws<InvalidOperationException>(() => metadata.GetSimpleProperty(Title));
     }
 
     [Theory]
@@ -181,9 +181,9 @@ public sealed class XmpMetadataTests
     [Fact]
     public void PacketInstructionsInsidePropertyAreRejected()
     {
-        Assert.Throws<ArgumentException>(() => XmpMetadata.Parse(Packet("<rdf:Description><t:title><?xpacket end='w'?></t:title></rdf:Description>")));
+        _ = Assert.Throws<ArgumentException>(() => XmpMetadata.Parse(Packet("<rdf:Description><t:title><?xpacket end='w'?></t:title></rdf:Description>")));
         var metadata = new XmpMetadata();
-        Assert.Throws<ArgumentException>(() => metadata.SetProperty(Title, new XElement(Test + "title", new XProcessingInstruction("xpacket", "end='w'"))));
+        _ = Assert.Throws<ArgumentException>(() => metadata.SetProperty(Title, new XElement(Test + "title", new XProcessingInstruction("xpacket", "end='w'"))));
     }
 
     [Theory]
@@ -193,13 +193,13 @@ public sealed class XmpMetadataTests
     [InlineData("<rdf:Description xmlns:n='http://ns.adobe.com/xmp/note/'><t:unknown n:HasExtendedXMP='ABC'/><t:title>readable</t:title></rdf:Description>")]
     public void DigestLinkedPacketIsReadableButEveryMutationIsRejected(string description)
     {
-        XmpMetadata metadata = XmpMetadata.Parse(Packet(description));
+        var metadata = XmpMetadata.Parse(Packet(description));
         Assert.Equal("readable", metadata.GetSimpleProperty(Title));
         string before = metadata.ToPacket();
-        Assert.Throws<InvalidOperationException>(() => metadata.SetSimpleProperty(Title, "new"));
-        Assert.Throws<InvalidOperationException>(() => metadata.SetLocalizedText(Rights, "x-default", "new"));
-        Assert.Throws<InvalidOperationException>(() => metadata.SetStringArray(Creator, ["new"], true));
-        Assert.Throws<InvalidOperationException>(() => metadata.Remove(Title));
+        _ = Assert.Throws<InvalidOperationException>(() => metadata.SetSimpleProperty(Title, "new"));
+        _ = Assert.Throws<InvalidOperationException>(() => metadata.SetLocalizedText(Rights, "x-default", "new"));
+        _ = Assert.Throws<InvalidOperationException>(() => metadata.SetStringArray(Creator, ["new"], true));
+        _ = Assert.Throws<InvalidOperationException>(() => metadata.Remove(Title));
         Assert.Equal(before, metadata.ToPacket());
     }
 
@@ -208,15 +208,18 @@ public sealed class XmpMetadataTests
     [InlineData(true)]
     public void DigestLinkOnEitherEnvelopeRootAlsoRejectsMutations(bool wrapped)
     {
-        XElement root = XElement.Parse(Packet("<rdf:Description><t:title>readable</t:title></rdf:Description>"));
+        var root = XElement.Parse(Packet("<rdf:Description><t:title>readable</t:title></rdf:Description>"));
         if (wrapped)
+        {
             root = new XElement(XName.Get("xmpmeta", "adobe:ns:meta/"), root);
+        }
+
         root.SetAttributeValue(XName.Get("HasExtendedXMP", "http://ns.adobe.com/xmp/note/"), "ABC");
-        XmpMetadata metadata = XmpMetadata.Parse(root.ToString());
+        var metadata = XmpMetadata.Parse(root.ToString());
         string before = metadata.ToPacket();
         Assert.Equal("readable", metadata.GetSimpleProperty(Title));
-        Assert.Throws<InvalidOperationException>(() => metadata.Remove(Title));
-        Assert.Throws<InvalidOperationException>(() => metadata.SetSimpleProperty(Title, "new"));
+        _ = Assert.Throws<InvalidOperationException>(() => metadata.Remove(Title));
+        _ = Assert.Throws<InvalidOperationException>(() => metadata.SetSimpleProperty(Title, "new"));
         Assert.Equal(before, metadata.ToPacket());
     }
 
@@ -229,14 +232,19 @@ public sealed class XmpMetadataTests
         metadata.SetSimpleProperty(Title, "original");
         XElement caller = metadata.GetProperty(Title)!;
         var nested = new XElement(Test + "nested");
-        XName link = XName.Get("HasExtendedXMP", "http://ns.adobe.com/xmp/note/");
+        var link = XName.Get("HasExtendedXMP", "http://ns.adobe.com/xmp/note/");
         if (attribute)
+        {
             nested.SetAttributeValue(link, "ABC");
+        }
         else
+        {
             nested.Add(new XElement(link, "ABC"));
+        }
+
         caller.Add(nested);
         string before = metadata.ToPacket();
-        Assert.Throws<ArgumentException>(() => metadata.SetProperty(Title, caller));
+        _ = Assert.Throws<ArgumentException>(() => metadata.SetProperty(Title, caller));
         Assert.Equal(before, metadata.ToPacket());
         metadata.SetSimpleProperty(Title, "still editable");
         Assert.Equal("still editable", metadata.GetSimpleProperty(Title));
@@ -249,13 +257,13 @@ public sealed class XmpMetadataTests
         var metadata = new XmpMetadata();
         metadata.SetSimpleProperty(Title, "original");
         string before = metadata.ToPacket();
-        Assert.Throws<ArgumentException>(() => metadata.SetSimpleProperty(default, "new"));
-        Assert.Throws<ArgumentException>(() => metadata.SetSimpleProperty(new("urn:test", "bad:name"), "new"));
-        Assert.Throws<ArgumentException>(() => metadata.SetSimpleProperty(new(Rdf.NamespaceName, "value"), "new"));
-        Assert.Throws<ArgumentException>(() => metadata.SetSimpleProperty(new("http://ns.adobe.com/xmp/note/", "HasExtendedXMP"), "new"));
-        Assert.Throws<ArgumentException>(() => metadata.SetProperty(Title, new XElement(Test + "other", "new")));
-        Assert.Throws<ArgumentException>(() => metadata.SetSimpleProperty(Title, "invalid\0text"));
-        Assert.Throws<ArgumentException>(() => metadata.SetLocalizedText(Rights, "bad_language", "new"));
+        _ = Assert.Throws<ArgumentException>(() => metadata.SetSimpleProperty(default, "new"));
+        _ = Assert.Throws<ArgumentException>(() => metadata.SetSimpleProperty(new("urn:test", "bad:name"), "new"));
+        _ = Assert.Throws<ArgumentException>(() => metadata.SetSimpleProperty(new(Rdf.NamespaceName, "value"), "new"));
+        _ = Assert.Throws<ArgumentException>(() => metadata.SetSimpleProperty(new("http://ns.adobe.com/xmp/note/", "HasExtendedXMP"), "new"));
+        _ = Assert.Throws<ArgumentException>(() => metadata.SetProperty(Title, new XElement(Test + "other", "new")));
+        _ = Assert.Throws<ArgumentException>(() => metadata.SetSimpleProperty(Title, "invalid\0text"));
+        _ = Assert.Throws<ArgumentException>(() => metadata.SetLocalizedText(Rights, "bad_language", "new"));
         Assert.Equal(before, metadata.ToPacket());
     }
 

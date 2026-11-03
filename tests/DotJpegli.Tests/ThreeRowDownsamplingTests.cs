@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class ThreeRowDownsamplingTests
 {
@@ -47,7 +47,7 @@ public sealed class ThreeRowDownsamplingTests
     public void OddDimensionsReplicateSamplesBeforeThreeRowAveraging(int sampleWidth,
         int component, uint expectedHash)
     {
-        const int width = 5, height = 5, stride = width * 3 + 11;
+        const int width = 5, height = 5, stride = (width * 3) + 11;
         byte[] pixels = PaddedPattern(width, height, stride, 3, PixelLayout.Rgb24);
         Span<float> samples = stackalloc float[64];
         Downsampling.FillBlock(pixels, width, height, stride, 3, PixelLayout.Rgb24,
@@ -89,19 +89,26 @@ public sealed class ThreeRowDownsamplingTests
             { PixelLayout.Rgb24, PixelLayout.Bgr24, PixelLayout.Rgba32, PixelLayout.Bgra32 })
         {
             int bytesPerPixel = layout is PixelLayout.Rgba32 or PixelLayout.Bgra32 ? 4 : 3;
-            int stride = width * bytesPerPixel + 11;
+            int stride = (width * bytesPerPixel) + 11;
             byte[] pixels = PaddedPattern(width, height, stride, bytesPerPixel, layout);
             AssertBlocks(pixels, layout, width, height, stride, bytesPerPixel,
                 sampleWidth, component, smoothingFactor, firstBlock, seamBlock, edgeBlock);
             // Ignore alpha and row padding, including an unpadded final row.
             for (int y = 0; y < height; y++)
             {
-                for (int offset = y * stride + width * bytesPerPixel;
+                for (int offset = (y * stride) + (width * bytesPerPixel);
                     offset < Math.Min((y + 1) * stride, pixels.Length); offset++)
+                {
                     pixels[offset] ^= 0xff;
+                }
+
                 if (bytesPerPixel == 4)
+                {
                     for (int x = 0; x < width; x++)
-                        pixels[y * stride + x * bytesPerPixel + 3] ^= 0xff;
+                    {
+                        pixels[(y * stride) + (x * bytesPerPixel) + 3] ^= 0xff;
+                    }
+                }
             }
             AssertBlocks(pixels, layout, width, height, stride, bytesPerPixel,
                 sampleWidth, component, smoothingFactor, firstBlock, seamBlock, edgeBlock);
@@ -146,7 +153,7 @@ public sealed class ThreeRowDownsamplingTests
             component, 8 * sampleWidth, 24, sampleWidth, 3, samples, smoothingFactor);
         Assert.Equal(seamBlock, HashBits(samples));
         // Align the partial final block to the component sampling grid.
-        int edgeLeft = width / (8 * sampleWidth) * (8 * sampleWidth);
+        int edgeLeft = width / (8 * sampleWidth) * 8 * sampleWidth;
         int edgeTop = height / 24 * 24;
         Downsampling.FillBlock(pixels, width, height, stride, bytesPerPixel, layout,
             component, edgeLeft, edgeTop, sampleWidth, 3, samples, smoothingFactor);
@@ -155,18 +162,23 @@ public sealed class ThreeRowDownsamplingTests
 
     private static byte[] PaddedPattern(int width, int height, int stride, int bytesPerPixel, PixelLayout layout)
     {
-        byte[] pixels = Enumerable.Repeat((byte)0xed, (height - 1) * stride + width * bytesPerPixel).ToArray();
+        byte[] pixels = Enumerable.Repeat((byte)0xed, ((height - 1) * stride) + (width * bytesPerPixel)).ToArray();
         bool bgr = layout is PixelLayout.Bgr24 or PixelLayout.Bgra32;
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
             {
-                int offset = y * stride + x * bytesPerPixel;
-                pixels[offset + (bgr ? 2 : 0)] = (byte)((x * 73 + y * 29 + 11) & 255);
-                pixels[offset + 1] = (byte)((x * 17 + y * 97 + 83) & 255);
-                pixels[offset + (bgr ? 0 : 2)] = (byte)((x * 43 + y * 7 + 191) & 255);
+                int offset = (y * stride) + (x * bytesPerPixel);
+                pixels[offset + (bgr ? 2 : 0)] = (byte)(((x * 73) + (y * 29) + 11) & 255);
+                pixels[offset + 1] = (byte)(((x * 17) + (y * 97) + 83) & 255);
+                pixels[offset + (bgr ? 0 : 2)] = (byte)(((x * 43) + (y * 7) + 191) & 255);
                 if (bytesPerPixel == 4)
-                    pixels[offset + 3] = (byte)((x * 17 + y * 29) & 255);
+                {
+                    pixels[offset + 3] = (byte)(((x * 17) + (y * 29)) & 255);
+                }
             }
+        }
+
         return pixels;
     }
 
@@ -174,7 +186,10 @@ public sealed class ThreeRowDownsamplingTests
     {
         uint hash = 2166136261u;
         foreach (float sample in samples)
+        {
             hash = unchecked((hash ^ BitConverter.SingleToUInt32Bits(sample)) * 16777619u);
+        }
+
         return hash;
     }
 }

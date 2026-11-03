@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderYCbCrTests
 {
@@ -12,9 +12,16 @@ public sealed class EncoderYCbCrTests
         {
             var modes = new TheoryData<int, int, int>();
             for (int kind = 0; kind < 3; kind++)
+            {
                 for (int sampling = 0; sampling < 3; sampling++)
+                {
                     foreach (int smoothing in new[] { 0, 37 })
+                    {
                         modes.Add(kind, sampling, smoothing);
+                    }
+                }
+            }
+
             return modes;
         }
     }
@@ -25,9 +32,16 @@ public sealed class EncoderYCbCrTests
         {
             var modes = new TheoryData<int, ChromaSubsampling, bool>();
             for (int kind = 0; kind < 3; kind++)
+            {
                 foreach (ChromaSubsampling sampling in new[] { ChromaSubsampling.None, ChromaSubsampling.Quarter })
+                {
                     foreach (bool adaptive in new[] { false, true })
+                    {
                         modes.Add(kind, sampling, adaptive);
+                    }
+                }
+            }
+
             return modes;
         }
     }
@@ -41,15 +55,24 @@ public sealed class EncoderYCbCrTests
         Array pixels = Allocate(kind, 8 * 8 * 3);
         int[] values = kind == 0 ? [32, 74, 217] : [32845, 32947, 41005];
         for (int pixel = 0; pixel < 64; pixel++)
+        {
             for (int component = 0; component < 3; component++)
-                Set(pixels, pixel * 3 + component, values[component]);
+            {
+                Set(pixels, (pixel * 3) + component, values[component]);
+            }
+        }
+
         foreach (int smoothing in new[] { 0, 37, 100 })
         {
             var options = new JpegliEncoderOptions
             {
-                Quality = 100, Subsampling = ChromaSubsampling.None,
-                AdaptiveQuantization = false, SmoothingFactor = smoothing,
-                Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 1
+                Quality = 100,
+                Subsampling = ChromaSubsampling.None,
+                AdaptiveQuantization = false,
+                SmoothingFactor = smoothing,
+                Progressive = true,
+                ProgressiveRefinementBits = 2,
+                RestartInterval = 1
             };
             JpegDocument document = Read(Encode(pixels, 8, 8, options), options);
             Assert.Equal(3, document.Components.Count);
@@ -82,17 +105,24 @@ public sealed class EncoderYCbCrTests
         Array pixels = Pattern(kind, width, height);
         var options = new JpegliEncoderOptions
         {
-            Quality = 92, AdaptiveQuantization = false, SamplingFactors = Factors(sampling),
-            SmoothingFactor = smoothing, OptimizeHuffmanTables = false, RestartInterval = 2
+            Quality = 92,
+            AdaptiveQuantization = false,
+            SamplingFactors = Factors(sampling),
+            SmoothingFactor = smoothing,
+            OptimizeHuffmanTables = false,
+            RestartInterval = 2
         };
         JpegDocument document = Read(Encode(pixels, width, height, options), options);
         JpegComponentSampling[] factors = [options.SamplingFactors.Luma, options.SamplingFactors.Cb,
             options.SamplingFactors.Cr];
         for (int component = 1; component <= 3; component++)
+        {
             Assert.Equal((factors[component - 1].Horizontal, factors[component - 1].Vertical),
                 (document.Components[component].H, document.Components[component].V));
+        }
+
         int maxH = factors.Max(factor => factor.Horizontal), maxV = factors.Max(factor => factor.Vertical);
-        var substantialAc = new int[3];
+        int[] substantialAc = new int[3];
         foreach ((BlockKey key, Block block) in document.Blocks.Where(pair => !pair.Value.IsDummy))
         {
             Component component = document.Components[key.Component];
@@ -111,7 +141,9 @@ public sealed class EncoderYCbCrTests
                     $"Component {key.Component}, block ({key.X},{key.Y}), coefficient {index}: " +
                     $"expected nearest integer to {coefficient}, got {block.Coefficients[index]}.");
                 if (index != 0 && Math.Abs(block.Coefficients[index]) >= 2)
+                {
                     substantialAc[key.Component - 1]++;
+                }
             }
         }
         Assert.All(substantialAc, count => Assert.True(count >= 8,
@@ -129,12 +161,15 @@ public sealed class EncoderYCbCrTests
         Array pixels = Pattern(kind, width, height);
         var options = new JpegliEncoderOptions
         {
-            Quality = 90, Subsampling = sampling, AdaptiveQuantization = adaptive,
-            SmoothingFactor = 37, OptimizeHuffmanTables = false
+            Quality = 90,
+            Subsampling = sampling,
+            AdaptiveQuantization = adaptive,
+            SmoothingFactor = 37,
+            OptimizeHuffmanTables = false
         };
         byte[] baseline = Encode(pixels, width, height, options);
         JpegDocument reference = Read(baseline, options);
-        ImageResult decoded = ImageResult.FromMemory(baseline, ColorComponents.RedGreenBlue);
+        var decoded = ImageResult.FromMemory(baseline, ColorComponents.RedGreenBlue);
         Assert.Equal(width, decoded.Width);
         Assert.Equal(height, decoded.Height);
         foreach ((bool progressive, int refinement, bool optimize, int interval) in new[]
@@ -143,10 +178,12 @@ public sealed class EncoderYCbCrTests
             (true, 0, false, 2), (true, 2, true, 1)
         })
         {
-            var variant = options with
+            JpegliEncoderOptions variant = options with
             {
-                Progressive = progressive, ProgressiveRefinementBits = refinement,
-                OptimizeHuffmanTables = optimize, RestartInterval = interval
+                Progressive = progressive,
+                ProgressiveRefinementBits = refinement,
+                OptimizeHuffmanTables = optimize,
+                RestartInterval = interval
             };
             byte[] jpeg = Encode(pixels, width, height, variant);
             AssertCoefficients(reference, Read(jpeg, variant));
@@ -162,16 +199,21 @@ public sealed class EncoderYCbCrTests
         ushort[] words = pixels.Select(value => (ushort)(value * 257)).ToArray();
         JpegSamplingFactors?[] sampling = [null, new(new(1, 1), new(1, 1), new(1, 1)), Factors(0), Factors(2)];
         foreach (JpegSamplingFactors? factors in sampling)
+        {
             foreach (bool progressive in new[] { false, true })
             {
                 var options = new JpegliEncoderOptions
                 {
-                    SamplingFactors = factors, SmoothingFactor = progressive ? 37 : 0,
-                    OptimizeHuffmanTables = progressive, Progressive = progressive,
-                    ProgressiveRefinementBits = progressive ? 2 : 0, RestartInterval = 2
+                    SamplingFactors = factors,
+                    SmoothingFactor = progressive ? 37 : 0,
+                    OptimizeHuffmanTables = progressive,
+                    Progressive = progressive,
+                    ProgressiveRefinementBits = progressive ? 2 : 0,
+                    RestartInterval = 2
                 };
                 Assert.Equal(Encode(pixels, width, height, options), Encode(words, width, height, options));
             }
+        }
     }
 
     [Theory]
@@ -183,19 +225,25 @@ public sealed class EncoderYCbCrTests
         foreach ((int width, int height) in new[] { (1, 17), (17, 1), (19, 17) })
         {
             Array compact = Pattern(kind, width, height);
-            int stride = width * 3 + 13;
+            int stride = (width * 3) + 13;
             var options = new JpegliEncoderOptions
             {
-                SmoothingFactor = 73, Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2
+                SmoothingFactor = 73,
+                Progressive = true,
+                ProgressiveRefinementBits = 2,
+                RestartInterval = 2
             };
             byte[] expected = Encode(compact, width, height, options);
             foreach (int trailing in new[] { 0, 17 })
             {
                 // No final-row padding is required. Longer float storage contains
                 // invalid sentinels everywhere outside consumed Y/Cb/Cr elements.
-                Array padded = Allocate(kind, (height - 1) * stride + width * 3 + trailing);
+                Array padded = Allocate(kind, ((height - 1) * stride) + (width * 3) + trailing);
                 for (int y = 0; y < height; y++)
+                {
                     Array.Copy(compact, y * width * 3, padded, y * stride, width * 3);
+                }
+
                 Assert.Equal(expected, Encode(padded, width, height, options, stride));
                 using var destination = new MemoryStream();
                 using var output = new WriteOnlyStream(destination);
@@ -216,18 +264,20 @@ public sealed class EncoderYCbCrTests
     {
         const int width = 17, height = 9;
         foreach (int component in new[] { 0, 1, 2 })
+        {
             foreach (bool optimize in new[] { false, true })
             {
                 float[] pixels = (float[])Pattern(2, width, height);
-                pixels[(width * height - 1) * 3 + component] = invalid;
+                pixels[(((width * height) - 1) * 3) + component] = invalid;
                 using var destination = new MemoryStream();
                 using var output = new WriteOnlyStream(destination);
-                var error = Assert.Throws<ArgumentException>(() => Encode(output, pixels, width, height,
+                ArgumentException error = Assert.Throws<ArgumentException>(() => Encode(output, pixels, width, height,
                     new() { OptimizeHuffmanTables = optimize, Progressive = true, ProgressiveRefinementBits = 2 }));
                 Assert.Equal("pixels", error.ParamName);
                 Assert.Equal(0, destination.Length);
                 Assert.False(output.Closed);
             }
+        }
     }
 
     [Theory]
@@ -239,7 +289,7 @@ public sealed class EncoderYCbCrTests
         Array pixels = Pattern(kind, 2, 2);
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
-        Assert.Throws<ArgumentNullException>(() => Encode(null!, pixels, 2, 2, new()));
+        _ = Assert.Throws<ArgumentNullException>(() => Encode(null!, pixels, 2, 2, new()));
         using var readOnly = new MemoryStream(new byte[16], writable: false);
         Assert.Equal("output", Assert.Throws<ArgumentException>(() => Encode(readOnly, pixels, 2, 2, new())).ParamName);
         Assert.Equal(new byte[16], readOnly.ToArray());
@@ -267,7 +317,10 @@ public sealed class EncoderYCbCrTests
         Array pixels = Pattern(kind, width, height);
         var options = new JpegliEncoderOptions
         {
-            SmoothingFactor = 37, Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2
+            SmoothingFactor = 37,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2
         };
         byte[] complete = Encode(pixels, width, height, options);
         int stopAfter = Read(complete, options).Scans[2].DataStart + 1;
@@ -276,7 +329,9 @@ public sealed class EncoderYCbCrTests
         using var cancelledOutput = new WriteOnlyStream(cancelledDestination, () =>
         {
             if (cancelledDestination.Length >= stopAfter)
+            {
                 cancellation.Cancel();
+            }
         });
         OperationCanceledException cancelled = Assert.Throws<OperationCanceledException>(() =>
             EncodeWithCancellation(cancelledOutput, pixels, width, height, options, cancellation.Token));
@@ -290,7 +345,9 @@ public sealed class EncoderYCbCrTests
         using var failedOutput = new WriteOnlyStream(failedDestination, () =>
         {
             if (failedDestination.Length >= stopAfter)
+            {
                 throw failure;
+            }
         });
         Assert.Same(failure, Assert.Throws<IOException>(() => Encode(failedOutput, pixels, width, height, options)));
         Assert.False(failedOutput.Closed);
@@ -310,8 +367,8 @@ public sealed class EncoderYCbCrTests
             for (int pixel = 0; pixel < 64; pixel++)
             {
                 Set(pixels, pixel * 3, kind == 0 ? value : value * 257);
-                Set(pixels, pixel * 3 + 1, kind == 0 ? 128 : 32896);
-                Set(pixels, pixel * 3 + 2, kind == 0 ? 128 : 32896);
+                Set(pixels, (pixel * 3) + 1, kind == 0 ? 128 : 32896);
+                Set(pixels, (pixel * 3) + 2, kind == 0 ? 128 : 32896);
             }
             byte[] jpeg = Encode(pixels, 8, 8, new() { Quality = 100, AdaptiveQuantization = false });
             Assert.All(ImageResult.FromMemory(jpeg, ColorComponents.RedGreenBlue).Data,
@@ -323,34 +380,48 @@ public sealed class EncoderYCbCrTests
     public void IndependentlyPreconvertedRgbFloatsProduceTheSameYCbCrPipelineOutput()
     {
         const int width = 19, height = 17;
-        var rgb = new float[width * height * 3];
-        var ycbcr = new float[rgb.Length];
+        float[] rgb = new float[width * height * 3];
+        float[] ycbcr = new float[rgb.Length];
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
             {
-                int offset = (y * width + x) * 3;
+                int offset = ((y * width) + x) * 3;
                 for (int component = 0; component < 3; component++)
-                    rgb[offset + component] = (7000 + (977 * x + 1703 * y + 5003 * component + 59 * x * y) % 45000) / 65535f;
+                {
+                    rgb[offset + component] = (7000 + (((977 * x) + (1703 * y) + (5003 * component) + (59 * x * y)) % 45000)) / 65535f;
+                }
+
                 double red = rgb[offset] * 255d, green = rgb[offset + 1] * 255d, blue = rgb[offset + 2] * 255d;
-                double luma = 0.299 * red + 0.587 * green + 0.114 * blue;
+                double luma = (0.299 * red) + (0.587 * green) + (0.114 * blue);
                 ycbcr[offset] = (float)(luma / 255);
-                ycbcr[offset + 1] = (float)(((blue - luma) / 1.772 + 128) / 255);
-                ycbcr[offset + 2] = (float)(((red - luma) / 1.402 + 128) / 255);
+                ycbcr[offset + 1] = (float)((((blue - luma) / 1.772) + 128) / 255);
+                ycbcr[offset + 2] = (float)((((red - luma) / 1.402) + 128) / 255);
             }
+        }
+
         foreach (JpegSamplingFactors? sampling in new JpegSamplingFactors?[] { null, Factors(0) })
+        {
             foreach (bool adaptive in new[] { false, true })
+            {
                 foreach (bool progressive in new[] { false, true })
                 {
                     var options = new JpegliEncoderOptions
                     {
-                        Quality = 90, SamplingFactors = sampling, AdaptiveQuantization = adaptive,
-                        SmoothingFactor = 37, Progressive = progressive,
-                        ProgressiveRefinementBits = progressive ? 2 : 0, RestartInterval = 2
+                        Quality = 90,
+                        SamplingFactors = sampling,
+                        AdaptiveQuantization = adaptive,
+                        SmoothingFactor = 37,
+                        Progressive = progressive,
+                        ProgressiveRefinementBits = progressive ? 2 : 0,
+                        RestartInterval = 2
                     };
                     byte[] expected = JpegliEncoder.Encode(rgb, width, height, PixelComponentLayout.Rgb,
                         options, cancellationToken: TestContext.Current.CancellationToken);
                     Assert.Equal(expected, Encode(ycbcr, width, height, options));
                 }
+            }
+        }
     }
 
     private static JpegSamplingFactors Factors(int sampling) => sampling switch
@@ -366,7 +437,11 @@ public sealed class EncoderYCbCrTests
         1 => Enumerable.Repeat(ushort.MaxValue, length).ToArray(),
         _ => Enumerable.Range(0, length).Select(index => (index % 5) switch
         {
-            0 => float.NaN, 1 => float.PositiveInfinity, 2 => float.NegativeInfinity, 3 => -1f, _ => 2f
+            0 => float.NaN,
+            1 => float.PositiveInfinity,
+            2 => float.NegativeInfinity,
+            3 => -1f,
+            _ => 2f
         }).ToArray()
     };
 
@@ -374,25 +449,36 @@ public sealed class EncoderYCbCrTests
     {
         Array pixels = Allocate(kind, width * height * 3);
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int component = 0; component < 3; component++)
                 {
                     int value = kind == 0
-                        ? 7 + (19 * x + 37 * y + 53 * component + 11 * x * y) % 241
-                        : 4000 + (977 * x + 1703 * y + 11007 * component + 59 * x * y) % 55000;
-                    Set(pixels, (y * width + x) * 3 + component, value);
+                        ? 7 + (((19 * x) + (37 * y) + (53 * component) + (11 * x * y)) % 241)
+                        : 4000 + (((977 * x) + (1703 * y) + (11007 * component) + (59 * x * y)) % 55000);
+                    Set(pixels, (((y * width) + x) * 3) + component, value);
                 }
+            }
+        }
+
         return pixels;
     }
 
     private static void Set(Array pixels, int offset, int value)
     {
         if (pixels is byte[] bytes)
+        {
             bytes[offset] = (byte)value;
+        }
         else if (pixels is ushort[] words)
+        {
             words[offset] = (ushort)value;
+        }
         else
+        {
             ((float[])pixels)[offset] = value / 65535f;
+        }
     }
 
     private static double Sample(Array pixels, int offset) => pixels switch
@@ -408,29 +494,42 @@ public sealed class EncoderYCbCrTests
     private static double[] OracleSamples(Array pixels, int width, int height, BlockKey key,
         int areaWidth, int areaHeight, int smoothing)
     {
-        var result = new double[64];
+        double[] result = new double[64];
         for (int y = 0; y < 8; y++)
+        {
             for (int x = 0; x < 8; x++)
             {
                 double sum = 0;
                 for (int dy = 0; dy < areaHeight; dy++)
+                {
                     for (int dx = 0; dx < areaWidth; dx++)
                     {
-                        int column = (key.X * 8 + x) * areaWidth + dx;
-                        int row = (key.Y * 8 + y) * areaHeight + dy;
+                        int column = (((key.X * 8) + x) * areaWidth) + dx;
+                        int row = (((key.Y * 8) + y) * areaHeight) + dy;
                         double center = Raw(column, row), neighbors = 0;
                         for (int ny = -1; ny <= 1; ny++)
+                        {
                             for (int nx = -1; nx <= 1; nx++)
+                            {
                                 if (nx != 0 || ny != 0)
+                                {
                                     neighbors += Raw(column + nx, row + ny);
-                        sum += center * (1 - smoothing / 128d) + neighbors * smoothing / 1024d;
+                                }
+                            }
+                        }
+
+                        sum += (center * (1 - (smoothing / 128d))) + (neighbors * smoothing / 1024d);
                     }
-                result[y * 8 + x] = sum / (areaWidth * areaHeight) - 128;
+                }
+
+                result[(y * 8) + x] = (sum / (areaWidth * areaHeight)) - 128;
             }
+        }
+
         return result;
 
         double Raw(int column, int row) => Sample(pixels,
-            (Math.Clamp(row, 0, height - 1) * width + Math.Clamp(column, 0, width - 1)) * 3 + key.Component - 1);
+            (((Math.Clamp(row, 0, height - 1) * width) + Math.Clamp(column, 0, width - 1)) * 3) + key.Component - 1);
     }
 
     private static byte[] Encode(Array pixels, int width, int height, JpegliEncoderOptions options, int stride = 0) =>
@@ -452,11 +551,17 @@ public sealed class EncoderYCbCrTests
         JpegliEncoderOptions options, CancellationToken cancellationToken, int stride = 0)
     {
         if (pixels is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, PixelLayout.YCbCr24, options, stride, cancellationToken);
+        }
         else if (pixels is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, PixelComponentLayout.YCbCr, options, stride, cancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])pixels, width, height, PixelComponentLayout.YCbCr, options, stride, cancellationToken);
+        }
     }
 
     private static JpegDocument Read(byte[] jpeg, JpegliEncoderOptions options) =>
@@ -470,15 +575,22 @@ public sealed class EncoderYCbCrTests
         Assert.Equal(expected.Blocks.Count, actual.Blocks.Count);
         Assert.Equal(expected.Quantizers.Count, actual.Quantizers.Count);
         foreach ((int selector, byte[] quantizer) in expected.Quantizers)
+        {
             Assert.Equal(quantizer, actual.Quantizers[selector]);
+        }
+
         foreach ((BlockKey key, Block block) in expected.Blocks)
         {
             Block other = actual.Blocks[key];
             Assert.Equal(block.IsDummy, other.IsDummy);
             if (!block.IsDummy)
+            {
                 Assert.Equal(block.Coefficients, other.Coefficients);
+            }
             else
+            {
                 Assert.All(other.Coefficients[1..], coefficient => Assert.Equal(0, coefficient));
+            }
         }
     }
 

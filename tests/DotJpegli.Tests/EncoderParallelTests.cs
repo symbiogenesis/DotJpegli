@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderParallelTests
 {
@@ -11,8 +11,13 @@ public sealed class EncoderParallelTests
         {
             var modes = new TheoryData<int, ChromaSubsampling>();
             foreach (int precision in new[] { 0, 1, 2 })
+            {
                 foreach (ChromaSubsampling sampling in Enum.GetValues<ChromaSubsampling>())
+                {
                     modes.Add(precision, sampling);
+                }
+            }
+
             return modes;
         }
     }
@@ -24,21 +29,26 @@ public sealed class EncoderParallelTests
         // A forced worker always retains a coefficient image. Single-worker
         // preparation selects streaming or a bounded cache for its SIMD width;
         // both must preserve the same MCU predictors, padding and entropy bytes.
-        foreach (var (width, height, smoothing, interval, rows, adaptive) in new[]
+        foreach ((int width, int height, int smoothing, int interval, int rows, bool adaptive) in new[]
         {
             (1, 1, 0, 0, 0, true), (1, 33, 0, 1, 0, true),
             (35, 1, 37, 2, 0, false), (37, 35, 0, 2, 0, true),
             (48, 40, 37, 0, 1, true), (19, 33, 100, 3, 0, false)
         })
         {
-            int stride = width * 4 + 11;
+            int stride = (width * 4) + 11;
             Array pixels = Pattern(precision, width, height, PixelComponentLayout.Bgra, stride, trailing: 7);
-            Array original = (Array)pixels.Clone();
+            var original = (Array)pixels.Clone();
             var options = new JpegliEncoderOptions
             {
-                Subsampling = sampling, SmoothingFactor = smoothing, RestartInterval = interval,
-                RestartRows = rows, AdaptiveQuantization = adaptive, Progressive = false,
-                OptimizeHuffmanTables = true, MaxDegreeOfParallelism = 1
+                Subsampling = sampling,
+                SmoothingFactor = smoothing,
+                RestartInterval = interval,
+                RestartRows = rows,
+                AdaptiveQuantization = adaptive,
+                Progressive = false,
+                OptimizeHuffmanTables = true,
+                MaxDegreeOfParallelism = 1
             };
             byte[] expected = Encode(pixels, width, height, PixelComponentLayout.Bgra,
                 options with { MaxDegreeOfParallelism = 2 }, stride);
@@ -60,26 +70,35 @@ public sealed class EncoderParallelTests
             new(new(1, 2), new(2, 1), new(1, 1)),
             new(new(1, 1), new(2, 2), new(1, 1))
         })
+        {
             foreach (PixelComponentLayout layout in new[] { PixelComponentLayout.Rgb, PixelComponentLayout.YCbCr, PixelComponentLayout.Gray })
             {
-                int stride = width * Components(layout) + 7;
+                int stride = (width * Components(layout)) + 7;
                 Array pixels = Pattern(precision, width, height, layout, stride);
                 var options = new JpegliEncoderOptions
                 {
-                    SamplingFactors = sampling, RestartInterval = 3, SmoothingFactor = 37,
-                    ForceBaseline = false, Progressive = false, OptimizeHuffmanTables = true,
-                    QuantizationTables = new ReadOnlyMemory<ushort>[]
-                    {
-                        Enumerable.Range(0, 64).Select(index => (ushort)(index == 0 ? 7 : 1 + index * 11)).ToArray(),
-                        Enumerable.Range(0, 64).Select(index => (ushort)(index == 0 ? 13 : 1 + index * 7)).ToArray()
-                    }
+                    SamplingFactors = sampling,
+                    RestartInterval = 3,
+                    SmoothingFactor = 37,
+                    ForceBaseline = false,
+                    Progressive = false,
+                    OptimizeHuffmanTables = true,
+                    QuantizationTables =
+                    [
+                        Enumerable.Range(0, 64).Select(index => (ushort)(index == 0 ? 7 : 1 + (index * 11))).ToArray(),
+                        Enumerable.Range(0, 64).Select(index => (ushort)(index == 0 ? 13 : 1 + (index * 7))).ToArray()
+                    ]
                 };
                 if (layout == PixelComponentLayout.Gray)
+                {
                     options = options with { QuantizationTables = [options.QuantizationTables[0]] };
+                }
+
                 byte[] expected = Encode(pixels, width, height, layout,
                     options with { MaxDegreeOfParallelism = 2 }, stride);
                 Assert.Equal(expected, Encode(pixels, width, height, layout, options, stride));
             }
+        }
     }
 
     public static TheoryData<int, int> EncodingModes
@@ -88,8 +107,13 @@ public sealed class EncoderParallelTests
         {
             var modes = new TheoryData<int, int>();
             foreach (int precision in new[] { 0, 1, 2 })
+            {
                 for (int mode = 0; mode < 12; mode++)
+                {
                     modes.Add(precision, mode);
+                }
+            }
+
             return modes;
         }
     }
@@ -109,9 +133,11 @@ public sealed class EncoderParallelTests
         using var canceledOutput = new ObservedStream(canceledDestination, () =>
         {
             if (canceledDestination.Length >= complete.Length / 2)
+            {
                 cancellation.Cancel();
+            }
         });
-        var error = Assert.Throws<OperationCanceledException>(() =>
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() =>
             Encode(canceledOutput, pixels, width, height, PixelComponentLayout.Rgb, options,
                 cancellationToken: cancellation.Token));
         Assert.Equal(cancellation.Token, error.CancellationToken);
@@ -124,7 +150,9 @@ public sealed class EncoderParallelTests
         using var failedOutput = new ObservedStream(failedDestination, () =>
         {
             if (failedDestination.Length >= complete.Length / 2)
+            {
                 throw failure;
+            }
         });
         Assert.Same(failure, Assert.Throws<IOException>(() =>
             Encode(failedOutput, pixels, width, height, PixelComponentLayout.Rgb, options)));
@@ -141,14 +169,16 @@ public sealed class EncoderParallelTests
         // padded blocks, including predictors crossing row/restart boundaries.
         const int width = 37, height = 35;
         PixelComponentLayout layout = Layout(mode);
-        int stride = width * Components(layout) + 11;
+        int stride = (width * Components(layout)) + 11;
         Array pixels = Pattern(precision, width, height, layout, stride, trailing: 7);
-        var options = Options(mode);
+        JpegliEncoderOptions options = Options(mode);
         byte[] expected = Encode(pixels, width, height, layout, options, stride);
         Assert.Equal(1, options.MaxDegreeOfParallelism);
         foreach (int degree in new[] { -1, 2, 5 })
+        {
             Assert.Equal(expected, Encode(pixels, width, height, layout,
                 options with { MaxDegreeOfParallelism = degree }, stride));
+        }
     }
 
     [Theory]
@@ -166,19 +196,22 @@ public sealed class EncoderParallelTests
         Array compact = Pattern(precision, width, height, PixelComponentLayout.Rgb);
         var options = new JpegliEncoderOptions
         {
-            Progressive = true, ProgressiveRefinementBits = 2, SmoothingFactor = 37, RestartInterval = 2
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            SmoothingFactor = 37,
+            RestartInterval = 2
         };
         byte[] expected = Encode(compact, width, height, PixelComponentLayout.Rgb, options);
         foreach (PixelComponentLayout layout in new[]
             { PixelComponentLayout.Rgb, PixelComponentLayout.Bgr, PixelComponentLayout.Rgba, PixelComponentLayout.Bgra })
         {
-            int stride = width * Components(layout) + 13;
+            int stride = (width * Components(layout)) + 13;
             // The shortest array has no final-row padding. Float alpha, padding
             // and trailing slots contain NaN and must never become consumed data.
             foreach (int trailing in new[] { 0, 17 })
             {
                 Array padded = Pattern(precision, width, height, layout, stride, trailing);
-                Array original = (Array)padded.Clone();
+                var original = (Array)padded.Clone();
                 Assert.Equal(expected, Encode(padded, width, height, layout,
                     options with { MaxDegreeOfParallelism = 3 }, stride));
                 PixelAssert.Equal(original, padded);
@@ -195,7 +228,7 @@ public sealed class EncoderParallelTests
         foreach (int precision in new[] { 0, 1, 2 })
         {
             using var output = new MemoryStream();
-            var error = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output,
+            ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output,
                 Pattern(precision, 1, 1, PixelComponentLayout.Rgb), 1, 1, PixelComponentLayout.Rgb,
                 new() { MaxDegreeOfParallelism = degree }));
             Assert.Equal(nameof(JpegliEncoderOptions.MaxDegreeOfParallelism), error.ParamName);
@@ -212,7 +245,7 @@ public sealed class EncoderParallelTests
     {
         using var output = new MemoryStream();
         var token = new CancellationToken(true);
-        var error = Assert.Throws<OperationCanceledException>(() => Encode(output,
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() => Encode(output,
             Pattern(precision, 37, 35, PixelComponentLayout.Rgb), 37, 35, PixelComponentLayout.Rgb,
             new() { MaxDegreeOfParallelism = 3 }, cancellationToken: token));
         Assert.Equal(token, error.CancellationToken);
@@ -251,7 +284,10 @@ public sealed class EncoderParallelTests
         Array pixels = Pattern(precision, width, height, PixelComponentLayout.Rgb);
         var options = new JpegliEncoderOptions
         {
-            MaxDegreeOfParallelism = 3, Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2
+            MaxDegreeOfParallelism = 3,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2
         };
         byte[] complete = Encode(pixels, width, height, PixelComponentLayout.Rgb, options);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
@@ -259,9 +295,11 @@ public sealed class EncoderParallelTests
         using var output = new ObservedStream(destination, () =>
         {
             if (destination.Length >= complete.Length / 2)
+            {
                 cancellation.Cancel();
+            }
         });
-        var error = Assert.Throws<OperationCanceledException>(() =>
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() =>
             Encode(output, pixels, width, height, PixelComponentLayout.Rgb, options,
                 cancellationToken: cancellation.Token));
         Assert.Equal(cancellation.Token, error.CancellationToken);
@@ -285,7 +323,9 @@ public sealed class EncoderParallelTests
         using var output = new ObservedStream(destination, () =>
         {
             if (destination.Length >= complete.Length / 2)
+            {
                 throw failure;
+            }
         });
         Assert.Same(failure, Assert.Throws<IOException>(() =>
             Encode(output, pixels, width, height, PixelComponentLayout.Rgb, options)));
@@ -307,11 +347,14 @@ public sealed class EncoderParallelTests
             float[] pixels = (float[])Pattern(2, width, height, PixelComponentLayout.Gray);
             pixels[^1] = invalid;
             using var output = new MemoryStream();
-            var error = Assert.Throws<ArgumentException>(() => Encode(output, pixels,
+            ArgumentException error = Assert.Throws<ArgumentException>(() => Encode(output, pixels,
                 width, height, PixelComponentLayout.Gray, new()
                 {
-                    MaxDegreeOfParallelism = 3, AllowOutOfRangeFloatSamples = true,
-                    AdaptiveQuantization = false, Quality = 100, OptimizeHuffmanTables = optimize
+                    MaxDegreeOfParallelism = 3,
+                    AllowOutOfRangeFloatSamples = true,
+                    AdaptiveQuantization = false,
+                    Quality = 100,
+                    OptimizeHuffmanTables = optimize
                 }));
             Assert.Equal("pixels", error.ParamName);
             Assert.Equal(0, output.Length);
@@ -333,8 +376,11 @@ public sealed class EncoderParallelTests
             .Select(index => index % 3 == 0 ? -0.1f : index % 3 == 1 ? 1.1f : 0.4f).ToArray();
         var options = new JpegliEncoderOptions
         {
-            AllowOutOfRangeFloatSamples = true, AdaptiveQuantization = false,
-            Progressive = progressive, RestartRows = 1, Quality = 30
+            AllowOutOfRangeFloatSamples = true,
+            AdaptiveQuantization = false,
+            Progressive = progressive,
+            RestartRows = 1,
+            Quality = 30
         };
         byte[] expected = Encode(pixels, width, height, PixelComponentLayout.Gray, options);
         Assert.Equal(expected, Encode(pixels, width, height, PixelComponentLayout.Gray,
@@ -348,10 +394,10 @@ public sealed class EncoderParallelTests
         // the internal row processor to exercise its worker-error boundary.
         const int width = 37, height = 35;
         float[] samples = Enumerable.Repeat(float.MaxValue, width * height * 3).ToArray();
-        var pixels = new PixelSource(samples, PixelComponentLayout.Rgb).WithColorSpace(JpegColorSpace.Xyb);
+        PixelSource pixels = new PixelSource(samples, PixelComponentLayout.Rgb).WithColorSpace(JpegColorSpace.Xyb);
         var rows = new ParallelDctRows(pixels, width, height, width * 3,
             new(new(2, 2), new(2, 2), new(1, 1)), 0, 3, TestContext.Current.CancellationToken);
-        var error = Assert.Throws<ArgumentException>(() => rows.PrepareRow(0, TestContext.Current.CancellationToken));
+        ArgumentException error = Assert.Throws<ArgumentException>(() => rows.PrepareRow(0, TestContext.Current.CancellationToken));
         Assert.Equal("pixels", error.ParamName);
     }
 
@@ -361,8 +407,11 @@ public sealed class EncoderParallelTests
         const int width = 37, height = 35;
         var options = new JpegliEncoderOptions
         {
-            MaxDegreeOfParallelism = 3, Progressive = true, ProgressiveRefinementBits = 2,
-            SmoothingFactor = 37, RestartRows = 1
+            MaxDegreeOfParallelism = 3,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            SmoothingFactor = 37,
+            RestartRows = 1
         };
         Array[] pixels = Enumerable.Range(0, 3)
             .Select(precision => Pattern(precision, width, height, PixelComponentLayout.Rgb)).ToArray();
@@ -373,7 +422,9 @@ public sealed class EncoderParallelTests
             TestContext.Current.CancellationToken)).ToArray();
         byte[][] actual = await Task.WhenAll(encodes);
         for (int index = 0; index < actual.Length; index++)
+        {
             Assert.Equal(expected[index % 3], actual[index]);
+        }
     }
 
     private static PixelComponentLayout Layout(int mode) => mode switch
@@ -388,28 +439,70 @@ public sealed class EncoderParallelTests
     {
         0 => new(),
         1 => new() { Subsampling = ChromaSubsampling.None, ProgressiveLevel = 2, RestartRows = 1, SmoothingFactor = 37 },
-        2 => new() { Subsampling = ChromaSubsampling.HalfHorizontalThirdVertical, AdaptiveQuantization = false,
-            OptimizeHuffmanTables = false, SequentialInterleaveComponents = false, RestartInterval = 3 },
-        3 => new() { SamplingFactors = new(new(3, 1), new(2, 1), new(1, 1)),
-            ScanScript = ProgressiveScript(), OptimizeHuffmanTables = false, RestartRows = 1 },
-        4 => new() { ColorSpace = JpegColorSpace.Rgb, Progressive = true, ProgressiveRefinementBits = 2,
-            AdaptiveQuantization = false, RestartInterval = 2, SmoothingFactor = 37 },
-        5 => new() { ColorSpace = JpegColorSpace.Xyb, IccProfile = JpegliIccProfiles.CreateXybProfile(),
-            ProgressiveLevel = 2, RestartRows = 1 },
-        6 => new() { Progressive = true, ProgressiveRefinementBits = 2,
-            OptimizeHuffmanTables = false, SmoothingFactor = 100, RestartInterval = 2 },
-        7 => new() { SamplingFactors = new(new(1, 2), new(2, 1), new(1, 1)),
-            ScanScript = ProgressiveScript(), RestartInterval = 2 },
+        2 => new()
+        {
+            Subsampling = ChromaSubsampling.HalfHorizontalThirdVertical,
+            AdaptiveQuantization = false,
+            OptimizeHuffmanTables = false,
+            SequentialInterleaveComponents = false,
+            RestartInterval = 3
+        },
+        3 => new()
+        {
+            SamplingFactors = new(new(3, 1), new(2, 1), new(1, 1)),
+            ScanScript = ProgressiveScript(),
+            OptimizeHuffmanTables = false,
+            RestartRows = 1
+        },
+        4 => new()
+        {
+            ColorSpace = JpegColorSpace.Rgb,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            AdaptiveQuantization = false,
+            RestartInterval = 2,
+            SmoothingFactor = 37
+        },
+        5 => new()
+        {
+            ColorSpace = JpegColorSpace.Xyb,
+            IccProfile = JpegliIccProfiles.CreateXybProfile(),
+            ProgressiveLevel = 2,
+            RestartRows = 1
+        },
+        6 => new()
+        {
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            OptimizeHuffmanTables = false,
+            SmoothingFactor = 100,
+            RestartInterval = 2
+        },
+        7 => new()
+        {
+            SamplingFactors = new(new(1, 2), new(2, 1), new(1, 1)),
+            ScanScript = ProgressiveScript(),
+            RestartInterval = 2
+        },
         8 => new() { IccProfile = JpegliIccProfiles.CreateXybProfile(), ProgressiveLevel = 2, RestartInterval = 3 },
-        9 => new() { ForceBaseline = false, SequentialInterleaveComponents = false,
-            QuantizationTables = new ReadOnlyMemory<ushort>[]
-            {
-                Enumerable.Range(0, 64).Select(index => (ushort)(index == 0 ? 7 : 1 + index * 11)).ToArray(),
-                Enumerable.Range(0, 64).Select(index => (ushort)(index == 0 ? 13 : 1 + index * 7)).ToArray()
-            } },
+        9 => new()
+        {
+            ForceBaseline = false,
+            SequentialInterleaveComponents = false,
+            QuantizationTables =
+            [
+                Enumerable.Range(0, 64).Select(index => (ushort)(index == 0 ? 7 : 1 + (index * 11))).ToArray(),
+                Enumerable.Range(0, 64).Select(index => (ushort)(index == 0 ? 13 : 1 + (index * 7))).ToArray()
+            ]
+        },
         10 => new() { ScanScript = [new([2]), new([0, 1])], SmoothingFactor = 37, RestartRows = 1 },
-        _ => new() { ColorSpace = JpegColorSpace.Grayscale, Quality = 97,
-            OptimizeHuffmanTables = false, RestartInterval = 2 }
+        _ => new()
+        {
+            ColorSpace = JpegColorSpace.Grayscale,
+            Quality = 97,
+            OptimizeHuffmanTables = false,
+            RestartInterval = 2
+        }
     };
 
     private static JpegScan[] ProgressiveScript() =>
@@ -424,6 +517,10 @@ public sealed class EncoderParallelTests
     {
         PixelComponentLayout.Gray => 1,
         PixelComponentLayout.Rgba or PixelComponentLayout.Bgra => 4,
+        PixelComponentLayout.Rgb => 3,
+        PixelComponentLayout.Bgr => 3,
+        PixelComponentLayout.YCbCr => 3,
+        PixelComponentLayout.Xyb => 3,
         _ => 3
     };
 
@@ -432,8 +529,11 @@ public sealed class EncoderParallelTests
     {
         int components = Components(layout);
         if (stride == 0)
+        {
             stride = width * components;
-        int length = (height - 1) * stride + width * components + trailing;
+        }
+
+        int length = ((height - 1) * stride) + (width * components) + trailing;
         Array pixels = precision switch
         {
             0 => Enumerable.Repeat((byte)231, length).ToArray(),
@@ -442,19 +542,30 @@ public sealed class EncoderParallelTests
         };
         bool bgr = layout is PixelComponentLayout.Bgr or PixelComponentLayout.Bgra;
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < (layout == PixelComponentLayout.Gray ? 1 : 3); channel++)
                 {
-                    int offset = y * stride + x * components + (bgr ? 2 - channel : channel);
-                    int value = (x * 29 + y * 53 + channel * 97 + x * y * 3) & 255;
+                    int offset = (y * stride) + (x * components) + (bgr ? 2 - channel : channel);
+                    int value = ((x * 29) + (y * 53) + (channel * 97) + (x * y * 3)) & 255;
                     if (pixels is byte[] bytes)
+                    {
                         bytes[offset] = (byte)value;
+                    }
                     else if (pixels is ushort[] words)
-                        words[offset] = (ushort)Math.Min(65535, value * 257 + (x * 17 + y * 31 + channel * 11) % 257);
+                    {
+                        words[offset] = (ushort)Math.Min(65535, (value * 257) + (((x * 17) + (y * 31) + (channel * 11)) % 257));
+                    }
                     else
+                    {
                         ((float[])pixels)[offset] = Math.Min(1f,
-                            (value + (x * 17 + y * 31 + channel * 11) % 257 / 257f) / 255f);
+                            (value + (((x * 17) + (y * 31) + (channel * 11)) % 257 / 257f)) / 255f);
+                    }
                 }
+            }
+        }
+
         return pixels;
     }
 
@@ -466,6 +577,7 @@ public sealed class EncoderParallelTests
         PixelComponentLayout.Gray => PixelLayout.Gray8,
         PixelComponentLayout.YCbCr => PixelLayout.YCbCr24,
         PixelComponentLayout.Xyb => PixelLayout.Xyb24,
+        PixelComponentLayout.Rgb => PixelLayout.Rgb24,
         _ => PixelLayout.Rgb24
     };
 
@@ -482,11 +594,17 @@ public sealed class EncoderParallelTests
     {
         CancellationToken token = cancellationToken ?? TestContext.Current.CancellationToken;
         if (pixels is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, ByteLayout(layout), options, stride, token);
+        }
         else if (pixels is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, layout, options, stride, token);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])pixels, width, height, layout, options, stride, token);
+        }
     }
 
     private sealed class ObservedStream(Stream inner, Action onWrite) : Stream
@@ -494,14 +612,14 @@ public sealed class EncoderParallelTests
         public bool Closed { get; private set; }
         public override bool CanRead => false;
         public override bool CanSeek => false;
-        public override bool CanWrite => !Closed;
+        public override bool CanWrite => !this.Closed;
         public override long Length => throw new NotSupportedException();
         public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
         public override void Flush() => inner.Flush();
         public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
+        public override void Write(byte[] buffer, int offset, int count) => this.Write(buffer.AsSpan(offset, count));
         public override void Write(ReadOnlySpan<byte> buffer)
         {
             inner.Write(buffer);
@@ -514,7 +632,7 @@ public sealed class EncoderParallelTests
         }
         protected override void Dispose(bool disposing)
         {
-            Closed = true;
+            this.Closed = true;
             base.Dispose(disposing);
         }
     }

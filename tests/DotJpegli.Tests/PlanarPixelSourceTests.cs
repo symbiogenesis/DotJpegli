@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class PlanarPixelSourceTests
 {
@@ -10,15 +10,19 @@ public sealed class PlanarPixelSourceTests
     {
         foreach (PixelComponentLayout layout in new[]
             { PixelComponentLayout.Rgb, PixelComponentLayout.Bgr, PixelComponentLayout.Rgba, PixelComponentLayout.Bgra })
+        {
             for (int width = 1; width <= 35; width++)
+            {
                 foreach (int padding in new[] { 0, 7 })
                 {
-                    int stride = width * SimdSampleFixtures.Channels(layout) + padding;
+                    int stride = (width * SimdSampleFixtures.Channels(layout)) + padding;
                     PixelSource pixels = SimdSampleFixtures.Pixels(
                         SimdSampleFixtures.Source(0, width, 3, stride, layout), layout);
                     AssertConverted(pixels.WithColorSpace(JpegColorSpace.YCbCr), width, 3, stride);
                     AssertConverted(pixels.WithColorSpace(JpegColorSpace.Grayscale), width, 3, stride);
                 }
+            }
+        }
     }
 
     [Theory]
@@ -28,15 +32,20 @@ public sealed class PlanarPixelSourceTests
     public void ConvertedPlanesPreserveEverySampleAndReplicatedRowForEveryLayout(int precision)
     {
         foreach (PixelComponentLayout layout in Enum.GetValues<PixelComponentLayout>())
+        {
             foreach ((int width, int height) in new[] { (1, 1), (19, 17) })
             {
-                int stride = width * SimdSampleFixtures.Channels(layout) + 11;
+                int stride = (width * SimdSampleFixtures.Channels(layout)) + 11;
                 Array source = SimdSampleFixtures.Source(precision, width, height, stride, layout);
                 PixelSource pixels = SimdSampleFixtures.Pixels(source, layout);
                 foreach (JpegColorSpace output in SimdSampleFixtures.OutputSpaces(layout))
+                {
                     AssertConverted(pixels.WithColorSpace(output), width, height, stride);
+                }
+
                 Assert.Equal(source, SimdSampleFixtures.Source(precision, width, height, stride, layout));
             }
+        }
     }
 
     [Theory]
@@ -49,22 +58,24 @@ public sealed class PlanarPixelSourceTests
         foreach (PixelComponentLayout layout in new[]
             { PixelComponentLayout.Rgb, PixelComponentLayout.Bgr, PixelComponentLayout.Rgba,
                 PixelComponentLayout.Bgra, PixelComponentLayout.Gray })
+        {
             foreach (JpegColorSpace output in new[]
                 { JpegColorSpace.YCbCr, JpegColorSpace.Rgb, JpegColorSpace.Xyb, JpegColorSpace.Grayscale })
             {
                 bool sourceGray = layout == PixelComponentLayout.Gray;
                 bool destinationGray = output == JpegColorSpace.Grayscale;
-                IccColorTransform transform = IccColorTransform.Create(
+                var transform = IccColorTransform.Create(
                     sourceGray ? JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile() : JpegliIccProfiles.CreateLinearSrgbProfile(),
                     destinationGray ? JpegliIccProfiles.CreateSrgbGrayscaleProfile() : JpegliIccProfiles.CreateSrgbProfile(),
                     sourceGray, destinationGray, IccRenderingIntent.RelativeColorimetric,
                     TestContext.Current.CancellationToken);
-                int stride = width * SimdSampleFixtures.Channels(layout) + 11;
+                int stride = (width * SimdSampleFixtures.Channels(layout)) + 11;
                 PixelSource pixels = SimdSampleFixtures.Pixels(
                     SimdSampleFixtures.Source(precision, width, height, stride, layout), layout)
                     .WithColorSpace(output).WithColorTransform(transform);
                 AssertConverted(pixels, width, height, stride);
             }
+        }
     }
 
     [Theory]
@@ -73,14 +84,16 @@ public sealed class PlanarPixelSourceTests
     [InlineData(2)]
     public void CachedScalarAndVectorDownsamplingPreserveSmoothingAndFractionalSampling(int precision)
     {
-        const int width = 19, height = 17, stride = width * 4 + 11;
+        const int width = 19, height = 17, stride = (width * 4) + 11;
         PixelSource pixels = SimdSampleFixtures.Pixels(
             SimdSampleFixtures.Source(precision, width, height, stride, PixelComponentLayout.Bgra), PixelComponentLayout.Bgra);
         PixelSource cached = pixels.WithConvertedPlanes(width, height, stride, TestContext.Current.CancellationToken);
         using IDisposable? storage = cached.ConvertedStorage;
         float[] expected = new float[64], scalar = new float[64], vector = new float[64];
         for (int component = 0; component < 3; component++)
+        {
             foreach ((int sx, int sy) in new[] { (1, 1), (2, 2), (3, 4), (4, 3) })
+            {
                 foreach (int smoothing in new[] { 0, 73 })
                 {
                     Downsampling.FillBlockScalar(pixels, width, height, stride, component, width - 3, height - 2,
@@ -96,12 +109,14 @@ public sealed class PlanarPixelSourceTests
                     Downsampling.FillBlock(cached, width, height, stride, component, 1, 1, 3, 4, 2, 3, vector, smoothing);
                     AssertBits(expected, vector);
                 }
+            }
+        }
     }
 
     [Fact]
     public void ConvertedSnapshotSharesLeaseAndPreservesOriginalLengthAndMetadata()
     {
-        const int width = 19, height = 3, stride = width * 4 + 11;
+        const int width = 19, height = 3, stride = (width * 4) + 11;
         float[] samples = (float[])SimdSampleFixtures.Source(2, width, height, stride, PixelComponentLayout.Bgra);
         PixelSource pixels = new PixelSource(samples, PixelComponentLayout.Bgra).WithColorSpace(JpegColorSpace.Xyb);
         PixelSource cached = pixels.WithConvertedPlanes(width, height, stride, TestContext.Current.CancellationToken);
@@ -124,7 +139,9 @@ public sealed class PlanarPixelSourceTests
     {
         float[] source = [-0f, 0f, 1f, -0.1f, 1.1f, 0.25f, -0f, -0f, -0f];
         foreach (JpegColorSpace output in new[] { JpegColorSpace.Rgb, JpegColorSpace.YCbCr, JpegColorSpace.Grayscale })
+        {
             AssertConverted(new PixelSource(source, PixelComponentLayout.Rgb).WithColorSpace(output), 3, 1, 9);
+        }
     }
 
     [Fact]
@@ -139,7 +156,7 @@ public sealed class PlanarPixelSourceTests
     public void PlanesLargerThanMemoryLimitRetainTheStreamingReader()
     {
         // The size guard must run before allocating or reading any source samples.
-        PixelSource pixels = new PixelSource(ReadOnlySpan<byte>.Empty, PixelLayout.Rgb24);
+        var pixels = new PixelSource([], PixelLayout.Rgb24);
         PixelSource streaming = pixels.WithConvertedPlanes(4096, 4096, 4096 * 3,
             TestContext.Current.CancellationToken);
         Assert.Equal(0, streaming.Length);
@@ -161,15 +178,19 @@ public sealed class PlanarPixelSourceTests
         for (int component = 0; component < components; component++)
         {
             for (int y = 0; y < height; y++)
+            {
                 for (int x = 0; x < width; x++)
                 {
-                    int offset = y * stride + x * pixels.ComponentsPerPixel;
+                    int offset = (y * stride) + (x * pixels.ComponentsPerPixel);
                     float sample = pixels.ReadSample(offset, component);
                     SimdSampleFixtures.AssertBits(sample, cached.ReadSample(offset, component));
                     SimdSampleFixtures.AssertBits(sample, cached.ReadSampleAt(x, y, stride, component));
                     SimdSampleFixtures.AssertBits(sample, restored.ReadSample(offset, component));
                 }
+            }
+
             foreach (int x in new[] { -2, 0, width - 2, width + 2 })
+            {
                 foreach (int y in new[] { -1, height - 1, height + 1 })
                 {
                     pixels.ReadRowScalar(width, height, stride, component, x, y, expected);
@@ -178,12 +199,15 @@ public sealed class PlanarPixelSourceTests
                     AssertBits(expected, scalar);
                     AssertBits(expected, vector);
                 }
+            }
         }
     }
 
     private static void AssertBits(float[] expected, float[] actual)
     {
         for (int index = 0; index < expected.Length; index++)
+        {
             SimdSampleFixtures.AssertBits(expected[index], actual[index]);
+        }
     }
 }

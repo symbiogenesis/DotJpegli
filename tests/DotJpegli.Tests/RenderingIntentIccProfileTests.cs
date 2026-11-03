@@ -1,11 +1,11 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class RenderingIntentIccProfileTests
 {
@@ -38,15 +38,15 @@ public sealed class RenderingIntentIccProfileTests
     ];
 
     public static TheoryData<string, string> ProfileFactories =>
-        new(Factories.Select(factory => (factory.Name, factory.Description)));
+        [with(Factories.Select(factory => (factory.Name, factory.Description)))];
 
     [Fact]
     public void PublicIntentValuesMatchTheIccHeaderAndEveryOriginalSignatureIsRetained()
     {
         Assert.Equal(new[] { "Perceptual", "RelativeColorimetric", "Saturation", "AbsoluteColorimetric" },
             Enum.GetNames<IccRenderingIntent>());
-        Assert.Equal(new[] { 0, 1, 2, 3 }, Enum.GetValues<IccRenderingIntent>().Select(value => (int)value));
-        Assert.Equal(Factories.Select(factory => factory.Name).Concat(new[] { "CreateXybProfile", "CreateRgbProfile", "CreateGrayscaleProfile", "CreateGammaRgbProfile" }).Order(),
+        Assert.Equal([0, 1, 2, 3], Enum.GetValues<IccRenderingIntent>().Select(value => (int)value));
+        Assert.Equal(Factories.Select(factory => factory.Name).Concat(["CreateXybProfile", "CreateRgbProfile", "CreateGrayscaleProfile", "CreateGammaRgbProfile"]).Order(),
             typeof(JpegliIccProfiles).GetMethods(BindingFlags.Public | BindingFlags.Static)
                 .Select(method => method.Name).Distinct().Order());
         foreach ((string name, _) in Factories)
@@ -113,7 +113,10 @@ public sealed class RenderingIntentIccProfileTests
             foreach ((string signature, Tag tag) in tags)
             {
                 if (signature == "desc")
+                {
                     continue;
+                }
+
                 Tag reference = originalTags[signature];
                 Assert.Equal(original[reference.Offset..(reference.Offset + reference.Length)],
                     profile[tag.Offset..(tag.Offset + tag.Length)]);
@@ -143,6 +146,7 @@ public sealed class RenderingIntentIccProfileTests
     public void ExplicitIntentOverloadsRetainGammaValidation(string name)
     {
         foreach (double gamma in new[] { double.NaN, double.NegativeInfinity, double.PositiveInfinity, 0.999, 8192.001 })
+        {
             foreach (IccRenderingIntent intent in Enum.GetValues<IccRenderingIntent>())
             {
                 TargetInvocationException wrapper = Assert.Throws<TargetInvocationException>(() =>
@@ -150,9 +154,15 @@ public sealed class RenderingIntentIccProfileTests
                 ArgumentOutOfRangeException error = Assert.IsType<ArgumentOutOfRangeException>(wrapper.InnerException);
                 Assert.Equal("gamma", error.ParamName);
             }
+        }
+
         foreach (double gamma in new[] { 1.0, 8192.0 })
+        {
             foreach (IccRenderingIntent intent in Enum.GetValues<IccRenderingIntent>())
+            {
                 Assert.NotNull(Factory(name, explicitIntent: true).Invoke(null, [gamma, intent]));
+            }
+        }
     }
 
     [Theory]
@@ -169,14 +179,18 @@ public sealed class RenderingIntentIccProfileTests
         PixelComponentLayout layout = colorSpace == JpegColorSpace.Grayscale
             ? PixelComponentLayout.Gray : PixelComponentLayout.Rgba;
         int components = layout == PixelComponentLayout.Gray ? 1 : 4;
-        int stride = width * components + 5;
+        int stride = (width * components) + 5;
         Array pixels = Source(kind, width, height, stride, components);
-        Array originalPixels = (Array)pixels.Clone();
+        var originalPixels = (Array)pixels.Clone();
         var options = new JpegliEncoderOptions
         {
-            ColorSpace = colorSpace, IccProfile = Create(name), Distance = 1.375f,
-            Progressive = progressive, ProgressiveRefinementBits = progressive ? 2 : 0,
-            OptimizeHuffmanTables = progressive, RestartInterval = 2
+            ColorSpace = colorSpace,
+            IccProfile = Create(name),
+            Distance = 1.375f,
+            Progressive = progressive,
+            ProgressiveRefinementBits = progressive ? 2 : 0,
+            OptimizeHuffmanTables = progressive,
+            RestartInterval = 2
         };
         byte[] expectedCoding = ReadIccAndCoding(Encode(pixels, width, height, stride, layout, options)).Coding;
         foreach (IccRenderingIntent intent in Enum.GetValues<IccRenderingIntent>())
@@ -190,7 +204,7 @@ public sealed class RenderingIntentIccProfileTests
             (byte[] embedded, byte[] coding) = ReadIccAndCoding(jpeg);
             Assert.Equal(profile, embedded);
             Assert.Equal(expectedCoding, coding);
-            JpegDocument document = JpegDocument.Read(jpeg, progressive, 2, selected.ProgressiveRefinementBits);
+            var document = JpegDocument.Read(jpeg, progressive, 2, selected.ProgressiveRefinementBits);
             Assert.Equal((width, height), (document.Width, document.Height));
             Assert.Equal(colorSpace == JpegColorSpace.Grayscale ? 1 : 3, document.Components.Count);
             using var destination = new MemoryStream();
@@ -312,7 +326,10 @@ public sealed class RenderingIntentIccProfileTests
         bool gamma = name.StartsWith("CreateGamma", StringComparison.Ordinal);
         Type[] parameters = gamma ? [typeof(double)] : [];
         if (explicitIntent)
+        {
             parameters = [.. parameters, typeof(IccRenderingIntent)];
+        }
+
         MethodInfo? method = typeof(JpegliIccProfiles).GetMethod(name, parameters);
         Assert.NotNull(method);
         return method;
@@ -322,23 +339,33 @@ public sealed class RenderingIntentIccProfileTests
     {
         object[] parameters = name.StartsWith("CreateGamma", StringComparison.Ordinal) ? [2.2] : [];
         if (intent is IccRenderingIntent selected)
+        {
             parameters = [.. parameters, selected];
+        }
+
         return Assert.IsType<byte[]>(Factory(name, intent is not null).Invoke(null, parameters));
     }
 
     private static string ExpectedDescription(string name, string original, IccRenderingIntent intent)
     {
         if (intent == IccRenderingIntent.Perceptual)
+        {
             return original;
+        }
+
         string token = intent switch
         {
             IccRenderingIntent.RelativeColorimetric => "Rel",
             IccRenderingIntent.Saturation => "Sat",
             IccRenderingIntent.AbsoluteColorimetric => "Abs",
+            IccRenderingIntent.Perceptual => throw new ArgumentOutOfRangeException(nameof(intent)),
             _ => throw new ArgumentOutOfRangeException(nameof(intent))
         };
         if (name is "CreateRec2100PqProfile" or "CreateRec2100HlgProfile" && intent == IccRenderingIntent.RelativeColorimetric)
+        {
             return name == "CreateRec2100PqProfile" ? "Rec2100PQ" : "Rec2100HLG";
+        }
+
         return original switch
         {
             "sRGB" => $"RGB_D65_SRG_{token}_SRG",
@@ -349,11 +376,11 @@ public sealed class RenderingIntentIccProfileTests
 
     private static Dictionary<string, Tag> Tags(byte[] profile)
     {
-        int count = Int32(profile, 128), end = 132 + count * 12;
+        int count = Int32(profile, 128), end = 132 + (count * 12);
         var tags = new Dictionary<string, Tag>();
         for (int index = 0; index < count; index++)
         {
-            int entry = 132 + index * 12;
+            int entry = 132 + (index * 12);
             var tag = new Tag(Int32(profile, entry + 4), Int32(profile, entry + 8));
             Assert.Equal(0, tag.Offset % 4);
             Assert.InRange(tag.Offset, end, profile.Length - 8);
@@ -410,7 +437,10 @@ public sealed class RenderingIntentIccProfileTests
                 profile = jpeg[(offset + 18)..end];
             }
             else
+            {
                 coding.Write(jpeg.AsSpan(offset, end - offset));
+            }
+
             offset = end;
         }
         coding.Write(jpeg.AsSpan(offset));
@@ -420,11 +450,18 @@ public sealed class RenderingIntentIccProfileTests
 
     private static Array Source(int kind, int width, int height, int stride, int components)
     {
-        byte[] bytes = Enumerable.Repeat((byte)0xad, (height - 1) * stride + width * components).ToArray();
+        byte[] bytes = Enumerable.Repeat((byte)0xad, ((height - 1) * stride) + (width * components)).ToArray();
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < components; channel++)
-                    bytes[y * stride + x * components + channel] = (byte)((x * 73 + y * 29 + channel * 61) % 256);
+                {
+                    bytes[(y * stride) + (x * components) + channel] = (byte)(((x * 73) + (y * 29) + (channel * 61)) % 256);
+                }
+            }
+        }
+
         return kind switch
         {
             0 => bytes,
@@ -435,27 +472,33 @@ public sealed class RenderingIntentIccProfileTests
 
     private static byte[] Encode(Array source, int width, int height, int stride,
         PixelComponentLayout layout, JpegliEncoderOptions options) => source switch
-    {
-        byte[] bytes => JpegliEncoder.Encode(bytes, width, height, (PixelLayout)(int)layout,
-            options, stride, TestContext.Current.CancellationToken),
-        ushort[] words => JpegliEncoder.Encode(words, width, height, layout,
-            options, stride, TestContext.Current.CancellationToken),
-        _ => JpegliEncoder.Encode((float[])source, width, height, layout,
-            options, stride, TestContext.Current.CancellationToken)
-    };
+        {
+            byte[] bytes => JpegliEncoder.Encode(bytes, width, height, (PixelLayout)(int)layout,
+                options, stride, TestContext.Current.CancellationToken),
+            ushort[] words => JpegliEncoder.Encode(words, width, height, layout,
+                options, stride, TestContext.Current.CancellationToken),
+            _ => JpegliEncoder.Encode((float[])source, width, height, layout,
+                options, stride, TestContext.Current.CancellationToken)
+        };
 
     private static void Encode(Stream output, Array source, int width, int height, int stride,
         PixelComponentLayout layout, JpegliEncoderOptions options)
     {
         if (source is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, (PixelLayout)(int)layout,
                 options, stride, TestContext.Current.CancellationToken);
+        }
         else if (source is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, layout,
                 options, stride, TestContext.Current.CancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])source, width, height, layout,
                 options, stride, TestContext.Current.CancellationToken);
+        }
     }
 
     private static int Int32(byte[] bytes, int offset) => BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(offset, 4));

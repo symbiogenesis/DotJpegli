@@ -1,9 +1,9 @@
 // Copyright (c) the JPEG XL Project Authors.
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
 
-using static DotJpegli.Internal.IccProfileWriter;
-
 namespace DotJpegli.Internal;
+
+using static DotJpegli.Internal.IccProfileWriter;
 
 internal static class XybIccProfile
 {
@@ -55,22 +55,26 @@ internal static class XybIccProfile
         UInt32(tag, 24, 80);  // CLUT.
         UInt32(tag, 28, 32);
         for (int component = 0; component < 3; component++)
-            Curve(tag.Slice(32 + component * 16, 16), [1f], 0);
+        {
+            Curve(tag.Slice(32 + (component * 16), 16), [1f], 0);
+        }
 
         tag[80] = tag[81] = tag[82] = 2;
         tag[96] = 2; // 16-bit CLUT entries.
         float scaleXY = ScaleX * ScaleY / (ScaleX + ScaleY);
         float scaleBY = ScaleY * ScaleB / (ScaleY + ScaleB);
-        ReadOnlySpan<float> offsets = [OffsetX, -OffsetX + 1f / ScaleX, OffsetB];
+        ReadOnlySpan<float> offsets = [OffsetX, -OffsetX + (1f / ScaleX), OffsetB];
         ReadOnlySpan<float> scales = [scaleXY, scaleXY, scaleBY];
         int position = 100;
         for (int ix = 0; ix < 2; ix++)
+        {
             for (int iy = 0; iy < 2; iy++)
+            {
                 for (int ib = 0; ib < 2; ib++)
                 {
-                    float x = ix / ScaleX - OffsetX;
+                    float x = (ix / ScaleX) - OffsetX;
                     float y = iy / ScaleY;
-                    float b = ib / ScaleB - OffsetB;
+                    float b = (ib / ScaleB) - OffsetB;
                     ReadOnlySpan<float> mixed = [y + x, y - x, b + y];
                     for (int component = 0; component < 3; component++, position += 2)
                     {
@@ -78,24 +82,32 @@ internal static class XybIccProfile
                         UInt16(tag, position, (ushort)MathF.Round(65535f * value, MidpointRounding.AwayFromZero));
                     }
                 }
+            }
+        }
 
         for (int component = 0; component < 3; component++)
         {
             float b = -offsets[component] - MathF.Cbrt(-Bias);
-            Curve(tag.Slice(148 + component * 32, 32),
+            Curve(tag.Slice(148 + (component * 32), 32),
                 [3f, 1f / scales[component], b, 0f, MathF.Max(0f, -b * scales[component])], 3);
         }
 
         ReadOnlySpan<double> matrix = [1.5170095, -1.1065225, 0.071623,
             -0.050022, 0.5683655, -0.018344, -1.387676, 1.1145555, 0.6857255];
         for (int index = 0; index < matrix.Length; index++)
-            Fixed(tag, 244 + index * 4, (float)matrix[index]);
+        {
+            Fixed(tag, 244 + (index * 4), (float)matrix[index]);
+        }
+
         for (int row = 0; row < 3; row++)
         {
             float intercept = 0;
             for (int column = 0; column < 3; column++)
-                intercept = (float)(intercept + matrix[row * 3 + column] * -Bias);
-            Fixed(tag, 280 + row * 4, intercept);
+            {
+                intercept = (float)(intercept + (matrix[(row * 3) + column] * -Bias));
+            }
+
+            Fixed(tag, 280 + (row * 4), intercept);
         }
     }
 
@@ -107,6 +119,8 @@ internal static class XybIccProfile
         tag[8] = tag[9] = 3;
         UInt32(tag, 12, 32);
         for (int component = 0; component < 3; component++)
-            Curve(tag.Slice(32 + component * 16, 16), [1f], 0);
+        {
+            Curve(tag.Slice(32 + (component * 16), 16), [1f], 0);
+        }
     }
 }

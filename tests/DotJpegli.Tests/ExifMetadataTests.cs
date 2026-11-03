@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class ExifMetadataTests
 {
@@ -20,7 +20,7 @@ public sealed class ExifMetadataTests
     public void ParsesIndependentBinaryDirectoriesAndBothByteOrders(bool littleEndian)
     {
         byte[] input = DirectoryFixture(littleEndian);
-        ExifMetadata metadata = ExifMetadata.Parse(input);
+        var metadata = ExifMetadata.Parse(input);
         Assert.Equal(513u, metadata.GetUnsignedInteger(ExifDirectory.Image, 0x0100));
         Assert.Equal("camera", metadata.GetAscii(ExifDirectory.Image, 0x010e));
         Assert.Equal("N", metadata.GetAscii(ExifDirectory.Gps, 1));
@@ -39,7 +39,7 @@ public sealed class ExifMetadataTests
     [Fact]
     public void TypedEditsProduceIndependentlyReadableTiffValuesAndLinks()
     {
-        ExifMetadata metadata = ExifMetadata.Parse(DirectoryFixture(false));
+        var metadata = ExifMetadata.Parse(DirectoryFixture(false));
         metadata.SetUnsignedLong(ExifDirectory.Image, 0x0100, 70_000);
         metadata.SetUnsignedShort(ExifDirectory.Image, 0x0112, 1);
         metadata.SetAscii(ExifDirectory.Image, 0x010e, "edited camera");
@@ -101,37 +101,37 @@ public sealed class ExifMetadataTests
     public void SettersValidateTypesCountsTextAndManagedPointers()
     {
         ExifMetadata metadata = new();
-        Assert.Throws<ArgumentException>(() => metadata.SetAscii(ExifDirectory.Image, 1, "café"));
-        Assert.Throws<ArgumentException>(() => metadata.SetAscii(ExifDirectory.Image, 1, "a\0b"));
-        Assert.Throws<ArgumentNullException>(() => metadata.SetAscii(ExifDirectory.Image, 1, null!));
-        Assert.Throws<ArgumentOutOfRangeException>(() => metadata.SetUnsignedRational(ExifDirectory.Photo, 1, 2, 0));
-        Assert.Throws<ArgumentException>(() => metadata.SetEntry(ExifDirectory.Image, 1, ExifFieldType.UnsignedLong, uint.MaxValue, new byte[4]));
-        Assert.Throws<NotSupportedException>(() => metadata.SetEntry(ExifDirectory.Image, 1, (ExifFieldType)13, 1, new byte[4]));
-        Assert.Throws<ArgumentException>(() => metadata.SetUnsignedLong(ExifDirectory.Image, 0x8769, 100));
-        Assert.Throws<ArgumentException>(() => metadata.SetUnsignedLong(ExifDirectory.Thumbnail, 0x0201, 100));
-        Assert.Throws<ArgumentOutOfRangeException>(() => metadata.Remove((ExifDirectory)200, 1));
-        metadata.SetEntry(ExifDirectory.Image, 1, ExifFieldType.Ascii, 1, new byte[] { 128 });
-        Assert.Throws<InvalidDataException>(() => metadata.GetAscii(ExifDirectory.Image, 1));
+        _ = Assert.Throws<ArgumentException>(() => metadata.SetAscii(ExifDirectory.Image, 1, "café"));
+        _ = Assert.Throws<ArgumentException>(() => metadata.SetAscii(ExifDirectory.Image, 1, "a\0b"));
+        _ = Assert.Throws<ArgumentNullException>(() => metadata.SetAscii(ExifDirectory.Image, 1, null!));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => metadata.SetUnsignedRational(ExifDirectory.Photo, 1, 2, 0));
+        _ = Assert.Throws<ArgumentException>(() => metadata.SetEntry(ExifDirectory.Image, 1, ExifFieldType.UnsignedLong, uint.MaxValue, new byte[4]));
+        _ = Assert.Throws<NotSupportedException>(() => metadata.SetEntry(ExifDirectory.Image, 1, (ExifFieldType)13, 1, new byte[4]));
+        _ = Assert.Throws<ArgumentException>(() => metadata.SetUnsignedLong(ExifDirectory.Image, 0x8769, 100));
+        _ = Assert.Throws<ArgumentException>(() => metadata.SetUnsignedLong(ExifDirectory.Thumbnail, 0x0201, 100));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => metadata.Remove((ExifDirectory)200, 1));
+        metadata.SetEntry(ExifDirectory.Image, 1, ExifFieldType.Ascii, 1, [128]);
+        _ = Assert.Throws<InvalidDataException>(() => metadata.GetAscii(ExifDirectory.Image, 1));
     }
 
     [Fact]
     public void ThumbnailIsCopiedAndOffsetRebasedAfterEdits()
     {
-        ExifMetadata metadata = ExifMetadata.Parse(ThumbnailFixture());
+        var metadata = ExifMetadata.Parse(ThumbnailFixture());
         Assert.Equal(Convert.FromHexString("FFD8FFD9"), metadata.GetJpegThumbnail());
         metadata.SetAscii(ExifDirectory.Image, 0x010e, "moves the thumbnail after newly allocated text");
         byte[] output = metadata.ToArray();
         int imageCount = U16(output, 8);
-        int thumbnail = (int)U32(output, 8 + 2 + imageCount * 12);
+        int thumbnail = (int)U32(output, 8 + 2 + (imageCount * 12));
         Assert.NotEqual(26, thumbnail);
         uint jpegOffset = BinaryPrimitives.ReadUInt32LittleEndian(ReadEntry(output, thumbnail, 0x0201).Value);
         Assert.Equal(4u, BinaryPrimitives.ReadUInt32LittleEndian(ReadEntry(output, thumbnail, 0x0202).Value));
         Assert.NotEqual(68u, jpegOffset);
         Assert.Equal(Convert.FromHexString("FFD8FFD9"), output.AsSpan((int)jpegOffset, 4).ToArray());
-        ExifMetadata parsed = ExifMetadata.Parse(output);
+        var parsed = ExifMetadata.Parse(output);
         parsed.RemoveThumbnail();
         Assert.Null(parsed.GetJpegThumbnail());
-        Assert.Equal(0u, U32(parsed.ToArray(), 10 + 12 * U16(parsed.ToArray(), 8)));
+        Assert.Equal(0u, U32(parsed.ToArray(), 10 + (12 * U16(parsed.ToArray(), 8))));
         Assert.Null(parsed.GetUnsignedInteger(ExifDirectory.Thumbnail, 0x0103));
     }
 
@@ -146,7 +146,7 @@ public sealed class ExifMetadataTests
         Assert.True(metadata.Remove(ExifDirectory.Thumbnail, 0x0202));
         Assert.Null(metadata.GetJpegThumbnail());
         Assert.Null(metadata.GetEntry(ExifDirectory.Thumbnail, 0x0201));
-        metadata.SetJpegThumbnail(new byte[] { 1, 2 });
+        metadata.SetJpegThumbnail([1, 2]);
         metadata.SetJpegThumbnail([]);
         Assert.Null(metadata.GetJpegThumbnail());
     }
@@ -165,9 +165,9 @@ public sealed class ExifMetadataTests
         Header(input, true);
         W16(input, 8, 1, true);
         Entry(input, 10, tag, 7, 4, 0x01020304, true);
-        ExifMetadata metadata = ExifMetadata.Parse(input);
+        var metadata = ExifMetadata.Parse(input);
         Assert.NotNull(metadata.GetEntry(ExifDirectory.Image, tag));
-        Assert.Throws<NotSupportedException>(metadata.ToArray);
+        _ = Assert.Throws<NotSupportedException>(metadata.ToArray);
         Assert.True(metadata.Remove(ExifDirectory.Image, tag));
         Assert.Equal(new ExifMetadata().ToArray(), metadata.ToArray());
     }
@@ -192,22 +192,52 @@ public sealed class ExifMetadataTests
         byte[] input = DirectoryFixture(true);
         switch (kind)
         {
-            case "short header": input = new byte[7]; break;
-            case "byte order": input[0] = (byte)'Z'; break;
-            case "magic": W16(input, 2, 43, true); break;
-            case "root offset": W32(input, 4, uint.MaxValue, true); break;
-            case "directory count": W16(input, 8, ushort.MaxValue, true); break;
-            case "value count": W32(input, 26, uint.MaxValue, true); break;
-            case "value offset": W32(input, 30, uint.MaxValue, true); break;
-            case "value overlaps directory": W32(input, 30, 10, true); break;
-            case "pointer representation": W16(input, 36, 3, true); break;
-            case "zero pointer": W32(input, 42, 0, true); break;
-            case "cycle": W32(input, 42, 8, true); break;
-            case "shared directory": W32(input, 54, 64, true); break;
-            case "extra next ifd": W32(input, 102, 8, true); break;
-            case "duplicate tag": W16(input, 22, 0x0100, true); break;
+            case "short header":
+                input = new byte[7];
+                break;
+            case "byte order":
+                input[0] = (byte)'Z';
+                break;
+            case "magic":
+                W16(input, 2, 43, true);
+                break;
+            case "root offset":
+                W32(input, 4, uint.MaxValue, true);
+                break;
+            case "directory count":
+                W16(input, 8, ushort.MaxValue, true);
+                break;
+            case "value count":
+                W32(input, 26, uint.MaxValue, true);
+                break;
+            case "value offset":
+                W32(input, 30, uint.MaxValue, true);
+                break;
+            case "value overlaps directory":
+                W32(input, 30, 10, true);
+                break;
+            case "pointer representation":
+                W16(input, 36, 3, true);
+                break;
+            case "zero pointer":
+                W32(input, 42, 0, true);
+                break;
+            case "cycle":
+                W32(input, 42, 8, true);
+                break;
+            case "shared directory":
+                W32(input, 54, 64, true);
+                break;
+            case "extra next ifd":
+                W32(input, 102, 8, true);
+                break;
+            case "duplicate tag":
+                W16(input, 22, 0x0100, true);
+                break;
+            default:
+                break;
         }
-        Assert.Throws<InvalidDataException>(() => ExifMetadata.Parse(input));
+        _ = Assert.Throws<InvalidDataException>(() => ExifMetadata.Parse(input));
     }
 
     [Theory]
@@ -221,13 +251,25 @@ public sealed class ExifMetadataTests
         byte[] input = ThumbnailFixture();
         switch (kind)
         {
-            case "missing length": W16(input, 52, 0x0203, true); break;
-            case "zero length": W32(input, 60, 0, true); break;
-            case "out of range": W32(input, 48, uint.MaxValue, true); break;
-            case "overlap": W32(input, 48, 28, true); break;
-            case "wrong type": W16(input, 54, 3, true); break;
+            case "missing length":
+                W16(input, 52, 0x0203, true);
+                break;
+            case "zero length":
+                W32(input, 60, 0, true);
+                break;
+            case "out of range":
+                W32(input, 48, uint.MaxValue, true);
+                break;
+            case "overlap":
+                W32(input, 48, 28, true);
+                break;
+            case "wrong type":
+                W16(input, 54, 3, true);
+                break;
+            default:
+                break;
         }
-        Assert.Throws<InvalidDataException>(() => ExifMetadata.Parse(input));
+        _ = Assert.Throws<InvalidDataException>(() => ExifMetadata.Parse(input));
     }
 
     [Fact]
@@ -239,7 +281,7 @@ public sealed class ExifMetadataTests
         Entry(input, 10, 0xc100, 11, 1, 0x3f800000, false);
         Entry(input, 22, 0xc101, 12, 1, 38, false);
         Convert.FromHexString("3FF0000000000000").CopyTo(input, 38);
-        ExifMetadata metadata = ExifMetadata.Parse(input);
+        var metadata = ExifMetadata.Parse(input);
         Assert.Equal(Convert.FromHexString("0000803F"), metadata.GetEntry(ExifDirectory.Image, 0xc100)!.Value.ToArray());
         Assert.Equal(Convert.FromHexString("000000000000F03F"), metadata.GetEntry(ExifDirectory.Image, 0xc101)!.Value.ToArray());
     }
@@ -270,18 +312,18 @@ public sealed class ExifMetadataTests
             for (int index = 0; index < count; index++)
             {
                 littleValue.CopyTo(expected, index * littleValue.Length);
-                bigValue.CopyTo(input, valueOffset + index * bigValue.Length);
+                bigValue.CopyTo(input, valueOffset + (index * bigValue.Length));
                 // Distinguish adjacent elements without changing the byte-order oracle.
                 if ((index & 1) != 0)
                 {
                     for (int octet = 0; octet < littleValue.Length; octet++)
                     {
-                        expected[index * littleValue.Length + octet] ^= 255;
-                        input[valueOffset + index * bigValue.Length + octet] ^= 255;
+                        expected[(index * littleValue.Length) + octet] ^= 255;
+                        input[valueOffset + (index * bigValue.Length) + octet] ^= 255;
                     }
                 }
             }
-            ExifMetadata metadata = ExifMetadata.Parse(input);
+            var metadata = ExifMetadata.Parse(input);
             Assert.Equal(expected, metadata.GetEntry(ExifDirectory.Image, 0xc100)!.Value.ToArray());
             byte[] output = metadata.ToArray();
             Assert.Equal(input, output);
@@ -294,7 +336,9 @@ public sealed class ExifMetadataTests
     {
         byte[] fixture = DirectoryFixture(true);
         for (int length = 0; length < fixture.Length; length++)
-            Assert.Throws<InvalidDataException>(() => ExifMetadata.Parse(fixture.AsSpan(0, length)));
+        {
+            _ = Assert.Throws<InvalidDataException>(() => ExifMetadata.Parse(fixture.AsSpan(0, length)));
+        }
     }
 
     [Fact]
@@ -304,8 +348,11 @@ public sealed class ExifMetadataTests
         Header(input, true);
         W16(input, 8, 7, true);
         for (ushort i = 0; i < 7; i++)
-            Entry(input, 10 + i * 12, (ushort)(0xc100 + i), 7, 102, 100, true);
-        Assert.Throws<InvalidDataException>(() => ExifMetadata.Parse(input));
+        {
+            Entry(input, 10 + (i * 12), (ushort)(0xc100 + i), 7, 102, 100, true);
+        }
+
+        _ = Assert.Throws<InvalidDataException>(() => ExifMetadata.Parse(input));
     }
 
     [Fact]
@@ -313,7 +360,7 @@ public sealed class ExifMetadataTests
     {
         byte[] input = DirectoryFixture(true);
         W16(input, 12, 13, true);
-        Assert.Throws<NotSupportedException>(() => ExifMetadata.Parse(input));
+        _ = Assert.Throws<NotSupportedException>(() => ExifMetadata.Parse(input));
     }
 
     private static byte[] DirectoryFixture(bool littleEndian)
@@ -345,7 +392,10 @@ public sealed class ExifMetadataTests
         W16(bytes, 180, 0x8000, littleEndian);
         uint[] gps = [51, 1, 30, 1, 0, 1];
         for (int i = 0; i < gps.Length; i++)
-            W32(bytes, 182 + i * 4, gps[i], littleEndian);
+        {
+            W32(bytes, 182 + (i * 4), gps[i], littleEndian);
+        }
+
         return bytes;
     }
 
@@ -377,9 +427,12 @@ public sealed class ExifMetadataTests
         int count = U16(bytes, directory);
         for (int i = 0; i < count; i++)
         {
-            int offset = directory + 2 + i * 12;
+            int offset = directory + 2 + (i * 12);
             if (U16(bytes, offset) != tag)
+            {
                 continue;
+            }
+
             ushort type = U16(bytes, offset + 2);
             int size = type switch { 1 or 2 or 6 or 7 => 1, 3 or 8 => 2, 4 or 9 or 11 => 4, 5 or 10 or 12 => 8, _ => throw new Xunit.Sdk.XunitException("Invalid field type.") };
             uint valueCount = U32(bytes, offset + 4);
@@ -393,7 +446,9 @@ public sealed class ExifMetadataTests
     private static IEnumerable<ushort> Tags(byte[] bytes, int directory)
     {
         for (int i = 0; i < U16(bytes, directory); i++)
-            yield return U16(bytes, directory + 2 + i * 12);
+        {
+            yield return U16(bytes, directory + 2 + (i * 12));
+        }
     }
 
     private static void Header(byte[] bytes, bool littleEndian)
@@ -413,14 +468,26 @@ public sealed class ExifMetadataTests
 
     private static void W16(byte[] bytes, int offset, ushort value, bool littleEndian)
     {
-        if (littleEndian) BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(offset), value);
-        else BinaryPrimitives.WriteUInt16BigEndian(bytes.AsSpan(offset), value);
+        if (littleEndian)
+        {
+            BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(offset), value);
+        }
+        else
+        {
+            BinaryPrimitives.WriteUInt16BigEndian(bytes.AsSpan(offset), value);
+        }
     }
 
     private static void W32(byte[] bytes, int offset, uint value, bool littleEndian)
     {
-        if (littleEndian) BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset), value);
-        else BinaryPrimitives.WriteUInt32BigEndian(bytes.AsSpan(offset), value);
+        if (littleEndian)
+        {
+            BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset), value);
+        }
+        else
+        {
+            BinaryPrimitives.WriteUInt32BigEndian(bytes.AsSpan(offset), value);
+        }
     }
 
     private static ushort U16(byte[] bytes, int offset) => bytes[0] == 'I'

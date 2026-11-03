@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class RgbToXybNumericalTests
 {
@@ -51,9 +51,15 @@ public sealed class RgbToXybNumericalTests
         float[] values = [0, 0.001f, 0.01f, MathF.BitDecrement(0.04045f), 0.04045f,
             MathF.BitIncrement(0.04045f), 0.0625f, 0.25f, 0.5f, 0.75f, 1];
         foreach (float r in values)
+        {
             foreach (float g in values)
+            {
                 foreach (float b in values)
+                {
                     AssertMatchesDoubleDefinition(r, g, b);
+                }
+            }
+        }
     }
 
     [Theory]
@@ -62,10 +68,7 @@ public sealed class RgbToXybNumericalTests
     [InlineData(1.1f, 0.5f, -0.01f)]
     [InlineData(1.25f, 0f, 0f)]
     [InlineData(0.5f, -0.1f, 1.5f)]
-    public void ExtendedSrgbMirrorsTransferSignAndClampsOnlyOpsinAbsorbance(float r, float g, float b)
-    {
-        AssertMatchesDoubleDefinition(r, g, b);
-    }
+    public void ExtendedSrgbMirrorsTransferSignAndClampsOnlyOpsinAbsorbance(float r, float g, float b) => AssertMatchesDoubleDefinition(r, g, b);
 
     [Fact]
     public void NeutralRampPreservesChromaOffsetsAndIncreasingLuminance()
@@ -114,7 +117,10 @@ public sealed class RgbToXybNumericalTests
         {
             double absorbance = bias;
             for (int column = 0; column < 3; column++)
+            {
                 absorbance += matrix[row, column] * rgb[column];
+            }
+
             cones[row] = Math.Cbrt(Math.Max(0, absorbance)) - Math.Cbrt(bias);
         }
         double x = (cones[0] - cones[1]) / 2;
@@ -132,9 +138,6 @@ public sealed class RgbToXybNumericalTests
         }
     }
 
-    private static void AssertClose(double expected, float actual, double tolerance, string label)
-    {
-        Assert.True(float.IsFinite(actual) && Math.Abs(expected - actual) <= tolerance,
+    private static void AssertClose(double expected, float actual, double tolerance, string label) => Assert.True(float.IsFinite(actual) && Math.Abs(expected - actual) <= tolerance,
             $"{label}: expected {expected:R}, actual {actual:R}, tolerance {tolerance:R}.");
-    }
 }

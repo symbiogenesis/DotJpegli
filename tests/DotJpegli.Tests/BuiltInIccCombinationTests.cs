@@ -1,11 +1,11 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class BuiltInIccCombinationTests
 {
@@ -17,8 +17,8 @@ public sealed class BuiltInIccCombinationTests
         [IccTransferFunction.Rec709, IccTransferFunction.Linear, IccTransferFunction.Srgb,
          IccTransferFunction.Pq, IccTransferFunction.Dci, IccTransferFunction.Hlg];
 
-    public static TheoryData<string> NativeCases => new(NativeFixtures.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-        .Select(line => line.Trim()));
+    public static TheoryData<string> NativeCases => [with(NativeFixtures.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+        .Select(line => line.Trim()))];
 
     [Fact]
     public void PublicEnumsRetainTheNativeNamedValuesAndFactoriesDefaultToPerceptual()
@@ -30,11 +30,11 @@ public sealed class BuiltInIccCombinationTests
         Assert.Equal(288, keys.Count(key => key.Split('-')[3] != "6"));
         Assert.Equal(48, keys.Count(key => key.Split('-')[3] == "6"));
         Assert.Equal(new[] { "D65", "EqualEnergy", "Dci" }, Enum.GetNames<IccWhitePoint>());
-        Assert.Equal(new[] { 1, 10, 11 }, Enum.GetValues<IccWhitePoint>().Select(value => (int)value));
+        Assert.Equal([1, 10, 11], Enum.GetValues<IccWhitePoint>().Select(value => (int)value));
         Assert.Equal(new[] { "Srgb", "Rec2020", "DisplayP3" }, Enum.GetNames<IccPrimaries>());
-        Assert.Equal(new[] { 1, 9, 11 }, Enum.GetValues<IccPrimaries>().Select(value => (int)value));
+        Assert.Equal([1, 9, 11], Enum.GetValues<IccPrimaries>().Select(value => (int)value));
         Assert.Equal(new[] { "Rec709", "Linear", "Srgb", "Pq", "Dci", "Hlg" }, Enum.GetNames<IccTransferFunction>());
-        Assert.Equal(new[] { 1, 8, 13, 16, 17, 18 }, Enum.GetValues<IccTransferFunction>().Select(value => (int)value));
+        Assert.Equal([1, 8, 13, 16, 17, 18], Enum.GetValues<IccTransferFunction>().Select(value => (int)value));
         foreach (IccWhitePoint white in Whites)
         {
             foreach (IccTransferFunction transfer in Transfers)
@@ -42,14 +42,18 @@ public sealed class BuiltInIccCombinationTests
                 Assert.Equal(JpegliIccProfiles.CreateGrayscaleProfile(white, transfer),
                     JpegliIccProfiles.CreateGrayscaleProfile(white, transfer, IccRenderingIntent.Perceptual));
                 foreach (IccPrimaries primaries in Primaries)
+                {
                     Assert.Equal(JpegliIccProfiles.CreateRgbProfile(primaries, white, transfer),
                         JpegliIccProfiles.CreateRgbProfile(primaries, white, transfer, IccRenderingIntent.Perceptual));
+                }
             }
             Assert.Equal(JpegliIccProfiles.CreateGammaGrayscaleProfile(white, 2.2),
                 JpegliIccProfiles.CreateGammaGrayscaleProfile(white, 2.2, IccRenderingIntent.Perceptual));
             foreach (IccPrimaries primaries in Primaries)
+            {
                 Assert.Equal(JpegliIccProfiles.CreateGammaRgbProfile(primaries, white, 2.2),
                     JpegliIccProfiles.CreateGammaRgbProfile(primaries, white, 2.2, IccRenderingIntent.Perceptual));
+            }
         }
     }
 
@@ -134,21 +138,35 @@ public sealed class BuiltInIccCombinationTests
             Check("renderingIntent", () => JpegliIccProfiles.CreateGammaGrayscaleProfile(IccWhitePoint.D65, 2.2, (IccRenderingIntent)value));
         }
         foreach (double gamma in new[] { double.NaN, double.NegativeInfinity, double.PositiveInfinity, -1, 0, 0.999, 8192.001 })
+        {
             foreach (IccWhitePoint white in Whites)
+            {
                 foreach (IccRenderingIntent intent in Enum.GetValues<IccRenderingIntent>())
                 {
                     Check("gamma", () => JpegliIccProfiles.CreateGammaGrayscaleProfile(white, gamma, intent));
                     foreach (IccPrimaries primaries in Primaries)
+                    {
                         Check("gamma", () => JpegliIccProfiles.CreateGammaRgbProfile(primaries, white, gamma, intent));
+                    }
                 }
+            }
+        }
+
         foreach (double gamma in new[] { 1.0, 8192.0 })
+        {
             foreach (IccWhitePoint white in Whites)
+            {
                 foreach (IccRenderingIntent intent in Enum.GetValues<IccRenderingIntent>())
                 {
                     ValidateGamma(JpegliIccProfiles.CreateGammaGrayscaleProfile(white, gamma, intent), "kTRC", gamma);
                     foreach (IccPrimaries primaries in Primaries)
+                    {
                         ValidateGamma(JpegliIccProfiles.CreateGammaRgbProfile(primaries, white, gamma, intent), "rTRC", gamma);
+                    }
                 }
+            }
+        }
+
         static void Check(string parameter, Action create) =>
             Assert.Equal(parameter, Assert.Throws<ArgumentOutOfRangeException>(create).ParamName);
     }
@@ -166,13 +184,16 @@ public sealed class BuiltInIccCombinationTests
     {
         const int width = 19, height = 17;
         PixelComponentLayout layout = grayscale ? PixelComponentLayout.Gray : PixelComponentLayout.Rgba;
-        int components = grayscale ? 1 : 4, stride = width * components + 5;
+        int components = grayscale ? 1 : 4, stride = (width * components) + 5;
         Array source = Source(precision, width, height, stride, components), original = (Array)source.Clone();
         var options = new JpegliEncoderOptions
         {
             ColorSpace = grayscale ? JpegColorSpace.Grayscale : precision == 1 ? JpegColorSpace.Rgb : JpegColorSpace.YCbCr,
-            Distance = 1.375f, Progressive = progressive, ProgressiveRefinementBits = progressive ? 2 : 0,
-            OptimizeHuffmanTables = progressive, RestartInterval = 2
+            Distance = 1.375f,
+            Progressive = progressive,
+            ProgressiveRefinementBits = progressive ? 2 : 0,
+            OptimizeHuffmanTables = progressive,
+            RestartInterval = 2
         };
         byte[] coding = ReadIccAndCoding(Encode(source, width, height, stride, layout, options)).Coding;
         foreach (IccRenderingIntent intent in Enum.GetValues<IccRenderingIntent>())
@@ -190,7 +211,7 @@ public sealed class BuiltInIccCombinationTests
                 (byte[]? embedded, byte[] actualCoding) = ReadIccAndCoding(jpeg);
                 Assert.Equal(profile, embedded);
                 Assert.Equal(coding, actualCoding);
-                JpegDocument document = JpegDocument.Read(jpeg, progressive, 2, selected.ProgressiveRefinementBits);
+                var document = JpegDocument.Read(jpeg, progressive, 2, selected.ProgressiveRefinementBits);
                 Assert.Equal((width, height), (document.Width, document.Height));
                 Assert.Equal(grayscale ? 1 : 3, document.Components.Count);
                 using var destination = new MemoryStream();
@@ -220,7 +241,7 @@ public sealed class BuiltInIccCombinationTests
         Assert.Equal(profile[84..100], MD5.HashData(normalized));
         Dictionary<string, Tag> tags = Tags(profile);
         bool cicp = !item.Grayscale && item.Transfer != 6 &&
-            (item.White == IccWhitePoint.D65 || item.White == IccWhitePoint.Dci && item.Primaries == IccPrimaries.DisplayP3);
+            (item.White == IccWhitePoint.D65 || (item.White == IccWhitePoint.Dci && item.Primaries == IccPrimaries.DisplayP3));
         bool toneMap = cicp && item.Transfer is 3 or 5;
         Assert.Equal(toneMap ? "Lab " : "XYZ ", Signature(profile, 20));
         Assert.Equal(cicp, tags.ContainsKey("cicp"));
@@ -244,8 +265,13 @@ public sealed class BuiltInIccCombinationTests
             Tag chad = tags["chad"];
             Assert.Equal("sf32", Signature(profile, chad.Offset));
             for (int row = 0; row < 3; row++)
+            {
                 for (int column = 0; column < 3; column++)
-                    Assert.InRange(Math.Abs(Fixed(profile, chad.Offset + 8 + (row * 3 + column) * 4) - adapted[row, column]), 0, 2.0 / 65536);
+                {
+                    Assert.InRange(Math.Abs(Fixed(profile, chad.Offset + 8 + (((row * 3) + column) * 4)) - adapted[row, column]), 0, 2.0 / 65536);
+                }
+            }
+
             for (int channel = 0; channel < 3; channel++)
             {
                 double[] xyz = Multiply(adapted, [matrix[0, channel], matrix[1, channel], matrix[2, channel]]);
@@ -261,9 +287,13 @@ public sealed class BuiltInIccCombinationTests
         {
             string signature = item.Grayscale ? "kTRC" : "rTRC";
             if (item.Transfer == 6)
+            {
                 ValidateGamma(profile, signature, 2.2);
+            }
             else
+            {
                 ValidateTransfer(profile, tags[signature], Transfers[item.Transfer]);
+            }
         }
     }
 
@@ -279,8 +309,8 @@ public sealed class BuiltInIccCombinationTests
             {
                 double encoded = index / 63.0;
                 double expected = Decode(transfer, encoded);
-                int value = BinaryPrimitives.ReadUInt16BigEndian(profile.AsSpan(curve.Offset + 12 + index * 2, 2));
-                Assert.InRange(Math.Abs(value / 65535.0 - expected), 0, 2.0 / 65535);
+                int value = BinaryPrimitives.ReadUInt16BigEndian(profile.AsSpan(curve.Offset + 12 + (index * 2), 2));
+                Assert.InRange(Math.Abs((value / 65535.0) - expected), 0, 2.0 / 65535);
                 Assert.InRange(value, previous, 65535);
                 previous = value;
             }
@@ -294,7 +324,7 @@ public sealed class BuiltInIccCombinationTests
             {
                 double gamma = Fixed(profile, curve.Offset + 12), a = Fixed(profile, curve.Offset + 16),
                     b = Fixed(profile, curve.Offset + 20), c = Fixed(profile, curve.Offset + 24), threshold = Fixed(profile, curve.Offset + 28);
-                double actual = encoded >= threshold ? Math.Pow(a * encoded + b, gamma) : c * encoded;
+                double actual = encoded >= threshold ? Math.Pow((a * encoded) + b, gamma) : c * encoded;
                 Assert.InRange(Math.Abs(actual - Decode(transfer, encoded)), 0, 5e-5);
             }
         }
@@ -306,8 +336,8 @@ public sealed class BuiltInIccCombinationTests
         IccTransferFunction.Dci => Math.Pow(value, 2.6),
         IccTransferFunction.Srgb => value < 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4),
         IccTransferFunction.Rec709 => value < 0.081 ? value / 4.5 : Math.Pow((value + 0.099) / 1.099, 1 / 0.45),
-        IccTransferFunction.Pq => Math.Pow(Math.Max(Math.Pow(value, 1 / (2523.0 / 32)) - 3424.0 / 4096, 0)
-            / (2413.0 / 128 - 2392.0 / 128 * Math.Pow(value, 1 / (2523.0 / 32))), 1 / (2610.0 / 16384)),
+        IccTransferFunction.Pq => Math.Pow(Math.Max(Math.Pow(value, 1 / (2523.0 / 32)) - (3424.0 / 4096), 0)
+            / ((2413.0 / 128) - (2392.0 / 128 * Math.Pow(value, 1 / (2523.0 / 32)))), 1 / (2610.0 / 16384)),
         IccTransferFunction.Hlg => value <= 0.5 ? value * value / 3
             : (Math.Exp((value - 0.559910729529562) / 0.17883277) + 0.28466892) / 12,
         _ => throw new ArgumentOutOfRangeException(nameof(transfer))
@@ -330,8 +360,10 @@ public sealed class BuiltInIccCombinationTests
     {
         (double x, double y) = white switch
         {
-            IccWhitePoint.D65 => (0.3127, 0.3290), IccWhitePoint.EqualEnergy => (1.0 / 3, 1.0 / 3),
-            IccWhitePoint.Dci => (0.314, 0.351), _ => throw new ArgumentOutOfRangeException(nameof(white))
+            IccWhitePoint.D65 => (0.3127, 0.3290),
+            IccWhitePoint.EqualEnergy => (1.0 / 3, 1.0 / 3),
+            IccWhitePoint.Dci => (0.314, 0.351),
+            _ => throw new ArgumentOutOfRangeException(nameof(white))
         };
         return [x / y, 1, (1 - x - y) / y];
     }
@@ -354,8 +386,13 @@ public sealed class BuiltInIccCombinationTests
         }
         double[] scale = Solve(matrix, WhiteXyz(white));
         for (int row = 0; row < 3; row++)
+        {
             for (int column = 0; column < 3; column++)
+            {
                 matrix[row, column] *= scale[column];
+            }
+        }
+
         return matrix;
     }
 
@@ -368,7 +405,9 @@ public sealed class BuiltInIccCombinationTests
         {
             double[] mapped = Solve(basis, Enumerable.Range(0, 3).Select(row => basis[row, column] * destination[row] / source[row]).ToArray());
             for (int row = 0; row < 3; row++)
+            {
                 matrix[row, column] = mapped[row];
+            }
         }
         return matrix;
     }
@@ -382,24 +421,37 @@ public sealed class BuiltInIccCombinationTests
         for (int row = 0; row < 3; row++)
         {
             for (int column = 0; column < 3; column++)
+            {
                 augmented[row, column] = matrix[row, column];
+            }
+
             augmented[row, 3] = vector[row];
         }
         for (int column = 0; column < 3; column++)
         {
             int pivot = Enumerable.Range(column, 3 - column).MaxBy(row => Math.Abs(augmented[row, column]));
             for (int index = column; index < 4; index++)
+            {
                 (augmented[column, index], augmented[pivot, index]) = (augmented[pivot, index], augmented[column, index]);
+            }
+
             double divisor = augmented[column, column];
             for (int index = column; index < 4; index++)
+            {
                 augmented[column, index] /= divisor;
+            }
+
             for (int row = 0; row < 3; row++)
+            {
                 if (row != column)
                 {
                     double scale = augmented[row, column];
                     for (int index = column; index < 4; index++)
+                    {
                         augmented[row, index] -= scale * augmented[column, index];
+                    }
                 }
+            }
         }
         return [augmented[0, 3], augmented[1, 3], augmented[2, 3]];
     }
@@ -409,16 +461,18 @@ public sealed class BuiltInIccCombinationTests
         Assert.Equal("XYZ ", Signature(profile, tag.Offset));
         Assert.Equal(20, tag.Length);
         for (int component = 0; component < 3; component++)
-            Assert.InRange(Math.Abs(Fixed(profile, tag.Offset + 8 + component * 4) - expected[component]), 0, 2.0 / 65536);
+        {
+            Assert.InRange(Math.Abs(Fixed(profile, tag.Offset + 8 + (component * 4)) - expected[component]), 0, 2.0 / 65536);
+        }
     }
 
     private static Dictionary<string, Tag> Tags(byte[] profile)
     {
-        int count = Int32(profile, 128), end = 132 + count * 12;
+        int count = Int32(profile, 128), end = 132 + (count * 12);
         var tags = new Dictionary<string, Tag>();
         for (int index = 0; index < count; index++)
         {
-            int entry = 132 + index * 12;
+            int entry = 132 + (index * 12);
             var tag = new Tag(Int32(profile, entry + 4), Int32(profile, entry + 8));
             Assert.Equal(0, tag.Offset % 4);
             Assert.InRange(tag.Offset, end, profile.Length - 8);
@@ -484,7 +538,10 @@ public sealed class BuiltInIccCombinationTests
                 profile = jpeg[(offset + 18)..end];
             }
             else
+            {
                 coding.Write(jpeg.AsSpan(offset, end - offset));
+            }
+
             offset = end;
         }
         coding.Write(jpeg.AsSpan(offset));
@@ -493,13 +550,24 @@ public sealed class BuiltInIccCombinationTests
 
     private static Array Source(int kind, int width, int height, int stride, int components)
     {
-        byte[] bytes = Enumerable.Repeat((byte)0xad, (height - 1) * stride + width * components).ToArray();
+        byte[] bytes = Enumerable.Repeat((byte)0xad, ((height - 1) * stride) + (width * components)).ToArray();
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < components; channel++)
-                    bytes[y * stride + x * components + channel] = (byte)((x * 73 + y * 29 + channel * 61) % 256);
-        return kind switch { 0 => bytes, 1 => bytes.Select(value => (ushort)(value * 257)).ToArray(),
-            _ => bytes.Select(value => value / 255f).ToArray() };
+                {
+                    bytes[(y * stride) + (x * components) + channel] = (byte)(((x * 73) + (y * 29) + (channel * 61)) % 256);
+                }
+            }
+        }
+
+        return kind switch
+        {
+            0 => bytes,
+            1 => bytes.Select(value => (ushort)(value * 257)).ToArray(),
+            _ => bytes.Select(value => value / 255f).ToArray()
+        };
     }
 
     private static byte[] Encode(Array source, int width, int height, int stride, PixelComponentLayout layout, JpegliEncoderOptions options)
@@ -513,11 +581,17 @@ public sealed class BuiltInIccCombinationTests
     private static void Encode(Stream output, Array source, int width, int height, int stride, PixelComponentLayout layout, JpegliEncoderOptions options)
     {
         if (source is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, (PixelLayout)(int)layout, options, stride, TestContext.Current.CancellationToken);
+        }
         else if (source is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, layout, options, stride, TestContext.Current.CancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])source, width, height, layout, options, stride, TestContext.Current.CancellationToken);
+        }
     }
 
     private static int Int32(byte[] profile, int offset) => BinaryPrimitives.ReadInt32BigEndian(profile.AsSpan(offset, 4));

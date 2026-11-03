@@ -9,6 +9,8 @@
 // lib/jpegli/dct-inl.h (QuantizeBlock and ComputeCoefficientBlock).
 // https://github.com/google/jpegli/tree/031a0077f5799a6041004267fc12b956c1f52a20
 
+namespace DotJpegli.Internal;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -16,8 +18,6 @@ using System.Runtime.InteropServices;
 #if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
 #endif
-
-namespace DotJpegli.Internal;
 
 internal static class Quantization
 {
@@ -143,18 +143,24 @@ internal static class Quantization
     private static float[] PrepareInverseBaseQuantizers(float globalScale)
     {
         ReadOnlySpan<float> matrices = BaseMatrices;
-        var inverse = new float[matrices.Length];
+        float[] inverse = new float[matrices.Length];
         for (int index = 0; index < inverse.Length; index++)
+        {
             // Two float divisions retain the original rounding. Combining
             // the denominator or multiplying by a reciprocal changes bits.
             inverse[index] = 1f / matrices[index] / globalScale;
+        }
+
         return inverse;
     }
 
     internal static ReadOnlySpan<float> GetInverseBaseQuantizers(int cicpTransferFunction)
     {
         if (cicpTransferFunction is < 0 or > 255)
+        {
             throw new ArgumentOutOfRangeException(nameof(cicpTransferFunction));
+        }
+
         return cicpTransferFunction switch
         {
             16 => PqInverseBaseQuantizers.Values,
@@ -230,15 +236,23 @@ internal static class Quantization
     internal static float QualityToDistance(float quality)
     {
         if (!float.IsFinite(quality) || quality is < 0 or > 100)
+        {
             throw new ArgumentOutOfRangeException(nameof(quality), "Quality must be finite and between 0 and 100.");
+        }
 
         // Same polynomial as jpegli_quality_to_distance, extended to fractional
         // quality values. The C++ public function accepts integer quality.
         if (quality >= 100f)
+        {
             return 0.01f;
+        }
+
         if (quality >= 30f)
-            return 0.1f + (100f - quality) * 0.09f;
-        return 53f / 3000f * quality * quality - 23f / 20f * quality + 25f;
+        {
+            return 0.1f + ((100f - quality) * 0.09f);
+        }
+
+        return (53f / 3000f * quality * quality) - (23f / 20f * quality) + 25f;
     }
 
     /// <summary>Creates one baseline YCbCr quantization table in natural frequency order.</summary>
@@ -254,19 +268,26 @@ internal static class Quantization
         ValidateComponent(component);
         ValidateSampling(horizontalSampling, verticalSampling);
         if (!float.IsFinite(distance) || distance <= 0f)
+        {
             throw new ArgumentOutOfRangeException(nameof(distance), "Distance must be finite and greater than zero.");
+        }
 
         bool is420 = horizontalSampling == 2 && verticalSampling == 2;
         float globalScale = TransferFunctionGlobalScale(cicpTransferFunction);
         if (is420)
+        {
             globalScale *= GlobalScale420;
+        }
+
         ReadOnlySpan<float> matrix = BaseMatrices.Slice(component * BlockSize, BlockSize);
         ushort[] table = new ushort[BlockSize];
         for (int i = 0; i < table.Length; i++)
         {
             float scale = globalScale * DistanceToScale(distance, i);
             if (is420 && component > 0)
+            {
                 scale *= ChromaRescale420[i];
+            }
             // SetQuantMatrices uses std::round (ties away from zero), then
             // clamps to 255 with force_baseline, or 32767 without it.
             float quant = MathF.Round(scale * matrix[i], MidpointRounding.AwayFromZero);
@@ -293,7 +314,9 @@ internal static class Quantization
     {
         ValidateComponent(component);
         if (!float.IsFinite(distance) || distance <= 0f)
+        {
             throw new ArgumentOutOfRangeException(nameof(distance), "Distance must be finite and greater than zero.");
+        }
 
         float scale = 0.01f * DistanceToLinearQuality(distance);
         ReadOnlySpan<byte> matrix = StandardMatrices.Slice(component == 0 ? 0 : BlockSize, BlockSize);
@@ -301,8 +324,11 @@ internal static class Quantization
         // Clamp before the integer conversion, including immediately below 25
         // where DistanceToLinearQuality can exceed upstream's int32 range.
         for (int i = 0; i < table.Length; i++)
+        {
             table[i] = (ushort)Math.Clamp(MathF.Round(scale * matrix[i], MidpointRounding.AwayFromZero),
                 1f, forceBaseline ? 255f : 32767f);
+        }
+
         return table;
     }
 
@@ -310,13 +336,25 @@ internal static class Quantization
     private static float DistanceToLinearQuality(float distance)
     {
         if (distance <= 0.1f)
+        {
             return 1f;
+        }
+
         if (distance <= 4.6f)
-            return (200f / 9f) * (distance - 0.1f);
+        {
+            return 200f / 9f * (distance - 0.1f);
+        }
+
         if (distance <= 6.4f)
-            return 5000f / (100f - (distance - 0.1f) / 0.09f);
+        {
+            return 5000f / (100f - ((distance - 0.1f) / 0.09f));
+        }
+
         if (distance < 25f)
-            return 530000f / (3450f - 300f * MathF.Sqrt((848f * distance - 5330f) / 120f));
+        {
+            return 530000f / (3450f - (300f * MathF.Sqrt(((848f * distance) - 5330f) / 120f)));
+        }
+
         return 5000f;
     }
 
@@ -329,7 +367,9 @@ internal static class Quantization
         Guard.ThrowIfNull(tables);
         ValidateSampling(horizontalSampling, verticalSampling);
         if (tables.Length != (grayscale ? 1 : 3))
+        {
             throw new ArgumentException("Supply one grayscale table or three color component tables.", nameof(tables));
+        }
 
         // InitQuantizer only performs table-derived distance inference for YCbCr.
         float distance = rgb ? 1f : QuantValuesToDistance(tables, sharedChromaTable, cicpTransferFunction,
@@ -342,10 +382,10 @@ internal static class Quantization
             multipliers[component] = new float[BlockSize];
             for (int frequency = 1; frequency < BlockSize; frequency++)
             {
-                int index = component * BlockSize + frequency;
+                int index = (component * BlockSize) + frequency;
                 multipliers[component][frequency] = grayscale || rgb ? 0.5f
-                    : lowQualityMix * ZeroBiasMultipliersLowQuality[index]
-                        + highQualityMix * ZeroBiasMultipliersHighQuality[index];
+                    : (lowQualityMix * ZeroBiasMultipliersLowQuality[index])
+                        + (highQualityMix * ZeroBiasMultipliersHighQuality[index]);
             }
         }
         return multipliers;
@@ -354,10 +394,15 @@ internal static class Quantization
     private static void ValidateSampling(int horizontalSampling, int verticalSampling)
     {
         if (horizontalSampling is < 1 or > 4)
+        {
             throw new ArgumentOutOfRangeException(nameof(horizontalSampling));
+        }
+
         if (verticalSampling is < 1 or > 4 || horizontalSampling * verticalSampling > 8)
+        {
             throw new ArgumentOutOfRangeException(nameof(verticalSampling),
                 "Sampling must use 1..4 horizontal and vertical samples, and at most 10 blocks per color MCU.");
+        }
     }
 
     /// <summary>Infers upstream quantizer distance from the emitted tables.</summary>
@@ -377,14 +422,24 @@ internal static class Quantization
     {
         Guard.ThrowIfNull(tables);
         if (tables.Length is not (1 or 3))
+        {
             throw new ArgumentException("Supply one grayscale table or three YCbCr tables.", nameof(tables));
+        }
+
         if (!quantizationSelectors.IsEmpty)
         {
             if (quantizationSelectors.Length != tables.Length)
+            {
                 throw new ArgumentException("Supply one quantization selector per component.", nameof(quantizationSelectors));
+            }
+
             foreach (int selector in quantizationSelectors)
+            {
                 if (selector is < 0 or > 2)
+                {
                     throw new ArgumentOutOfRangeException(nameof(quantizationSelectors));
+                }
+            }
         }
         ReadOnlySpan<float> inverseBase = GetInverseBaseQuantizers(cicpTransferFunction);
         const float distanceLimit = 10000f;
@@ -395,7 +450,10 @@ internal static class Quantization
         {
             ushort[] table = tables[component];
             if (table is null || table.Length != BlockSize)
+            {
                 throw new ArgumentException("A quantization table requires 64 values.", nameof(tables));
+            }
+
             int tableIndex = quantizationSelectors.IsEmpty
                 ? sharedChromaTable && component > 0 ? 1 : component
                 : quantizationSelectors[component];
@@ -404,20 +462,34 @@ internal static class Quantization
             {
                 int quant = table[frequency];
                 if (quant < 1 || quant > quantMaximum)
+                {
                     throw new ArgumentException($"Quantization values must be between 1 and {quantMaximum}.", nameof(tables));
+                }
+
                 float inverseQuant = inverseTable[frequency];
                 float min = quant > 1 ? ScaleToDistance((quant - 0.5f) * inverseQuant, frequency) : 0f;
                 float max = quant < quantMaximum ? ScaleToDistance((quant + 0.5f) * inverseQuant, frequency) : distanceLimit;
                 if (min <= distanceMax)
+                {
                     distanceMin = MathF.Max(min, distanceMin);
+                }
+
                 if (max >= distanceMin)
+                {
                     distanceMax = MathF.Min(max, distanceMax);
+                }
             }
         }
         if (distanceMin == 0f)
+        {
             return distanceMax;
+        }
+
         if (distanceMax == distanceLimit)
+        {
             return distanceMin;
+        }
+
         return 0.5f * (distanceMin + distanceMax);
     }
 
@@ -468,14 +540,14 @@ internal static class Quantization
         {
             this.divisors = divisors;
             this.multipliers = multipliers;
-            AcOffset = acOffset;
-            AdaptiveQuantization = adaptiveQuantization;
-            NarrowZigZagKernel = narrowZigZagKernel;
-            UseTiledZigZag = KernelPolicy.UseTiledZigZag(narrowZigZagKernel, imageWidth, imageHeight);
+            this.AcOffset = acOffset;
+            this.AdaptiveQuantization = adaptiveQuantization;
+            this.NarrowZigZagKernel = narrowZigZagKernel;
+            this.UseTiledZigZag = KernelPolicy.UseTiledZigZag(narrowZigZagKernel, imageWidth, imageHeight);
         }
 
-        internal ReadOnlySpan<float> Divisors => divisors;
-        internal ReadOnlySpan<float> Multipliers => multipliers;
+        internal ReadOnlySpan<float> Divisors => this.divisors;
+        internal ReadOnlySpan<float> Multipliers => this.multipliers;
         internal float AcOffset { get; }
         internal bool AdaptiveQuantization { get; }
         internal KernelPreference NarrowZigZagKernel { get; }
@@ -483,13 +555,13 @@ internal static class Quantization
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal TransposedTable GetTransposed()
-            => Volatile.Read(ref transposed) ?? CreateTransposed();
+            => Volatile.Read(ref this.transposed) ?? this.CreateTransposed();
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private TransposedTable CreateTransposed()
         {
-            var created = new TransposedTable(divisors, multipliers);
-            return Interlocked.CompareExchange(ref transposed, created, null) ?? created;
+            var created = new TransposedTable(this.divisors, this.multipliers);
+            return Interlocked.CompareExchange(ref this.transposed, created, null) ?? created;
         }
 
         internal static PreparedTable Create(ReadOnlySpan<ushort> table, int component, float distance,
@@ -500,20 +572,33 @@ internal static class Quantization
         {
             ValidateComponent(component);
             if (grayscale && component != 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(component), "Grayscale has only component 0.");
-            if (!float.IsFinite(distance) || distance <= 0)
-                throw new ArgumentOutOfRangeException(nameof(distance));
-            if (table.Length < BlockSize)
-                throw new ArgumentException("A quantization table requires 64 values.", nameof(table));
-            if (adaptiveQuantization && adaptiveMultipliers.Length < BlockSize)
-                throw new ArgumentException("Adaptive quantization requires 64 multipliers.", nameof(adaptiveMultipliers));
+            }
 
-            var divisors = new float[BlockSize];
+            if (!float.IsFinite(distance) || distance <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(distance));
+            }
+
+            if (table.Length < BlockSize)
+            {
+                throw new ArgumentException("A quantization table requires 64 values.", nameof(table));
+            }
+
+            if (adaptiveQuantization && adaptiveMultipliers.Length < BlockSize)
+            {
+                throw new ArgumentException("Adaptive quantization requires 64 multipliers.", nameof(adaptiveMultipliers));
+            }
+
+            float[] divisors = new float[BlockSize];
             float[] multipliers = adaptiveQuantization ? new float[BlockSize] : [];
             for (int i = 0; i < BlockSize; i++)
             {
                 if (table[i] is < 1 or > 32767)
+                {
                     throw new ArgumentException("Quantization values must be between 1 and 32767.", nameof(table));
+                }
                 // Every valid ushort divisor is exactly representable as float.
                 // Store the divisor itself: a reciprocal would change rounding.
                 divisors[i] = table[i];
@@ -521,7 +606,10 @@ internal static class Quantization
                 {
                     float multiplier = adaptiveMultipliers[i];
                     if (!float.IsFinite(multiplier) || multiplier < 0)
+                    {
                         throw new ArgumentException("Adaptive multipliers must be finite and nonnegative.", nameof(adaptiveMultipliers));
+                    }
+
                     multipliers[i] = multiplier;
                 }
             }
@@ -542,26 +630,30 @@ internal static class Quantization
 
         internal TransposedTable(ReadOnlySpan<float> divisors, ReadOnlySpan<float> multipliers)
         {
-            adaptive = !multipliers.IsEmpty;
-            values = new float[adaptive ? 128 : 64];
+            this.adaptive = !multipliers.IsEmpty;
+            this.values = new float[this.adaptive ? 128 : 64];
             for (int row = 0; row < 8; row++)
+            {
                 for (int column = 0; column < 8; column++)
                 {
-                    values[row * 8 + column] = divisors[column * 8 + row];
-                    if (adaptive)
-                        values[64 + row * 8 + column] = multipliers[column * 8 + row];
+                    this.values[(row * 8) + column] = divisors[(column * 8) + row];
+                    if (this.adaptive)
+                    {
+                        this.values[64 + (row * 8) + column] = multipliers[(column * 8) + row];
+                    }
                 }
+            }
         }
 
         internal ReadOnlySpan<float> Divisors
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => values.AsSpan(0, 64);
+            get => this.values.AsSpan(0, 64);
         }
         internal ReadOnlySpan<float> Multipliers
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => adaptive ? values.AsSpan(64, 64) : default;
+            get => this.adaptive ? this.values.AsSpan(64, 64) : default;
         }
     }
 
@@ -578,9 +670,15 @@ internal static class Quantization
     {
         Guard.ThrowIfNull(table);
         if (output.Length < 64)
+        {
             throw new ArgumentException("A quantized block requires 64 values.", nameof(output));
+        }
+
         if (table.AdaptiveQuantization && (!float.IsFinite(adaptiveStrength) || adaptiveStrength < 0f))
+        {
             return false;
+        }
+
         ReadOnlySpan<float> divisors = transposed.Divisors;
         ReadOnlySpan<float> multipliers = transposed.Multipliers;
         bool adaptive = table.AdaptiveQuantization;
@@ -602,15 +700,24 @@ internal static class Quantization
         Vector128<short> q7 = QuantizeTransposedRow(r7, divisors.Slice(56, 8), adaptive ? multipliers.Slice(56, 8) : default,
             table.AcOffset, adaptiveStrength, adaptive, dc: false, ref valid);
         if (!valid)
+        {
             return false;
+        }
         // Explicit narrow-kernel diagnostics must exercise their selected
         // network even when this host can use the automatic wide path.
         if (Vector512.IsHardwareAccelerated && table.NarrowZigZagKernel == KernelPreference.Automatic)
+        {
             StoreTransposedZigZag512(q0, q1, q2, q3, q4, q5, q6, q7, output);
+        }
         else if (table.UseTiledZigZag)
+        {
             StoreTransposedZigZag128Tiled(q0, q1, q2, q3, q4, q5, q6, q7, output);
+        }
         else
+        {
             StoreTransposedZigZag128Original(q0, q1, q2, q3, q4, q5, q6, q7, output);
+        }
+
         return true;
     }
 
@@ -619,27 +726,39 @@ internal static class Quantization
         ReadOnlySpan<float> divisors, ReadOnlySpan<float> multipliers, float acOffset, float adaptiveStrength,
         bool adaptive, bool dc, ref bool valid)
     {
-        Vector256<float> magnitudes = Vector256.Abs(coefficients);
+        var magnitudes = Vector256.Abs(coefficients);
         valid &= Vector256.LessThanOrEqualAll(magnitudes, Vector256.Create(float.MaxValue));
         // Exact zero AC coefficients stay zero for every validated divisor
         // and adaptive bias, including negative zero and a zero threshold.
         // Keep the finite check and sticky failure state before this shortcut.
         if (!dc && Vector256.EqualsAll(coefficients, Vector256<float>.Zero))
+        {
             return Vector128<short>.Zero;
-        Vector256<float> divisorValues = Vector256.Create(divisors);
-        Vector256<float> threshold = Vector256.Create(acOffset);
+        }
+
+        var divisorValues = Vector256.Create(divisors);
+        var threshold = Vector256.Create(acOffset);
         if (adaptive)
+        {
             threshold += Vector256.Create(adaptiveStrength) * Vector256.Create(multipliers);
+        }
+
         if (!dc && CanSuppressTransposedAcRow(magnitudes, divisorValues, threshold, acOffset))
+        {
             return Vector128<short>.Zero;
+        }
+
         Vector256<float> values = coefficients / divisorValues;
         float dcValue = dc ? values.GetElement(0) : 0f;
-        Vector256<float> suppressed = Vector256.LessThan(Vector256.Abs(values), threshold);
+        var suppressed = Vector256.LessThan(Vector256.Abs(values), threshold);
         // Low-detail blocks often suppress a complete AC frequency row. Keep
         // the original division and strict bias comparison, then avoid rounding,
         // range checks and demotion when all eight results are known to be zero.
         if (!dc && suppressed.ExtractMostSignificantBits() == 0xff)
+        {
             return Vector128<short>.Zero;
+        }
+
         values = Vector256.ConditionalSelect(suppressed,
             Vector256<float>.Zero, Vector256.Round(values));
         if (dc)
@@ -653,7 +772,7 @@ internal static class Quantization
         valid &= Vector256.LessThanOrEqualAll(Vector256.Abs(acValues), Vector256.Create(1023f));
         // Successful AC values already fit +/-1023, and DC was clamped above.
         // Conversion results from an invalid lane are never stored to output.
-        Vector256<int> integers = Vector256.ConvertToInt32(values);
+        var integers = Vector256.ConvertToInt32(values);
         return Vector128.Narrow(integers.GetLower(), integers.GetUpper());
     }
 
@@ -668,8 +787,11 @@ internal static class Quantization
         // is strictly below the original threshold. Unsupported boundaries
         // and nonfinite products retain the original division path.
         if (!(acOffset >= 1e-20f))
+        {
             return false;
-        Vector256<float> cutoffs = (thresholds * Vector256.Create(1f - 1f / 1048576f)) * divisors;
+        }
+
+        Vector256<float> cutoffs = thresholds * Vector256.Create(1f - (1f / 1048576f)) * divisors;
         return Vector256.LessThanAll(magnitudes, cutoffs)
             && Vector256.LessThanOrEqualAll(cutoffs, Vector256.Create(float.MaxValue));
     }
@@ -681,9 +803,13 @@ internal static class Quantization
         KernelPreference preference = KernelPreference.Automatic)
     {
         if (KernelPolicy.UseTiledZigZag(preference))
+        {
             StoreTransposedZigZag128Tiled(q0, q1, q2, q3, q4, q5, q6, q7, output);
+        }
         else
+        {
             StoreTransposedZigZag128Original(q0, q1, q2, q3, q4, q5, q6, q7, output);
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -693,10 +819,13 @@ internal static class Quantization
     {
         // A DC-only block can bypass either network after quantization has
         // validated every coefficient. Preserve partial-buffer behavior.
-        Vector128<short> ac = ((q0.WithElement(0, (short)0) | q1) | (q2 | q3))
-            | ((q4 | q5) | (q6 | q7));
+        Vector128<short> ac = q0.WithElement(0, (short)0) | q1 | (q2 | q3)
+            | (q4 | q5 | (q6 | q7));
         if (output.Length < 64 || !Vector128.EqualsAll(ac, Vector128<short>.Zero))
+        {
             return false;
+        }
+
         output[..64].Clear();
         output[0] = q0.GetElement(0);
         return true;
@@ -708,11 +837,14 @@ internal static class Quantization
         Vector128<short> q6, Vector128<short> q7, Span<short> output)
     {
         if (TryStoreDcOnly(q0, q1, q2, q3, q4, q5, q6, q7, output))
+        {
             return;
+        }
+
         (Vector128.Shuffle(q0.AsByte(), OriginalTransposedZigZagMasks.M00)
             | Vector128.Shuffle(q1.AsByte(), OriginalTransposedZigZagMasks.M01)
             | Vector128.Shuffle(q2.AsByte(), OriginalTransposedZigZagMasks.M02)
-            | Vector128.Shuffle(q3.AsByte(), OriginalTransposedZigZagMasks.M03)).AsInt16().CopyTo(output.Slice(0, 8));
+            | Vector128.Shuffle(q3.AsByte(), OriginalTransposedZigZagMasks.M03)).AsInt16().CopyTo(output[..8]);
         (Vector128.Shuffle(q0.AsByte(), OriginalTransposedZigZagMasks.M10)
             | Vector128.Shuffle(q1.AsByte(), OriginalTransposedZigZagMasks.M11)
             | Vector128.Shuffle(q2.AsByte(), OriginalTransposedZigZagMasks.M12)
@@ -757,7 +889,9 @@ internal static class Quantization
         Vector128<short> q6, Vector128<short> q7, Span<short> output)
     {
         if (TryStoreDcOnly(q0, q1, q2, q3, q4, q5, q6, q7, output))
+        {
             return;
+        }
         // Pack adjacent columns into 2 by 4 tiles before applying the JPEG
         // permutation. Each output group now draws from two to four tiles,
         // reducing the byte shuffles from 40 to 26 and ORs from 32 to 18.
@@ -767,7 +901,7 @@ internal static class Quantization
         Vector128<byte> t4 = PackLowerHalves(q4, q5), t5 = PackUpperHalves(q4, q5);
         Vector128<byte> t6 = PackLowerHalves(q6, q7), t7 = PackUpperHalves(q6, q7);
         (Vector128.Shuffle(t0, TransposedZigZagMasks.M00)
-            | Vector128.Shuffle(t2, TransposedZigZagMasks.M02)).AsInt16().CopyTo(output.Slice(0, 8));
+            | Vector128.Shuffle(t2, TransposedZigZagMasks.M02)).AsInt16().CopyTo(output[..8]);
         (Vector128.Shuffle(t0, TransposedZigZagMasks.M10)
             | Vector128.Shuffle(t1, TransposedZigZagMasks.M11)
             | Vector128.Shuffle(t2, TransposedZigZagMasks.M12)
@@ -873,10 +1007,10 @@ internal static class Quantization
             Span<byte> mask = stackalloc byte[16];
             for (int lane = 0; lane < 8; lane++)
             {
-                int natural = JpegConstants.ZigZag[outputGroup * 8 + lane];
+                int natural = JpegConstants.ZigZag[(outputGroup * 8) + lane];
                 int source = natural % 8 == sourceGroup ? natural / 8 : -1;
                 mask[lane * 2] = source >= 0 ? (byte)(source * 2) : byte.MaxValue;
-                mask[lane * 2 + 1] = source >= 0 ? (byte)(source * 2 + 1) : byte.MaxValue;
+                mask[(lane * 2) + 1] = source >= 0 ? (byte)((source * 2) + 1) : byte.MaxValue;
             }
             return Vector128.Create(mask);
         }
@@ -920,12 +1054,12 @@ internal static class Quantization
             Span<byte> mask = stackalloc byte[16];
             for (int lane = 0; lane < 8; lane++)
             {
-                int natural = JpegConstants.ZigZag[outputGroup * 8 + lane];
+                int natural = JpegConstants.ZigZag[(outputGroup * 8) + lane];
                 int x = natural % 8, y = natural / 8;
-                int tile = (x / 2) * 2 + y / 4;
-                int source = tile == sourceGroup ? (x % 2) * 4 + y % 4 : -1;
+                int tile = (x / 2 * 2) + (y / 4);
+                int source = tile == sourceGroup ? (x % 2 * 4) + (y % 4) : -1;
                 mask[lane * 2] = source >= 0 ? (byte)(source * 2) : byte.MaxValue;
-                mask[lane * 2 + 1] = source >= 0 ? (byte)(source * 2 + 1) : byte.MaxValue;
+                mask[(lane * 2) + 1] = source >= 0 ? (byte)((source * 2) + 1) : byte.MaxValue;
             }
             return Vector128.Create(mask);
         }
@@ -935,8 +1069,8 @@ internal static class Quantization
             Span<ushort> mask = stackalloc ushort[32];
             for (int lane = 0; lane < 32; lane++)
             {
-                int natural = JpegConstants.ZigZag[outputGroup * 32 + lane];
-                int transposed = (natural % 8) * 8 + natural / 8 - sourceGroup * 32;
+                int natural = JpegConstants.ZigZag[(outputGroup * 32) + lane];
+                int transposed = (natural % 8 * 8) + (natural / 8) - (sourceGroup * 32);
                 mask[lane] = transposed is >= 0 and < 32 ? (ushort)transposed : ushort.MaxValue;
             }
             return Vector512.Create(mask);
@@ -949,16 +1083,29 @@ internal static class Quantization
     {
         Guard.ThrowIfNull(table);
         if (coefficients.Length < BlockSize)
+        {
             throw new ArgumentException("A DCT block requires 64 coefficients.", nameof(coefficients));
+        }
+
         if (output.Length < BlockSize)
+        {
             throw new ArgumentException("A quantized block requires 64 values.", nameof(output));
+        }
+
         if (table.AdaptiveQuantization && (!float.IsFinite(adaptiveStrength) || adaptiveStrength < 0))
+        {
             throw new ArgumentOutOfRangeException(nameof(adaptiveStrength));
+        }
+
         if (Vector.IsHardwareAccelerated && Vector<float>.Count < BlockSize
             && !MemoryMarshal.AsBytes(coefficients).Overlaps(MemoryMarshal.AsBytes(output)))
+        {
             QuantizePreparedVectorCore(coefficients, table, output, adaptiveStrength, previousDc, requireEightBitCoefficients);
+        }
         else
+        {
             QuantizePreparedScalarCore(coefficients, table, output, adaptiveStrength, previousDc, requireEightBitCoefficients);
+        }
     }
 
     private static void QuantizePreparedScalarCore(ReadOnlySpan<float> coefficients, PreparedTable table,
@@ -971,7 +1118,10 @@ internal static class Quantization
         for (int i = start; i < end; i++)
         {
             if (!float.IsFinite(coefficients[i]))
+            {
                 throw new ArgumentException("DCT coefficients must be finite.", nameof(coefficients));
+            }
+
             float quantized = coefficients[i] / divisors[i];
             float threshold = (i == 0 ? 0f : table.AcOffset) + (adaptive ? adaptiveStrength * multipliers[i] : 0f);
             float value = i == 0
@@ -1025,7 +1175,10 @@ internal static class Quantization
             upper = Vector.ConditionalSelect(Vector.LessThan(Vector.Abs(upper), upperThreshold),
                 Vector<float>.Zero, Vector.Round(upper));
             if (i == 0)
+            {
                 lower = Vector.WithElement(lower, 0, dc);
+            }
+
             if (requireEightBitCoefficients)
             {
                 var acMinimum = new Vector<float>(-1023f);
@@ -1041,8 +1194,8 @@ internal static class Quantization
                     return;
                 }
             }
-            Vector<int> lowerIntegers = Vector.ConvertToInt32(Vector.Clamp(lower, minimum, maximum));
-            Vector<int> upperIntegers = Vector.ConvertToInt32(Vector.Clamp(upper, minimum, maximum));
+            var lowerIntegers = Vector.ConvertToInt32(Vector.Clamp(lower, minimum, maximum));
+            var upperIntegers = Vector.ConvertToInt32(Vector.Clamp(upper, minimum, maximum));
             Vector.Narrow(lowerIntegers, upperIntegers).CopyTo(output.Slice(i, batch));
         }
         QuantizePreparedScalarCore(coefficients, table, output, adaptiveStrength, previousDc, requireEightBitCoefficients, start: i);
@@ -1062,21 +1215,41 @@ internal static class Quantization
     {
         ValidateComponent(component);
         if (grayscale && component != 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(component), "Grayscale has only component 0.");
+        }
+
         if (!float.IsFinite(distance) || distance <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(distance));
+        }
+
         if (coefficients.Length < BlockSize)
+        {
             throw new ArgumentException("A DCT block requires 64 coefficients.", nameof(coefficients));
+        }
+
         if (table.Length < BlockSize)
+        {
             throw new ArgumentException("A quantization table requires 64 values.", nameof(table));
+        }
+
         if (output.Length < BlockSize)
+        {
             throw new ArgumentException("A quantized block requires 64 values.", nameof(output));
+        }
+
         if (adaptiveQuantization)
         {
             if (!float.IsFinite(adaptiveStrength) || adaptiveStrength < 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(adaptiveStrength));
+            }
+
             if (adaptiveMultipliers.Length < BlockSize)
+            {
                 throw new ArgumentException("Adaptive quantization requires 64 multipliers.", nameof(adaptiveMultipliers));
+            }
         }
 
         float acOffset = grayscale || rgb ? (adaptiveQuantization ? 0.5f : 0f) : component switch
@@ -1092,11 +1265,15 @@ internal static class Quantization
             !MemoryMarshal.AsBytes(table).Overlaps(MemoryMarshal.AsBytes(output)) &&
             (!adaptiveQuantization ||
                 !MemoryMarshal.AsBytes(adaptiveMultipliers).Overlaps(MemoryMarshal.AsBytes(output))))
+        {
             QuantizeVectorCore(coefficients, table, output, acOffset, adaptiveQuantization,
                 adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients);
+        }
         else
+        {
             QuantizeScalarCore(coefficients, table, output, acOffset, adaptiveQuantization,
                 adaptiveStrength, adaptiveMultipliers, previousDc, requireEightBitCoefficients);
+        }
     }
 
     private static void QuantizeScalarCore(ReadOnlySpan<float> coefficients,
@@ -1107,11 +1284,19 @@ internal static class Quantization
         for (int i = start; i < end; i++)
         {
             if (table[i] is < 1 or > 32767)
+            {
                 throw new ArgumentException("Quantization values must be between 1 and 32767.", nameof(table));
+            }
+
             if (!float.IsFinite(coefficients[i]))
+            {
                 throw new ArgumentException("DCT coefficients must be finite.", nameof(coefficients));
+            }
+
             if (adaptiveQuantization && (!float.IsFinite(adaptiveMultipliers[i]) || adaptiveMultipliers[i] < 0))
+            {
                 throw new ArgumentException("Adaptive multipliers must be finite and nonnegative.", nameof(adaptiveMultipliers));
+            }
 
             // Input is in standard JPEG DCT units and is already level shifted.
             // C++ uses 1/64-scaled DCT values with an 8/quant multiplier.
@@ -1120,16 +1305,23 @@ internal static class Quantization
                 + (adaptiveQuantization ? adaptiveStrength * adaptiveMultipliers[i] : 0f);
             float value;
             if (i == 0)
+            {
                 // ComputeCoefficientBlock applies its DC threshold to the
                 // difference from the preceding block. Pinned multipliers
                 // and offsets are zero for DC, so this normally just rounds.
                 value = MathF.Abs(quantized - previousDc) < threshold ? previousDc
                     : MathF.Round(quantized, MidpointRounding.AwayFromZero);
+            }
             else if (MathF.Abs(quantized) < threshold)
+            {
                 value = 0f;
+            }
             else
+            {
                 // Highway Round in QuantizeBlock uses ties-to-even for AC.
                 value = MathF.Round(quantized, MidpointRounding.ToEven);
+            }
+
             StoreQuantizedValue(value, i, output, requireEightBitCoefficients);
         }
     }
@@ -1198,7 +1390,10 @@ internal static class Quantization
             // Reinsert the scalar DC result, including its previous-block
             // threshold, before validating or storing the complete batch.
             if (i == 0)
+            {
                 lower = Vector.WithElement(lower, 0, dc);
+            }
+
             if (requireEightBitCoefficients)
             {
                 var acMinimum = new Vector<float>(-1023f);
@@ -1216,8 +1411,8 @@ internal static class Quantization
                     return;
                 }
             }
-            Vector<int> lowerIntegers = Vector.ConvertToInt32(Vector.Clamp(lower, minimum, maximum));
-            Vector<int> upperIntegers = Vector.ConvertToInt32(Vector.Clamp(upper, minimum, maximum));
+            var lowerIntegers = Vector.ConvertToInt32(Vector.Clamp(lower, minimum, maximum));
+            var upperIntegers = Vector.ConvertToInt32(Vector.Clamp(upper, minimum, maximum));
             Vector.Narrow(lowerIntegers, upperIntegers).CopyTo(output.Slice(i, batch));
         }
         QuantizeScalarCore(coefficients, table, output, acOffset, adaptiveQuantization,
@@ -1243,8 +1438,10 @@ internal static class Quantization
         // Check before int16 demotion can hide a value through saturation.
         if (requireEightBitCoefficients &&
             (value < (index == 0 ? -1024f : -1023f) || value > 1023f))
+        {
             throw new ArgumentOutOfRangeException("coefficients",
                 "A quantized coefficient exceeds eight-bit JPEG's supported range.");
+        }
         // Saturating int16 demotion matches StoreQuantizedValue's DemoteTo.
         output[index] = (short)Math.Clamp(value, short.MinValue, short.MaxValue);
     }
@@ -1252,12 +1449,17 @@ internal static class Quantization
     internal static float DistanceToScale(float distance, int frequency)
     {
         if (distance < NonlinearThreshold)
+        {
             return distance;
+        }
+
         float exponent = FrequencyExponents[frequency];
         // For a positive finite distance, pow(distance, 1) and its unit
         // multiplier retain distance exactly; the other Max operand is smaller.
         if (exponent == 1f)
+        {
             return distance;
+        }
         // C++ uses std::pow(float, double) for the first pow due to 1.0.
         float multiplier = PreparedScales.Values[frequency].Multiplier;
         return MathF.Max(0.5f * distance, multiplier * MathF.Pow(distance, exponent));
@@ -1270,7 +1472,10 @@ internal static class Quantization
     private static float TransferFunctionGlobalScale(int cicpTransferFunction)
     {
         if (cicpTransferFunction is < 0 or > 255)
+        {
             throw new ArgumentOutOfRangeException(nameof(cicpTransferFunction));
+        }
+
         return cicpTransferFunction switch
         {
             16 => GlobalScale * 0.4f,
@@ -1282,16 +1487,24 @@ internal static class Quantization
     internal static float ScaleToDistance(float scale, int frequency)
     {
         if (scale < NonlinearThreshold)
+        {
             return scale;
+        }
+
         if (FrequencyExponents[frequency] == 1f)
+        {
             return scale;
-        ref readonly var factors = ref PreparedScales.Values[frequency];
+        }
+
+        ref readonly (float Multiplier, float InverseExponent, float InverseMultiplier) factors = ref PreparedScales.Values[frequency];
         return MathF.Min(2f * scale, factors.InverseMultiplier * MathF.Pow(scale, factors.InverseExponent));
     }
 
     private static void ValidateComponent(int component)
     {
         if (component is < 0 or > 2)
+        {
             throw new ArgumentOutOfRangeException(nameof(component), "Component must be 0 (Y), 1 (Cb) or 2 (Cr).");
+        }
     }
 }

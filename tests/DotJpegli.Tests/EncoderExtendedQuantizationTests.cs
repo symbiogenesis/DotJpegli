@@ -1,9 +1,9 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderExtendedQuantizationTests
 {
@@ -44,20 +44,22 @@ public sealed class EncoderExtendedQuantizationTests
     {
         Assert.True(new JpegliEncoderOptions().ForceBaseline);
         byte[] pixels = Pattern(19, 17, Layout(space));
-        var options = Options(space) with
+        JpegliEncoderOptions options = Options(space) with
         {
-            UseStandardQuantizationTables = standard, Progressive = true,
-            ProgressiveRefinementBits = 2, RestartInterval = 2
+            UseStandardQuantizationTables = standard,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2
         };
         byte[] expected = Encode(pixels, 19, 17, space, options);
         Assert.Equal(expected, Encode(pixels, 19, 17, space, options with { ForceBaseline = true }));
         Header header = ReadHeader(expected);
         Assert.All(header.Precisions.Values, precision => Assert.Equal(0, precision));
-        var inRange = options with { Distance = 0.5f };
+        JpegliEncoderOptions inRange = options with { Distance = 0.5f };
         Assert.Equal(Encode(pixels, 19, 17, space, inRange),
             Encode(pixels, 19, 17, space, inRange with { ForceBaseline = false }));
 
-        var coarse = options with { Distance = 30 };
+        JpegliEncoderOptions coarse = options with { Distance = 30 };
         byte[] defaultCoarse = Encode(pixels, 19, 17, space, coarse);
         Assert.Equal(defaultCoarse, Encode(pixels, 19, 17, space, coarse with { ForceBaseline = true }));
         Assert.All(ReadHeader(defaultCoarse).Tables.Values,
@@ -73,13 +75,15 @@ public sealed class EncoderExtendedQuantizationTests
     {
         ushort[] table = Enumerable.Repeat((ushort)quantizer, 64).ToArray();
         byte[] pixels = Enumerable.Repeat((byte)64, 64).ToArray();
-        var options = Options(JpegColorSpace.Grayscale) with
+        JpegliEncoderOptions options = Options(JpegColorSpace.Grayscale) with
         {
-            ForceBaseline = false, QuantizationTables = Memories([table]), AdaptiveQuantization = false
+            ForceBaseline = false,
+            QuantizationTables = Memories([table]),
+            AdaptiveQuantization = false
         };
         foreach (bool progressive in new[] { false, true })
         {
-            var mode = options with { Progressive = progressive, ProgressiveRefinementBits = progressive ? 2 : 0 };
+            JpegliEncoderOptions mode = options with { Progressive = progressive, ProgressiveRefinementBits = progressive ? 2 : 0 };
             byte[] jpeg = Encode(pixels, 8, 8, JpegColorSpace.Grayscale, mode);
             Header header = ReadHeader(jpeg);
             Assert.Equal(progressive ? 0xc2 : quantizer > 255 ? 0xc1 : 0xc0, header.Frame);
@@ -92,8 +96,10 @@ public sealed class EncoderExtendedQuantizationTests
             Assert.All(block.Coefficients[1..], value => Assert.Equal(0, value));
         }
         if (quantizer <= 255)
+        {
             Assert.Equal(Encode(pixels, 8, 8, JpegColorSpace.Grayscale, options),
                 Encode(pixels, 8, 8, JpegColorSpace.Grayscale, options with { ForceBaseline = true }));
+        }
     }
 
     [Theory]
@@ -108,20 +114,25 @@ public sealed class EncoderExtendedQuantizationTests
         // A shared single table must itself be extended; multi-table cases retain
         // a byte luma table alongside one or two sixteen-bit tables.
         if (count == 1)
-            tables[0][63] = 32767;
-        var options = Options(space) with
         {
-            ForceBaseline = false, QuantizationTables = Memories(tables), AdaptiveQuantization = false
+            tables[0][63] = 32767;
+        }
+
+        JpegliEncoderOptions options = Options(space) with
+        {
+            ForceBaseline = false,
+            QuantizationTables = Memories(tables),
+            AdaptiveQuantization = false
         };
         byte[] pixels = Pattern(8, 8, Layout(space));
         foreach (bool progressive in new[] { false, true })
         {
-            var mode = options with { Progressive = progressive, ProgressiveRefinementBits = progressive ? 2 : 0 };
+            JpegliEncoderOptions mode = options with { Progressive = progressive, ProgressiveRefinementBits = progressive ? 2 : 0 };
             byte[] jpeg = Encode(pixels, 8, 8, space, mode);
             Header header = ReadHeader(jpeg);
             Assert.Equal(progressive ? 0xc2 : 0xc1, header.Frame);
             Assert.Equal(8, header.SamplePrecision);
-            Assert.Equal(count == 1 ? new[] { 0, 0, 0 } : count == 2 ? [0, 1, 1] : [0, 1, 2], header.Selectors);
+            Assert.Equal(count == 1 ? [0, 0, 0] : count == 2 ? [0, 1, 1] : [0, 1, 2], header.Selectors);
             Assert.Equal(Enumerable.Range(0, count), header.Tables.Keys);
             int expectedLength = 2;
             for (int selector = 0; selector < count; selector++)
@@ -132,7 +143,7 @@ public sealed class EncoderExtendedQuantizationTests
                 expectedLength += 1 + (wide ? 128 : 64);
             }
             Assert.Equal(expectedLength, header.DqtLength);
-            Read(jpeg, mode);
+            _ = Read(jpeg, mode);
         }
     }
 
@@ -146,13 +157,18 @@ public sealed class EncoderExtendedQuantizationTests
         int channels = Channels(space);
         ushort[][] tables = Enumerable.Range(0, channels).Select(channel => Enumerable.Range(0, 64)
             .Select(frequency => (ushort)(frequency == 0 ? 257 + channel : frequency == 63 ? 32767
-                : frequency == 8 ? 256 : 2 + (frequency * 3 + channel * 5) % 11)).ToArray()).ToArray();
+                : frequency == 8 ? 256 : 2 + (((frequency * 3) + (channel * 5)) % 11))).ToArray()).ToArray();
         byte[] pixels = Pattern(8, 8, Layout(space));
         for (int channel = 0; channel < channels; channel++)
-            pixels[channel]++;
-        var options = Options(space) with
         {
-            ForceBaseline = false, QuantizationTables = Memories(tables), AdaptiveQuantization = false
+            pixels[channel]++;
+        }
+
+        JpegliEncoderOptions options = Options(space) with
+        {
+            ForceBaseline = false,
+            QuantizationTables = Memories(tables),
+            AdaptiveQuantization = false
         };
         byte[] jpeg = Encode(pixels, 8, 8, space, options);
         JpegDocument reference = Read(jpeg, options);
@@ -167,17 +183,19 @@ public sealed class EncoderExtendedQuantizationTests
                     / tables[component.Quantizer][natural];
                 double threshold = space == JpegColorSpace.YCbCr && wire != 0
                     ? new[] { 0.59082d, 0.58146d, 0.57988d }[inputChannel] : 0d;
-                Assert.True(Math.Abs(Math.Abs(value) % 1d - 0.5d) > 0.0001d);
+                Assert.True(Math.Abs((Math.Abs(value) % 1d) - 0.5d) > 0.0001d);
                 int expected = Math.Abs(value) < threshold ? 0 : (int)Math.Round(value,
                     wire == 0 ? MidpointRounding.AwayFromZero : MidpointRounding.ToEven);
                 Assert.Equal(expected, coefficients[wire]);
                 if (wire != 0 && expected != 0)
+                {
                     nonzeroAc++;
+                }
             }
             inputChannel++;
         }
         Assert.True(nonzeroAc > 20);
-        var progressive = options with { Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 1 };
+        JpegliEncoderOptions progressive = options with { Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 1 };
         byte[] refined = Encode(pixels, 8, 8, space, progressive);
         AssertCoefficients(reference, Read(refined, progressive));
         if (space is JpegColorSpace.Grayscale or JpegColorSpace.YCbCr)
@@ -199,9 +217,11 @@ public sealed class EncoderExtendedQuantizationTests
     public void GeneratedCoarseTablesRetainValuesAbove255(JpegColorSpace space, bool standard)
     {
         byte[] pixels = Pattern(8, 8, Layout(space));
-        var options = Options(space) with
+        JpegliEncoderOptions options = Options(space) with
         {
-            ForceBaseline = false, Distance = 30, UseStandardQuantizationTables = standard,
+            ForceBaseline = false,
+            Distance = 30,
+            UseStandardQuantizationTables = standard,
             AdaptiveQuantization = false
         };
         byte[] jpeg = Encode(pixels, 8, 8, space, options);
@@ -212,15 +232,20 @@ public sealed class EncoderExtendedQuantizationTests
         Assert.Contains(extended.Tables.Values.SelectMany(table => table), value => value > 255);
         Assert.All(extended.Tables.Values, table => Assert.All(table, value => Assert.InRange(value, (ushort)1, (ushort)32767)));
         foreach ((int selector, ushort[] table) in extended.Tables)
-            Assert.Equal(table.Select(value => (ushort)Math.Min(value, (ushort)255)), baseline.Tables[selector]);
+        {
+            Assert.Equal(table.Select(value => Math.Min(value, (ushort)255)), baseline.Tables[selector]);
+        }
+
         if (standard || space == JpegColorSpace.Rgb)
         {
             Assert.Equal(Zigzag.Select(index => (ushort)(Luma[index] * 50)), extended.Tables[0]);
             if (space == JpegColorSpace.YCbCr)
+            {
                 Assert.Equal(Zigzag.Select(index => (ushort)(Chroma[index] * 50)), extended.Tables[1]);
+            }
         }
-        Read(jpeg, options);
-        var progressive = options with { Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 1 };
+        _ = Read(jpeg, options);
+        JpegliEncoderOptions progressive = options with { Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 1 };
         AssertCoefficients(Read(jpeg, options), Read(Encode(pixels, 8, 8, space, progressive), progressive));
     }
 
@@ -233,17 +258,19 @@ public sealed class EncoderExtendedQuantizationTests
     public void ExtremeGeneratedScalesClampBeforeConversionAndFineTablesStayBaseline(JpegColorSpace space, bool standard)
     {
         byte[] pixels = Pattern(8, 8, Layout(space));
-        var options = Options(space) with
+        JpegliEncoderOptions options = Options(space) with
         {
-            ForceBaseline = false, Distance = standard ? MathF.BitDecrement(25f) : float.MaxValue,
-            UseStandardQuantizationTables = standard, AdaptiveQuantization = false
+            ForceBaseline = false,
+            Distance = standard ? MathF.BitDecrement(25f) : float.MaxValue,
+            UseStandardQuantizationTables = standard,
+            AdaptiveQuantization = false
         };
         byte[] jpeg = Encode(pixels, 8, 8, space, options);
         Header extreme = ReadHeader(jpeg);
         Assert.Equal(0xc1, extreme.Frame);
         Assert.All(extreme.Tables.Values, table => Assert.All(table, value => Assert.Equal((ushort)32767, value)));
         Assert.All(Read(jpeg, options).Blocks.Values, block => Assert.All(block.Coefficients, value => Assert.Equal(0, value)));
-        var fine = options with { Distance = float.Epsilon };
+        JpegliEncoderOptions fine = options with { Distance = float.Epsilon };
         Header fineHeader = ReadHeader(Encode(pixels, 8, 8, space, fine));
         Assert.Equal(0xc0, fineHeader.Frame);
         Assert.All(fineHeader.Precisions.Values, precision => Assert.Equal(0, precision));
@@ -308,14 +335,18 @@ public sealed class EncoderExtendedQuantizationTests
              371,350,341,336,295,413,393,350,383,305,299,269,413,374,432,2794,
              400,292,343,252,393,432,2748,3625,412,364,377,364,350,2794,3625,4997]
         ];
-        var options = Options(JpegColorSpace.YCbCr) with
+        JpegliEncoderOptions options = Options(JpegColorSpace.YCbCr) with
         {
-            ForceBaseline = false, Distance = 25,
+            ForceBaseline = false,
+            Distance = 25,
             SamplingFactors = subsampled ? new(new(2, 2), new(1, 1), new(1, 1)) : FullResolution
         };
         Header header = ReadHeader(Encode(Pattern(17, 19, PixelLayout.YCbCr24), 17, 19, JpegColorSpace.YCbCr, options));
         for (int selector = 0; selector < expected.Length; selector++)
+        {
             Assert.Equal(Zigzag.Select(natural => expected[selector][natural]), header.Tables[selector]);
+        }
+
         float inferred = Quantization.QuantValuesToDistance(expected, forceBaseline: false);
         float expectedDistance = subsampled ? 30.49681473f : 25.00033569f;
         Assert.InRange(inferred, expectedDistance - 0.00005f, expectedDistance + 0.00005f);
@@ -327,17 +358,20 @@ public sealed class EncoderExtendedQuantizationTests
     public void OutOfRangeFloatPreflightUsesExtendedQuantizersBeforeWriting(bool progressive)
     {
         float[] pixels = Enumerable.Repeat(128.5f, 64).ToArray();
-        var options = Options(JpegColorSpace.Grayscale) with
+        JpegliEncoderOptions options = Options(JpegColorSpace.Grayscale) with
         {
-            ForceBaseline = false, AllowOutOfRangeFloatSamples = true, AdaptiveQuantization = false,
+            ForceBaseline = false,
+            AllowOutOfRangeFloatSamples = true,
+            AdaptiveQuantization = false,
             QuantizationTables = Memories([Enumerable.Repeat((ushort)256, 64).ToArray()]),
-            Progressive = progressive, ProgressiveRefinementBits = progressive ? 2 : 0
+            Progressive = progressive,
+            ProgressiveRefinementBits = progressive ? 2 : 0
         };
         JpegDocument document = Read(Encode(pixels, 8, 8, JpegColorSpace.Grayscale, options), options);
         Block block = Assert.Single(document.Blocks).Value;
         Assert.Equal(1020, block.Coefficients[0]);
         Assert.All(block.Coefficients[1..], coefficient => Assert.Equal(0, coefficient));
-        var tooFine = options with
+        JpegliEncoderOptions tooFine = options with
         {
             QuantizationTables = Memories([Enumerable.Repeat((ushort)255, 64).ToArray()])
         };
@@ -359,10 +393,13 @@ public sealed class EncoderExtendedQuantizationTests
         Array pixels = Source(Pattern(width, height, Layout(space)), kind);
         ushort[][] tables = MixedTables(Channels(space));
         tables[0][63] = 256;
-        var options = Options(space) with
+        JpegliEncoderOptions options = Options(space) with
         {
-            ForceBaseline = false, QuantizationTables = Memories(tables), AdaptiveQuantization = adaptive,
-            OptimizeHuffmanTables = false, SmoothingFactor = 37,
+            ForceBaseline = false,
+            QuantizationTables = Memories(tables),
+            AdaptiveQuantization = adaptive,
+            OptimizeHuffmanTables = false,
+            SmoothingFactor = 37,
             SamplingFactors = space is JpegColorSpace.YCbCr or JpegColorSpace.Xyb
                 ? new(new(2, 2), new(1, 1), new(1, 1)) : FullResolution
         };
@@ -370,10 +407,12 @@ public sealed class EncoderExtendedQuantizationTests
         foreach ((bool progressive, int bits, bool optimize, int interval) in new[]
             { (false, 0, true, 1), (true, 0, false, 2), (true, 2, true, 1) })
         {
-            var variant = options with
+            JpegliEncoderOptions variant = options with
             {
-                Progressive = progressive, ProgressiveRefinementBits = bits,
-                OptimizeHuffmanTables = optimize, RestartInterval = interval
+                Progressive = progressive,
+                ProgressiveRefinementBits = bits,
+                OptimizeHuffmanTables = optimize,
+                RestartInterval = interval
             };
             AssertCoefficients(reference, Read(Encode(pixels, width, height, space, variant), variant));
         }
@@ -383,24 +422,27 @@ public sealed class EncoderExtendedQuantizationTests
     public void ExplicitSequentialAndProgressiveScriptsChooseFrameFromResolvedMode()
     {
         byte[] pixels = Pattern(19, 17, PixelLayout.YCbCr24);
-        var options = Options(JpegColorSpace.YCbCr) with
+        JpegliEncoderOptions options = Options(JpegColorSpace.YCbCr) with
         {
-            ForceBaseline = false, QuantizationTables = Memories(MixedTables(3)),
-            AdaptiveQuantization = false, RestartInterval = 1
+            ForceBaseline = false,
+            QuantizationTables = Memories(MixedTables(3)),
+            AdaptiveQuantization = false,
+            RestartInterval = 1
         };
         JpegDocument reference = Read(Encode(pixels, 19, 17, JpegColorSpace.YCbCr, options), options);
-        var sequential = options with
+        JpegliEncoderOptions sequential = options with
         {
-            Progressive = true, ScanScript = new JpegScan[] { new([0]), new([1]), new([2]) }
+            Progressive = true,
+            ScanScript = [new([0]), new([1]), new([2])]
         };
         byte[] separate = Encode(pixels, 19, 17, JpegColorSpace.YCbCr, sequential);
         Assert.Equal(0xc1, ReadHeader(separate).Frame);
         AssertCoefficients(reference, JpegDocument.Read(separate, false, 1,
             expectedScanScript: sequential.ScanScript, extendedQuantization: true));
-        var progressive = options with
+        JpegliEncoderOptions progressive = options with
         {
             Progressive = false,
-            ScanScript = new JpegScan[] { new([0, 1, 2], 0, 0), new([0], 1), new([1], 1), new([2], 1) }
+            ScanScript = [new([0, 1, 2], 0, 0), new([0], 1), new([1], 1), new([2], 1)]
         };
         byte[] scans = Encode(pixels, 19, 17, JpegColorSpace.YCbCr, progressive);
         Assert.Equal(0xc2, ReadHeader(scans).Frame);
@@ -415,13 +457,16 @@ public sealed class EncoderExtendedQuantizationTests
     public void InvalidExtendedValuesFailBeforeWritingForEverySourcePrecision(int invalid)
     {
         foreach (int kind in new[] { 0, 1, 2 })
+        {
             foreach ((int table, int frequency) in new[] { (0, 0), (1, 31), (2, 63) })
             {
                 ushort[][] tables = MixedTables(3);
                 tables[table][frequency] = (ushort)invalid;
-                var options = Options(JpegColorSpace.YCbCr) with
+                JpegliEncoderOptions options = Options(JpegColorSpace.YCbCr) with
                 {
-                    ForceBaseline = false, QuantizationTables = Memories(tables), Progressive = true,
+                    ForceBaseline = false,
+                    QuantizationTables = Memories(tables),
+                    Progressive = true,
                     ProgressiveRefinementBits = 2
                 };
                 using var destination = new MemoryStream();
@@ -432,6 +477,7 @@ public sealed class EncoderExtendedQuantizationTests
                 Assert.Equal(0, destination.Length);
                 Assert.False(output.Closed);
             }
+        }
     }
 
     [Theory]
@@ -440,19 +486,28 @@ public sealed class EncoderExtendedQuantizationTests
     [InlineData(2)]
     public void PaddedSourcesAndNonSeekableStreamUseSnapshottedExtendedTables(int kind)
     {
-        const int width = 19, height = 17, stride = width * 3 + 13;
+        const int width = 19, height = 17, stride = (width * 3) + 13;
         Array pixels = Source(Pattern(width, height, PixelLayout.Rgb24), kind);
-        Array padded = Array.CreateInstance(pixels.GetType().GetElementType()!, (height - 1) * stride + width * 3 + 17);
+        var padded = Array.CreateInstance(pixels.GetType().GetElementType()!, ((height - 1) * stride) + (width * 3) + 17);
         if (padded is float[] floats)
+        {
             Array.Fill(floats, float.NaN);
+        }
+
         for (int row = 0; row < height; row++)
+        {
             Array.Copy(pixels, row * width * 3, padded, row * stride, width * 3);
+        }
+
         ushort[][] tables = MixedTables(3);
         List<ReadOnlyMemory<ushort>> list = Memories(tables).ToList();
-        var options = Options(JpegColorSpace.Rgb) with
+        JpegliEncoderOptions options = Options(JpegColorSpace.Rgb) with
         {
-            ForceBaseline = false, QuantizationTables = list, Progressive = true,
-            ProgressiveRefinementBits = 2, RestartInterval = 2
+            ForceBaseline = false,
+            QuantizationTables = list,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2
         };
         byte[] expected = Encode(pixels, width, height, JpegColorSpace.Rgb, options);
         Assert.Equal(expected, Encode(padded, width, height, JpegColorSpace.Rgb, options, stride));
@@ -461,17 +516,23 @@ public sealed class EncoderExtendedQuantizationTests
         using var output = new WriteOnlyStream(destination, () =>
         {
             if (mutated)
+            {
                 return;
+            }
+
             mutated = true;
             foreach (ushort[] table in tables)
+            {
                 Array.Fill(table, (ushort)0);
+            }
+
             list.Clear();
         });
         Encode(output, padded, width, height, JpegColorSpace.Rgb, options, stride);
         Assert.True(mutated);
         Assert.False(output.Closed);
         Assert.Equal(expected, destination.ToArray());
-        Read(destination.ToArray(), options);
+        _ = Read(destination.ToArray(), options);
     }
 
     [Fact]
@@ -479,10 +540,13 @@ public sealed class EncoderExtendedQuantizationTests
     {
         const int width = 65, height = 33;
         byte[] pixels = Pattern(width, height, PixelLayout.YCbCr24);
-        var options = Options(JpegColorSpace.YCbCr) with
+        JpegliEncoderOptions options = Options(JpegColorSpace.YCbCr) with
         {
-            ForceBaseline = false, QuantizationTables = Memories(MixedTables(3)),
-            Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2
+            ForceBaseline = false,
+            QuantizationTables = Memories(MixedTables(3)),
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2
         };
         byte[] complete = Encode(pixels, width, height, JpegColorSpace.YCbCr, options);
         CancellationToken canceled = new(canceled: true);
@@ -497,7 +561,9 @@ public sealed class EncoderExtendedQuantizationTests
         using var output = new WriteOnlyStream(destination, () =>
         {
             if (destination.Length >= cancelAfter)
+            {
                 cancellation.Cancel();
+            }
         });
         OperationCanceledException during = Assert.Throws<OperationCanceledException>(() =>
             Encode(output, pixels, width, height, JpegColorSpace.YCbCr, options, cancellation: cancellation.Token));
@@ -525,7 +591,10 @@ public sealed class EncoderExtendedQuantizationTests
             Assert.InRange(length, 2, jpeg.Length - position);
             position += 2;
             if (marker == 0xda)
+            {
                 break;
+            }
+
             if (marker == 0xdb)
             {
                 Assert.Equal(0, dqtLength);
@@ -535,7 +604,7 @@ public sealed class EncoderExtendedQuantizationTests
                     int selector = jpeg[position++], elementBytes = 1 + (selector >> 4);
                     Assert.InRange(selector >> 4, 0, 1);
                     Assert.InRange(selector & 15, 0, 2);
-                    Assert.InRange(position + 64 * elementBytes, position, end);
+                    Assert.InRange(position + (64 * elementBytes), position, end);
                     ushort[] table = new ushort[64];
                     for (int wire = 0; wire < 64; wire++)
                     {
@@ -554,7 +623,7 @@ public sealed class EncoderExtendedQuantizationTests
                 precision = jpeg[position++];
                 position += 4;
                 int channels = jpeg[position++];
-                Assert.Equal(8 + channels * 3, length);
+                Assert.Equal(8 + (channels * 3), length);
                 selectors = new int[channels];
                 for (int channel = 0; channel < channels; channel++)
                 {
@@ -570,16 +639,21 @@ public sealed class EncoderExtendedQuantizationTests
         return new(frame, precision, dqtLength, precisions, tables, selectors);
     }
 
-    private static int Word(byte[] bytes, int position) => bytes[position] * 256 + bytes[position + 1];
+    private static int Word(byte[] bytes, int position) => (bytes[position] * 256) + bytes[position + 1];
 
     private static double Dct(byte[] pixels, int channels, int channel, int u, int v)
     {
         double sum = 0d;
         for (int y = 0; y < 8; y++)
+        {
             for (int x = 0; x < 8; x++)
-                sum += (pixels[(y * 8 + x) * channels + channel] - 128d)
-                    * Math.Cos(Math.PI * (2 * x + 1) * u / 16d)
-                    * Math.Cos(Math.PI * (2 * y + 1) * v / 16d);
+            {
+                sum += (pixels[(((y * 8) + x) * channels) + channel] - 128d)
+                    * Math.Cos(Math.PI * ((2 * x) + 1) * u / 16d)
+                    * Math.Cos(Math.PI * ((2 * y) + 1) * v / 16d);
+            }
+        }
+
         return sum * 0.25d * (u == 0 ? 1d / Math.Sqrt(2d) : 1d) * (v == 0 ? 1d / Math.Sqrt(2d) : 1d);
     }
 
@@ -590,15 +664,20 @@ public sealed class EncoderExtendedQuantizationTests
         Assert.Equal(expected.Components, actual.Components);
         Assert.Equal(expected.Quantizers.Keys, actual.Quantizers.Keys);
         foreach ((int selector, byte[] table) in expected.Quantizers)
+        {
             Assert.Equal(table, actual.Quantizers[selector]);
+        }
+
         Assert.Equal(expected.Blocks.Count, actual.Blocks.Count);
         foreach ((BlockKey key, Block block) in expected.Blocks.Where(pair => !pair.Value.IsDummy))
+        {
             Assert.Equal(block.Coefficients, actual.Blocks[key].Coefficients);
+        }
     }
 
     private static ushort[][] MixedTables(int count) => Enumerable.Range(0, count).Select(table => Enumerable.Range(0, 64)
-        .Select(frequency => (ushort)(table == 0 ? frequency == 63 ? 255 : 1 + frequency * 3
-            : frequency == 63 ? 32767 : frequency == 0 ? 256 : 257 + frequency * 5 + table * 11)).ToArray()).ToArray();
+        .Select(frequency => (ushort)(table == 0 ? frequency == 63 ? 255 : 1 + (frequency * 3)
+            : frequency == 63 ? 32767 : frequency == 0 ? 256 : 257 + (frequency * 5) + (table * 11))).ToArray()).ToArray();
 
     private static ReadOnlyMemory<ushort>[] Memories(ushort[][] tables) =>
         tables.Select(table => new ReadOnlyMemory<ushort>(table)).ToArray();
@@ -609,6 +688,8 @@ public sealed class EncoderExtendedQuantizationTests
         JpegColorSpace.Grayscale => PixelLayout.Gray8,
         JpegColorSpace.YCbCr => PixelLayout.YCbCr24,
         JpegColorSpace.Xyb => PixelLayout.Xyb24,
+        JpegColorSpace.Automatic => PixelLayout.Rgb24,
+        JpegColorSpace.Rgb => PixelLayout.Rgb24,
         _ => PixelLayout.Rgb24
     };
     private static PixelComponentLayout ComponentLayout(JpegColorSpace space) => space switch
@@ -616,11 +697,14 @@ public sealed class EncoderExtendedQuantizationTests
         JpegColorSpace.Grayscale => PixelComponentLayout.Gray,
         JpegColorSpace.YCbCr => PixelComponentLayout.YCbCr,
         JpegColorSpace.Xyb => PixelComponentLayout.Xyb,
+        JpegColorSpace.Automatic => PixelComponentLayout.Rgb,
+        JpegColorSpace.Rgb => PixelComponentLayout.Rgb,
         _ => PixelComponentLayout.Rgb
     };
     private static JpegliEncoderOptions Options(JpegColorSpace space) => new()
     {
-        ColorSpace = space, SamplingFactors = FullResolution,
+        ColorSpace = space,
+        SamplingFactors = FullResolution,
         IccProfile = space == JpegColorSpace.Xyb ? new byte[] { 1, 2, 3, 4 } : ReadOnlyMemory<byte>.Empty
     };
     private static Array Source(byte[] pixels, int kind) => kind switch
@@ -641,11 +725,17 @@ public sealed class EncoderExtendedQuantizationTests
     {
         CancellationToken token = cancellation ?? TestContext.Current.CancellationToken;
         if (pixels is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, Layout(space), options, stride, token);
+        }
         else if (pixels is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, ComponentLayout(space), options, stride, token);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])pixels, width, height, ComponentLayout(space), options, stride, token);
+        }
     }
     private static JpegDocument Read(byte[] jpeg, JpegliEncoderOptions options) =>
         JpegDocument.Read(jpeg, options.Progressive, options.RestartInterval, options.ProgressiveRefinementBits,

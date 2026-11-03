@@ -14,17 +14,27 @@ internal static class IndependentDct
         ReadOnlySpan<double> vertical = Cosines.AsSpan(v * 8, 8);
         double sum = 0;
         for (int y = 0; y < 8; y++)
+        {
             for (int x = 0; x < 8; x++)
-                sum += samples[y * 8 + x] * horizontal[x] * vertical[y];
+            {
+                sum += samples[(y * 8) + x] * horizontal[x] * vertical[y];
+            }
+        }
+
         return sum * 0.25 * (u == 0 ? DcScale : 1) * (v == 0 ? DcScale : 1);
     }
 
     private static double[] CreateCosines()
     {
-        var cosines = new double[64];
+        double[] cosines = new double[64];
         for (int frequency = 0; frequency < 8; frequency++)
+        {
             for (int position = 0; position < 8; position++)
-                cosines[frequency * 8 + position] = Math.Cos((2 * position + 1) * frequency * Math.PI / 16);
+            {
+                cosines[(frequency * 8) + position] = Math.Cos(((2 * position) + 1) * frequency * Math.PI / 16);
+            }
+        }
+
         return cosines;
     }
 }

@@ -1,12 +1,11 @@
+namespace DotJpegli.Parity;
+
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using DotJpegli;
-
-namespace DotJpegli.Parity;
 
 internal static class Program
 {
@@ -20,29 +19,47 @@ internal static class Program
     {
         try
         {
-            if (args.SequenceEqual(new[] { "--self-test" })) { SelfTest.Run(); Console.WriteLine("Parity harness self-test passed."); return 0; }
+            if (args.SequenceEqual(["--self-test"]))
+            { SelfTest.Run(); Console.WriteLine("Parity harness self-test passed."); return 0; }
             var options = Options.Parse(args);
             string native = options.Native, corpus = options.Corpus, output = options.Output;
             string[] naturalFiles = ValidateCorpus(corpus);
             if (Directory.Exists(output) && Directory.EnumerateFileSystemEntries(output).Any())
+            {
                 throw new InvalidDataException("Evidence output directory must be empty to prevent stale evidence.");
-            Directory.CreateDirectory(output);
+            }
+
+            _ = Directory.CreateDirectory(output);
             string inputDirectory = Path.Combine(output, "inputs"), jpegDirectory = Path.Combine(output, "jpegs");
-            Directory.CreateDirectory(inputDirectory); Directory.CreateDirectory(jpegDirectory);
+            _ = Directory.CreateDirectory(inputDirectory);
+            _ = Directory.CreateDirectory(jpegDirectory);
             string worker = Path.Combine(Path.GetTempPath(), "DotJpegli-parity-native-" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(worker);
+            _ = Directory.CreateDirectory(worker);
             string nativeVersion = (await Native(native, worker, output, "version")).Trim();
             if (!nativeVersion.Equals(UpstreamRevision, StringComparison.Ordinal))
+            {
                 throw new InvalidDataException("Native encoder does not report the pinned upstream revision.");
+            }
+
             var sources = new List<SourceImage>();
             var cases = new List<RawCase>();
             var images = new List<(string Id, string Category, string SourcePath, PpmImage Image)>();
             foreach (string path in naturalFiles)
+            {
                 images.Add((Path.GetFileNameWithoutExtension(path), "natural", Path.GetRelativePath(corpus, path).Replace('\\', '/'), PpmImage.Read(path)));
-            foreach (var (name, image) in ControlledCorpus.Create()) images.Add((name, "controlled", "generated:" + name, image));
+            }
+
+            foreach ((string? name, PpmImage? image) in ControlledCorpus.Create())
+            {
+                images.Add((name, "controlled", "generated:" + name, image));
+            }
+
             if (images.Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != images.Count)
+            {
                 throw new InvalidDataException("Corpus image IDs must be unique.");
-            foreach (var (id, category, sourcePath, image) in images)
+            }
+
+            foreach ((string? id, string? category, string? sourcePath, PpmImage? image) in images)
             {
                 string input = Path.Combine(inputDirectory, id + ".ppm");
                 image.Write(input);
@@ -57,20 +74,24 @@ internal static class Program
                             string managedPath = Path.Combine(jpegDirectory, stem + "_managed.jpg"), nativePath = Path.Combine(jpegDirectory, stem + "_native.jpg");
                             byte[] jpeg = JpegliEncoder.Encode(image.Pixels, image.Width, image.Height, PixelLayout.Rgb24, new()
                             {
-                                ColorSpace = JpegColorSpace.YCbCr, Distance = distance, ProgressiveLevel = progression,
+                                ColorSpace = JpegColorSpace.YCbCr,
+                                Distance = distance,
+                                ProgressiveLevel = progression,
                                 Subsampling = sampling == 444 ? ChromaSubsampling.None : ChromaSubsampling.Quarter,
-                                OptimizeHuffmanTables = true, AdaptiveQuantization = true, ForceBaseline = true,
+                                OptimizeHuffmanTables = true,
+                                AdaptiveQuantization = true,
+                                ForceBaseline = true,
                                 MaxDegreeOfParallelism = 1
                             });
                             await File.WriteAllBytesAsync(managedPath, jpeg);
-                            await Native(native, worker, output, "encode", input, nativePath, distance.ToString("R", CultureInfo.InvariantCulture),
+                            _ = await Native(native, worker, output, "encode", input, nativePath, distance.ToString("R", CultureInfo.InvariantCulture),
                                 sampling.ToString(CultureInfo.InvariantCulture), progression.ToString(CultureInfo.InvariantCulture), "1", "1");
                             string? structureDifference = JpegStructure.Compare(jpeg, await File.ReadAllBytesAsync(nativePath), image, sampling, progression);
                             async Task<EncodedSample> Decode(string path)
                             {
                                 string decodedPath = Path.Combine(worker, "decoded.ppm");
-                                await Native(native, worker, output, "decode", path, decodedPath);
-                                PpmImage decoded = PpmImage.Read(decodedPath);
+                                _ = await Native(native, worker, output, "decode", path, decodedPath);
+                                var decoded = PpmImage.Read(decodedPath);
                                 File.Delete(decodedPath);
                                 return new(new FileInfo(path).Length, HashFile(path), Hash(decoded.Pixels),
                                     Path.GetRelativePath(output, path).Replace('\\', '/'), QualityMetrics.Compare(image, decoded));
@@ -94,14 +115,27 @@ internal static class Program
                 nativeVersion, HashFile(native), HashFile(typeof(JpegliEncoder).Assembly.Location), HashFile(Assembly.GetExecutingAssembly().Location),
                 Environment.GetEnvironmentVariable("DOTJPEGLI_PARITY_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA"),
                 Environment.GetEnvironmentVariable("GITHUB_SHA"), Environment.GetEnvironmentVariable("GITHUB_RUN_ID"), Distances, Samplings, Progressions,
-                new { adaptiveQuantization = true, optimizeHuffman = true, forceBaselineQuantizers = true, sourcePrecision = "RGB8", outputColorSpace = "YCbCr",
-                    managedWorkers = 1, smoothing = 0, restartInterval = 0, jfif = "1.01; density unit0, X1, Y1; no ICC or other metadata",
+                new
+                {
+                    adaptiveQuantization = true,
+                    optimizeHuffman = true,
+                    forceBaselineQuantizers = true,
+                    sourcePrecision = "RGB8",
+                    outputColorSpace = "YCbCr",
+                    managedWorkers = 1,
+                    smoothing = 0,
+                    restartInterval = 0,
+                    jfif = "1.01; density unit0, X1, Y1; no ICC or other metadata",
                     commonDecoder = "pinned jpegli; RGB8, fancy upsampling, JDCT_ISLOW",
-                    jpegStructureGate = "Dimensions, precision, SOF, YCbCr ids/factors/quantizers, complete DQT values, SOS component/spectral/refinement scripts and JFIF matched; Huffman selectors/bytes may differ" },
-                new { rgbPsnr = "10*log10(255^2 / mean squared RGB sample error); exact identity capped120dB",
+                    jpegStructureGate = "Dimensions, precision, SOF, YCbCr ids/factors/quantizers, complete DQT values, SOS component/spectral/refinement scripts and JFIF matched; Huffman selectors/bytes may differ"
+                },
+                new
+                {
+                    rgbPsnr = "10*log10(255^2 / mean squared RGB sample error); exact identity capped120dB",
                     lumaSsim = "BT.601 luma .299R+.587G+.114B; disjoint8x8 windows, clipped edges; population moments; pixel-weighted mean; C1=(.01*255)^2 C2=(.03*255)^2",
                     matchedRate = "Metric-specific nondominated envelope; max quality at duplicate rates; linear metric interpolation in log(bytes); five interior anchors at .1,.3,.5,.7,.9 of common log-rate range for means; overlap endpoints and union of all four frontier knots for full interpolated-range worst bounds; no extrapolation",
-                    matchedQuality = "Inverse metric-specific envelope; five anchors at .1,.3,.5,.7,.9 of common quality range for geometric means; overlap endpoints and union of both frontier quality knots for full interpolated-range worst bounds; linear metric to log(bytes); no extrapolation" },
+                    matchedQuality = "Inverse metric-specific envelope; five anchors at .1,.3,.5,.7,.9 of common quality range for geometric means; overlap endpoints and union of both frontier quality knots for full interpolated-range worst bounds; linear metric to log(bytes); no extrapolation"
+                },
                 policy, sources.Count(source => source.Category == "natural"), sources.Count(source => source.Category == "controlled"), cases.Count, matches.Count,
                 matches.Count(item => item.IsAnchor), qualityMatches.Count, qualityMatches.Count(item => item.IsAnchor), groups, qualityGroups, exclusions, failures);
             await WriteJson(output, "sources.json", sources);
@@ -123,10 +157,19 @@ internal static class Program
     internal static string[] ValidateCorpus(string directory)
     {
         string[] files = Directory.GetFiles(directory, "*.ppm", SearchOption.AllDirectories).Order(StringComparer.Ordinal).ToArray();
-        if (files.Length != 24) throw new InvalidDataException("Natural corpus requires all 24 Kodak photographs as RGB8 P6 PPM files.");
+        if (files.Length != 24)
+        {
+            throw new InvalidDataException("Natural corpus requires all 24 Kodak photographs as RGB8 P6 PPM files.");
+        }
+
         for (int index = 1; index <= 24; index++)
+        {
             if (!files.Any(path => Path.GetFileNameWithoutExtension(path).Equals($"kodim{index:00}", StringComparison.Ordinal)))
+            {
                 throw new InvalidDataException($"Natural corpus is missing kodim{index:00}.ppm.");
+            }
+        }
+
         return files;
     }
 
@@ -137,11 +180,16 @@ internal static class Program
     private static async Task<string> Native(string executable, string workingDirectory, string output, params string[] args)
     {
         var start = new ProcessStartInfo(executable) { WorkingDirectory = workingDirectory, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
-        foreach (string arg in args) start.ArgumentList.Add(arg);
-        using var process = Process.Start(start) ?? throw new InvalidOperationException("Native process could not start.");
+        foreach (string arg in args)
+        {
+            start.ArgumentList.Add(arg);
+        }
+
+        using Process process = Process.Start(start) ?? throw new InvalidOperationException("Native process could not start.");
         Task<string> stdout = process.StandardOutput.ReadToEndAsync(), stderr = process.StandardError.ReadToEndAsync();
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(3));
-        try { await process.WaitForExitAsync(timeout.Token); }
+        try
+        { await process.WaitForExitAsync(timeout.Token); }
         catch (OperationCanceledException)
         {
             process.Kill(entireProcessTree: true);
@@ -150,38 +198,66 @@ internal static class Program
         }
         string standardOutput = await stdout, standardError = await stderr;
         await File.AppendAllTextAsync(Path.Combine(output, "native.log"), $"{JsonSerializer.Serialize(args)} exit={process.ExitCode}\n{standardOutput}{standardError}\n");
-        if (process.ExitCode != 0) throw new InvalidDataException($"Native {args[0]} failed with exit {process.ExitCode}: {standardError}");
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidDataException($"Native {args[0]} failed with exit {process.ExitCode}: {standardError}");
+        }
+
         return standardOutput;
     }
 
     private static string Report(Summary summary)
     {
         var text = new StringBuilder();
-        text.AppendLine(CultureInfo.InvariantCulture, $"# Quality and compression parity: {(summary.Passed ? "PASS" : "FAIL")}");
-        text.AppendLine(); text.AppendLine(summary.Scope); text.AppendLine();
-        text.AppendLine(CultureInfo.InvariantCulture, $"Pinned upstream: `{summary.UpstreamRevision}`. Cases: {summary.Cases}; matched-rate targets: {summary.MatchedTargets} ({summary.MatchedRateAnchors} anchors); matched-quality targets: {summary.MatchedQualityTargets} ({summary.MatchedQualityAnchors} anchors).");
-        text.AppendLine(CultureInfo.InvariantCulture, $"Tested revision: `{summary.TestedRevision ?? "not supplied"}`.");
-        text.AppendLine(); text.AppendLine("Every group and every image/target must satisfy the fixed bounds. Aggregate results never excuse an individual failure. The gate measures PSNR and this explicitly defined local luma SSIM, without a human study or Butteraugli/MS-SSIM claim.");
-        text.AppendLine(); text.AppendLine("Size limits: <=1.02 geometric mean and <=1.05 each case/target. Matched-rate PSNR delta: >=-0.10dB mean, >=-0.25dB each target. SSIM delta: >=-0.001 mean, >=-0.003 each target. Lower managed bytes and higher managed quality are accepted.");
-        text.AppendLine(); text.AppendLine("Means use five interior anchors per image. Worst bounds use those anchors, overlap endpoints and the union of both encoders' frontier knots, covering the full common piecewise-linear interpolated range. No extrapolation or unmeasured real encoder behavior between samples is claimed.");
-        text.AppendLine(); text.AppendLine("| Corpus | Sampling | Progression | Mean size ratio | Worst ratio | Mean PSNR delta dB | Worst PSNR delta dB | Mean SSIM delta | Worst SSIM delta | Verdict |");
-        text.AppendLine("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
+        _ = text.AppendLine(CultureInfo.InvariantCulture, $"# Quality and compression parity: {(summary.Passed ? "PASS" : "FAIL")}");
+        _ = text.AppendLine();
+        _ = text.AppendLine(summary.Scope);
+        _ = text.AppendLine();
+        _ = text.AppendLine(CultureInfo.InvariantCulture, $"Pinned upstream: `{summary.UpstreamRevision}`. Cases: {summary.Cases}; matched-rate targets: {summary.MatchedTargets} ({summary.MatchedRateAnchors} anchors); matched-quality targets: {summary.MatchedQualityTargets} ({summary.MatchedQualityAnchors} anchors).");
+        _ = text.AppendLine(CultureInfo.InvariantCulture, $"Tested revision: `{summary.TestedRevision ?? "not supplied"}`.");
+        _ = text.AppendLine();
+        _ = text.AppendLine("Every group and every image/target must satisfy the fixed bounds. Aggregate results never excuse an individual failure. The gate measures PSNR and this explicitly defined local luma SSIM, without a human study or Butteraugli/MS-SSIM claim.");
+        _ = text.AppendLine();
+        _ = text.AppendLine("Size limits: <=1.02 geometric mean and <=1.05 each case/target. Matched-rate PSNR delta: >=-0.10dB mean, >=-0.25dB each target. SSIM delta: >=-0.001 mean, >=-0.003 each target. Lower managed bytes and higher managed quality are accepted.");
+        _ = text.AppendLine();
+        _ = text.AppendLine("Means use five interior anchors per image. Worst bounds use those anchors, overlap endpoints and the union of both encoders' frontier knots, covering the full common piecewise-linear interpolated range. No extrapolation or unmeasured real encoder behavior between samples is claimed.");
+        _ = text.AppendLine();
+        _ = text.AppendLine("| Corpus | Sampling | Progression | Mean size ratio | Worst ratio | Mean PSNR delta dB | Worst PSNR delta dB | Mean SSIM delta | Worst SSIM delta | Verdict |");
+        _ = text.AppendLine("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
         foreach (GroupResult group in summary.Groups)
-            text.AppendLine(FormattableString.Invariant($"| {group.Category} | {group.Sampling} | {group.Progression} | {group.GeometricMeanSizeRatio:F6} | {group.WorstSizeRatio:F6} | {group.MeanPsnrDeltaDb:F6} | {group.WorstPsnrDeltaDb:F6} | {group.MeanSsimDelta:F6} | {group.WorstSsimDelta:F6} | {(group.Passed ? "PASS" : "FAIL")} |"));
-        text.AppendLine(); text.AppendLine("| Corpus | Sampling | Progression | Matched quality metric | Targets | Mean rate ratio | Worst ratio | Verdict |");
-        text.AppendLine("| --- | --- | --- | --- | ---: | ---: | ---: | --- |");
+        {
+            _ = text.AppendLine(FormattableString.Invariant($"| {group.Category} | {group.Sampling} | {group.Progression} | {group.GeometricMeanSizeRatio:F6} | {group.WorstSizeRatio:F6} | {group.MeanPsnrDeltaDb:F6} | {group.WorstPsnrDeltaDb:F6} | {group.MeanSsimDelta:F6} | {group.WorstSsimDelta:F6} | {(group.Passed ? "PASS" : "FAIL")} |"));
+        }
+
+        _ = text.AppendLine();
+        _ = text.AppendLine("| Corpus | Sampling | Progression | Matched quality metric | Targets | Mean rate ratio | Worst ratio | Verdict |");
+        _ = text.AppendLine("| --- | --- | --- | --- | ---: | ---: | ---: | --- |");
         foreach (QualityGroupResult group in summary.MatchedQualityGroups)
-            text.AppendLine(FormattableString.Invariant($"| {group.Category} | {group.Sampling} | {group.Progression} | {group.Metric} | {group.MatchedTargets} ({group.AnchorTargets} anchors) | {group.GeometricMeanSizeRatio:F6} | {group.WorstSizeRatio:F6} | {(group.Passed ? "PASS" : "FAIL")} |"));
-        text.AppendLine(); text.AppendLine("Raw samples, source hashes, decoded hashes, settings, bounds and failures are in the JSON files; JPEGs and exact RGB inputs are retained. Decoder PPM scratch is discarded after its hash and metrics are recorded.");
+        {
+            _ = text.AppendLine(FormattableString.Invariant($"| {group.Category} | {group.Sampling} | {group.Progression} | {group.Metric} | {group.MatchedTargets} ({group.AnchorTargets} anchors) | {group.GeometricMeanSizeRatio:F6} | {group.WorstSizeRatio:F6} | {(group.Passed ? "PASS" : "FAIL")} |"));
+        }
+
+        _ = text.AppendLine();
+        _ = text.AppendLine("Raw samples, source hashes, decoded hashes, settings, bounds and failures are in the JSON files; JPEGs and exact RGB inputs are retained. Decoder PPM scratch is discarded after its hash and metrics are recorded.");
         if (summary.MatchedQualityExclusions.Count > 0)
         {
-            text.AppendLine(); text.AppendLine("Matched-quality exclusions (no extrapolation):"); text.AppendLine();
-            foreach (string exclusion in summary.MatchedQualityExclusions) text.AppendLine("- " + exclusion);
+            _ = text.AppendLine();
+            _ = text.AppendLine("Matched-quality exclusions (no extrapolation):");
+            _ = text.AppendLine();
+            foreach (string exclusion in summary.MatchedQualityExclusions)
+            {
+                _ = text.AppendLine("- " + exclusion);
+            }
         }
         if (summary.Failures.Count > 0)
         {
-            text.AppendLine(); text.AppendLine("Gate failures:"); text.AppendLine();
-            foreach (string failure in summary.Failures) text.AppendLine("- " + failure);
+            _ = text.AppendLine();
+            _ = text.AppendLine("Gate failures:");
+            _ = text.AppendLine();
+            foreach (string failure in summary.Failures)
+            {
+                _ = text.AppendLine("- " + failure);
+            }
         }
         return text.ToString();
     }
@@ -191,13 +267,25 @@ internal sealed record Options(string Native, string Corpus, string Output)
 {
     public static Options Parse(string[] args)
     {
-        if (args.Length != 6) throw new ArgumentException("Usage: DotJpegli.Parity --native PATH --corpus DIRECTORY --output EMPTY_DIRECTORY; or --self-test.");
+        if (args.Length != 6)
+        {
+            throw new ArgumentException("Usage: DotJpegli.Parity --native PATH --corpus DIRECTORY --output EMPTY_DIRECTORY; or --self-test.");
+        }
+
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
         for (int index = 0; index < args.Length; index += 2)
+        {
             if (args[index] is not ("--native" or "--corpus" or "--output") || !values.TryAdd(args[index], Path.GetFullPath(args[index + 1])))
+            {
                 throw new ArgumentException("Unknown or duplicate parity option.");
+            }
+        }
+
         if (values.Count != 3 || !File.Exists(values["--native"]) || !Directory.Exists(values["--corpus"]))
+        {
             throw new ArgumentException("Native executable and corpus directory must exist.");
+        }
+
         return new(values["--native"], values["--corpus"], values["--output"]);
     }
 }

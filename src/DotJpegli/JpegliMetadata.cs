@@ -1,9 +1,11 @@
+namespace DotJpegli;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+#if !NETSTANDARD2_1
 using System.Text;
+#endif
 using DotJpegli.Internal;
-
-namespace DotJpegli;
 
 /// <summary>Opt-in reconciliation of structured metadata before encoding.</summary>
 public static class JpegliMetadata
@@ -32,21 +34,36 @@ public static class JpegliMetadata
     {
         Guard.ThrowIfNull(options);
         if (width is < 1 or > 65535)
+        {
             throw new ArgumentOutOfRangeException(nameof(width));
+        }
+
         if (height is < 1 or > 65535)
+        {
             throw new ArgumentOutOfRangeException(nameof(height));
+        }
+
         edits ??= new();
         if (edits.Orientation is < 1 or > 8)
+        {
             throw new ArgumentOutOfRangeException(nameof(edits), "Orientation must be between 1 and 8.");
+        }
+
         if (edits.ExifColorSpace is int colorSpace && colorSpace is not (1 or 65535))
+        {
             throw new ArgumentOutOfRangeException(nameof(edits), "Exif ColorSpace must be 1 or 65535.");
+        }
+
         ValidateText(edits.Artist, 32, nameof(edits.Artist));
         ValidateText(edits.Copyright, 128, nameof(edits.Copyright));
         ValidateText(edits.Description, 2000, nameof(edits.Description));
         cancellationToken.ThrowIfCancellationRequested();
         if (!string.IsNullOrEmpty(options.ExtendedXmpPacket))
+        {
             throw new ArgumentException("Reconciliation requires a combined XMP tree; merge manual extended XMP first.",
                 nameof(options));
+        }
+
         (options with { AutoPartitionXmp = true }).Validate();
         RejectConflictingMarkers(options, cancellationToken);
 
@@ -74,19 +91,24 @@ public static class JpegliMetadata
         if (edits.Artist is string artist)
         {
             SetExifText(exif, 0x013b, artist);
-            xmp.Remove(new(TiffNamespace, "Artist"));
+            _ = xmp.Remove(new(TiffNamespace, "Artist"));
             var name = new XmpPropertyName(DcNamespace, "creator");
             if (artist.Length == 0)
-                xmp.Remove(name);
+            {
+                _ = xmp.Remove(name);
+            }
             else
+            {
                 xmp.SetStringArray(name, [artist], ordered: true);
+            }
+
             iptc.SetTextValues(80, artist.Length == 0 ? [] : [artist]);
         }
         ReconcileLocalizedText(exif, xmp, iptc, edits.Copyright, 0x8298, "Copyright", "rights", 116);
         ReconcileLocalizedText(exif, xmp, iptc, edits.Description, 0x010e, "ImageDescription", "description", 120);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var result = options with
+        JpegliEncoderOptions result = options with
         {
             ExifData = exif.ToArray(),
             XmpPacket = xmp.ToPacket(),
@@ -105,12 +127,12 @@ public static class JpegliMetadata
     {
         if (options.DensityUnit == JpegDensityUnit.Unspecified)
         {
-            exif.Remove(ExifDirectory.Image, 0x011a);
-            exif.Remove(ExifDirectory.Image, 0x011b);
-            exif.Remove(ExifDirectory.Image, 0x0128);
-            xmp.Remove(new(TiffNamespace, "XResolution"));
-            xmp.Remove(new(TiffNamespace, "YResolution"));
-            xmp.Remove(new(TiffNamespace, "ResolutionUnit"));
+            _ = exif.Remove(ExifDirectory.Image, 0x011a);
+            _ = exif.Remove(ExifDirectory.Image, 0x011b);
+            _ = exif.Remove(ExifDirectory.Image, 0x0128);
+            _ = xmp.Remove(new(TiffNamespace, "XResolution"));
+            _ = xmp.Remove(new(TiffNamespace, "YResolution"));
+            _ = xmp.Remove(new(TiffNamespace, "ResolutionUnit"));
             return;
         }
         ushort resolutionUnit = options.DensityUnit == JpegDensityUnit.DotsPerInch ? (ushort)2 : (ushort)3;
@@ -128,23 +150,35 @@ public static class JpegliMetadata
         string? text, ushort tag, string alias, string property, byte dataset)
     {
         if (text is null)
+        {
             return;
+        }
+
         SetExifText(exif, tag, text);
-        xmp.Remove(new(TiffNamespace, alias));
+        _ = xmp.Remove(new(TiffNamespace, alias));
         var name = new XmpPropertyName(DcNamespace, property);
         if (text.Length == 0)
-            xmp.Remove(name);
+        {
+            _ = xmp.Remove(name);
+        }
         else
+        {
             xmp.SetLocalizedText(name, "x-default", text);
+        }
+
         iptc.SetTextValues(dataset, text.Length == 0 ? [] : [text]);
     }
 
     private static void SetExifText(ExifMetadata exif, ushort tag, string text)
     {
         if (text.Length == 0)
-            exif.Remove(ExifDirectory.Image, tag);
+        {
+            _ = exif.Remove(ExifDirectory.Image, tag);
+        }
         else
+        {
             exif.SetAscii(ExifDirectory.Image, tag, text);
+        }
     }
 
     private static void SetNumber(XmpMetadata xmp, string ns, string name, int value) =>
@@ -153,9 +187,14 @@ public static class JpegliMetadata
     private static void ValidateText(string? text, int maximum, string name)
     {
         if (text is null)
+        {
             return;
+        }
+
         if (text.Length > maximum || text.AsSpan().Contains('\0') || !Ascii.IsValid(text))
+        {
             throw new ArgumentException($"{name} must be ASCII without NUL and at most {maximum} bytes.", name);
+        }
     }
 
     [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly", Justification = "Option validation identifies the conflicting MetadataMarkers property in ParamName.")]
@@ -174,8 +213,10 @@ public static class JpegliMetadata
                 _ => false
             };
             if (conflict)
+            {
                 throw new ArgumentException("Reconciliation requires recognized raw metadata to be merged into " +
                     "the built-in fields first.", nameof(options.MetadataMarkers));
+            }
         }
     }
 }

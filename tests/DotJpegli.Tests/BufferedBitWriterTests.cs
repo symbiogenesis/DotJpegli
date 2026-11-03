@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class BufferedBitWriterTests
 {
@@ -46,7 +46,10 @@ public sealed class BufferedBitWriterTests
             int count = random.Next(33);
             uint bits = (uint)random.NextInt64(0, 1L << 32);
             if (count != 32)
+            {
                 bits &= (1U << count) - 1;
+            }
+
             eager.WriteBits(bits, count);
             buffered.WriteBits(bits, count);
             if (index % 157 == 156)
@@ -93,9 +96,9 @@ public sealed class BufferedBitWriterTests
         var writer = new BitWriter(output, buffered: true);
         writer.WriteBits(0x42, 8);
         writer.WriteBits(0, 1);
-        Assert.Throws<ArgumentOutOfRangeException>(() => writer.WriteBits(3, 1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => writer.WriteBits(0, 33));
-        Assert.Throws<ArgumentOutOfRangeException>(() => writer.WriteRestartMarker(restartIndex));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => writer.WriteBits(3, 1));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => writer.WriteBits(0, 33));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => writer.WriteRestartMarker(restartIndex));
         Assert.Equal(0, output.Length);
         writer.Flush();
         Assert.Equal(new byte[] { 0x42, 0x7f }, output.ToArray());
@@ -149,11 +152,17 @@ public sealed class BufferedBitWriterTests
         {
             byte[] bytes = [0xfe, 0, 0x7f, 0x80, 1, 0xfe, 0, 0x42];
             if (stuffedByte >= 0)
+            {
                 bytes[stuffedByte] = 0xff;
+            }
+
             using var actual = new MemoryStream();
             var writer = new BitWriter(actual, buffered: true);
             foreach (byte value in bytes)
+            {
                 writer.WriteBits(value, 8);
+            }
+
             writer.Flush();
             Assert.Equal(bytes.SelectMany(value => value == 0xff ? new byte[] { 0xff, 0 } : [value]).ToArray(), actual.ToArray());
         }
@@ -169,8 +178,12 @@ public sealed class BufferedBitWriterTests
         IOException error = Assert.Throws<IOException>(() =>
         {
             if (atCapacity)
+            {
                 for (int index = 0; index < 4096; index++)
+                {
                     writer.WriteBits(0x42, 8);
+                }
+            }
             else
             {
                 writer.WriteBits(0xff, 8);
@@ -191,32 +204,38 @@ public sealed class BufferedBitWriterTests
         internal IOException? Failure { get; init; }
         public override bool CanRead => false;
         public override bool CanSeek => false;
-        public override bool CanWrite => destination.CanWrite;
-        public override long Length => destination.Length;
-        public override long Position { get => destination.Position; set => throw new NotSupportedException(); }
-        public override void Flush() => Flushes++;
+        public override bool CanWrite => this.destination.CanWrite;
+        public override long Length => this.destination.Length;
+        public override long Position { get => this.destination.Position; set => throw new NotSupportedException(); }
+        public override void Flush() => this.Flushes++;
         public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
+        public override void Write(byte[] buffer, int offset, int count) => this.Write(buffer.AsSpan(offset, count));
         public override void Write(ReadOnlySpan<byte> buffer)
         {
-            if (Failure is not null)
-                throw Failure;
-            SpanWrites++;
-            MaximumWrite = Math.Max(MaximumWrite, buffer.Length);
-            destination.Write(buffer);
+            if (this.Failure is not null)
+            {
+                throw this.Failure;
+            }
+
+            this.SpanWrites++;
+            this.MaximumWrite = Math.Max(this.MaximumWrite, buffer.Length);
+            this.destination.Write(buffer);
         }
         public override void WriteByte(byte value)
         {
-            ByteWrites++;
-            destination.WriteByte(value);
+            this.ByteWrites++;
+            this.destination.WriteByte(value);
         }
-        internal byte[] ToArray() => destination.ToArray();
+        internal byte[] ToArray() => this.destination.ToArray();
         protected override void Dispose(bool disposing)
         {
             if (disposing)
-                destination.Dispose();
+            {
+                this.destination.Dispose();
+            }
+
             base.Dispose(disposing);
         }
     }

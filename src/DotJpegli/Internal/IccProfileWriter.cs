@@ -1,12 +1,12 @@
 // Copyright (c) the JPEG XL Project Authors.
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
 
+namespace DotJpegli.Internal;
+
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
-
-namespace DotJpegli.Internal;
 
 // ICC v4 serialization, ported from lib/cms/jpegli_cms_internal.h,
 // google/jpegli 031a0077f5799a6041004267fc12b956c1f52a20.
@@ -58,7 +58,9 @@ internal static class IccProfileWriter
 #if NETSTANDARD2_1
         using var md5 = MD5.Create();
         if (!md5.TryComputeHash(bytes, digest, out _))
+        {
             throw new InvalidOperationException("The MD5 destination is too short.");
+        }
 #else
         MD5.HashData(bytes, digest);
 #endif
@@ -85,28 +87,37 @@ internal static class IccProfileWriter
             double source = 0, destination = 0;
             for (int column = 0; column < 3; column++)
             {
-                source += (double)bradford[row * 3 + column] * white[column];
-                destination += (double)bradford[row * 3 + column] * d50[column];
+                source += (double)bradford[(row * 3) + column] * white[column];
+                destination += (double)bradford[(row * 3) + column] * d50[column];
             }
             float scale = (float)destination / (float)source;
             for (int column = 0; column < 3; column++)
-                adapted[row * 3 + column] = (float)((double)scale * bradford[row * 3 + column]);
+            {
+                adapted[(row * 3) + column] = (float)((double)scale * bradford[(row * 3) + column]);
+            }
         }
         for (int row = 0; row < 3; row++)
+        {
             for (int column = 0; column < 3; column++)
             {
                 double value = 0;
                 for (int index = 0; index < 3; index++)
-                    value += (double)inverse[row * 3 + index] * adapted[index * 3 + column];
-                Fixed(tag, 8 + (row * 3 + column) * 4, (float)value);
+                {
+                    value += (double)inverse[(row * 3) + index] * adapted[(index * 3) + column];
+                }
+
+                Fixed(tag, 8 + (((row * 3) + column) * 4), (float)value);
             }
+        }
     }
 
     internal static void WriteChromaticAdaptation(Span<byte> tag, ReadOnlySpan<float> matrix)
     {
         Signature(tag, 0, "sf32"u8);
         for (int index = 0; index < 9; index++)
-            Fixed(tag, 8 + index * 4, matrix[index]);
+        {
+            Fixed(tag, 8 + (index * 4), matrix[index]);
+        }
     }
 
     internal static void Mluc(Span<byte> tag, string text)
@@ -117,7 +128,7 @@ internal static class IccProfileWriter
         Signature(tag, 16, "enUS"u8);
         UInt32(tag, 20, (uint)(text.Length * 2));
         UInt32(tag, 24, 28);
-        Encoding.BigEndianUnicode.GetBytes(text, tag[28..]);
+        _ = Encoding.BigEndianUnicode.GetBytes(text, tag[28..]);
     }
 
     internal static void Curve(Span<byte> tag, ReadOnlySpan<float> parameters, ushort type)
@@ -125,12 +136,14 @@ internal static class IccProfileWriter
         Signature(tag, 0, "para"u8);
         UInt16(tag, 8, type);
         for (int index = 0; index < parameters.Length; index++)
-            Fixed(tag, 12 + index * 4, parameters[index]);
+        {
+            Fixed(tag, 12 + (index * 4), parameters[index]);
+        }
     }
 
     internal static void Tag(Span<byte> profile, int index, ReadOnlySpan<byte> signature, uint offset, uint size)
     {
-        int position = 132 + index * 12;
+        int position = 132 + (index * 12);
         Signature(profile, position, signature);
         UInt32(profile, position + 4, offset);
         UInt32(profile, position + 8, size);

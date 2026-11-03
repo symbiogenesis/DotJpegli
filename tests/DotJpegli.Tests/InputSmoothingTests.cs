@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class InputSmoothingTests
 {
@@ -42,16 +42,18 @@ public sealed class InputSmoothingTests
         int sampleHeight, int component, int smoothingFactor, uint firstBlock,
         uint seamBlock, uint edgeBlock)
     {
-        const int width = 17, height = 19, stride = width * 3 + 7;
+        const int width = 17, height = 19, stride = (width * 3) + 7;
         byte[] rgb = Enumerable.Repeat((byte)0xED, height * stride).ToArray();
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
             {
-                int offset = y * stride + x * 3;
-                rgb[offset] = (byte)((x * 73 + y * 29 + 11) & 255);
-                rgb[offset + 1] = (byte)((x * 17 + y * 97 + 83) & 255);
-                rgb[offset + 2] = (byte)((x * 43 + y * 7 + 191) & 255);
+                int offset = (y * stride) + (x * 3);
+                rgb[offset] = (byte)(((x * 73) + (y * 29) + 11) & 255);
+                rgb[offset + 1] = (byte)(((x * 17) + (y * 97) + 83) & 255);
+                rgb[offset + 2] = (byte)(((x * 43) + (y * 7) + 191) & 255);
             }
+        }
 
         // These blocks exercise the top/left border, real neighbors across
         // block seams, and distinct actual/first-padded/further-padded pixels.
@@ -102,16 +104,23 @@ public sealed class InputSmoothingTests
         Downsampling.FillBlock(gray, 3, 3, 5, 1, PixelLayout.Gray8, 0,
             0, 0, 1, 1, samples, smoothingFactor);
         for (int row = 0; row < 8; row++)
+        {
             for (int column = 0; column < 8; column++)
-                Assert.Equal(expected[Math.Min(row, 3) * 4 + Math.Min(column, 3)],
-                    BitConverter.SingleToUInt32Bits(samples[row * 8 + column]));
+            {
+                Assert.Equal(expected[(Math.Min(row, 3) * 4) + Math.Min(column, 3)],
+                    BitConverter.SingleToUInt32Bits(samples[(row * 8) + column]));
+            }
+        }
     }
 
     private static uint HashBits(ReadOnlySpan<float> samples)
     {
         uint hash = 2166136261u;
         foreach (float sample in samples)
+        {
             hash = unchecked((hash ^ BitConverter.SingleToUInt32Bits(sample)) * 16777619u);
+        }
+
         return hash;
     }
 }

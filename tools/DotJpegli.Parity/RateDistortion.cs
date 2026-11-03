@@ -13,8 +13,14 @@ internal static class RateDistortion
             .Select(group => new CurvePoint(group.Key, group.Max(point => point.Quality))).OrderBy(point => point.Bytes))
         {
             if (point.Bytes <= 0 || !double.IsFinite(point.Quality))
+            {
                 throw new InvalidDataException("Rate-distortion samples must have positive rates and finite metrics.");
-            if (frontier.Count == 0 || point.Quality > frontier[^1].Quality) frontier.Add(point);
+            }
+
+            if (frontier.Count == 0 || point.Quality > frontier[^1].Quality)
+            {
+                frontier.Add(point);
+            }
         }
         return frontier;
     }
@@ -22,14 +28,17 @@ internal static class RateDistortion
     public static double Interpolate(IReadOnlyList<CurvePoint> curve, double bytes)
     {
         if (curve.Count < 2 || !double.IsFinite(bytes) || bytes < curve[0].Bytes || bytes > curve[^1].Bytes)
+        {
             throw new InvalidDataException("No supported rate-distortion interval; extrapolation is prohibited.");
+        }
+
         for (int index = 1; index < curve.Count; index++)
         {
             if (bytes <= curve[index].Bytes)
             {
                 CurvePoint a = curve[index - 1], b = curve[index];
                 double fraction = (Math.Log(bytes) - Math.Log(a.Bytes)) / (Math.Log(b.Bytes) - Math.Log(a.Bytes));
-                return a.Quality + fraction * (b.Quality - a.Quality);
+                return a.Quality + (fraction * (b.Quality - a.Quality));
             }
         }
         throw new InvalidDataException("Unreachable rate-distortion interpolation point.");
@@ -38,24 +47,34 @@ internal static class RateDistortion
     public static double[] Targets(params IReadOnlyList<CurvePoint>[] curves)
     {
         if (curves.Length == 0 || curves.Any(curve => curve.Count < 2))
+        {
             throw new InvalidDataException("At least two nondominated points are required in every metric curve.");
+        }
+
         double minimum = curves.Max(curve => (double)curve[0].Bytes), maximum = curves.Min(curve => (double)curve[^1].Bytes);
-        if (minimum >= maximum) throw new InvalidDataException("No common rate-distortion range.");
+        if (minimum >= maximum)
+        {
+            throw new InvalidDataException("No common rate-distortion range.");
+        }
+
         return TargetFractions
-            .Select(fraction => Math.Exp(Math.Log(minimum) + fraction * (Math.Log(maximum) - Math.Log(minimum)))).ToArray();
+            .Select(fraction => Math.Exp(Math.Log(minimum) + (fraction * (Math.Log(maximum) - Math.Log(minimum))))).ToArray();
     }
 
     public static double Invert(IReadOnlyList<CurvePoint> curve, double quality)
     {
         if (curve.Count < 2 || !double.IsFinite(quality) || quality < curve[0].Quality || quality > curve[^1].Quality)
+        {
             throw new InvalidDataException("No supported quality interval; extrapolation is prohibited.");
+        }
+
         for (int index = 1; index < curve.Count; index++)
         {
             if (quality <= curve[index].Quality)
             {
                 CurvePoint a = curve[index - 1], b = curve[index];
                 double fraction = (quality - a.Quality) / (b.Quality - a.Quality);
-                return Math.Exp(Math.Log(a.Bytes) + fraction * (Math.Log(b.Bytes) - Math.Log(a.Bytes)));
+                return Math.Exp(Math.Log(a.Bytes) + (fraction * (Math.Log(b.Bytes) - Math.Log(a.Bytes))));
             }
         }
         throw new InvalidDataException("Unreachable quality interpolation point.");
@@ -63,10 +82,18 @@ internal static class RateDistortion
 
     public static double[] QualityTargets(IReadOnlyList<CurvePoint> managed, IReadOnlyList<CurvePoint> native)
     {
-        if (managed.Count < 2 || native.Count < 2) throw new InvalidDataException("Constant or insufficient quality curve.");
+        if (managed.Count < 2 || native.Count < 2)
+        {
+            throw new InvalidDataException("Constant or insufficient quality curve.");
+        }
+
         double minimum = Math.Max(managed[0].Quality, native[0].Quality), maximum = Math.Min(managed[^1].Quality, native[^1].Quality);
-        if (minimum >= maximum) throw new InvalidDataException("No common quality range.");
-        return TargetFractions.Select(fraction => minimum + fraction * (maximum - minimum)).ToArray();
+        if (minimum >= maximum)
+        {
+            throw new InvalidDataException("No common quality range.");
+        }
+
+        return TargetFractions.Select(fraction => minimum + (fraction * (maximum - minimum))).ToArray();
     }
 
     public static double[] WorstRateTargets(params IReadOnlyList<CurvePoint>[] curves)

@@ -1,9 +1,9 @@
+namespace DotJpegli.Internal;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
-
-namespace DotJpegli.Internal;
 
 /// <summary>Partitions an oversized XMP tree without splitting individual properties.</summary>
 internal static class AutomaticXmpPartitioning
@@ -24,23 +24,35 @@ internal static class AutomaticXmpPartitioning
     {
         var names = new HashSet<XName>();
         if (options.StandardXmpProperties is not { Count: > 0 } properties)
+        {
             return names;
+        }
+
         if (!options.AutoPartitionXmp)
+        {
             throw new ArgumentException("Selecting standard XMP properties requires automatic partitioning.",
                 nameof(options.StandardXmpProperties));
+        }
+
         foreach (XmpPropertyName property in properties)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 if (string.IsNullOrEmpty(property.NamespaceUri) || string.IsNullOrEmpty(property.LocalName))
+                {
                     throw new XmlException("Property names require a namespace URI and local name.");
-                XmlConvert.VerifyNCName(property.LocalName);
-                XName name = XName.Get(property.LocalName, property.NamespaceUri);
+                }
+
+                _ = XmlConvert.VerifyNCName(property.LocalName);
+                var name = XName.Get(property.LocalName, property.NamespaceUri);
                 if (name.Namespace == Rdf || name.Namespace == Meta || name.Namespace == XNamespace.Xml ||
                     name.Namespace == XNamespace.Xmlns || name == Link)
+                {
                     throw new XmlException("Envelope and digest-link names cannot be selected as properties.");
-                names.Add(name);
+                }
+
+                _ = names.Add(name);
             }
             catch (XmlException error)
             {
@@ -65,7 +77,10 @@ internal static class AutomaticXmpPartitioning
                 cancellationToken.ThrowIfCancellationRequested();
                 ReadOnlySpan<byte> chunk = chunks.Read();
                 if (chunk.IsEmpty)
+                {
                     return null;
+                }
+
                 length += chunk.Length;
             }
         }
@@ -88,28 +103,34 @@ internal static class AutomaticXmpPartitioning
             };
             using var input = new CancellableReader(packet, cancellationToken);
             using var reader = XmlReader.Create(input, settings);
-            XDocument document = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
+            var document = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
             XElement? root = document.Root;
             XElement? rdf = root?.Name == Rdf + "RDF" ? root
                 : root?.Name == Meta + "xmpmeta" && root.Elements().Count() == 1
                     ? root.Element(Rdf + "RDF") : null;
             if (rdf is null || HasNonWhitespaceText(root!) || HasNonWhitespaceText(rdf) || !rdf.Elements().Any() ||
                 rdf.Elements().Any(element => element.Name != Rdf + "Description"))
+            {
                 throw new ArgumentException(message, nameof(JpegliEncoderOptions.XmpPacket));
+            }
 
             foreach (XElement description in rdf.Elements())
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (!string.IsNullOrEmpty((string?)description.Attribute(Rdf + "about")) ||
                     description.Attribute(Rdf + "ID") is not null || description.Attribute(Rdf + "nodeID") is not null)
+                {
                     throw new ArgumentException(message, nameof(JpegliEncoderOptions.XmpPacket));
+                }
             }
             foreach (XElement element in root!.DescendantsAndSelf())
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (element.Name == Link || element.Attribute(Link) is not null ||
                     element.Nodes().OfType<XProcessingInstruction>().Any(instruction => instruction.Target == "xpacket"))
+                {
                     throw new ArgumentException(message, nameof(JpegliEncoderOptions.XmpPacket));
+                }
             }
 
             // Serialize only the original root: declarations, document padding
@@ -124,7 +145,10 @@ internal static class AutomaticXmpPartitioning
                 standardRoot = new XElement(root.Name, root.Attributes());
                 XElement standardRdf = root == rdf ? standardRoot : new XElement(rdf.Name, rdf.Attributes());
                 if (root != rdf)
+                {
                     standardRoot.Add(standardRdf);
+                }
+
                 foreach (XElement description in rdf.Elements())
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -135,9 +159,14 @@ internal static class AutomaticXmpPartitioning
                         cancellationToken.ThrowIfCancellationRequested();
                         if (attribute.IsNamespaceDeclaration || attribute.Name.Namespace == Rdf ||
                             attribute.Name.Namespace == XNamespace.Xml || selection.Contains(attribute.Name))
+                        {
                             standardDescription.Add(new XAttribute(attribute));
+                        }
+
                         if (selection.Contains(attribute.Name))
+                        {
                             attribute.Remove();
+                        }
                     }
                     foreach (XElement property in description.Elements().ToArray())
                     {
@@ -171,8 +200,11 @@ internal static class AutomaticXmpPartitioning
         cancellationToken.ThrowIfCancellationRequested();
         if (packet.Length > JpegMarkerWriter.MaxXmpPacketBytes ||
             JpegMarkerWriter.XmpEncoding.GetByteCount(packet) > JpegMarkerWriter.MaxXmpPacketBytes)
+        {
             throw new ArgumentOutOfRangeException(nameof(JpegliEncoderOptions.StandardXmpProperties),
                 "The selected properties, XML envelope and digest link must fit in 65,504 UTF-8 bytes.");
+        }
+
         return packet;
     }
 

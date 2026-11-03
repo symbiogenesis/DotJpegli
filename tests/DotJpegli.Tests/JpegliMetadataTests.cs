@@ -1,10 +1,10 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using System.Text;
 using System.Xml.Linq;
 using StbImageSharp;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class JpegliMetadataTests
 {
@@ -20,11 +20,17 @@ public sealed class JpegliMetadataTests
     {
         var original = new JpegliEncoderOptions
         {
-            DensityUnit = unit, HorizontalDensity = 300, VerticalDensity = 150, Quality = 73
+            DensityUnit = unit,
+            HorizontalDensity = 300,
+            VerticalDensity = 150,
+            Quality = 73
         };
         JpegliEncoderOptions result = Reconcile(original, 13, 7, new()
         {
-            Orientation = 6, Artist = "Ada", Copyright = "Copyright 2026", Description = "A portrait",
+            Orientation = 6,
+            Artist = "Ada",
+            Copyright = "Copyright 2026",
+            Description = "A portrait",
             ExifColorSpace = 1
         });
         Assert.Equal(73, result.Quality);
@@ -49,7 +55,7 @@ public sealed class JpegliMetadataTests
         Assert.Equal("Copyright 2026", Ascii(tiff, image, 0x8298));
         Assert.Equal("A portrait", Ascii(tiff, image, 0x010e));
 
-        XElement xml = XElement.Parse(result.XmpPacket!);
+        var xml = XElement.Parse(result.XmpPacket!);
         Assert.Equal("13", Property(xml, Tiff + "ImageWidth").Value);
         Assert.Equal("7", Property(xml, Tiff + "ImageLength").Value);
         Assert.Equal("13", Property(xml, Exif + "PixelXDimension").Value);
@@ -64,7 +70,7 @@ public sealed class JpegliMetadataTests
         AssertLocalized(xml, "rights", "Copyright 2026");
         AssertLocalized(xml, "description", "A portrait");
 
-        var iim = ReadIim(result.IptcData.ToArray());
+        Dictionary<(byte, byte), List<byte[]>> iim = ReadIim(result.IptcData.ToArray());
         Assert.Equal(new byte[] { 0x1b, 0x25, 0x47 }, Assert.Single(iim[(1, 90)]));
         Assert.Equal(new byte[] { 0, 4 }, Assert.Single(iim[(2, 0)]));
         Assert.Equal("Ada", Encoding.UTF8.GetString(Assert.Single(iim[(2, 80)])));
@@ -88,9 +94,9 @@ public sealed class JpegliMetadataTests
         sourceExif.SetAscii(ExifDirectory.Image, 0x010f, "Camera");
         byte[] tiff = sourceExif.ToArray();
         var source = new JpegliEncoderOptions { XmpPacket = packet, ExifData = tiff };
-        var result = Reconcile(source, 1, 1,
+        JpegliEncoderOptions result = Reconcile(source, 1, 1,
             new() { Artist = "New", Copyright = "Notice", Description = "Scene" });
-        XElement xml = XElement.Parse(result.XmpPacket!);
+        var xml = XElement.Parse(result.XmpPacket!);
         Assert.Empty(xml.DescendantsAndSelf().Attributes(Tiff + "Artist"));
         Assert.Empty(xml.Descendants(Tiff + "Copyright"));
         Assert.Empty(xml.DescendantsAndSelf().Attributes(Tiff + "Copyright"));
@@ -107,16 +113,24 @@ public sealed class JpegliMetadataTests
     [Fact]
     public void UnspecifiedDensityRemovesStalePhysicalResolutionAndKeepsJfifAspectRatio()
     {
-        var previous = Reconcile(new() { DensityUnit = JpegDensityUnit.DotsPerInch,
-            HorizontalDensity = 300, VerticalDensity = 300 }, 2, 2);
-        var result = Reconcile(previous with { DensityUnit = JpegDensityUnit.Unspecified,
-            HorizontalDensity = 2, VerticalDensity = 1 }, 2, 2);
+        JpegliEncoderOptions previous = Reconcile(new()
+        {
+            DensityUnit = JpegDensityUnit.DotsPerInch,
+            HorizontalDensity = 300,
+            VerticalDensity = 300
+        }, 2, 2);
+        JpegliEncoderOptions result = Reconcile(previous with
+        {
+            DensityUnit = JpegDensityUnit.Unspecified,
+            HorizontalDensity = 2,
+            VerticalDensity = 1
+        }, 2, 2);
         byte[] tiff = result.ExifData.ToArray();
         int image = (int)U32(tiff, 4);
         Assert.Null(Entry(tiff, image, 0x011a));
         Assert.Null(Entry(tiff, image, 0x011b));
         Assert.Null(Entry(tiff, image, 0x0128));
-        XElement xml = XElement.Parse(result.XmpPacket!);
+        var xml = XElement.Parse(result.XmpPacket!);
         Assert.Empty(xml.Descendants(Tiff + "XResolution"));
         Assert.Empty(xml.Descendants(Tiff + "YResolution"));
         Assert.Empty(xml.Descendants(Tiff + "ResolutionUnit"));
@@ -127,24 +141,24 @@ public sealed class JpegliMetadataTests
     [Fact]
     public void NullDescriptiveEditsPreserveValuesAndEmptyEditsRemoveAllRepresentations()
     {
-        var previous = Reconcile(new(), 1, 1,
+        JpegliEncoderOptions previous = Reconcile(new(), 1, 1,
             new() { Artist = "Ada", Copyright = "Notice", Description = "Scene", ExifColorSpace = 65535 });
-        var kept = Reconcile(previous, 2, 2);
+        JpegliEncoderOptions kept = Reconcile(previous, 2, 2);
         Assert.Equal(previous.IptcData.ToArray(), kept.IptcData.ToArray());
         Assert.Equal(65535u, Unsigned(kept.ExifData.ToArray(),
             (int)Unsigned(kept.ExifData.ToArray(), (int)U32(kept.ExifData.Span, 4), 0x8769), 0xa001));
-        var cleared = Reconcile(kept, 2, 2,
+        JpegliEncoderOptions cleared = Reconcile(kept, 2, 2,
             new() { Artist = "", Copyright = "", Description = "" });
         byte[] tiff = cleared.ExifData.ToArray();
         int image = (int)U32(tiff, 4);
         Assert.Null(Entry(tiff, image, 0x013b));
         Assert.Null(Entry(tiff, image, 0x8298));
         Assert.Null(Entry(tiff, image, 0x010e));
-        XElement xml = XElement.Parse(cleared.XmpPacket!);
+        var xml = XElement.Parse(cleared.XmpPacket!);
         Assert.Empty(xml.Descendants(Dc + "creator"));
         Assert.Empty(xml.Descendants(Dc + "rights"));
         Assert.Empty(xml.Descendants(Dc + "description"));
-        var iim = ReadIim(cleared.IptcData.ToArray());
+        Dictionary<(byte, byte), List<byte[]>> iim = ReadIim(cleared.IptcData.ToArray());
         Assert.False(iim.ContainsKey((2, 80)));
         Assert.False(iim.ContainsKey((2, 116)));
         Assert.False(iim.ContainsKey((2, 120)));
@@ -154,13 +168,13 @@ public sealed class JpegliMetadataTests
     public void DropsTheCompleteStaleThumbnailDirectory()
     {
         var exif = new ExifMetadata();
-        exif.SetJpegThumbnail(new byte[] { 0xff, 0xd8, 0xff, 0xd9 });
+        exif.SetJpegThumbnail([0xff, 0xd8, 0xff, 0xd9]);
         exif.SetUnsignedLong(ExifDirectory.Thumbnail, 0x0100, 99);
         byte[] original = exif.ToArray();
-        var result = Reconcile(new() { ExifData = original }, 3, 2);
+        JpegliEncoderOptions result = Reconcile(new() { ExifData = original }, 3, 2);
         byte[] bytes = result.ExifData.ToArray();
         int image = (int)U32(bytes, 4);
-        Assert.Equal(0u, U32(bytes, image + 2 + 12 * U16(bytes, image)));
+        Assert.Equal(0u, U32(bytes, image + 2 + (12 * U16(bytes, image))));
         Assert.NotNull(ExifMetadata.Parse(original).GetJpegThumbnail());
         Assert.Null(ExifMetadata.Parse(bytes).GetJpegThumbnail());
     }
@@ -170,7 +184,7 @@ public sealed class JpegliMetadataTests
     {
         byte[] legacyIim = [0x1c, 2, 5, 0, 1, 0xe9];
         byte[] iimCopy = legacyIim.ToArray();
-        Assert.Throws<InvalidOperationException>(() => Reconcile(new() { IptcData = legacyIim },
+        _ = Assert.Throws<InvalidOperationException>(() => Reconcile(new() { IptcData = legacyIim },
             1, 1, new() { Artist = "Ada" }));
         Assert.Equal(iimCopy, legacyIim);
 
@@ -185,7 +199,7 @@ public sealed class JpegliMetadataTests
         BinaryPrimitives.WriteUInt32LittleEndian(unsafeExif.AsSpan(14), 1);
         unsafeExif[18] = 0x55;
         byte[] exifCopy = unsafeExif.ToArray();
-        Assert.Throws<NotSupportedException>(() => Reconcile(new() { ExifData = unsafeExif }, 1, 1));
+        _ = Assert.Throws<NotSupportedException>(() => Reconcile(new() { ExifData = unsafeExif }, 1, 1));
         Assert.Equal(exifCopy, unsafeExif);
     }
 
@@ -196,7 +210,7 @@ public sealed class JpegliMetadataTests
     {
         byte[] pixels = [255, 0, 0, 0, 255, 0, 0, 0, 255, 111, 97, 35];
         var options = new JpegliEncoderOptions { Progressive = progressive };
-        var reconciled = Reconcile(options, 2, 2, new() { Artist = "Ada" });
+        JpegliEncoderOptions reconciled = Reconcile(options, 2, 2, new() { Artist = "Ada" });
         byte[] reference = JpegliEncoder.Encode(pixels, 2, 2, options: options, cancellationToken: TestContext.Current.CancellationToken);
         byte[] actual = JpegliEncoder.Encode(pixels, 2, 2, options: reconciled, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(CodingBytes(reference), CodingBytes(actual));
@@ -217,20 +231,17 @@ public sealed class JpegliMetadataTests
     [InlineData(0xe1, "http://ns.adobe.com/xap/1.0/\0")]
     [InlineData(0xe1, "http://ns.adobe.com/xmp/extension/\0")]
     [InlineData(0xed, "Photoshop 3.0\0")]
-    public void RejectsConflictingRecognizedRawMarkers(int code, string signature)
+    public void RejectsConflictingRecognizedRawMarkers(int code, string signature) => Assert.Throws<ArgumentException>(() => Reconcile(new()
     {
-        Assert.Throws<ArgumentException>(() => Reconcile(new()
-        {
-            MetadataMarkers = [new(code, Encoding.ASCII.GetBytes(signature))]
-        }, 1, 1));
-    }
+        MetadataMarkers = [new(code, Encoding.ASCII.GetBytes(signature))]
+    }, 1, 1));
 
     [Fact]
     public void RetainsUnknownRawMarkersAndOpaqueIcc()
     {
         JpegMetadataMarker marker = new(0xe1, "private"u8.ToArray());
         byte[] icc = [1, 2, 3];
-        var result = Reconcile(new() { MetadataMarkers = [marker], IccProfile = icc }, 1, 1);
+        JpegliEncoderOptions result = Reconcile(new() { MetadataMarkers = [marker], IccProfile = icc }, 1, 1);
         Assert.Same(marker, Assert.Single(result.MetadataMarkers!));
         Assert.Equal(icc, result.IccProfile.ToArray());
     }
@@ -238,7 +249,7 @@ public sealed class JpegliMetadataTests
     [Fact]
     public void RejectsManualExtensionAndStaleDigestLinks()
     {
-        Assert.Throws<ArgumentException>(() => Reconcile(new()
+        _ = Assert.Throws<ArgumentException>(() => Reconcile(new()
         {
             ExtendedXmpPacket = "<extension/>"
         }, 1, 1));
@@ -246,7 +257,7 @@ public sealed class JpegliMetadataTests
             <r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:n="http://ns.adobe.com/xmp/note/">
             <r:Description r:about="" n:HasExtendedXMP="ABC"/></r:RDF>
             """;
-        Assert.Throws<InvalidOperationException>(() => Reconcile(new() { XmpPacket = packet }, 1, 1));
+        _ = Assert.Throws<InvalidOperationException>(() => Reconcile(new() { XmpPacket = packet }, 1, 1));
     }
 
     [Fact]
@@ -255,12 +266,12 @@ public sealed class JpegliMetadataTests
         var xml = new XmpMetadata();
         XmpPropertyName large = new("urn:custom", "large");
         xml.SetSimpleProperty(large, new string('x', 70_000));
-        var result = Reconcile(new() { XmpPacket = xml.ToPacket() }, 1, 1);
+        JpegliEncoderOptions result = Reconcile(new() { XmpPacket = xml.ToPacket() }, 1, 1);
         Assert.True(result.AutoPartitionXmp);
         Assert.Contains(new string('x', 70_000), result.XmpPacket);
-        byte[] jpeg = JpegliEncoder.Encode(new byte[] { 255, 0, 0 }, 1, 1, options: result, cancellationToken: TestContext.Current.CancellationToken);
+        byte[] jpeg = JpegliEncoder.Encode([255, 0, 0], 1, 1, options: result, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(jpeg.Length > 70_000);
-        Assert.Throws<ArgumentOutOfRangeException>(() => Reconcile(result with
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Reconcile(result with
         {
             StandardXmpProperties = [large]
         }, 1, 1));
@@ -282,13 +293,13 @@ public sealed class JpegliMetadataTests
         byte[] bytes = exif.ToArray();
         byte[] copy = bytes.ToArray();
         var options = new JpegliEncoderOptions { ExifData = bytes };
-        Assert.Throws<ArgumentOutOfRangeException>(() => Reconcile(options, 1, 1, new() { Orientation = 9 }));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Reconcile(options, 1, 1, new() { ExifColorSpace = 2 }));
-        Assert.Throws<ArgumentException>(() => Reconcile(options, 1, 1, new() { Artist = "René" }));
-        Assert.Throws<ArgumentException>(() => Reconcile(options, 1, 1, new() { Artist = "A\0B" }));
-        Assert.Throws<ArgumentException>(() => Reconcile(options, 1, 1, new() { Artist = new string('A', 33) }));
-        Assert.Throws<ArgumentException>(() => Reconcile(options, 1, 1, new() { Copyright = new string('A', 129) }));
-        Assert.Throws<ArgumentException>(() => Reconcile(options, 1, 1, new() { Description = new string('A', 2001) }));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Reconcile(options, 1, 1, new() { Orientation = 9 }));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Reconcile(options, 1, 1, new() { ExifColorSpace = 2 }));
+        _ = Assert.Throws<ArgumentException>(() => Reconcile(options, 1, 1, new() { Artist = "René" }));
+        _ = Assert.Throws<ArgumentException>(() => Reconcile(options, 1, 1, new() { Artist = "A\0B" }));
+        _ = Assert.Throws<ArgumentException>(() => Reconcile(options, 1, 1, new() { Artist = new string('A', 33) }));
+        _ = Assert.Throws<ArgumentException>(() => Reconcile(options, 1, 1, new() { Copyright = new string('A', 129) }));
+        _ = Assert.Throws<ArgumentException>(() => Reconcile(options, 1, 1, new() { Description = new string('A', 2001) }));
         Assert.Equal(copy, bytes);
     }
 
@@ -297,7 +308,7 @@ public sealed class JpegliMetadataTests
     {
         using var source = new CancellationTokenSource();
         source.Cancel();
-        var exception = Assert.Throws<OperationCanceledException>(() => JpegliMetadata.Reconcile(new()
+        OperationCanceledException exception = Assert.Throws<OperationCanceledException>(() => JpegliMetadata.Reconcile(new()
         {
             ExifData = new byte[] { 1 }
         }, 1, 1, cancellationToken: source.Token));
@@ -325,9 +336,11 @@ public sealed class JpegliMetadataTests
         int count = U16(bytes, directory);
         for (int index = 0; index < count; index++)
         {
-            int entry = directory + 2 + index * 12;
+            int entry = directory + 2 + (index * 12);
             if (U16(bytes, entry) == tag)
+            {
                 return entry;
+            }
         }
         return null;
     }
@@ -367,11 +380,14 @@ public sealed class JpegliMetadataTests
         while (offset < bytes.Length)
         {
             Assert.Equal(0x1c, bytes[offset]);
-            var key = (bytes[offset + 1], bytes[offset + 2]);
+            (byte, byte) key = (bytes[offset + 1], bytes[offset + 2]);
             int length = BinaryPrimitives.ReadUInt16BigEndian(bytes.AsSpan(offset + 3));
             Assert.True(length < 0x8000);
             if (!result.TryGetValue(key, out List<byte[]>? values))
+            {
                 result.Add(key, values = []);
+            }
+
             values.Add(bytes.AsSpan(offset + 5, length).ToArray());
             offset += 5 + length;
         }

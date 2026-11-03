@@ -1,6 +1,6 @@
-using System.Text;
-
 namespace DotJpegli.Internal;
+
+using System.Text;
 
 internal static class JpegMarkerWriter
 {
@@ -44,8 +44,13 @@ internal static class JpegMarkerWriter
         for (int table = 0; table < tableCount; table++)
         {
             foreach (ushort value in quantization[table])
+            {
                 if (value > 255)
+                {
                     wideTables[table] = true;
+                }
+            }
+
             quantizationLength += wideTables[table] ? 129 : 65;
             baseline &= !wideTables[table];
         }
@@ -68,13 +73,15 @@ internal static class JpegMarkerWriter
                     tableBytes[length++] = (byte)value;
                 }
                 else
+                {
                     tableBytes[length++] = checked((byte)value);
+                }
             }
             output.Write(tableBytes[..length]);
         }
 
         Marker(output, options.Progressive ? (byte)0xc2 : baseline ? (byte)0xc0 : (byte)0xc1);
-        Word(output, 8 + quantization.Length * 3);
+        Word(output, 8 + (quantization.Length * 3));
         output.WriteByte(8);
         Word(output, height);
         Word(output, width);
@@ -132,14 +139,17 @@ internal static class JpegMarkerWriter
         {
             var chunks = new ExtendedXmpMetadata.Utf8Chunks(extendedXmp.Packet);
             Span<byte> digest = stackalloc byte[32];
-            Encoding.ASCII.GetBytes(extendedXmp.Digest, digest);
+            _ = Encoding.ASCII.GetBytes(extendedXmp.Digest, digest);
             uint offset = 0;
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 ReadOnlySpan<byte> chunk = chunks.Read();
                 if (chunk.IsEmpty)
+                {
                     break;
+                }
+
                 Marker(output, 0xe1);
                 Word(output, chunk.Length + 77);
                 output.Write("http://ns.adobe.com/xmp/extension/\0"u8);
@@ -185,7 +195,9 @@ internal static class JpegMarkerWriter
             DoubleWord(output, (uint)iptc.Length);
             output.Write(iptc);
             if (padding != 0)
+            {
                 output.WriteByte(0);
+            }
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -222,7 +234,7 @@ internal static class JpegMarkerWriter
         int selectedComponent = acComponent >= 0 ? acComponent : singleComponent;
         int scanComponents = selectedComponent < 0 ? componentCount : 1;
         Marker(output, 0xda);
-        Word(output, 6 + scanComponents * 2);
+        Word(output, 6 + (scanComponents * 2));
         output.WriteByte((byte)scanComponents);
         for (int index = 0; index < scanComponents; index++)
         {
@@ -232,7 +244,10 @@ internal static class JpegMarkerWriter
             // Unused DC/AC selectors are zero in progressive scan headers.
             int selector = (tableIndex << 4) | tableIndex;
             if (progressive)
+            {
                 selector = acComponent >= 0 ? tableIndex : successiveHigh == 0 ? tableIndex << 4 : 0;
+            }
+
             output.WriteByte((byte)selector);
         }
         output.WriteByte((byte)(acComponent < 0 ? 0 : spectralStart));
@@ -244,7 +259,7 @@ internal static class JpegMarkerWriter
         ReadOnlySpan<byte> huffmanSelectors = default)
     {
         Marker(output, 0xda);
-        Word(output, 6 + scan.Components.Count * 2);
+        Word(output, 6 + (scan.Components.Count * 2));
         output.WriteByte((byte)scan.Components.Count);
         foreach (int component in scan.Components)
         {
@@ -252,10 +267,16 @@ internal static class JpegMarkerWriter
             int tableIndex = rgb || component == 0 ? 0 : 1;
             int selector = (tableIndex << 4) | tableIndex;
             if (progressive)
+            {
                 selector = scan.SpectralStart != 0 ? tableIndex
                     : scan.SuccessiveHigh == 0 ? tableIndex << 4 : 0;
+            }
+
             if (!huffmanSelectors.IsEmpty)
+            {
                 selector = huffmanSelectors[component];
+            }
+
             output.WriteByte((byte)selector);
         }
         output.WriteByte((byte)scan.SpectralStart);
@@ -270,10 +291,16 @@ internal static class JpegMarkerWriter
         ReadOnlySpan<HuffmanCodingPlan.Definition> definitions)
     {
         if (definitions.IsEmpty)
+        {
             return;
+        }
+
         int length = 2;
         foreach (HuffmanCodingPlan.Definition definition in definitions)
+        {
             length += 17 + definition.Table.Symbols.Length;
+        }
+
         Marker(output, 0xc4);
         Word(output, length);
         foreach (HuffmanCodingPlan.Definition definition in definitions)

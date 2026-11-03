@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class SpectralEntropyTests
 {
@@ -30,8 +30,8 @@ public sealed class SpectralEntropyTests
         short[] block = FilledBlock(-7);
         ClearBand(block, start, end);
         Set(block, end, -1);
-        var tokens = Enumerable.Repeat((0xf0, ""), zeroCount / 16)
-            .Append(((zeroCount % 16 << 4) | 1, "0")).ToArray();
+        (int, string)[] tokens = Enumerable.Repeat((0xf0, ""), zeroCount / 16)
+            .Append((((zeroCount % 16) << 4) | 1, "0")).ToArray();
         CheckInitialBlock(block, 0, start, end, tokens);
     }
 
@@ -46,7 +46,7 @@ public sealed class SpectralEntropyTests
         ClearBand(final, start, end);
         Set(final, end, -3);
         short[][] blocks = [empty, empty, empty, empty, empty, empty, empty, final];
-        var tokens = new[] { (0x20, "11"), (0x42, "00") };
+        (int, string)[] tokens = [(0x20, "11"), (0x42, "00")];
         long[] expected = Histogram(tokens);
         long[] frequencies = new long[256];
         int pending = 0;
@@ -62,7 +62,7 @@ public sealed class SpectralEntropyTests
         ProgressiveEntropyEncoder.FlushAcFrequencies(frequencies, ref pending);
         Assert.Equal(expected, frequencies);
 
-        HuffmanTable table = HuffmanTable.CreateOptimized(expected);
+        var table = HuffmanTable.CreateOptimized(expected);
         using var output = new MemoryStream();
         var writer = new BitWriter(output);
         foreach (short[] block in blocks[..7])
@@ -102,8 +102,8 @@ public sealed class SpectralEntropyTests
         short[] block = FilledBlock(-6);
         ClearBand(block, start, end);
         Set(block, end, 2);
-        var tokens = Enumerable.Repeat((0xf0, ""), zeroCount / 16)
-            .Append(((zeroCount % 16 << 4) | 1, "1")).ToArray();
+        (int, string)[] tokens = Enumerable.Repeat((0xf0, ""), zeroCount / 16)
+            .Append((((zeroCount % 16) << 4) | 1, "1")).ToArray();
         CheckRefinementBlock(block, 1, start, end, tokens);
     }
 
@@ -217,7 +217,7 @@ public sealed class SpectralEntropyTests
     public void InvalidSpectralRangesPreserveBufferedOutputPendingRunsAndFrequencies(int start, int end)
     {
         short[] block = FilledBlock(3);
-        HuffmanTable table = HuffmanTable.CreateDefault(true, false);
+        var table = HuffmanTable.CreateDefault(true, false);
         using var output = new MemoryStream();
         var writer = new BitWriter(output);
         writer.WriteBits(0b101, 3);
@@ -311,7 +311,7 @@ public sealed class SpectralEntropyTests
         Assert.Equal(0, frequencyState.PendingEobRun);
         Assert.Equal(0, frequencyState.CorrectionBitCount);
 
-        HuffmanTable table = HuffmanTable.CreateOptimized(expected);
+        var table = HuffmanTable.CreateOptimized(expected);
         using var output = new MemoryStream();
         var writer = new BitWriter(output);
         var writeState = new ProgressiveAcRefinementState();
@@ -422,16 +422,16 @@ public sealed class SpectralEntropyTests
                     Assert.Equal(0, stuffed[++index]);
                 }
             }
-            bytes = unstuffed.ToArray();
+            this.bytes = unstuffed.ToArray();
         }
 
-        public int RemainingBits => bytes.Length * 8 - position;
+        public int RemainingBits => (this.bytes.Length * 8) - this.position;
 
         public int ReadBit()
         {
-            Assert.True(RemainingBits > 0, "The entropy stream ended before the expected token bits.");
-            int bit = (bytes[position / 8] >> (7 - position % 8)) & 1;
-            position++;
+            Assert.True(this.RemainingBits > 0, "The entropy stream ended before the expected token bits.");
+            int bit = (this.bytes[this.position / 8] >> (7 - (this.position % 8))) & 1;
+            this.position++;
             return bit;
         }
     }

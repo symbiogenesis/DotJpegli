@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class PlaneDctTests
 {
@@ -14,18 +14,21 @@ public sealed class PlaneDctTests
         var random = new Random(4917);
         for (int block = 0; block < 100; block++)
         {
-            float[] plane = Enumerable.Repeat(float.NaN, (top + 7) * stride + left + 8).ToArray();
+            float[] plane = Enumerable.Repeat(float.NaN, ((top + 7) * stride) + left + 8).ToArray();
             float[] centered = new float[64];
             for (int row = 0; row < 8; row++)
+            {
                 for (int column = 0; column < 8; column++)
                 {
-                    int index = row * 8 + column;
+                    int index = (row * 8) + column;
                     float sample = block < 64 ? index == block ? 231.375f : 128f
                         : block < 80 ? (float)(random.NextDouble() * 256)
-                        : MathF.ScaleB((float)(random.NextDouble() * 2 - 1), random.Next(-149, 116));
-                    plane[(top + row) * stride + left + column] = sample;
+                        : MathF.ScaleB((float)((random.NextDouble() * 2) - 1), random.Next(-149, 116));
+                    plane[((top + row) * stride) + left + column] = sample;
                     centered[index] = sample - 128f;
                 }
+            }
+
             float[] expected = new float[64];
             float[] actual = Enumerable.Repeat(-12345.625f, 72).ToArray();
             ForwardDct.TransformScalar(centered, expected);
@@ -47,21 +50,30 @@ public sealed class PlaneDctTests
     public void PlaneAndOutputMayOverlapWithoutChangingAnyOtherStorage(int planeStart, int outputStart)
     {
         const int stride = 13, left = 3, top = 2;
-        const int length = (top + 7) * stride + left + 8;
+        const int length = ((top + 7) * stride) + left + 8;
         float[] buffer = Enumerable.Range(0, Math.Max(planeStart + length, outputStart + 72))
             .Select(index => (index - 31.5f) * ((index % 7) + 0.125f)).ToArray();
         float[] original = (float[])buffer.Clone();
         float[] centered = new float[64];
         for (int row = 0; row < 8; row++)
+        {
             for (int column = 0; column < 8; column++)
-                centered[row * 8 + column] = buffer[planeStart + (top + row) * stride + left + column] - 128f;
+            {
+                centered[(row * 8) + column] = buffer[planeStart + ((top + row) * stride) + left + column] - 128f;
+            }
+        }
+
         float[] expected = new float[64];
         ForwardDct.TransformScalar(centered, expected);
         ForwardDct.TransformPlane(buffer.AsSpan(planeStart, length), stride, left, top, buffer.AsSpan(outputStart));
         AssertBits(expected, buffer.AsSpan(outputStart, 64));
         for (int index = 0; index < buffer.Length; index++)
+        {
             if (index < outputStart || index >= outputStart + 64)
+            {
                 Assert.Equal(BitConverter.SingleToInt32Bits(original[index]), BitConverter.SingleToInt32Bits(buffer[index]));
+            }
+        }
     }
 
     [Theory]
@@ -86,7 +98,9 @@ public sealed class PlaneDctTests
     private static void AssertBits(ReadOnlySpan<float> expected, ReadOnlySpan<float> actual)
     {
         for (int index = 0; index < expected.Length; index++)
+        {
             Assert.True(BitConverter.SingleToInt32Bits(expected[index]) == BitConverter.SingleToInt32Bits(actual[index]),
                 $"Coefficient {index}: expected {expected[index]:R}, actual {actual[index]:R}.");
+        }
     }
 }

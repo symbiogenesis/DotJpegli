@@ -1,8 +1,8 @@
+namespace DotJpegli.Internal;
+
 #if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
 #endif
-
-namespace DotJpegli.Internal;
 
 /// <summary>Reorders one complete DCT block using portable vector shuffles.</summary>
 internal static class ZigZagOrdering
@@ -53,9 +53,14 @@ internal static class ZigZagOrdering
     internal static void Reorder(ReadOnlySpan<short> source, Span<short> destination)
     {
         if (source.Length < 64)
+        {
             throw new ArgumentException("A DCT block requires 64 coefficients.", nameof(source));
+        }
+
         if (destination.Length < 64)
+        {
             throw new ArgumentException("An ordered block requires 64 coefficients.", nameof(destination));
+        }
 #if !NETSTANDARD2_1
         if (Vector512.IsHardwareAccelerated)
         {
@@ -75,7 +80,9 @@ internal static class ZigZagOrdering
             ReorderScalar(original, destination);
         }
         else
+        {
             ReorderScalar(source, destination);
+        }
     }
 
 #if !NETSTANDARD2_1
@@ -99,7 +106,7 @@ internal static class ZigZagOrdering
         Span<ushort> mask = stackalloc ushort[32];
         for (int lane = 0; lane < mask.Length; lane++)
         {
-            int position = JpegConstants.ZigZag[outputGroup * 32 + lane] - sourceGroup * 32;
+            int position = JpegConstants.ZigZag[(outputGroup * 32) + lane] - (sourceGroup * 32);
             mask[lane] = position is >= 0 and < 32 ? (ushort)position : ushort.MaxValue;
         }
         return Vector512.Create(mask);
@@ -111,7 +118,7 @@ internal static class ZigZagOrdering
         destination = destination[..64];
         // Keep all source bytes in registers before storing. The same network
         // also supports overlapping spans without a separate block copy.
-        Vector128<byte> s0 = Vector128.Create(source.Slice(0, 8)).AsByte();
+        Vector128<byte> s0 = Vector128.Create(source[..8]).AsByte();
         Vector128<byte> s1 = Vector128.Create(source.Slice(8, 8)).AsByte();
         Vector128<byte> s2 = Vector128.Create(source.Slice(16, 8)).AsByte();
         Vector128<byte> s3 = Vector128.Create(source.Slice(24, 8)).AsByte();
@@ -121,7 +128,7 @@ internal static class ZigZagOrdering
         Vector128<byte> s7 = Vector128.Create(source.Slice(56, 8)).AsByte();
         (Vector128.Shuffle(s0, M00)
             | Vector128.Shuffle(s1, M01)
-            | Vector128.Shuffle(s2, M02)).AsInt16().CopyTo(destination.Slice(0, 8));
+            | Vector128.Shuffle(s2, M02)).AsInt16().CopyTo(destination[..8]);
         (Vector128.Shuffle(s0, M10)
             | Vector128.Shuffle(s1, M11)
             | Vector128.Shuffle(s2, M12)
@@ -162,11 +169,11 @@ internal static class ZigZagOrdering
         Span<byte> mask = stackalloc byte[16];
         for (int lane = 0; lane < 8; lane++)
         {
-            int position = JpegConstants.ZigZag[outputGroup * 8 + lane] - sourceGroup * 8;
+            int position = JpegConstants.ZigZag[(outputGroup * 8) + lane] - (sourceGroup * 8);
             // Portable Shuffle zeros out-of-range indices. Otherwise select both
             // bytes of the requested short, preserving every signed bit pattern.
             mask[lane * 2] = position is >= 0 and < 8 ? (byte)(position * 2) : byte.MaxValue;
-            mask[lane * 2 + 1] = position is >= 0 and < 8 ? (byte)(position * 2 + 1) : byte.MaxValue;
+            mask[(lane * 2) + 1] = position is >= 0 and < 8 ? (byte)((position * 2) + 1) : byte.MaxValue;
         }
         return Vector128.Create(mask);
     }

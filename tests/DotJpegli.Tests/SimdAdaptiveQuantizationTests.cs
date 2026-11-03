@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class SimdAdaptiveQuantizationTests
 {
@@ -20,7 +20,7 @@ public sealed class SimdAdaptiveQuantizationTests
         foreach (int width in new[] { 1, 3, 8, 9, 19, 32, 56, 57, 63, 64, 65, 67, 127, 128, 129 })
         {
             int components = kind == 0 ? 1 : kind == 2 ? 4 : 3;
-            int stride = width * components + 7;
+            int stride = (width * components) + 7;
             byte[] bytes = new byte[stride * height];
             ushort[] words = new ushort[bytes.Length];
             float[] floats = new float[bytes.Length];
@@ -31,8 +31,8 @@ public sealed class SimdAdaptiveQuantizationTests
                 words[i] = (ushort)random.Next(65536);
                 floats[i] = kind switch
                 {
-                    5 => (float)(random.NextDouble() * 16 - 8),
-                    6 => MathF.ScaleB((float)(random.NextDouble() * 2 - 1), 115),
+                    5 => (float)((random.NextDouble() * 16) - 8),
+                    6 => MathF.ScaleB((float)((random.NextDouble() * 2) - 1), 115),
                     7 => BitConverter.Int32BitsToSingle((i % 2 == 0 ? int.MinValue : 0) | i),
                     _ => (float)random.NextDouble()
                 };
@@ -56,6 +56,7 @@ public sealed class SimdAdaptiveQuantizationTests
                     // Reverse order also checks that the SIMD buffers never
                     // depend on a previously analyzed MCU neighborhood.
                     for (int top = (height - 1) / (sampling * 8) * sampling * 8; top >= 0; top -= sampling * 8)
+                    {
                         foreach (int quant in new[] { 4, 18, 65 })
                         {
                             analysis.ComputeRowScalar(pixels, stride, top, quant, expected,
@@ -75,6 +76,7 @@ public sealed class SimdAdaptiveQuantizationTests
                                 TestContext.Current.CancellationToken);
                             AssertSameBits(expected, actual.AsSpan(0, expected.Length));
                         }
+                    }
                 }
             }
         }
@@ -88,7 +90,7 @@ public sealed class SimdAdaptiveQuantizationTests
     public void BatchedConvertedNeighborhoodReusePreservesFreshScalarStrengthBits(int sampling)
     {
         const int width = 129;
-        int stride = width + 11, mcuHeight = sampling * 8, height = mcuHeight * 3 + 3;
+        int stride = width + 11, mcuHeight = sampling * 8, height = (mcuHeight * 3) + 3;
         byte[] source = new byte[stride * height];
         new Random(7341 + sampling).NextBytes(source);
         PixelSource pixels = new PixelSource(source, PixelLayout.Gray8)
@@ -98,6 +100,7 @@ public sealed class SimdAdaptiveQuantizationTests
         float[] expected = new float[batched.BlocksWide * sampling];
         float[] actual = new float[expected.Length + 1];
         foreach (int row in new[] { 0, 1, 2, 3, 2, 1, 0, 3 })
+        {
             foreach (int quant in new[] { 4, 18, 65 })
             {
                 var fresh = new AdaptiveQuantization(width, height, sampling);
@@ -109,12 +112,15 @@ public sealed class SimdAdaptiveQuantizationTests
                 AssertSameBits(expected, actual.AsSpan(0, expected.Length));
                 Assert.Equal(-123.25f, actual[^1]);
             }
+        }
     }
 
     private static void AssertSameBits(ReadOnlySpan<float> expected, ReadOnlySpan<float> actual)
     {
         for (int i = 0; i < expected.Length; i++)
+        {
             Assert.True(BitConverter.SingleToInt32Bits(expected[i]) == BitConverter.SingleToInt32Bits(actual[i]),
                 $"Strength {i}: expected {expected[i]:R}, actual {actual[i]:R}.");
+        }
     }
 }

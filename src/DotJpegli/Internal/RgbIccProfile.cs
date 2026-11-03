@@ -1,9 +1,9 @@
 // Copyright (c) the JPEG XL Project Authors.
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
 
-using static DotJpegli.Internal.IccProfileWriter;
-
 namespace DotJpegli.Internal;
+
+using static DotJpegli.Internal.IccProfileWriter;
 
 internal static class RgbIccProfile
 {
@@ -42,7 +42,7 @@ internal static class RgbIccProfile
     private static byte[] CreateGamma(double gamma, string primariesDescription, byte primaries,
         ReadOnlySpan<float> colorants, IccRenderingIntent renderingIntent)
     {
-        GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
+        var curve = GammaTransferFunction.Create(gamma);
         return Create("RGB_D65_" + primariesDescription + "_Per_" + curve.Description, primaries,
             TransferFunction.Linear, colorants, gamma: curve.Exponent, renderingIntent: renderingIntent);
     }
@@ -107,16 +107,22 @@ internal static class RgbIccProfile
         _ = RenderingIntentName(renderingIntent);
         byte cicpPrimaries = BuiltInIccColorEncoding.CicpPrimaries(primaries, whitePoint);
         if (cicpPrimaries != 0 && transferFunction is IccTransferFunction.Pq or IccTransferFunction.Hlg)
+        {
             return HdrIccProfile.Create(primaries, whitePoint, transferFunction == IccTransferFunction.Pq, renderingIntent);
+        }
 
         string description = "RGB_" + whiteName + "_" + primariesName + "_Per_" + transferName;
         if (whitePoint == IccWhitePoint.D65 && transferFunction == IccTransferFunction.Srgb)
+        {
             description = primaries switch
             {
                 IccPrimaries.Srgb => "sRGB",
                 IccPrimaries.DisplayP3 => "DisplayP3",
+                IccPrimaries.Rec2020 => description,
                 _ => description
             };
+        }
+
         return Create(description, cicpPrimaries, (TransferFunction)transferFunction,
             BuiltInIccColorEncoding.Colorants(primaries, whitePoint), whitePoint, renderingIntent: renderingIntent);
     }
@@ -127,7 +133,7 @@ internal static class RgbIccProfile
         string primariesName = BuiltInIccColorEncoding.PrimariesName(primaries);
         string whiteName = BuiltInIccColorEncoding.WhitePointName(whitePoint);
         _ = RenderingIntentName(renderingIntent);
-        GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
+        var curve = GammaTransferFunction.Create(gamma);
         return Create("RGB_" + whiteName + "_" + primariesName + "_Per_" + curve.Description,
             0, TransferFunction.Linear, BuiltInIccColorEncoding.Colorants(primaries, whitePoint),
             whitePoint, curve.Exponent, renderingIntent);
@@ -151,7 +157,7 @@ internal static class RgbIccProfile
         double gamma, IccRenderingIntent renderingIntent)
     {
         float[] colorants = CustomIccColorEncoding.Colorants(primaries, whitePoint, out float[] adaptation);
-        GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
+        var curve = GammaTransferFunction.Create(gamma);
         string description = "RGB_" + CustomIccColorEncoding.WhitePointName(whitePoint) + "_" +
             CustomIccColorEncoding.PrimariesName(primaries) + "_Per_" + curve.Description;
         return Create(description, 0, TransferFunction.Linear, colorants, gamma: curve.Exponent,
@@ -176,8 +182,8 @@ internal static class RgbIccProfile
         }
         bool includeCicp = gamma is null && primaries != 0;
         int tagCount = includeCicp ? 11 : 10;
-        int descriptionOffset = 132 + tagCount * 12;
-        int descriptionSize = (28 + description.Length * 2 + 3) & ~3;
+        int descriptionOffset = 132 + (tagCount * 12);
+        int descriptionSize = (28 + (description.Length * 2) + 3) & ~3;
         int copyrightOffset = descriptionOffset + descriptionSize;
         int whiteOffset = copyrightOffset + 36;
         int adaptationOffset = whiteOffset + 20;
@@ -198,7 +204,10 @@ internal static class RgbIccProfile
         Tag(bytes, 3, "chad"u8, (uint)adaptationOffset, 44);
         int nextTag = 4;
         if (includeCicp)
+        {
             Tag(bytes, nextTag++, "cicp"u8, (uint)cicpOffset, 12);
+        }
+
         Tag(bytes, nextTag++, "rXYZ"u8, (uint)redOffset, 20);
         Tag(bytes, nextTag++, "gXYZ"u8, (uint)greenOffset, 20);
         Tag(bytes, nextTag++, "bXYZ"u8, (uint)blueOffset, 20);
@@ -215,7 +224,10 @@ internal static class RgbIccProfile
             WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset], (float)whiteX, (float)whiteY);
         }
         else
+        {
             WriteChromaticAdaptation(bytes[adaptationOffset..cicpOffset], chromaticAdaptation);
+        }
+
         if (includeCicp)
         {
             Signature(bytes, cicpOffset, "cicp"u8);
@@ -228,9 +240,13 @@ internal static class RgbIccProfile
         Xyz(bytes[greenOffset..blueOffset], colorants[3..6]);
         Xyz(bytes[blueOffset..curveOffset], colorants[6..9]);
         if (gamma is float exponent)
+        {
             Curve(bytes[curveOffset..], [exponent], 0);
+        }
         else if (tableCurve)
+        {
             GrayscaleIccProfile.WriteTableCurve(bytes[curveOffset..], transfer == TransferFunction.Pq);
+        }
         else
         {
             ReadOnlySpan<float> parameters = transfer switch
@@ -241,6 +257,8 @@ internal static class RgbIccProfile
                     (float)(0.099 / 1.099), (float)(1.0 / 4.5), 0.081f],
                 TransferFunction.Srgb => [2.4f, (float)(1.0 / 1.055), (float)(0.055 / 1.055),
                     (float)(1.0 / 12.92), 0.04045f],
+                TransferFunction.Pq => throw new ArgumentOutOfRangeException(nameof(transfer)),
+                TransferFunction.Hlg => throw new ArgumentOutOfRangeException(nameof(transfer)),
                 _ => throw new ArgumentOutOfRangeException(nameof(transfer))
             };
             Curve(bytes[curveOffset..], parameters, 3);
@@ -253,6 +271,8 @@ internal static class RgbIccProfile
     {
         Signature(tag, 0, "XYZ "u8);
         for (int component = 0; component < 3; component++)
-            Fixed(tag, 8 + component * 4, xyz[component]);
+        {
+            Fixed(tag, 8 + (component * 4), xyz[component]);
+        }
     }
 }

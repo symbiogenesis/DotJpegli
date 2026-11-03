@@ -11,6 +11,8 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Required for build-time analysis of unnecessary imports, including XML documentation. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <DotJpegliNet11Simd Condition="'$(DotJpegliNet11Simd)' == ''">true</DotJpegliNet11Simd>
     <DefineConstants Condition="'$(DotJpegliNet11Simd)' == 'true'">$(DefineConstants);DOTJPEGLI_NET11_SIMD</DefineConstants>

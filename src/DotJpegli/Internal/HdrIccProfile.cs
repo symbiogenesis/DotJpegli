@@ -1,9 +1,9 @@
 // Copyright (c) the JPEG XL Project Authors.
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
 
-using static DotJpegli.Internal.IccProfileWriter;
-
 namespace DotJpegli.Internal;
+
+using static DotJpegli.Internal.IccProfileWriter;
 
 internal static class HdrIccProfile
 {
@@ -23,7 +23,7 @@ internal static class HdrIccProfile
             ? (pq ? "Rec2100PQ" : "Rec2100HLG")
             : "RGB_" + BuiltInIccColorEncoding.WhitePointName(whitePoint) + "_" +
                 BuiltInIccColorEncoding.PrimariesName(primaries) + "_" + intentName + (pq ? "_PeQ" : "_HLG");
-        int descriptionSize = (28 + description.Length * 2 + 3) & ~3;
+        int descriptionSize = (28 + (description.Length * 2) + 3) & ~3;
         int copyrightOffset = 252 + descriptionSize;
         int whiteOffset = copyrightOffset + 36;
         int adaptationOffset = whiteOffset + 20;
@@ -57,7 +57,10 @@ internal static class HdrIccProfile
         bytes[cicpOffset + 11] = 1; // RGB matrix (zero), full range.
         ReadOnlySpan<float> colorants = BuiltInIccColorEncoding.Colorants(primaries, whitePoint);
         for (int channel = 0; channel < 3; channel++)
-            Xyz(bytes.Slice(colorantsOffset + channel * 20, 20), colorants.Slice(channel * 3, 3));
+        {
+            Xyz(bytes.Slice(colorantsOffset + (channel * 20), 20), colorants.Slice(channel * 3, 3));
+        }
+
         WriteForwardTransform(bytes[forwardOffset..compatibilityOffset], pq,
             BuiltInIccColorEncoding.Luminances(primaries, whitePoint), colorants);
         WriteCompatibilityTransform(bytes[compatibilityOffset..]);
@@ -72,14 +75,19 @@ internal static class HdrIccProfile
         tag[8] = tag[9] = 3;
         tag[10] = 9;
         for (int diagonal = 0; diagonal < 3; diagonal++)
-            Fixed(tag, 12 + diagonal * 16, 1f);
+        {
+            Fixed(tag, 12 + (diagonal * 16), 1f);
+        }
         // mft1 has 256-entry eight-bit input and output curves for each channel.
         for (int channel = 0; channel < 3; channel++)
+        {
             for (int value = 0; value < 256; value++)
             {
-                tag[48 + channel * 256 + value] = (byte)value;
-                tag[3003 + channel * 256 + value] = (byte)value;
+                tag[48 + (channel * 256) + value] = (byte)value;
+                tag[3003 + (channel * 256) + value] = (byte)value;
             }
+        }
+
         HdrToneMapping.WriteClut(tag.Slice(816, 2187), pq, luminances, colorants);
         // The last byte is zero alignment padding, included in upstream's tag size.
     }
@@ -92,13 +100,17 @@ internal static class HdrIccProfile
         tag[8] = tag[9] = 3;
         UInt32(tag, 12, 32);
         for (int channel = 0; channel < 3; channel++)
-            Curve(tag.Slice(32 + channel * 16, 16), [1f], 0);
+        {
+            Curve(tag.Slice(32 + (channel * 16), 16), [1f], 0);
+        }
     }
 
     private static void Xyz(Span<byte> tag, ReadOnlySpan<float> xyz)
     {
         Signature(tag, 0, "XYZ "u8);
         for (int channel = 0; channel < 3; channel++)
-            Fixed(tag, 8 + channel * 4, xyz[channel]);
+        {
+            Fixed(tag, 8 + (channel * 4), xyz[channel]);
+        }
     }
 }

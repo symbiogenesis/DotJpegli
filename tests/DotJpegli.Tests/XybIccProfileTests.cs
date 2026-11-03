@@ -1,10 +1,10 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class XybIccProfileTests
 {
@@ -53,7 +53,7 @@ public sealed class XybIccProfileTests
         Assert.All(profile[100..128], value => Assert.Equal(0, value));
 
         Dictionary<string, Tag> tags = Tags(profile);
-        Assert.Equal(new[] { "A2B0", "B2A0", "chad", "cprt", "desc", "wtpt" }, tags.Keys.Order());
+        Assert.Equal(["A2B0", "B2A0", "chad", "cprt", "desc", "wtpt"], tags.Keys.Order());
         Assert.Equal("XYB_Per", Text(profile, tags["desc"]));
         Assert.Equal("CC0", Text(profile, tags["cprt"]));
         Tag white = tags["wtpt"];
@@ -89,15 +89,21 @@ public sealed class XybIccProfileTests
 
         double[] values = [0, 0.001, 0.01, 0.04044999, 0.04045, 0.04045001, 0.0625, 0.25, 0.5, 0.75, 1];
         foreach (double r in values)
+        {
             foreach (double g in values)
+            {
                 foreach (double b in values)
                 {
                     double[] expected = SrgbToD50Xyz(r, g, b);
                     double[] actual = EvaluateA2B(profile, transform, SrgbToScaledXyb(r, g, b));
                     for (int channel = 0; channel < 3; channel++)
+                    {
                         AssertClose(expected[channel], actual[channel], 0.0003,
                             $"PCS channel {channel}, sRGB ({r:R}, {g:R}, {b:R})");
+                    }
                 }
+            }
+        }
     }
 
     [Fact]
@@ -110,11 +116,18 @@ public sealed class XybIccProfileTests
         Assert.Equal(3, profile[tag.Offset + 9]);
         Assert.Equal(32, Int32(profile, tag.Offset + 12));
         for (int offset = 16; offset <= 28; offset += 4)
+        {
             Assert.Equal(0, Int32(profile, tag.Offset + offset));
+        }
+
         Assert.Equal(80, tag.Length);
         foreach (double value in new[] { 0, 0.125, 0.5, 0.875, 1 })
+        {
             for (int channel = 0; channel < 3; channel++)
-                Assert.Equal(value, Curve(profile, tag.Offset + 32 + channel * 16, value));
+            {
+                Assert.Equal(value, Curve(profile, tag.Offset + 32 + (channel * 16), value));
+            }
+        }
     }
 
     public static TheoryData<int, bool, bool> EncodingModes
@@ -123,9 +136,16 @@ public sealed class XybIccProfileTests
         {
             var modes = new TheoryData<int, bool, bool>();
             for (int kind = 0; kind < 3; kind++)
+            {
                 foreach (bool converted in new[] { false, true })
+                {
                     foreach (bool progressive in new[] { false, true })
+                    {
                         modes.Add(kind, converted, progressive);
+                    }
+                }
+            }
+
             return modes;
         }
     }
@@ -137,22 +157,26 @@ public sealed class XybIccProfileTests
     {
         const int width = 19, height = 17;
         byte[] bytes = Enumerable.Range(0, width * height * 3)
-            .Select(index => (byte)((index * 73 + index / 17 * 29) % 256)).ToArray();
+            .Select(index => (byte)(((index * 73) + (index / 17 * 29)) % 256)).ToArray();
         Array pixels = kind switch
         {
             0 => bytes,
-            1 => bytes.Select((value, index) => (ushort)Math.Clamp(value * 257 + index % 47 - 23, 0, 65535)).ToArray(),
-            _ => bytes.Select((value, index) => Math.Clamp(value / 255f + (index % 47 - 23) / 65535f, 0f, 1f)).ToArray()
+            1 => bytes.Select((value, index) => (ushort)Math.Clamp((value * 257) + (index % 47) - 23, 0, 65535)).ToArray(),
+            _ => bytes.Select((value, index) => Math.Clamp((value / 255f) + (((index % 47) - 23) / 65535f), 0f, 1f)).ToArray()
         };
         PixelComponentLayout layout = converted ? PixelComponentLayout.Rgb : PixelComponentLayout.Xyb;
         byte[] profile = JpegliIccProfiles.CreateXybProfile();
         byte[] original = profile.ToArray();
         var options = new JpegliEncoderOptions
         {
-            ColorSpace = JpegColorSpace.Xyb, IccProfile = profile,
-            InferCicpTransferFunctionFromIccProfile = true, Distance = 1.375f,
-            SmoothingFactor = 37, Progressive = progressive,
-            ProgressiveRefinementBits = progressive ? 2 : 0, RestartInterval = 2
+            ColorSpace = JpegColorSpace.Xyb,
+            IccProfile = profile,
+            InferCicpTransferFunctionFromIccProfile = true,
+            Distance = 1.375f,
+            SmoothingFactor = 37,
+            Progressive = progressive,
+            ProgressiveRefinementBits = progressive ? 2 : 0,
+            RestartInterval = 2
         };
         byte[] actual = Encode(pixels, width, height, layout, options);
         byte[] opaque = Encode(pixels, width, height, layout, options with { IccProfile = OpaqueProfile });
@@ -183,13 +207,13 @@ public sealed class XybIccProfileTests
 
     private static Dictionary<string, Tag> Tags(byte[] profile)
     {
-        int count = Int32(profile, 128), end = 132 + count * 12;
+        int count = Int32(profile, 128), end = 132 + (count * 12);
         Assert.InRange(count, 1, (profile.Length - 132) / 12);
         var result = new Dictionary<string, Tag>();
         var extents = new List<Tag>();
         for (int index = 0; index < count; index++)
         {
-            int entry = 132 + index * 12;
+            int entry = 132 + (index * 12);
             var tag = new Tag(Int32(profile, entry + 4), Int32(profile, entry + 8));
             Assert.Equal(0, tag.Offset % 4);
             Assert.InRange(tag.Offset, end, profile.Length - 8);
@@ -200,7 +224,10 @@ public sealed class XybIccProfileTests
         }
         Tag[] ordered = extents.OrderBy(tag => tag.Offset).ToArray();
         for (int index = 1; index < ordered.Length; index++)
+        {
             Assert.True(ordered[index].Offset >= ordered[index - 1].Offset + ordered[index - 1].Length);
+        }
+
         return result;
     }
 
@@ -242,31 +269,47 @@ public sealed class XybIccProfileTests
     {
         int a = tag.Offset + Int32(profile, tag.Offset + 28);
         for (int channel = 0; channel < 3; channel++)
-            input[channel] = Curve(profile, a + channel * 16, Math.Clamp(input[channel], 0, 1));
+        {
+            input[channel] = Curve(profile, a + (channel * 16), Math.Clamp(input[channel], 0, 1));
+        }
+
         int clut = tag.Offset + Int32(profile, tag.Offset + 24) + 20;
-        var mixed = new double[3];
+        double[] mixed = new double[3];
         for (int x = 0; x < 2; x++)
+        {
             for (int y = 0; y < 2; y++)
+            {
                 for (int b = 0; b < 2; b++)
                 {
                     double weight = (x == 0 ? 1 - input[0] : input[0])
                         * (y == 0 ? 1 - input[1] : input[1]) * (b == 0 ? 1 - input[2] : input[2]);
-                    int corner = clut + ((x * 2 + y) * 2 + b) * 6;
+                    int corner = clut + (((((x * 2) + y) * 2) + b) * 6);
                     for (int channel = 0; channel < 3; channel++)
-                        mixed[channel] += weight * UInt16(profile, corner + channel * 2) / 65535.0;
+                    {
+                        mixed[channel] += weight * UInt16(profile, corner + (channel * 2)) / 65535.0;
+                    }
                 }
+            }
+        }
+
         int m = tag.Offset + Int32(profile, tag.Offset + 20);
         for (int channel = 0; channel < 3; channel++)
-            mixed[channel] = Curve(profile, m + channel * 32, mixed[channel]);
+        {
+            mixed[channel] = Curve(profile, m + (channel * 32), mixed[channel]);
+        }
+
         int matrix = tag.Offset + Int32(profile, tag.Offset + 16);
         int curves = tag.Offset + Int32(profile, tag.Offset + 12);
-        var output = new double[3];
+        double[] output = new double[3];
         for (int row = 0; row < 3; row++)
         {
-            double value = Fixed(profile, matrix + 36 + row * 4);
+            double value = Fixed(profile, matrix + 36 + (row * 4));
             for (int column = 0; column < 3; column++)
-                value += Fixed(profile, matrix + (row * 3 + column) * 4) * mixed[column];
-            output[row] = Curve(profile, curves + row * 16, value) * (65535.0 / 32768);
+            {
+                value += Fixed(profile, matrix + (((row * 3) + column) * 4)) * mixed[column];
+            }
+
+            output[row] = Curve(profile, curves + (row * 16), value) * (65535.0 / 32768);
         }
         return output;
     }
@@ -279,11 +322,14 @@ public sealed class XybIccProfileTests
         int kind = UInt16(profile, offset + 8);
         double gamma = Fixed(profile, offset + 12);
         if (kind == 0)
+        {
             return Math.Pow(Math.Max(0, value), gamma);
+        }
+
         Assert.Equal(3, kind);
         double a = Fixed(profile, offset + 16), b = Fixed(profile, offset + 20);
         double c = Fixed(profile, offset + 24), d = Fixed(profile, offset + 28);
-        return value >= d ? Math.Pow(a * value + b, gamma) : c * value;
+        return value >= d ? Math.Pow((a * value) + b, gamma) : c * value;
     }
 
     private static double[] SrgbToScaledXyb(double r, double g, double b)
@@ -296,12 +342,15 @@ public sealed class XybIccProfileTests
             { 0.24342268924547819, 0.20476744424496821, 0.5518098665095536 }
         };
         const double bias = 0.0037930732552754493;
-        var cones = new double[3];
+        double[] cones = new double[3];
         for (int row = 0; row < 3; row++)
         {
             double value = bias;
             for (int column = 0; column < 3; column++)
+            {
                 value += absorbance[row, column] * rgb[column];
+            }
+
             cones[row] = Math.Cbrt(value) - Math.Cbrt(bias);
         }
         double x = (cones[0] - cones[1]) / 2, y = (cones[0] + cones[1]) / 2;
@@ -316,9 +365,9 @@ public sealed class XybIccProfileTests
         r = Linearize(r);
         g = Linearize(g);
         b = Linearize(b);
-        return [0.4360747 * r + 0.3850649 * g + 0.1430804 * b,
-            0.2225045 * r + 0.7168786 * g + 0.0606169 * b,
-            0.0139322 * r + 0.0971045 * g + 0.7141733 * b];
+        return [(0.4360747 * r) + (0.3850649 * g) + (0.1430804 * b),
+            (0.2225045 * r) + (0.7168786 * g) + (0.0606169 * b),
+            (0.0139322 * r) + (0.0971045 * g) + (0.7141733 * b)];
     }
 
     private static double Linearize(double value) => value <= 0.04045
@@ -346,7 +395,10 @@ public sealed class XybIccProfileTests
                 profile = jpeg[(offset + 18)..end];
             }
             else
+            {
                 coding.Write(jpeg.AsSpan(offset, end - offset));
+            }
+
             offset = end;
         }
         coding.Write(jpeg.AsSpan(offset));
@@ -356,27 +408,33 @@ public sealed class XybIccProfileTests
 
     private static byte[] Encode(Array source, int width, int height, PixelComponentLayout layout,
         JpegliEncoderOptions options) => source switch
-    {
-        byte[] bytes => JpegliEncoder.Encode(bytes, width, height, (PixelLayout)(int)layout,
-            options, cancellationToken: TestContext.Current.CancellationToken),
-        ushort[] words => JpegliEncoder.Encode(words, width, height, layout,
-            options, cancellationToken: TestContext.Current.CancellationToken),
-        _ => JpegliEncoder.Encode((float[])source, width, height, layout,
-            options, cancellationToken: TestContext.Current.CancellationToken)
-    };
+        {
+            byte[] bytes => JpegliEncoder.Encode(bytes, width, height, (PixelLayout)(int)layout,
+                options, cancellationToken: TestContext.Current.CancellationToken),
+            ushort[] words => JpegliEncoder.Encode(words, width, height, layout,
+                options, cancellationToken: TestContext.Current.CancellationToken),
+            _ => JpegliEncoder.Encode((float[])source, width, height, layout,
+                options, cancellationToken: TestContext.Current.CancellationToken)
+        };
 
     private static void Encode(Stream output, Array source, int width, int height, PixelComponentLayout layout,
         JpegliEncoderOptions options)
     {
         if (source is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, (PixelLayout)(int)layout,
                 options, cancellationToken: TestContext.Current.CancellationToken);
+        }
         else if (source is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, layout,
                 options, cancellationToken: TestContext.Current.CancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])source, width, height, layout,
                 options, cancellationToken: TestContext.Current.CancellationToken);
+        }
     }
 
     private static int Int32(byte[] profile, int offset) => BinaryPrimitives.ReadInt32BigEndian(profile.AsSpan(offset, 4));

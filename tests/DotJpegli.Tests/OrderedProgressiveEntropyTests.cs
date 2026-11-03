@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class OrderedProgressiveEntropyTests
 {
@@ -12,6 +12,7 @@ public sealed class OrderedProgressiveEntropyTests
     public void FreshEmptyAcBandsPreserveRunsWithoutReservingTokenStorage(int budget)
     {
         foreach ((int start, int end) in new[] { (1, 2), (3, 63), (7, 32) })
+        {
             foreach (int low in new[] { 0, 2, 10 })
             {
                 short[] ordered = new short[64];
@@ -20,9 +21,15 @@ public sealed class OrderedProgressiveEntropyTests
                 ordered[0] = 37;
                 ordered[start] = (short)((1 << low) - 1);
                 if (start > 1)
+                {
                     ordered[1] = 1023;
+                }
+
                 if (end < 63)
+                {
                     ordered[63] = -1023;
+                }
+
                 long[] expected = new long[256], actual = new long[256];
                 int expectedPending = 0, actualPending = 0;
                 using var expectedTokens = new EntropyTokens(budget);
@@ -50,8 +57,11 @@ public sealed class OrderedProgressiveEntropyTests
                 Assert.Equal(expectedPending, actualPending);
                 Assert.Equal(expectedTokens.IsComplete, actualTokens.IsComplete);
                 if (actualTokens.IsComplete)
+                {
                     Assert.Equal(Replay(expectedTokens), Replay(actualTokens));
+                }
             }
+        }
     }
 
     [Theory]
@@ -68,10 +78,22 @@ public sealed class OrderedProgressiveEntropyTests
         short[] ordered = new short[64];
         switch (failure)
         {
-            case 0: ordered[1] = 1; break;
-            case 1: ordered[1] = -3; ordered[63] = 1; break;
-            case 2: ordered[1] = 3; ordered[2] = 1; ordered[3] = -2; ordered[5] = -1; break;
-            default: ordered[1] = 3; break;
+            case 0:
+                ordered[1] = 1;
+                break;
+            case 1:
+                ordered[1] = -3;
+                ordered[63] = 1;
+                break;
+            case 2:
+                ordered[1] = 3;
+                ordered[2] = 1;
+                ordered[3] = -2;
+                ordered[5] = -1;
+                break;
+            default:
+                ordered[1] = 3;
+                break;
         }
         long[] expected = new long[256], actual = new long[256];
         expected[failingSymbol] = actual[failingSymbol] = long.MaxValue;
@@ -82,9 +104,9 @@ public sealed class OrderedProgressiveEntropyTests
         expectedTokens.AddBits(0, 0);
         actualTokens.AddBits(0, 0);
         Assert.True(actualTokens.TryReserveBlock(out _));
-        Assert.Throws<OverflowException>(() => ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(ToNatural(ordered),
+        _ = Assert.Throws<OverflowException>(() => ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(ToNatural(ordered),
             expected, expectedState, 0, tokens: expectedTokens, component: 2));
-        Assert.Throws<OverflowException>(() => ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(ordered,
+        _ = Assert.Throws<OverflowException>(() => ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(ordered,
             actual, actualState, 0, tokens: actualTokens, component: 2, zigZagOrdered: true));
         Assert.Equal(expected, actual);
         AssertRefinementState(expectedState, actualState);
@@ -102,8 +124,8 @@ public sealed class OrderedProgressiveEntropyTests
     public void ReservedRefinementAndCapacityFallbackPreserveEveryBudgetAndCorrectionPartition(int budget)
     {
         long[] expected = new long[256], actual = new long[256];
-        var expectedState = RefinementState(1, 255);
-        var actualState = RefinementState(1, 255);
+        ProgressiveAcRefinementState expectedState = RefinementState(1, 255);
+        ProgressiveAcRefinementState actualState = RefinementState(1, 255);
         using var expectedTokens = new EntropyTokens(budget);
         using var actualTokens = new EntropyTokens(budget);
         expectedTokens.AddBits(0, 0);
@@ -131,7 +153,9 @@ public sealed class OrderedProgressiveEntropyTests
         AssertRefinementState(expectedState, actualState);
         Assert.Equal(expectedTokens.IsComplete, actualTokens.IsComplete);
         if (actualTokens.IsComplete)
+        {
             Assert.Equal(Replay(expectedTokens), Replay(actualTokens));
+        }
     }
 
     [Fact]
@@ -140,8 +164,8 @@ public sealed class OrderedProgressiveEntropyTests
         foreach (int corrections in new[] { 0, 1, 7, 8, 24, 31, 32, 33, 254, 255 })
         {
             long[] expected = new long[256], actual = new long[256];
-            var expectedState = RefinementState(32766, corrections);
-            var actualState = RefinementState(32766, corrections);
+            ProgressiveAcRefinementState expectedState = RefinementState(32766, corrections);
+            ProgressiveAcRefinementState actualState = RefinementState(32766, corrections);
             using var expectedTokens = new EntropyTokens();
             using var actualTokens = new EntropyTokens();
             expectedTokens.AddBits(0, 0);
@@ -161,6 +185,7 @@ public sealed class OrderedProgressiveEntropyTests
     public void OrderedRefinementPreservesWideValidatedMagnitudesAcrossEveryLowAndBandBoundary()
     {
         foreach ((int start, int end) in new[] { (1, 63), (1, 2), (3, 63), (7, 32), (63, 63) })
+        {
             for (int low = 0; low <= 9; low++)
             {
                 short[] ordered = Enumerable.Repeat((short)-3, 64).ToArray();
@@ -186,14 +211,18 @@ public sealed class OrderedProgressiveEntropyTests
                 Assert.Equal(expected, actual);
                 Assert.Equal(Replay(expectedTokens), Replay(actualTokens));
             }
+        }
     }
 
     private static ProgressiveAcRefinementState RefinementState(int pending, int corrections)
     {
         var state = new ProgressiveAcRefinementState();
-        state.AppendBlock(Enumerable.Range(0, corrections).Select(index => (byte)((index * 7 + index / 3) & 1)).ToArray());
+        state.AppendBlock(Enumerable.Range(0, corrections).Select(index => (byte)(((index * 7) + (index / 3)) & 1)).ToArray());
         for (int index = 1; index < pending; index++)
-            state.AppendBlock(ReadOnlySpan<byte>.Empty);
+        {
+            state.AppendBlock([]);
+        }
+
         return state;
     }
 
@@ -216,13 +245,25 @@ public sealed class OrderedProgressiveEntropyTests
         int initialPending = failure switch { 0 => 32767, 4 => 32766, 1 or 3 or 5 => 7, _ => 0 };
         int failingSymbol = failure switch { 0 or 4 => 0xe0, 1 => 0x20, 2 or 5 => 0xf0, _ => 2 };
         if (failure is 1 or 3)
+        {
             ordered[1] = 1;
+        }
+
         if (failure == 3)
+        {
             ordered[2] = 2;
+        }
+
         if (failure == 2)
+        {
             ordered[1] = 1;
+        }
+
         if (failure is 2 or 5)
+        {
             ordered[63] = 1;
+        }
+
         short[] natural = ToNatural(ordered);
         long[] expected = new long[256], actual = new long[256];
         expected[failingSymbol] = actual[failingSymbol] = long.MaxValue;
@@ -234,9 +275,9 @@ public sealed class OrderedProgressiveEntropyTests
         expectedTokens.AddBits(0, 0);
         actualTokens.AddBits(0, 0);
         Assert.True(actualTokens.TryReserveBlock(out _));
-        Assert.Throws<OverflowException>(() => ProgressiveEntropyEncoder.AccumulateAcFrequencies(natural,
+        _ = Assert.Throws<OverflowException>(() => ProgressiveEntropyEncoder.AccumulateAcFrequencies(natural,
             expected, ref expectedPending, tokens: expectedTokens, component: 2));
-        Assert.Throws<OverflowException>(() => ProgressiveEntropyEncoder.AccumulateAcFrequencies(ordered,
+        _ = Assert.Throws<OverflowException>(() => ProgressiveEntropyEncoder.AccumulateAcFrequencies(ordered,
             actual, ref actualPending, tokens: actualTokens, component: 2, zigZagOrdered: true));
         Assert.Equal(expected, actual);
         Assert.Equal(expectedPending, actualPending);
@@ -247,6 +288,7 @@ public sealed class OrderedProgressiveEntropyTests
     public void ReservedInitialAcMasksPreserveWideValidatedMagnitudesAndEverySpectralBoundary()
     {
         foreach ((int start, int end) in new[] { (1, 63), (1, 2), (3, 63), (7, 32), (63, 63) })
+        {
             for (int low = 0; low <= 10; low++)
             {
                 short[] ordered = Enumerable.Repeat((short)-3, 64).ToArray();
@@ -268,6 +310,7 @@ public sealed class OrderedProgressiveEntropyTests
                 Assert.Equal(expectedPending, actualPending);
                 Assert.Equal(Replay(expectedTokens), Replay(actualTokens));
             }
+        }
     }
 
     [Fact]
@@ -291,7 +334,7 @@ public sealed class OrderedProgressiveEntropyTests
 
     private static byte[] Replay(EntropyTokens tokens)
     {
-        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        var table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
         using var output = new MemoryStream();
         var writer = new BitWriter(output, buffered: true);
         tokens.Replay(writer, new HuffmanCodingPlan.ScanCoding([], [table, table, table], [], []), TestContext.Current.CancellationToken);
@@ -303,7 +346,10 @@ public sealed class OrderedProgressiveEntropyTests
     {
         short[] natural = new short[64];
         for (int position = 0; position < 64; position++)
+        {
             natural[JpegConstants.ZigZag[position]] = ordered[position];
+        }
+
         return natural;
     }
 
@@ -359,11 +405,13 @@ public sealed class OrderedProgressiveEntropyTests
                         ProgressiveEntropyEncoder.FlushAcFrequencies(actualFrequencies, ref actualPending, tokens, 2);
                     }
                     if (index + 1 != natural.Length)
+                    {
                         tokens.AddRestart(index / 31 % 8);
+                    }
                 }
             }
             Assert.Equal(expectedFrequencies, actualFrequencies);
-            HuffmanTable table = HuffmanTable.CreateOptimized(expectedFrequencies);
+            var table = HuffmanTable.CreateOptimized(expectedFrequencies);
             byte[] expected = Write(natural, table, refine, low, start, end, ordered: false);
             Assert.Equal(expected, Write(ordered, table, refine, low, start, end, ordered: true));
             using var replayOutput = new MemoryStream();
@@ -384,10 +432,15 @@ public sealed class OrderedProgressiveEntropyTests
         long[] frequencies = new long[256];
         using var tokens = new EntropyTokens();
         if (refine)
+        {
             ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(ordered, frequencies, 1, tokens: tokens, component: 2, zigZagOrdered: true);
+        }
         else
+        {
             ProgressiveEntropyEncoder.AccumulateAcFrequencies(ordered, frequencies, 1, tokens: tokens, component: 2, zigZagOrdered: true);
-        HuffmanTable table = HuffmanTable.CreateOptimized(frequencies);
+        }
+
+        var table = HuffmanTable.CreateOptimized(frequencies);
         using var expected = new MemoryStream();
         using var actual = new MemoryStream();
         var naturalWriter = new BitWriter(expected);
@@ -416,13 +469,13 @@ public sealed class OrderedProgressiveEntropyTests
         long[] frequencies = new long[256];
         ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(ordered, frequencies, state, 0, zigZagOrdered: true);
         ordered[63] = 1024;
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(ordered, frequencies, state, 0, zigZagOrdered: true));
         Assert.Equal(1, state.PendingEobRun);
         Assert.Equal(63, state.CorrectionBitCount);
         Assert.Equal(0, frequencies.Sum());
         using var output = new MemoryStream();
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             ProgressiveEntropyEncoder.WriteAcRefinement(new BitWriter(output), ordered, HuffmanTable.CreateOptimized(frequencies), state, 0, zigZagOrdered: true));
         Assert.Empty(output.ToArray());
     }
@@ -436,19 +489,31 @@ public sealed class OrderedProgressiveEntropyTests
         for (int index = 0; index < blocks.Length; index++)
         {
             if (refine)
+            {
                 ProgressiveEntropyEncoder.WriteAcRefinement(writer, blocks[index], table, state, low, start, end,
                     zigZagOrdered: ordered);
+            }
             else
+            {
                 ProgressiveEntropyEncoder.WriteAc(writer, blocks[index], table, ref pending, low, start, end,
                     zigZagOrdered: ordered);
+            }
+
             if ((index + 1) % 31 == 0 || index + 1 == blocks.Length)
             {
                 if (refine)
+                {
                     ProgressiveEntropyEncoder.FlushAcRefinement(writer, table, state);
+                }
                 else
+                {
                     ProgressiveEntropyEncoder.FlushAc(writer, table, ref pending);
+                }
+
                 if (index + 1 != blocks.Length)
+                {
                     writer.WriteRestartMarker(index / 31 % 8);
+                }
             }
         }
         writer.Flush();
@@ -465,7 +530,10 @@ public sealed class OrderedProgressiveEntropyTests
         // new coefficient; the final new coefficient also exercises bit 63.
         Array.Clear(result[5]);
         foreach (int position in new[] { 1, 8, 16, 18, 31, 45 })
+        {
             result[5][JpegConstants.ZigZag[position]] = (short)(low < 9 ? 3 << low : 0);
+        }
+
         result[5][JpegConstants.ZigZag[20]] = (short)-(low < 10 ? 1 << low : 0);
         result[5][JpegConstants.ZigZag[63]] = (short)(low < 10 ? 1 << low : 0);
         return result;

@@ -1,8 +1,8 @@
+namespace DotJpegli;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using DotJpegli.Internal;
-
-namespace DotJpegli;
 
 /// <summary>Reusable settings for the managed JPEG encoder.</summary>
 public sealed record JpegliEncoderOptions
@@ -497,30 +497,42 @@ public sealed record JpegliEncoderOptions
     /// <summary>Maximum accepted pixel count. Override deliberately for larger images.</summary>
     public long MaxPixels { get; init; } = 100_000_000;
 
-    internal int ResolveRestartInterval(int mcusPerRow) => RestartRows == 0
-        ? RestartInterval : (int)Math.Min((long)RestartRows * mcusPerRow, 65535);
+    internal int ResolveRestartInterval(int mcusPerRow) => this.RestartRows == 0
+        ? this.RestartInterval : (int)Math.Min((long)this.RestartRows * mcusPerRow, 65535);
 
     [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly", Justification = "Option validation identifies the invalid QuantizationTables property in ParamName.")]
     internal ushort[][]? PrepareQuantizationTables(int componentCount)
     {
-        if (QuantizationTables is not { } tables)
+        if (this.QuantizationTables is not { } tables)
+        {
             return null;
+        }
+
         int count = tables.Count;
         if (count is < 1 or > 3 || (componentCount == 1 && count != 1))
+        {
             throw new ArgumentException("Supply one quantization table for grayscale, or one to three for color output.",
-                nameof(QuantizationTables));
-        var snapshot = new ushort[count][];
+                nameof(this.QuantizationTables));
+        }
+
+        ushort[][] snapshot = new ushort[count][];
         for (int index = 0; index < count; index++)
         {
             ReadOnlyMemory<ushort> table = tables[index];
             if (table.Length != 64)
+            {
                 throw new ArgumentException("Each quantization table must contain exactly 64 values in natural frequency order.",
-                    nameof(QuantizationTables));
+                    nameof(this.QuantizationTables));
+            }
+
             snapshot[index] = table.ToArray();
-            int maximum = ForceBaseline ? 255 : 32767;
-            if (snapshot[index].AsSpan().ContainsAnyExceptInRange((ushort)1, (ushort)maximum))
+            int maximum = this.ForceBaseline ? 255 : 32767;
+            const ushort minimum = 1;
+            if (snapshot[index].AsSpan().ContainsAnyExceptInRange(minimum, (ushort)maximum))
+            {
                 throw new ArgumentException($"Quantization values must be between 1 and {maximum}.",
-                    nameof(QuantizationTables));
+                    nameof(this.QuantizationTables));
+            }
         }
         return snapshot;
     }
@@ -528,18 +540,27 @@ public sealed record JpegliEncoderOptions
     [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly", Justification = "Option validation identifies the invalid MetadataMarkers property in ParamName.")]
     internal JpegMetadataMarker[]? PrepareMetadataMarkers(CancellationToken cancellationToken)
     {
-        if (MetadataMarkers is not { } requested)
+        if (this.MetadataMarkers is not { } requested)
+        {
             return null;
+        }
+
         var markers = new JpegMetadataMarker[requested.Count];
         for (int index = 0; index < markers.Length; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             JpegMetadataMarker marker = requested[index]
-                ?? throw new ArgumentException("Metadata marker descriptors must not be null.", nameof(MetadataMarkers));
-            if (marker.MarkerCode != 0xfe && marker.MarkerCode is not (>= 0xe0 and <= 0xef))
-                throw new ArgumentOutOfRangeException(nameof(MetadataMarkers), "Only APP0..APP15 (0xE0..0xEF) and COM (0xFE) markers are supported.");
+                ?? throw new ArgumentException("Metadata marker descriptors must not be null.", nameof(this.MetadataMarkers));
+            if (marker.MarkerCode is not 0xfe and not (>= 0xe0 and <= 0xef))
+            {
+                throw new ArgumentOutOfRangeException(nameof(this.MetadataMarkers), "Only APP0..APP15 (0xE0..0xEF) and COM (0xFE) markers are supported.");
+            }
+
             if (marker.Data.Length > JpegMarkerWriter.MaxMarkerPayloadBytes)
-                throw new ArgumentOutOfRangeException(nameof(MetadataMarkers), "Each metadata marker payload must not exceed 65,533 bytes.");
+            {
+                throw new ArgumentOutOfRangeException(nameof(this.MetadataMarkers), "Each metadata marker payload must not exceed 65,533 bytes.");
+            }
+
             markers[index] = marker;
         }
         cancellationToken.ThrowIfCancellationRequested();
@@ -548,10 +569,15 @@ public sealed record JpegliEncoderOptions
 
     internal JpegliEncoderOptions ResolveProgressiveLevel(JpegSamplingFactors sampling)
     {
-        if (ProgressiveLevel is not int level)
+        if (this.ProgressiveLevel is not int level)
+        {
             return this;
+        }
+
         if (level == 0)
+        {
             return this with { Progressive = false };
+        }
         // SetDefaultScanScript, lib/jpegli/encode.cc, pinned revision
         // 031a0077f5799a6041004267fc12b956c1f52a20. All levels >= 2 share a script.
         return this with
@@ -565,46 +591,70 @@ public sealed record JpegliEncoderOptions
 
     internal int[] PrepareProgressiveAcScanEnds()
     {
-        if (ProgressiveAcScanEnds is not { } ends)
+        if (this.ProgressiveAcScanEnds is not { } ends)
+        {
             return [63];
-        if (!Progressive)
-            throw new ArgumentException("AC scan bands require progressive encoding.", nameof(ProgressiveAcScanEnds));
+        }
+
+        if (!this.Progressive)
+        {
+            throw new ArgumentException("AC scan bands require progressive encoding.", nameof(this.ProgressiveAcScanEnds));
+        }
+
         int count = ends.Count;
         if (count is < 1 or > 63)
-            throw new ArgumentException("AC scan ends must contain between 1 and 63 positions.", nameof(ProgressiveAcScanEnds));
-        var snapshot = new int[count];
+        {
+            throw new ArgumentException("AC scan ends must contain between 1 and 63 positions.", nameof(this.ProgressiveAcScanEnds));
+        }
+
+        int[] snapshot = new int[count];
         int previous = 0;
         for (int index = 0; index < count; index++)
         {
             int end = ends[index];
             if (end <= previous || end > 63)
-                throw new ArgumentException("AC scan ends must be strictly increasing positions from 1 to 63.", nameof(ProgressiveAcScanEnds));
+            {
+                throw new ArgumentException("AC scan ends must be strictly increasing positions from 1 to 63.", nameof(this.ProgressiveAcScanEnds));
+            }
+
             snapshot[index] = end;
             previous = end;
         }
         if (previous != 63)
-            throw new ArgumentException("The final AC scan end must be 63.", nameof(ProgressiveAcScanEnds));
+        {
+            throw new ArgumentException("The final AC scan end must be 63.", nameof(this.ProgressiveAcScanEnds));
+        }
+
         return snapshot;
     }
 
     [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly", Justification = "Option validation identifies the invalid ProgressiveAcRefinementBits property in ParamName.")]
     internal int[] PrepareProgressiveAcRefinementBits(int bandCount)
     {
-        var snapshot = new int[bandCount];
-        if (ProgressiveAcRefinementBits is not { } depths)
+        int[] snapshot = new int[bandCount];
+        if (this.ProgressiveAcRefinementBits is not { } depths)
         {
-            Array.Fill(snapshot, ProgressiveRefinementBits);
+            Array.Fill(snapshot, this.ProgressiveRefinementBits);
             return snapshot;
         }
-        if (!Progressive)
-            throw new ArgumentException("AC refinement depths require progressive encoding.", nameof(ProgressiveAcRefinementBits));
+        if (!this.Progressive)
+        {
+            throw new ArgumentException("AC refinement depths require progressive encoding.", nameof(this.ProgressiveAcRefinementBits));
+        }
+
         if (depths.Count != bandCount)
-            throw new ArgumentException("AC refinement depths must contain one value per AC scan band.", nameof(ProgressiveAcRefinementBits));
+        {
+            throw new ArgumentException("AC refinement depths must contain one value per AC scan band.", nameof(this.ProgressiveAcRefinementBits));
+        }
+
         for (int index = 0; index < bandCount; index++)
         {
             int depth = depths[index];
             if (depth is < 0 or > 10)
-                throw new ArgumentOutOfRangeException(nameof(ProgressiveAcRefinementBits), "AC refinement depths must be between 0 and 10.");
+            {
+                throw new ArgumentOutOfRangeException(nameof(this.ProgressiveAcRefinementBits), "AC refinement depths must be between 0 and 10.");
+            }
+
             snapshot[index] = depth;
         }
         return snapshot;
@@ -612,86 +662,170 @@ public sealed record JpegliEncoderOptions
 
     internal void Validate()
     {
-        if (!StandardEnum.IsDefined(ColorRenderingIntent))
-            throw new ArgumentOutOfRangeException(nameof(ColorRenderingIntent));
-        if (SourceIccProfile.Length > JpegMarkerWriter.MaxIccProfileBytes)
-            throw new ArgumentOutOfRangeException(nameof(SourceIccProfile), "The source ICC profile must not exceed 16,707,345 bytes.");
-        if (ScanScript is not null && (ProgressiveLevel is not null
-            || ProgressiveAcScanEnds is not null || ProgressiveAcRefinementBits is not null
-            || ProgressiveRefinementBits != 0 || !ProgressiveInterleaveDc || !SequentialInterleaveComponents))
+        if (!StandardEnum.IsDefined(this.ColorRenderingIntent))
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.ColorRenderingIntent));
+        }
+
+        if (this.SourceIccProfile.Length > JpegMarkerWriter.MaxIccProfileBytes)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.SourceIccProfile), "The source ICC profile must not exceed 16,707,345 bytes.");
+        }
+
+        if (this.ScanScript is not null && (this.ProgressiveLevel is not null
+            || this.ProgressiveAcScanEnds is not null || this.ProgressiveAcRefinementBits is not null
+            || this.ProgressiveRefinementBits != 0 || !this.ProgressiveInterleaveDc || !this.SequentialInterleaveComponents))
+        {
             throw new ArgumentException("A scan script cannot be combined with other custom scan settings.",
-                nameof(ScanScript));
-        bool progressiveOutput = ProgressiveLevel is int requestedLevel ? requestedLevel > 0 : Progressive;
-        if (!SequentialInterleaveComponents && progressiveOutput)
+                nameof(this.ScanScript));
+        }
+
+        bool progressiveOutput = this.ProgressiveLevel is int requestedLevel ? requestedLevel > 0 : this.Progressive;
+        if (!this.SequentialInterleaveComponents && progressiveOutput)
+        {
             throw new ArgumentException("Separate sequential component scans require sequential encoding.",
-                nameof(SequentialInterleaveComponents));
-        if (ProgressiveLevel is int level)
+                nameof(this.SequentialInterleaveComponents));
+        }
+
+        if (this.ProgressiveLevel is int level)
         {
             if (level < 0)
-                throw new ArgumentOutOfRangeException(nameof(ProgressiveLevel), "The progressive level must be nonnegative.");
-            if (ProgressiveAcScanEnds is not null || ProgressiveAcRefinementBits is not null
-                || ProgressiveRefinementBits != 0 || !ProgressiveInterleaveDc)
+            {
+                throw new ArgumentOutOfRangeException(nameof(this.ProgressiveLevel), "The progressive level must be nonnegative.");
+            }
+
+            if (this.ProgressiveAcScanEnds is not null || this.ProgressiveAcRefinementBits is not null
+                || this.ProgressiveRefinementBits != 0 || !this.ProgressiveInterleaveDc)
+            {
                 throw new ArgumentException("A progressive level cannot be combined with custom progressive scan settings.",
-                    nameof(ProgressiveLevel));
+                    nameof(this.ProgressiveLevel));
+            }
         }
-        if (!StandardEnum.IsDefined(ColorSpace))
-            throw new ArgumentOutOfRangeException(nameof(ColorSpace));
-        if (!float.IsFinite(Quality) || Quality is < 0 or > 100)
-            throw new ArgumentOutOfRangeException(nameof(Quality), "Quality must be finite and between 0 and 100.");
-        if (Distance is float distance && (!float.IsFinite(distance) || distance <= 0f))
-            throw new ArgumentOutOfRangeException(nameof(Distance), "Distance must be finite and greater than zero.");
-        if (CicpTransferFunction is < 0 or > 255)
-            throw new ArgumentOutOfRangeException(nameof(CicpTransferFunction), "The CICP transfer-function code must be between 0 and 255.");
-        if (!StandardEnum.IsDefined(Subsampling))
-            throw new ArgumentOutOfRangeException(nameof(Subsampling));
-        SamplingFactors?.Validate();
-        if (ExifData.Length > JpegMarkerWriter.MaxExifDataBytes)
-            throw new ArgumentOutOfRangeException(nameof(ExifData), "The Exif TIFF data must not exceed 65,527 bytes.");
-        if (AutoPartitionXmp && !string.IsNullOrEmpty(ExtendedXmpPacket))
-            throw new ArgumentException("Automatic XMP partitioning cannot be combined with an explicit extended packet.",
-                nameof(AutoPartitionXmp));
-        if (XmpPacket is not null && !AutoPartitionXmp)
+        if (!StandardEnum.IsDefined(this.ColorSpace))
         {
-            if (XmpPacket.Length > JpegMarkerWriter.MaxXmpPacketBytes)
-                throw new ArgumentOutOfRangeException(nameof(XmpPacket), "The UTF-8 XMP packet must not exceed 65,504 bytes.");
+            throw new ArgumentOutOfRangeException(nameof(this.ColorSpace));
+        }
+
+        if (!float.IsFinite(this.Quality) || this.Quality is < 0 or > 100)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.Quality), "Quality must be finite and between 0 and 100.");
+        }
+
+        if (this.Distance is float distance && (!float.IsFinite(distance) || distance <= 0f))
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.Distance), "Distance must be finite and greater than zero.");
+        }
+
+        if (this.CicpTransferFunction is < 0 or > 255)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.CicpTransferFunction), "The CICP transfer-function code must be between 0 and 255.");
+        }
+
+        if (!StandardEnum.IsDefined(this.Subsampling))
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.Subsampling));
+        }
+
+        this.SamplingFactors?.Validate();
+        if (this.ExifData.Length > JpegMarkerWriter.MaxExifDataBytes)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.ExifData), "The Exif TIFF data must not exceed 65,527 bytes.");
+        }
+
+        if (this.AutoPartitionXmp && !string.IsNullOrEmpty(this.ExtendedXmpPacket))
+        {
+            throw new ArgumentException("Automatic XMP partitioning cannot be combined with an explicit extended packet.",
+                nameof(this.AutoPartitionXmp));
+        }
+
+        if (this.XmpPacket is not null && !this.AutoPartitionXmp)
+        {
+            if (this.XmpPacket.Length > JpegMarkerWriter.MaxXmpPacketBytes)
+            {
+                throw new ArgumentOutOfRangeException(nameof(this.XmpPacket), "The UTF-8 XMP packet must not exceed 65,504 bytes.");
+            }
+
             try
             {
-                if (JpegMarkerWriter.XmpEncoding.GetByteCount(XmpPacket) > JpegMarkerWriter.MaxXmpPacketBytes)
-                    throw new ArgumentOutOfRangeException(nameof(XmpPacket), "The UTF-8 XMP packet must not exceed 65,504 bytes.");
+                if (JpegMarkerWriter.XmpEncoding.GetByteCount(this.XmpPacket) > JpegMarkerWriter.MaxXmpPacketBytes)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(this.XmpPacket), "The UTF-8 XMP packet must not exceed 65,504 bytes.");
+                }
             }
             catch (EncoderFallbackException error)
             {
-                throw new ArgumentException("The XMP packet must contain well-formed UTF-16.", nameof(XmpPacket), error);
+                throw new ArgumentException("The XMP packet must contain well-formed UTF-16.", nameof(this.XmpPacket), error);
             }
         }
-        if (IccProfile.Length > JpegMarkerWriter.MaxIccProfileBytes)
-            throw new ArgumentOutOfRangeException(nameof(IccProfile), "The ICC profile must fit in at most 255 APP2 markers (16,707,345 bytes).");
-        if (IptcData.Length > JpegMarkerWriter.MaxIptcDataBytes)
-            throw new ArgumentOutOfRangeException(nameof(IptcData), "The IPTC-IIM data must not exceed 65,506 bytes in one Photoshop APP13 marker.");
-        if (Comment is not null && (Comment.Length > JpegMarkerWriter.MaxMarkerPayloadBytes ||
-            Encoding.UTF8.GetByteCount(Comment) > JpegMarkerWriter.MaxMarkerPayloadBytes))
-            throw new ArgumentOutOfRangeException(nameof(Comment), "The UTF-8 comment must not exceed 65,533 bytes.");
-        if (!StandardEnum.IsDefined(DensityUnit))
-            throw new ArgumentOutOfRangeException(nameof(DensityUnit));
-        if (HorizontalDensity is < 1 or > 65535)
-            throw new ArgumentOutOfRangeException(nameof(HorizontalDensity), "Horizontal density must be between 1 and 65535.");
-        if (VerticalDensity is < 1 or > 65535)
-            throw new ArgumentOutOfRangeException(nameof(VerticalDensity), "Vertical density must be between 1 and 65535.");
-        if (SmoothingFactor is < 0 or > 100)
-            throw new ArgumentOutOfRangeException(nameof(SmoothingFactor), "Smoothing factor must be between 0 and 100.");
-        if (MaxDegreeOfParallelism is 0 or < -1)
-            throw new ArgumentOutOfRangeException(nameof(MaxDegreeOfParallelism), "The worker limit must be positive or -1 for automatic selection.");
-        if (ProgressiveRefinementBits is < 0 or > 10)
-            throw new ArgumentOutOfRangeException(nameof(ProgressiveRefinementBits), "Progressive refinement bits must be between 0 and 10.");
-        if (ProgressiveRefinementBits != 0 && !Progressive)
-            throw new ArgumentException("Progressive refinement requires progressive encoding.", nameof(ProgressiveRefinementBits));
-        if (!ProgressiveInterleaveDc && !Progressive)
-            throw new ArgumentException("Separate DC scans require progressive encoding.", nameof(ProgressiveInterleaveDc));
-        if (RestartInterval is < 0 or > 65535)
-            throw new ArgumentOutOfRangeException(nameof(RestartInterval), "Restart interval must be between 0 and 65535 MCUs.");
-        if (RestartRows < 0)
-            throw new ArgumentOutOfRangeException(nameof(RestartRows), "Restart rows must be nonnegative.");
-        if (MaxPixels <= 0)
-            throw new ArgumentOutOfRangeException(nameof(MaxPixels));
+        if (this.IccProfile.Length > JpegMarkerWriter.MaxIccProfileBytes)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.IccProfile), "The ICC profile must fit in at most 255 APP2 markers (16,707,345 bytes).");
+        }
+
+        if (this.IptcData.Length > JpegMarkerWriter.MaxIptcDataBytes)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.IptcData), "The IPTC-IIM data must not exceed 65,506 bytes in one Photoshop APP13 marker.");
+        }
+
+        if (this.Comment is not null && (this.Comment.Length > JpegMarkerWriter.MaxMarkerPayloadBytes ||
+            Encoding.UTF8.GetByteCount(this.Comment) > JpegMarkerWriter.MaxMarkerPayloadBytes))
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.Comment), "The UTF-8 comment must not exceed 65,533 bytes.");
+        }
+
+        if (!StandardEnum.IsDefined(this.DensityUnit))
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.DensityUnit));
+        }
+
+        if (this.HorizontalDensity is < 1 or > 65535)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.HorizontalDensity), "Horizontal density must be between 1 and 65535.");
+        }
+
+        if (this.VerticalDensity is < 1 or > 65535)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.VerticalDensity), "Vertical density must be between 1 and 65535.");
+        }
+
+        if (this.SmoothingFactor is < 0 or > 100)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.SmoothingFactor), "Smoothing factor must be between 0 and 100.");
+        }
+
+        if (this.MaxDegreeOfParallelism is 0 or < -1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.MaxDegreeOfParallelism), "The worker limit must be positive or -1 for automatic selection.");
+        }
+
+        if (this.ProgressiveRefinementBits is < 0 or > 10)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.ProgressiveRefinementBits), "Progressive refinement bits must be between 0 and 10.");
+        }
+
+        if (this.ProgressiveRefinementBits != 0 && !this.Progressive)
+        {
+            throw new ArgumentException("Progressive refinement requires progressive encoding.", nameof(this.ProgressiveRefinementBits));
+        }
+
+        if (!this.ProgressiveInterleaveDc && !this.Progressive)
+        {
+            throw new ArgumentException("Separate DC scans require progressive encoding.", nameof(this.ProgressiveInterleaveDc));
+        }
+
+        if (this.RestartInterval is < 0 or > 65535)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.RestartInterval), "Restart interval must be between 0 and 65535 MCUs.");
+        }
+
+        if (this.RestartRows < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.RestartRows), "Restart rows must be nonnegative.");
+        }
+
+        if (this.MaxPixels <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.MaxPixels));
+        }
     }
 }

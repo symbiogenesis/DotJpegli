@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderSmoothingTests
 {
@@ -15,18 +15,25 @@ public sealed class EncoderSmoothingTests
         Assert.Equal(0, new JpegliEncoderOptions().SmoothingFactor);
         const int width = 19, height = 33;
         foreach (PixelLayout layout in new[] { PixelLayout.Rgb24, PixelLayout.Gray8 })
+        {
             foreach (bool optimize in new[] { false, true })
+            {
                 foreach (bool adaptive in new[] { false, true })
                 {
                     byte[] pixels = Pattern(width, height, layout);
                     var options = new JpegliEncoderOptions
                     {
-                        Progressive = progressive, ProgressiveRefinementBits = refinementBits,
-                        OptimizeHuffmanTables = optimize, AdaptiveQuantization = adaptive, RestartInterval = 2
+                        Progressive = progressive,
+                        ProgressiveRefinementBits = refinementBits,
+                        OptimizeHuffmanTables = optimize,
+                        AdaptiveQuantization = adaptive,
+                        RestartInterval = 2
                     };
                     Assert.Equal(Encode(pixels, width, height, layout, options),
                         Encode(pixels, width, height, layout, options with { SmoothingFactor = 0 }));
                 }
+            }
+        }
     }
 
     [Theory]
@@ -37,7 +44,7 @@ public sealed class EncoderSmoothingTests
     public void InvalidSmoothingFactorWritesNoOutput(int factor)
     {
         using var destination = new MemoryStream();
-        var error = Assert.Throws<ArgumentOutOfRangeException>(() =>
+        ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() =>
             JpegliEncoder.Encode(destination, new byte[3], 1, 1,
                 options: new() { SmoothingFactor = factor },
                 cancellationToken: TestContext.Current.CancellationToken));
@@ -54,7 +61,9 @@ public sealed class EncoderSmoothingTests
             {
                 modes.Add(PixelLayout.Gray8, ChromaSubsampling.Quarter, adaptive);
                 foreach (ChromaSubsampling sampling in Enum.GetValues<ChromaSubsampling>())
+                {
                     modes.Add(PixelLayout.Rgb24, sampling, adaptive);
+                }
             }
             return modes;
         }
@@ -70,11 +79,14 @@ public sealed class EncoderSmoothingTests
         byte[] pixels = Pattern(width, height, layout);
         var options = new JpegliEncoderOptions
         {
-            Quality = 90, Subsampling = sampling, SmoothingFactor = 37,
-            AdaptiveQuantization = adaptive, OptimizeHuffmanTables = false
+            Quality = 90,
+            Subsampling = sampling,
+            SmoothingFactor = 37,
+            AdaptiveQuantization = adaptive,
+            OptimizeHuffmanTables = false
         };
         byte[] baseline = Encode(pixels, width, height, layout, options);
-        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        var reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
         foreach ((bool progressive, int bits, bool optimize, int interval) in new[]
         {
             (false, 0, true, 3), (true, 0, false, 1),
@@ -83,10 +95,12 @@ public sealed class EncoderSmoothingTests
         {
             byte[] jpeg = Encode(pixels, width, height, layout, options with
             {
-                Progressive = progressive, ProgressiveRefinementBits = bits,
-                OptimizeHuffmanTables = optimize, RestartInterval = interval
+                Progressive = progressive,
+                ProgressiveRefinementBits = bits,
+                OptimizeHuffmanTables = optimize,
+                RestartInterval = interval
             });
-            JpegDocument actual = JpegDocument.Read(jpeg, progressive, interval, bits);
+            var actual = JpegDocument.Read(jpeg, progressive, interval, bits);
             AssertBaselineParity(baseline, reference, jpeg, actual, layout);
         }
     }
@@ -100,14 +114,18 @@ public sealed class EncoderSmoothingTests
     {
         byte[] pixels = Pattern(width, height, PixelLayout.Gray8);
         foreach (int factor in new[] { 1, 37, 100 })
+        {
             foreach (bool optimize in new[] { false, true })
             {
                 byte[] jpeg = Encode(pixels, width, height, PixelLayout.Gray8, new()
                 {
-                    Quality = 95, SmoothingFactor = factor, AdaptiveQuantization = false,
-                    OptimizeHuffmanTables = optimize, RestartInterval = 2
+                    Quality = 95,
+                    SmoothingFactor = factor,
+                    AdaptiveQuantization = false,
+                    OptimizeHuffmanTables = optimize,
+                    RestartInterval = 2
                 });
-                JpegDocument document = JpegDocument.Read(jpeg, progressive: false, expectedInterval: 2);
+                var document = JpegDocument.Read(jpeg, progressive: false, expectedInterval: 2);
                 byte[] quantizer = document.Quantizers[document.Components[1].Quantizer];
                 foreach ((BlockKey key, Block block) in document.Blocks)
                 {
@@ -123,6 +141,7 @@ public sealed class EncoderSmoothingTests
                     }
                 }
             }
+        }
     }
 
     [Theory]
@@ -136,41 +155,55 @@ public sealed class EncoderSmoothingTests
         {
             PixelLayout compactLayout = layout == PixelLayout.Gray8 ? PixelLayout.Gray8 : PixelLayout.Rgb24;
             byte[] compact = Pattern(width, height, compactLayout);
-            int stride = width * bytesPerPixel + 13;
+            int stride = (width * bytesPerPixel) + 13;
             // There is deliberately no trailing padding after the last row.
-            byte[] padded = Enumerable.Repeat((byte)0xe5, (height - 1) * stride + width * bytesPerPixel).ToArray();
+            byte[] padded = Enumerable.Repeat((byte)0xe5, ((height - 1) * stride) + (width * bytesPerPixel)).ToArray();
             bool bgr = layout is PixelLayout.Bgr24 or PixelLayout.Bgra32;
             for (int y = 0; y < height; y++)
+            {
                 for (int x = 0; x < width; x++)
                 {
-                    int output = y * stride + x * bytesPerPixel;
+                    int output = (y * stride) + (x * bytesPerPixel);
                     if (layout == PixelLayout.Gray8)
                     {
-                        padded[output] = compact[y * width + x];
+                        padded[output] = compact[(y * width) + x];
                         continue;
                     }
-                    int input = (y * width + x) * 3;
+                    int input = ((y * width) + x) * 3;
                     padded[output + (bgr ? 2 : 0)] = compact[input];
                     padded[output + 1] = compact[input + 1];
                     padded[output + (bgr ? 0 : 2)] = compact[input + 2];
                     if (bytesPerPixel == 4)
-                        padded[output + 3] = (byte)((x * 17 + y * 29) % 256);
+                    {
+                        padded[output + 3] = (byte)(((x * 17) + (y * 29)) % 256);
+                    }
                 }
+            }
+
             var options = new JpegliEncoderOptions
             {
-                Quality = 90, SmoothingFactor = 100, Progressive = true, ProgressiveRefinementBits = 2,
-                RestartInterval = 2, Subsampling = ChromaSubsampling.Quarter
+                Quality = 90,
+                SmoothingFactor = 100,
+                Progressive = true,
+                ProgressiveRefinementBits = 2,
+                RestartInterval = 2,
+                Subsampling = ChromaSubsampling.Quarter
             };
             byte[] expected = Encode(compact, width, height, compactLayout, options);
             byte[] actual = JpegliEncoder.Encode(padded, width, height, layout, options, stride,
                 cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal(expected, actual);
-            JpegDocument.Read(actual, progressive: true, expectedInterval: 2, expectedRefinementBits: 2);
+            _ = JpegDocument.Read(actual, progressive: true, expectedInterval: 2, expectedRefinementBits: 2);
             if (bytesPerPixel == 4)
             {
                 for (int y = 0; y < height; y++)
+                {
                     for (int x = 0; x < width; x++)
-                        padded[y * stride + x * bytesPerPixel + 3] ^= 0xff;
+                    {
+                        padded[(y * stride) + (x * bytesPerPixel) + 3] ^= 0xff;
+                    }
+                }
+
                 Assert.Equal(expected, JpegliEncoder.Encode(padded, width, height, layout, options, stride,
                     cancellationToken: TestContext.Current.CancellationToken));
             }
@@ -183,13 +216,18 @@ public sealed class EncoderSmoothingTests
         const int width = 33, height = 17;
         byte[] pixels = new byte[width * height];
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
-                pixels[y * width + x] = (byte)(((x + y) & 1) == 0 ? 72 : 184);
+            {
+                pixels[(y * width) + x] = (byte)(((x + y) & 1) == 0 ? 72 : 184);
+            }
+        }
+
         var options = new JpegliEncoderOptions { Quality = 100, AdaptiveQuantization = false };
         byte[] original = Encode(pixels, width, height, PixelLayout.Gray8, options);
         byte[] smoothed = Encode(pixels, width, height, PixelLayout.Gray8, options with { SmoothingFactor = 100 });
         Assert.False(original.SequenceEqual(smoothed));
-        ImageResult decoded = ImageResult.FromMemory(smoothed, ColorComponents.Grey);
+        var decoded = ImageResult.FromMemory(smoothed, ColorComponents.Grey);
         Assert.Equal(width, decoded.Width);
         Assert.Equal(height, decoded.Height);
         byte[] reference = ImageResult.FromMemory(original, ColorComponents.Grey).Data;
@@ -205,11 +243,14 @@ public sealed class EncoderSmoothingTests
         byte[] pixels = Pattern(width, height, PixelLayout.Rgb24);
         var options = new JpegliEncoderOptions
         {
-            SmoothingFactor = 100, Progressive = true, ProgressiveRefinementBits = 2,
-            RestartInterval = 2, OptimizeHuffmanTables = optimize
+            SmoothingFactor = 100,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2,
+            OptimizeHuffmanTables = optimize
         };
         byte[] complete = Encode(pixels, width, height, PixelLayout.Rgb24, options);
-        JpegDocument document = JpegDocument.Read(complete, progressive: true,
+        var document = JpegDocument.Read(complete, progressive: true,
             expectedInterval: 2, expectedRefinementBits: 2);
         Scan refinement = document.Scans.First(scan => scan.High != 0 && scan.First != 0);
         int cancelAfter = refinement.DataStart + 1;
@@ -218,7 +259,9 @@ public sealed class EncoderSmoothingTests
         using var output = new WriteOnlyStream(destination, () =>
         {
             if (destination.Length >= cancelAfter)
+            {
                 cancellation.Cancel();
+            }
         });
         OperationCanceledException error = Assert.Throws<OperationCanceledException>(() =>
             JpegliEncoder.Encode(output, pixels, width, height, options: options,
@@ -234,20 +277,30 @@ public sealed class EncoderSmoothingTests
     // It calls no encoder color, filtering, DCT or quantization helpers.
     private static double[] OracleSamples(byte[] pixels, int width, int height, int left, int top, int factor)
     {
-        var samples = new double[64];
+        double[] samples = new double[64];
         for (int y = 0; y < 8; y++)
+        {
             for (int x = 0; x < 8; x++)
             {
-                double center = pixels[Math.Clamp(top + y, 0, height - 1) * width + Math.Clamp(left + x, 0, width - 1)];
+                double center = pixels[(Math.Clamp(top + y, 0, height - 1) * width) + Math.Clamp(left + x, 0, width - 1)];
                 double neighbors = 0;
                 for (int dy = -1; dy <= 1; dy++)
+                {
                     for (int dx = -1; dx <= 1; dx++)
+                    {
                         if (dx != 0 || dy != 0)
-                            neighbors += pixels[Math.Clamp(top + y + dy, 0, height - 1) * width
+                        {
+                            neighbors += pixels[(Math.Clamp(top + y + dy, 0, height - 1) * width)
                                 + Math.Clamp(left + x + dx, 0, width - 1)];
+                        }
+                    }
+                }
+
                 double weight = factor / 1024.0;
-                samples[y * 8 + x] = center * (1 - 8 * weight) + neighbors * weight - 128;
+                samples[(y * 8) + x] = (center * (1 - (8 * weight))) + (neighbors * weight) - 128;
             }
+        }
+
         return samples;
     }
 
@@ -255,8 +308,13 @@ public sealed class EncoderSmoothingTests
     {
         double sum = 0;
         for (int y = 2; y < height - 2; y++)
+        {
             for (int x = 2; x < width - 3; x++)
-                sum += Math.Abs(pixels[y * width + x + 1] - pixels[y * width + x]);
+            {
+                sum += Math.Abs(pixels[(y * width) + x + 1] - pixels[(y * width) + x]);
+            }
+        }
+
         return sum;
     }
 

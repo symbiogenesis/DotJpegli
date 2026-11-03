@@ -1,9 +1,8 @@
+namespace DotJpegli.Tests;
 #if DOTJPEGLI_NETSTANDARD_TESTS
 using System.Numerics;
 using DotJpegli.Compatibility;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class StandardCompatibilityTests
 {
@@ -13,9 +12,15 @@ public sealed class StandardCompatibilityTests
         uint[] narrow = [0, 1, 2, 3, uint.MaxValue, uint.MaxValue - 1, 0x7fffffff, 0x80000000];
         ulong[] wide = [0, 1, 2, 3, ulong.MaxValue, ulong.MaxValue - 1, 0x7fffffffffffffff, 0x8000000000000000];
         foreach (uint value in narrow)
+        {
             AssertBitOperations(value);
+        }
+
         foreach (ulong value in wide)
+        {
             AssertBitOperations(value);
+        }
+
         for (int bit = 0; bit < 32; bit++)
         {
             uint value = 1u << bit;

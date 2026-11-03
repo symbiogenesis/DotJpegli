@@ -24,8 +24,8 @@ internal sealed class HuffmanCodingPlan
 
     private HuffmanCodingPlan(ScanCoding[] scans, bool extendedSequential)
     {
-        Scans = scans;
-        RequiresExtendedSequential = extendedSequential;
+        this.Scans = scans;
+        this.RequiresExtendedSequential = extendedSequential;
     }
 
     internal ScanCoding[] Scans { get; }
@@ -36,17 +36,26 @@ internal sealed class HuffmanCodingPlan
     {
         int componentCount = dcFrequencies.Length;
         if (componentCount is not (1 or 3) || scans.Count != acFrequencies.Length)
+        {
             throw new ArgumentException("Supply component DC and per-scan AC histograms.");
+        }
+
         bool limitToBaseline = !progressive && forceBaseline;
         Clusters dc = Cluster(dcFrequencies, limitToBaseline);
         var acContexts = new List<long[]>();
-        var acContextIndexes = new int[scans.Count, componentCount];
+        int[,] acContextIndexes = new int[scans.Count, componentCount];
         for (int scanIndex = 0; scanIndex < scans.Count; scanIndex++)
         {
             if (acFrequencies[scanIndex].Length != componentCount)
+            {
                 throw new ArgumentException("Each scan requires one histogram per component.", nameof(acFrequencies));
+            }
+
             if (scans[scanIndex].SpectralEnd == 0)
+            {
                 continue;
+            }
+
             foreach (int component in scans[scanIndex].Components)
             {
                 acContextIndexes[scanIndex, component] = acContexts.Count;
@@ -60,9 +69,14 @@ internal sealed class HuffmanCodingPlan
         int nextAcDefinition = Math.Min(4, acTables.Length);
         var firstDefinitions = new List<Definition>(dcTables.Length + nextAcDefinition);
         for (int index = 0; index < dcTables.Length; index++)
+        {
             firstDefinitions.Add(new(dcTables[index], dc.Slots[index]));
+        }
+
         for (int index = 0; index < nextAcDefinition; index++)
+        {
             firstDefinitions.Add(new(acTables[index], 0x10 | ac.Slots[index]));
+        }
 
         bool extendedSequential = false;
         var coding = new ScanCoding[scans.Count];
@@ -73,7 +87,7 @@ internal sealed class HuffmanCodingPlan
             var scanAc = new HuffmanTable[componentCount];
             Array.Fill(scanDc, unused);
             Array.Fill(scanAc, unused);
-            var selectors = new byte[componentCount];
+            byte[] selectors = new byte[componentCount];
             // Most progressive scans reuse previously defined tables. Avoid
             // allocating an empty list until a later scan actually evicts one.
             List<Definition>? definitions = scanIndex == 0 ? firstDefinitions : null;
@@ -118,7 +132,7 @@ internal sealed class HuffmanCodingPlan
     private static Clusters Cluster(IReadOnlyList<long[]> histograms, bool forceBaseline)
     {
         var clusters = new List<long[]>();
-        var indexes = new int[histograms.Count];
+        int[] indexes = new int[histograms.Count];
         var slots = new List<int>();
         var slotHistograms = new List<int>();
         var slotCosts = new List<float>();
@@ -127,9 +141,15 @@ internal sealed class HuffmanCodingPlan
         {
             long[] current = histograms[index];
             if (current.Length != 256 || current.AsSpan().ContainsAnyInRange(long.MinValue, -1L))
+            {
                 throw new ArgumentException("Each histogram requires 256 nonnegative frequencies.", nameof(histograms));
+            }
+
             if (!current.AsSpan().ContainsAnyExcept(0L))
+            {
                 continue;
+            }
+
             int bestSlot = slotHistograms.Count;
             float bestCost = forceBaseline && bestSlot > 1 ? float.MaxValue : Cost(current);
             for (int slot = 0; slot < slotHistograms.Count; slot++)
@@ -153,7 +173,10 @@ internal sealed class HuffmanCodingPlan
                     slotCosts.Add(bestCost);
                 }
                 else
+                {
                     bestSlot = (slots[^1] + 1) % 4;
+                }
+
                 slotHistograms[bestSlot] = histogramIndex;
                 slotCosts[bestSlot] = bestCost;
                 slots.Add(bestSlot);
@@ -172,7 +195,9 @@ internal sealed class HuffmanCodingPlan
     private static void Add(ReadOnlySpan<long> left, ReadOnlySpan<long> right, Span<long> sum)
     {
         for (int symbol = 0; symbol < sum.Length; symbol++)
+        {
             sum[symbol] = checked(left[symbol] + right[symbol]);
+        }
     }
 
     private static float Cost(ReadOnlySpan<long> frequencies)

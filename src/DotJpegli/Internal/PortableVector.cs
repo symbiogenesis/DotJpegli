@@ -1,7 +1,7 @@
+namespace DotJpegli.Internal;
+
 using System.Numerics;
 using System.Runtime.CompilerServices;
-
-namespace DotJpegli.Internal;
 
 internal static class PortableVector
 {
@@ -21,9 +21,14 @@ internal static class PortableVector
     internal static void CopyTo<T>(this Vector<T> vector, Span<T> destination) where T : struct
     {
         if (destination.Length < Vector<T>.Count)
+        {
             throw new ArgumentException("The destination must hold a complete vector.", nameof(destination));
+        }
+
         for (int lane = 0; lane < Vector<T>.Count; lane++)
+        {
             destination[lane] = vector[lane];
+        }
     }
 #endif
 }

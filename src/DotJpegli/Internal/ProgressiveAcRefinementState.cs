@@ -18,18 +18,18 @@ internal sealed class ProgressiveAcRefinementState
 
     public int CorrectionBitCount { get; private set; }
 
-    internal ReadOnlySpan<byte> Corrections => corrections.AsSpan(0, CorrectionBitCount);
+    internal ReadOnlySpan<byte> Corrections => this.corrections.AsSpan(0, this.CorrectionBitCount);
 
     internal void AppendBlock(ReadOnlySpan<byte> blockCorrections)
     {
-        blockCorrections.CopyTo(corrections.AsSpan(CorrectionBitCount));
-        CorrectionBitCount += blockCorrections.Length;
-        PendingEobRun++;
+        blockCorrections.CopyTo(this.corrections.AsSpan(this.CorrectionBitCount));
+        this.CorrectionBitCount += blockCorrections.Length;
+        this.PendingEobRun++;
     }
 
     internal void Clear()
     {
-        PendingEobRun = 0;
-        CorrectionBitCount = 0;
+        this.PendingEobRun = 0;
+        this.CorrectionBitCount = 0;
     }
 }

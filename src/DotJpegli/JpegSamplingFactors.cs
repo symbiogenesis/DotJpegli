@@ -14,19 +14,19 @@ public sealed record JpegSamplingFactors(
 {
     internal JpegComponentSampling this[int component] => component switch
     {
-        0 => Luma,
-        1 => Cb,
-        2 => Cr,
+        0 => this.Luma,
+        1 => this.Cb,
+        2 => this.Cr,
         _ => throw new ArgumentOutOfRangeException(nameof(component))
     };
 
     // The upstream quantizer compensates only this exact sampling scheme.
-    internal bool Is420 => Luma == new JpegComponentSampling(2, 2)
-        && Cb == new JpegComponentSampling(1, 1) && Cr == new JpegComponentSampling(1, 1);
+    internal bool Is420 => this.Luma == new JpegComponentSampling(2, 2)
+        && this.Cb == new JpegComponentSampling(1, 1) && this.Cr == new JpegComponentSampling(1, 1);
 
-    internal int MaxHorizontal => Math.Max(Luma.Horizontal, Math.Max(Cb.Horizontal, Cr.Horizontal));
-    internal int MaxVertical => Math.Max(Luma.Vertical, Math.Max(Cb.Vertical, Cr.Vertical));
-    internal bool HasFullResolutionLuma => Luma.Horizontal == MaxHorizontal && Luma.Vertical == MaxVertical;
+    internal int MaxHorizontal => Math.Max(this.Luma.Horizontal, Math.Max(this.Cb.Horizontal, this.Cr.Horizontal));
+    internal int MaxVertical => Math.Max(this.Luma.Vertical, Math.Max(this.Cb.Vertical, this.Cr.Vertical));
+    internal bool HasFullResolutionLuma => this.Luma.Horizontal == this.MaxHorizontal && this.Luma.Vertical == this.MaxVertical;
 
     internal void Validate()
     {
@@ -35,13 +35,18 @@ public sealed record JpegSamplingFactors(
         {
             JpegComponentSampling factor = this[component];
             if (factor.Horizontal is < 1 or > 4 || factor.Vertical is < 1 or > 4)
+            {
                 throw new ArgumentOutOfRangeException(nameof(JpegliEncoderOptions.SamplingFactors),
                     "Each component sampling factor must be between 1 and 4.");
+            }
+
             blocks += factor.Horizontal * factor.Vertical;
         }
         if (blocks > 10)
+        {
             throw new ArgumentException("A color MCU must contain at most ten blocks.",
                 nameof(JpegliEncoderOptions.SamplingFactors));
+        }
     }
 
     internal static JpegSamplingFactors FromSubsampling(ChromaSubsampling subsampling)

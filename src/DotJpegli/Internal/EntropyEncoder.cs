@@ -2,13 +2,15 @@
 // Use of this source code is governed by the BSD-3-Clause license in
 // THIRD-PARTY-NOTICES.md.
 
+namespace DotJpegli.Internal;
+
+#if !NETSTANDARD2_1
 using System.Numerics;
+#endif
 using System.Runtime.CompilerServices;
 #if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
 #endif
-
-namespace DotJpegli.Internal;
 
 // Managed scalar adaptation of ComputeTokensForBlock<T, false> in
 // google/jpegli lib/jpegli/entropy_coding-inl.h, revision
@@ -55,7 +57,10 @@ internal static class EntropyEncoder
                 nonzero &= nonzero - 1;
             }
             if (previousPosition != 63)
+            {
                 ac.WriteSymbol(writer, 0);
+            }
+
             return;
         }
 
@@ -114,7 +119,8 @@ internal static class EntropyEncoder
         }
         int difference = naturalCoefficients[0] - previousDc;
         int category = Category(difference);
-        checked { dc[category]++; }
+        checked
+        { dc[category]++; }
         tokens?.AddHuffman(component, false, category, AdditionalBits(difference, category), category);
         previousDc = naturalCoefficients[0];
 
@@ -128,21 +134,24 @@ internal static class EntropyEncoder
                 int run = position - previousPosition - 1;
                 while (run >= 16)
                 {
-                    checked { ac[0xf0]++; }
+                    checked
+                    { ac[0xf0]++; }
                     tokens?.AddHuffman(component, true, 0xf0, 0, 0);
                     run -= 16;
                 }
                 int value = naturalCoefficients[position];
                 category = Category(value);
                 int symbol = (run << 4) | category;
-                checked { ac[symbol]++; }
+                checked
+                { ac[symbol]++; }
                 tokens?.AddHuffman(component, true, symbol, AdditionalBits(value, category), category);
                 previousPosition = position;
                 nonzero &= nonzero - 1;
             }
             if (previousPosition != 63)
             {
-                checked { ac[0]++; }
+                checked
+                { ac[0]++; }
                 tokens?.AddHuffman(component, true, 0, 0, 0);
             }
             return;
@@ -154,7 +163,8 @@ internal static class EntropyEncoder
         {
             if (nonzeros == 0)
             {
-                checked { ac[0]++; }
+                checked
+                { ac[0]++; }
                 tokens?.AddHuffman(component, true, 0, 0, 0);
                 break;
             }
@@ -170,14 +180,16 @@ internal static class EntropyEncoder
             nonzeros--;
             while (run >= 16)
             {
-                checked { ac[0xf0]++; }
+                checked
+                { ac[0xf0]++; }
                 tokens?.AddHuffman(component, true, 0xf0, 0, 0);
                 run -= 16;
             }
 
             category = Category(value);
             int symbol = (run << 4) | category;
-            checked { ac[symbol]++; }
+            checked
+            { ac[symbol]++; }
             tokens?.AddHuffman(component, true, symbol, AdditionalBits(value, category), category);
         }
     }
@@ -229,7 +241,10 @@ internal static class EntropyEncoder
     {
         int index = value + 2048;
         if ((uint)index < 4096)
+        {
             return amplitudes[index];
+        }
+
         int category = Category(value);
         return EntropyTokens.PackHuffman(0, category, AdditionalBits(value, category), category);
     }
@@ -243,7 +258,7 @@ internal static class EntropyEncoder
 
         private static uint[] Create()
         {
-            var values = new uint[4096];
+            uint[] values = new uint[4096];
             for (int index = 0; index < values.Length; index++)
             {
                 int value = index - 2048;
@@ -285,8 +300,11 @@ internal static class EntropyEncoder
     private static uint AdditionalBits(int value, int category) =>
         unchecked((uint)(value + (value >> 31))) & ((1U << category) - 1);
 
-    private static int CountNonzeroAc(ReadOnlySpan<short> coefficients) =>
-        63 - coefficients[1..].Count((short)0);
+    private static int CountNonzeroAc(ReadOnlySpan<short> coefficients)
+    {
+        const short zero = 0;
+        return 63 - coefficients[1..].Count(zero);
+    }
 
     // One bit per zigzag position. Masking DC lets its wider signed range use
     // the same full-vector loads as the AC coefficients without a scalar tail.
@@ -295,7 +313,9 @@ internal static class EntropyEncoder
     {
 #if !NETSTANDARD2_1
         if (Vector512.IsHardwareAccelerated)
+        {
             return NonzeroAcMaskVector512(zigZagCoefficients);
+        }
 #endif
         ulong mask = 0;
 #if !NETSTANDARD2_1
@@ -303,7 +323,7 @@ internal static class EntropyEncoder
         {
             for (int position = 0; position < 64; position += Vector256<short>.Count)
             {
-                Vector256<short> values = Vector256.Create(zigZagCoefficients.Slice(position, Vector256<short>.Count));
+                var values = Vector256.Create(zigZagCoefficients.Slice(position, Vector256<short>.Count));
                 uint zeros = Vector256.ExtractMostSignificantBits(Vector256.Equals(values, Vector256<short>.Zero));
                 mask |= (ulong)(~zeros & 0xffffU) << position;
             }
@@ -312,7 +332,7 @@ internal static class EntropyEncoder
         {
             for (int position = 0; position < 64; position += Vector128<short>.Count)
             {
-                Vector128<short> values = Vector128.Create(zigZagCoefficients.Slice(position, Vector128<short>.Count));
+                var values = Vector128.Create(zigZagCoefficients.Slice(position, Vector128<short>.Count));
                 uint zeros = Vector128.ExtractMostSignificantBits(Vector128.Equals(values, Vector128<short>.Zero));
                 mask |= (ulong)(~zeros & 0xffU) << position;
             }
@@ -321,8 +341,12 @@ internal static class EntropyEncoder
 #endif
         {
             for (int position = 1; position < 64; position++)
+            {
                 if (zigZagCoefficients[position] != 0)
+                {
                     mask |= 1UL << position;
+                }
+            }
         }
         return mask & ~1UL;
     }
@@ -331,11 +355,11 @@ internal static class EntropyEncoder
 #if !NETSTANDARD2_1
     internal static ulong NonzeroAcMaskVector512(ReadOnlySpan<short> zigZagCoefficients)
     {
-        Vector512<short> lower = Vector512.Create(zigZagCoefficients[..32]);
-        Vector512<short> upper = Vector512.Create(zigZagCoefficients.Slice(32, 32));
+        var lower = Vector512.Create(zigZagCoefficients[..32]);
+        var upper = Vector512.Create(zigZagCoefficients.Slice(32, 32));
         uint lowerZeros = (uint)Vector512.ExtractMostSignificantBits(Vector512.Equals(lower, Vector512<short>.Zero));
         uint upperZeros = (uint)Vector512.ExtractMostSignificantBits(Vector512.Equals(upper, Vector512<short>.Zero));
-        return ((ulong)~lowerZeros | ((ulong)~upperZeros << 32)) & ~1UL;
+        return (~lowerZeros | ((ulong)~upperZeros << 32)) & ~1UL;
     }
 
 #else
@@ -359,7 +383,9 @@ internal static class EntropyEncoder
         }
 
         if (!coefficientsValidated)
+        {
             ValidateAc(coefficients);
+        }
     }
 
     // Cached blocks call this once before their histogram and emission passes.
@@ -367,13 +393,17 @@ internal static class EntropyEncoder
     internal static void ValidateAc(ReadOnlySpan<short> coefficients)
     {
         if (!AcCoefficientsInRange(coefficients))
+        {
             throw new ArgumentOutOfRangeException(nameof(coefficients), "An AC coefficient exceeds baseline JPEG's 10-bit category.");
+        }
     }
 
     internal static bool AcCoefficientsInRange(ReadOnlySpan<short> coefficients)
     {
         if (coefficients.Length != 64)
+        {
             throw new ArgumentException("A DCT block must contain 64 coefficients.", nameof(coefficients));
+        }
 
         bool invalid = false;
 #if !NETSTANDARD2_1
@@ -384,7 +414,7 @@ internal static class EntropyEncoder
             var maximum = new Vector<short>(1023);
             // Load full vectors without a scalar tail. The first lane is DC,
             // whose wider/difference-dependent range must not affect this test.
-            Vector<short> values = Vector.WithElement(new Vector<short>(coefficients), 0, (short)0);
+            var values = Vector.WithElement(new Vector<short>(coefficients), 0, (short)0);
             Vector<short> outside = Vector.LessThan(values, minimum) | Vector.GreaterThan(values, maximum);
             for (int offset = lanes; offset < 64; offset += lanes)
             {
@@ -397,7 +427,9 @@ internal static class EntropyEncoder
 #endif
         {
             for (int offset = 1; offset < 64; offset++)
+            {
                 invalid |= coefficients[offset] is < -1023 or > 1023;
+            }
         }
         return !invalid;
     }

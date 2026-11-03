@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class CustomAdaptiveSamplingTests
 {
@@ -49,10 +49,14 @@ public sealed class CustomAdaptiveSamplingTests
         byte[] pixels = Pattern(width, height, vertical);
         var options = new JpegliEncoderOptions
         {
-            Quality = 85, SamplingFactors = sampling, Progressive = progressive,
-            OptimizeHuffmanTables = optimize, AdaptiveQuantization = true, RestartInterval = 2
+            Quality = 85,
+            SamplingFactors = sampling,
+            Progressive = progressive,
+            OptimizeHuffmanTables = optimize,
+            AdaptiveQuantization = true,
+            RestartInterval = 2
         };
-        JpegDocument document = JpegDocument.Read(
+        var document = JpegDocument.Read(
             Encode(pixels, width, height, PixelLayout.Rgb24, options), progressive, 2);
         ushort[][] tables = Enumerable.Range(0, 3)
             .Select(component => Quantization.CreateTable(85, component)).ToArray();
@@ -66,7 +70,9 @@ public sealed class CustomAdaptiveSamplingTests
             analysis.ComputeRow(pixels, width * 3, 3, PixelLayout.Rgb24, top, 4,
                 row, TestContext.Current.CancellationToken);
             for (int i = 0; i < row.Length; i++)
-                Assert.InRange(MathF.Abs(fixture[top / 8 * analysis.BlocksWide + i] - row[i]), 0, 0.00001f);
+            {
+                Assert.InRange(MathF.Abs(fixture[(top / 8 * analysis.BlocksWide) + i] - row[i]), 0, 0.00001f);
+            }
         }
 
         float[] samples = new float[64];
@@ -89,11 +95,11 @@ public sealed class CustomAdaptiveSamplingTests
             int mcuY = key.Y / factor.Vertical;
             int localX = key.X % factor.Horizontal;
             int localY = key.Y % factor.Vertical;
-            int fieldY = mcuY * sampling.Luma.Vertical + localY;
+            int fieldY = (mcuY * sampling.Luma.Vertical) + localY;
             int fieldX = key.X * sampleWidth;
             // Pinned encode_streaming.cc 191 uses qf[iy * stride + bx * h_factor]
             // in every initial coefficient path, including progressive output.
-            float strength = fixture[fieldY * analysis.BlocksWide + fieldX];
+            float strength = fixture[(fieldY * analysis.BlocksWide) + fieldX];
             Downsampling.FillBlock(pixels, width, height, width * 3, 3, PixelLayout.Rgb24,
                 component, key.X * 8 * sampleWidth, key.Y * 8 * sampleHeight,
                 sampleWidth, sampleHeight, samples);
@@ -102,18 +108,22 @@ public sealed class CustomAdaptiveSamplingTests
                 Quantization.QualityToDistance(85), adaptiveQuantization: true,
                 adaptiveStrength: strength, adaptiveMultipliers: multipliers[component]);
             for (int scanIndex = 1; scanIndex < 64; scanIndex++)
+            {
                 Assert.Equal(expected[JpegConstants.ZigZag[scanIndex]], block.Coefficients[scanIndex]);
+            }
 
             // Prove the fixtures detect physically scaled vertical rows, or
             // columns that forget the within-MCU horizontal downsampling ratio.
             int alternativeY = vertical ? key.Y * sampleHeight : fieldY;
-            int alternativeX = vertical ? fieldX : mcuX * sampling.Luma.Horizontal + localX;
+            int alternativeX = vertical ? fieldX : (mcuX * sampling.Luma.Horizontal) + localX;
             Quantization.Quantize(coefficients, tables[component], alternative, component,
                 Quantization.QualityToDistance(85), adaptiveQuantization: true,
-                adaptiveStrength: fixture[alternativeY * analysis.BlocksWide + alternativeX],
+                adaptiveStrength: fixture[(alternativeY * analysis.BlocksWide) + alternativeX],
                 adaptiveMultipliers: multipliers[component]);
             if (!expected.AsSpan(1).SequenceEqual(alternative.AsSpan(1)))
+            {
                 sensitiveBlocks++;
+            }
         }
         Assert.True(sensitiveBlocks > 0, "The fixture must distinguish the alternative field mapping.");
     }
@@ -122,15 +132,18 @@ public sealed class CustomAdaptiveSamplingTests
     {
         byte[] pixels = new byte[width * height * 3];
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
             {
                 int axis = vertical ? y : x;
-                int basis = axis < 12 ? 64 + (x + y) % 5 : 48 + (x * 17 + y * 29 + x * y * 7) % 160;
-                int offset = (y * width + x) * 3;
-                pixels[offset] = (byte)(basis + (x * 5 + y * 11) % 61 - 30);
+                int basis = axis < 12 ? 64 + ((x + y) % 5) : 48 + (((x * 17) + (y * 29) + (x * y * 7)) % 160);
+                int offset = ((y * width) + x) * 3;
+                pixels[offset] = (byte)(basis + (((x * 5) + (y * 11)) % 61) - 30);
                 pixels[offset + 1] = (byte)basis;
-                pixels[offset + 2] = (byte)(basis + (x * 13 + y * 7) % 71 - 35);
+                pixels[offset + 2] = (byte)(basis + (((x * 13) + (y * 7)) % 71) - 35);
             }
+        }
+
         return pixels;
     }
 }

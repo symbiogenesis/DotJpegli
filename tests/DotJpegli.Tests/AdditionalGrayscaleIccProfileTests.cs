@@ -1,11 +1,11 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
 using DotJpegli.Internal;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class AdditionalGrayscaleIccProfileTests
 {
@@ -61,8 +61,8 @@ public sealed class AdditionalGrayscaleIccProfileTests
         Assert.Equal("mntr", Signature(profile, 12));
         Assert.Equal("GRAY", Signature(profile, 16));
         Assert.Equal("XYZ ", Signature(profile, 20));
-        Assert.Equal(new[] { 2019, 12, 1, 0, 0, 0 },
-            Enumerable.Range(0, 6).Select(index => UInt16(profile, 24 + index * 2)));
+        Assert.Equal([2019, 12, 1, 0, 0, 0],
+            Enumerable.Range(0, 6).Select(index => UInt16(profile, 24 + (index * 2))));
         Assert.Equal("acsp", Signature(profile, 36));
         Assert.Equal("APPL", Signature(profile, 40));
         Assert.All(profile[44..64], value => Assert.Equal(0, value));
@@ -75,7 +75,7 @@ public sealed class AdditionalGrayscaleIccProfileTests
         Assert.All(profile[100..128], value => Assert.Equal(0, value));
 
         Dictionary<string, Tag> tags = Tags(profile);
-        Assert.Equal(new[] { "cprt", "desc", "kTRC", "wtpt" }, tags.Keys.Order());
+        Assert.Equal(["cprt", "desc", "kTRC", "wtpt"], tags.Keys.Order());
         Assert.Equal(Descriptions[kind], Text(profile, tags["desc"]));
         Assert.Equal("CC0", Text(profile, tags["cprt"]));
         Tag white = tags["wtpt"];
@@ -84,8 +84,10 @@ public sealed class AdditionalGrayscaleIccProfileTests
         double x = kind == 1 ? 0.314 : 0.3127, y = kind == 1 ? 0.351 : 0.3290;
         double[] expectedWhite = [x / y, 1, (1 - x - y) / y];
         for (int channel = 0; channel < expectedWhite.Length; channel++)
-            AssertClose(expectedWhite[channel], Fixed(profile, white.Offset + 8 + channel * 4),
+        {
+            AssertClose(expectedWhite[channel], Fixed(profile, white.Offset + 8 + (channel * 4)),
                 0.5 / 65536, $"media white channel {channel}");
+        }
         // GRAY omits CICP even for named HDR transfer functions. Inference stays
         // unspecified instead of inferring from the description or kTRC.
         Assert.Equal(2, IccProfile.LookupTransferFunction(profile, TestContext.Current.CancellationToken));
@@ -122,8 +124,10 @@ public sealed class AdditionalGrayscaleIccProfileTests
             ? [1 / 0.45, 1 / 1.099, 0.099 / 1.099, 1 / 4.5, 0.081]
             : [2.6, 1, 0, 1, 0];
         for (int index = 0; index < expected.Length; index++)
-            AssertClose(expected[index], Fixed(profile, curve.Offset + 12 + index * 4),
+        {
+            AssertClose(expected[index], Fixed(profile, curve.Offset + 12 + (index * 4)),
                 0.5 / 65536, $"curve parameter {index}");
+        }
 
         double threshold = Fixed(profile, curve.Offset + 28);
         double[] boundaries = [0, 0.001, 0.01, 0.08099999, 0.081, 0.08100001,
@@ -156,11 +160,11 @@ public sealed class AdditionalGrayscaleIccProfileTests
         Assert.Equal(140, curve.Length);
         Assert.Equal(64, Int32(profile, curve.Offset + 8));
         Assert.Equal(0, UInt16(profile, curve.Offset + 12));
-        Assert.Equal(65535, UInt16(profile, curve.Offset + 12 + 63 * 2));
+        Assert.Equal(65535, UInt16(profile, curve.Offset + 12 + (63 * 2)));
         int previous = -1;
         for (int index = 0; index < 64; index++)
         {
-            int actual = UInt16(profile, curve.Offset + 12 + index * 2);
+            int actual = UInt16(profile, curve.Offset + 12 + (index * 2));
             Assert.InRange(actual, previous, 65535);
             int expected = (int)Math.Round(Math.Clamp(DecodeHdr(kind, index / 63.0), 0, 1) * 65535,
                 MidpointRounding.AwayFromZero);
@@ -175,8 +179,8 @@ public sealed class AdditionalGrayscaleIccProfileTests
             double encoded = index / 255.0, position = encoded * 63;
             int lower = Math.Min(62, (int)position);
             double fraction = position - lower;
-            double expected = DecodeHdr(kind, lower / 63.0) * (1 - fraction)
-                + DecodeHdr(kind, (lower + 1) / 63.0) * fraction;
+            double expected = (DecodeHdr(kind, lower / 63.0) * (1 - fraction))
+                + (DecodeHdr(kind, (lower + 1) / 63.0) * fraction);
             AssertClose(expected, EvaluateCurve(profile, curve, encoded), 2.0 / 65535,
                 $"interpolated gray at encoded HDR sample {encoded:R}");
         }
@@ -213,9 +217,9 @@ public sealed class AdditionalGrayscaleIccProfileTests
         int profileKind, int sampleKind, bool converted, bool progressive, int refinement, bool optimize)
     {
         const int width = 19, height = 17;
-        int components = converted ? 4 : 1, stride = width * components + 5;
+        int components = converted ? 4 : 1, stride = (width * components) + 5;
         Array pixels = Source(sampleKind, converted, width, height, stride);
-        Array originalPixels = (Array)pixels.Clone();
+        var originalPixels = (Array)pixels.Clone();
         PixelComponentLayout layout = converted ? PixelComponentLayout.Bgra : PixelComponentLayout.Gray;
         byte[] profile = Create(profileKind);
         byte[] backing = Enumerable.Repeat((byte)0x5b, profile.Length + 11).ToArray();
@@ -223,10 +227,15 @@ public sealed class AdditionalGrayscaleIccProfileTests
         byte[] originalBacking = backing.ToArray();
         var options = new JpegliEncoderOptions
         {
-            ColorSpace = JpegColorSpace.Grayscale, IccProfile = backing.AsMemory(3, profile.Length),
-            InferCicpTransferFunctionFromIccProfile = true, Distance = 1.375f,
-            SmoothingFactor = 37, Progressive = progressive, OptimizeHuffmanTables = optimize,
-            ProgressiveRefinementBits = refinement, RestartInterval = 2
+            ColorSpace = JpegColorSpace.Grayscale,
+            IccProfile = backing.AsMemory(3, profile.Length),
+            InferCicpTransferFunctionFromIccProfile = true,
+            Distance = 1.375f,
+            SmoothingFactor = 37,
+            Progressive = progressive,
+            OptimizeHuffmanTables = optimize,
+            ProgressiveRefinementBits = refinement,
+            RestartInterval = 2
         };
         byte[] actual = Encode(pixels, width, height, stride, layout, options);
         (byte[] embedded, byte[] coding) = ReadIccAndCoding(actual);
@@ -237,11 +246,13 @@ public sealed class AdditionalGrayscaleIccProfileTests
         Assert.Equal(actual, Encode(pixels, width, height, stride, layout,
             options with { InferCicpTransferFunctionFromIccProfile = false }));
         if (!converted)
+        {
             Assert.Equal(actual, Encode(pixels, width, height, stride, layout,
                 options with { ColorSpace = JpegColorSpace.Automatic }));
+        }
         // Independent entropy parsing validates the component, restart markers,
         // Huffman coding and baseline/progressive/refinement scan script.
-        JpegDocument document = JpegDocument.Read(actual, progressive, 2, refinement);
+        var document = JpegDocument.Read(actual, progressive, 2, refinement);
         Assert.Equal(width, document.Width);
         Assert.Equal(height, document.Height);
         Assert.Equal(1, Assert.Single(document.Components).Key);
@@ -271,9 +282,14 @@ public sealed class AdditionalGrayscaleIccProfileTests
         byte[] profile = Create(kind);
         var options = new JpegliEncoderOptions
         {
-            IccProfile = profile, InferCicpTransferFunctionFromIccProfile = true,
-            CicpTransferFunction = transfer, Distance = 2.375f, AdaptiveQuantization = false,
-            Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2
+            IccProfile = profile,
+            InferCicpTransferFunctionFromIccProfile = true,
+            CicpTransferFunction = transfer,
+            Distance = 2.375f,
+            AdaptiveQuantization = false,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2
         };
         byte[] hinted = Encode(pixels, width, height, stride, PixelComponentLayout.Gray, options);
         Assert.Equal(hinted, Encode(pixels, width, height, stride, PixelComponentLayout.Gray,
@@ -303,7 +319,7 @@ public sealed class AdditionalGrayscaleIccProfileTests
         using (var output = new WriteOnlyStream(destination))
         {
             var canceled = new CancellationToken(true);
-            var error = Assert.Throws<OperationCanceledException>(() =>
+            OperationCanceledException error = Assert.Throws<OperationCanceledException>(() =>
                 Encode(output, pixels, 3, 1, 3, PixelComponentLayout.Gray, options, canceled));
             Assert.Equal(canceled, error.CancellationToken);
             Assert.Equal(0, destination.Length);
@@ -314,9 +330,11 @@ public sealed class AdditionalGrayscaleIccProfileTests
         using var stream = new WriteOnlyStream(destination, () =>
         {
             if (destination.Length >= boundary)
+            {
                 cancellation.Cancel();
+            }
         });
-        var interrupted = Assert.Throws<OperationCanceledException>(() =>
+        OperationCanceledException interrupted = Assert.Throws<OperationCanceledException>(() =>
             Encode(stream, pixels, 3, 1, 3, PixelComponentLayout.Gray, options, cancellation.Token));
         Assert.Equal(cancellation.Token, interrupted.CancellationToken);
         Assert.Equal(complete[..boundary], destination.ToArray());
@@ -335,29 +353,36 @@ public sealed class AdditionalGrayscaleIccProfileTests
     private static Array Source(int kind, bool converted, int width, int height, int stride)
     {
         int components = converted ? 4 : 1, rowLength = width * components;
-        byte[] bytes = Enumerable.Repeat((byte)0xad, (height - 1) * stride + rowLength).ToArray();
+        byte[] bytes = Enumerable.Repeat((byte)0xad, ((height - 1) * stride) + rowLength).ToArray();
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < (converted ? 3 : 1); channel++)
-                    bytes[y * stride + x * components + channel] = (byte)((x * 73 + y * 29 + channel * 61) % 256);
+                {
+                    bytes[(y * stride) + (x * components) + channel] = (byte)(((x * 73) + (y * 29) + (channel * 61)) % 256);
+                }
+            }
+        }
+
         return kind switch
         {
             0 => bytes,
-            1 => bytes.Select((value, index) => (ushort)Math.Clamp(value * 257 + index % 47 - 23, 0, 65535)).ToArray(),
-            _ => bytes.Select((value, index) => index % stride >= rowLength || converted && index % stride % 4 == 3
-                ? float.NaN : Math.Clamp(value / 255f + (index % 47 - 23) / 65535f, 0f, 1f)).ToArray()
+            1 => bytes.Select((value, index) => (ushort)Math.Clamp((value * 257) + (index % 47) - 23, 0, 65535)).ToArray(),
+            _ => bytes.Select((value, index) => index % stride >= rowLength || (converted && index % stride % 4 == 3)
+                ? float.NaN : Math.Clamp((value / 255f) + (((index % 47) - 23) / 65535f), 0f, 1f)).ToArray()
         };
     }
 
     private static Dictionary<string, Tag> Tags(byte[] profile)
     {
-        int count = Int32(profile, 128), end = 132 + count * 12;
+        int count = Int32(profile, 128), end = 132 + (count * 12);
         Assert.Equal(4, count);
         var result = new Dictionary<string, Tag>();
         var extents = new HashSet<Tag>();
         for (int index = 0; index < count; index++)
         {
-            int entry = 132 + index * 12;
+            int entry = 132 + (index * 12);
             var tag = new Tag(Int32(profile, entry + 4), Int32(profile, entry + 8));
             Assert.Equal(0, tag.Offset % 4);
             Assert.InRange(tag.Offset, end, profile.Length - 8);
@@ -395,11 +420,14 @@ public sealed class AdditionalGrayscaleIccProfileTests
     private static double DecodeHdr(int kind, double encoded)
     {
         if (kind == 3)
+        {
             return encoded <= 0.5 ? encoded * encoded / 3
-                : (Math.Exp((encoded - 0.5599107295) / 0.17883277) + 1 - 4 * 0.17883277) / 12;
+                : (Math.Exp((encoded - 0.5599107295) / 0.17883277) + 1 - (4 * 0.17883277)) / 12;
+        }
+
         double power = Math.Pow(encoded, 1 / (2523.0 / 32));
-        return Math.Pow(Math.Max(power - 3424.0 / 4096, 0)
-            / (2413.0 / 128 - 2392.0 / 128 * power), 1 / (2610.0 / 16384));
+        return Math.Pow(Math.Max(power - (3424.0 / 4096), 0)
+            / ((2413.0 / 128) - (2392.0 / 128 * power)), 1 / (2610.0 / 16384));
     }
 
     private static double EvaluateCurve(byte[] profile, Tag curve, double value)
@@ -410,13 +438,13 @@ public sealed class AdditionalGrayscaleIccProfileTests
             double position = value * (count - 1);
             int lower = Math.Min(count - 2, (int)position);
             double fraction = position - lower;
-            return (UInt16(profile, curve.Offset + 12 + lower * 2) * (1 - fraction)
-                + UInt16(profile, curve.Offset + 12 + (lower + 1) * 2) * fraction) / 65535;
+            return ((UInt16(profile, curve.Offset + 12 + (lower * 2)) * (1 - fraction))
+                + (UInt16(profile, curve.Offset + 12 + ((lower + 1) * 2)) * fraction)) / 65535;
         }
         double gamma = Fixed(profile, curve.Offset + 12), a = Fixed(profile, curve.Offset + 16),
             b = Fixed(profile, curve.Offset + 20), c = Fixed(profile, curve.Offset + 24),
             threshold = Fixed(profile, curve.Offset + 28);
-        return value >= threshold ? Math.Pow(a * value + b, gamma) : c * value;
+        return value >= threshold ? Math.Pow((a * value) + b, gamma) : c * value;
     }
 
     private static (byte[] Icc, byte[] Coding) ReadIccAndCoding(byte[] jpeg)
@@ -441,7 +469,10 @@ public sealed class AdditionalGrayscaleIccProfileTests
                 profile = jpeg[(offset + 18)..end];
             }
             else
+            {
                 coding.Write(jpeg.AsSpan(offset, end - offset));
+            }
+
             offset = end;
         }
         coding.Write(jpeg.AsSpan(offset));
@@ -456,7 +487,10 @@ public sealed class AdditionalGrayscaleIccProfileTests
         {
             int end = offset + 2 + UInt16(jpeg, offset + 2);
             if (jpeg[offset + 1] == 0xe2)
+            {
                 return end;
+            }
+
             offset = end;
         }
         throw new InvalidDataException("The JPEG has no ICC APP2 marker.");
@@ -464,25 +498,31 @@ public sealed class AdditionalGrayscaleIccProfileTests
 
     private static byte[] Encode(Array source, int width, int height, int stride,
         PixelComponentLayout layout, JpegliEncoderOptions options) => source switch
-    {
-        byte[] bytes => JpegliEncoder.Encode(bytes, width, height, (PixelLayout)(int)layout,
-            options, stride, TestContext.Current.CancellationToken),
-        ushort[] words => JpegliEncoder.Encode(words, width, height, layout,
-            options, stride, TestContext.Current.CancellationToken),
-        _ => JpegliEncoder.Encode((float[])source, width, height, layout,
-            options, stride, TestContext.Current.CancellationToken)
-    };
+        {
+            byte[] bytes => JpegliEncoder.Encode(bytes, width, height, (PixelLayout)(int)layout,
+                options, stride, TestContext.Current.CancellationToken),
+            ushort[] words => JpegliEncoder.Encode(words, width, height, layout,
+                options, stride, TestContext.Current.CancellationToken),
+            _ => JpegliEncoder.Encode((float[])source, width, height, layout,
+                options, stride, TestContext.Current.CancellationToken)
+        };
 
     private static void Encode(Stream output, Array source, int width, int height, int stride,
         PixelComponentLayout layout, JpegliEncoderOptions options, CancellationToken cancellationToken)
     {
         if (source is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, (PixelLayout)(int)layout,
                 options, stride, cancellationToken);
+        }
         else if (source is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, layout, options, stride, cancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])source, width, height, layout, options, stride, cancellationToken);
+        }
     }
 
     private static int Int32(byte[] data, int offset) => BinaryPrimitives.ReadInt32BigEndian(data.AsSpan(offset, 4));

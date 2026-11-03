@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class SubsampledLumaTests
 {
@@ -30,13 +30,16 @@ public sealed class SubsampledLumaTests
     {
         JpegSamplingFactors sampling = Factors(yh, yv, cbh, cbv, crh, crv);
         foreach ((int width, int height) in new[] { (1, 1), (1, 33), (33, 1), (17, 25), (145, 49) })
+        {
             foreach ((bool optimize, int smoothing) in new[] { (false, 0), (true, 73) })
             {
                 byte[] pixels = Pattern(width, height, PixelLayout.Rgb24);
                 var options = new JpegliEncoderOptions
                 {
-                    Quality = 90, SamplingFactors = sampling,
-                    OptimizeHuffmanTables = optimize, SmoothingFactor = smoothing
+                    Quality = 90,
+                    SamplingFactors = sampling,
+                    OptimizeHuffmanTables = optimize,
+                    SmoothingFactor = smoothing
                 };
                 byte[] baseline = Encode(pixels, width, height, PixelLayout.Rgb24, options);
                 JpegDocument reference = Read(baseline, options);
@@ -47,10 +50,12 @@ public sealed class SubsampledLumaTests
                     (false, 0, 2), (true, 0, 1), (true, 2, 7), (true, 10, 2)
                 })
                 {
-                    var actualOptions = options with
+                    JpegliEncoderOptions actualOptions = options with
                     {
-                        Progressive = progressive, ProgressiveRefinementBits = refinement,
-                        RestartInterval = interval, OptimizeHuffmanTables = !optimize
+                        Progressive = progressive,
+                        ProgressiveRefinementBits = refinement,
+                        RestartInterval = interval,
+                        OptimizeHuffmanTables = !optimize
                     };
                     byte[] jpeg = Encode(pixels, width, height, PixelLayout.Rgb24, actualOptions);
                     JpegDocument actual = Read(jpeg, actualOptions);
@@ -60,6 +65,7 @@ public sealed class SubsampledLumaTests
                     AssertSamplingAndDummyDc(actual, sampling, interval, refinement);
                 }
             }
+        }
     }
 
     [Theory]
@@ -76,26 +82,38 @@ public sealed class SubsampledLumaTests
         {
             var options = new JpegliEncoderOptions
             {
-                Quality = 100, SamplingFactors = sampling, SmoothingFactor = smoothing,
-                Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2
+                Quality = 100,
+                SamplingFactors = sampling,
+                SmoothingFactor = smoothing,
+                Progressive = true,
+                ProgressiveRefinementBits = 2,
+                RestartInterval = 2
             };
             JpegDocument actual = Read(Encode(pixels, width, height, PixelLayout.Rgb24, options), options);
             byte[] quantizer = actual.Quantizers[actual.Components[1].Quantizer];
             int substantialAc = 0;
             foreach ((BlockKey key, Block block) in actual.Blocks.Where(pair => pair.Key.Component == 1 && !pair.Value.IsDummy))
             {
-                var samples = new double[64];
+                double[] samples = new double[64];
                 for (int y = 0; y < 8; y++)
+                {
                     for (int x = 0; x < 8; x++)
                     {
                         double sum = 0;
                         for (int dy = 0; dy < sampleHeight; dy++)
+                        {
                             for (int dx = 0; dx < sampleWidth; dx++)
+                            {
                                 sum += SmoothedComponent(actual, index => pixels[index], 1,
-                                    (key.X * 8 + x) * sampleWidth + dx,
-                                    (key.Y * 8 + y) * sampleHeight + dy, smoothing);
-                        samples[y * 8 + x] = sum / (sampleWidth * sampleHeight);
+                                    (((key.X * 8) + x) * sampleWidth) + dx,
+                                    (((key.Y * 8) + y) * sampleHeight) + dy, smoothing);
+                            }
+                        }
+
+                        samples[(y * 8) + x] = sum / (sampleWidth * sampleHeight);
                     }
+                }
+
                 for (int zigzag = 1; zigzag < 64; zigzag++)
                 {
                     int natural = Zigzag[zigzag];
@@ -105,7 +123,9 @@ public sealed class SubsampledLumaTests
                     // dead zone; other values round to the nearest integer.
                     Assert.InRange(Math.Abs(block.Coefficients[zigzag] - expected), 0, 0.601);
                     if (Math.Abs(block.Coefficients[zigzag]) >= 2)
+                    {
                         substantialAc++;
+                    }
                 }
             }
             Assert.True(substantialAc >= 8, "The oracle must cover substantial nonzero luma AC coefficients.");
@@ -119,17 +139,23 @@ public sealed class SubsampledLumaTests
     {
         JpegSamplingFactors sampling = Factors(yh, yv, cbh, cbv, crh, crv);
         foreach ((int width, int height) in new[] { (1, 33), (33, 1), (35, 27) })
+        {
             foreach (int smoothing in new[] { 0, 37, 100 })
             {
                 byte[] pixels = Pattern(width, height, PixelLayout.Rgb24);
                 var options = new JpegliEncoderOptions
                 {
-                    Quality = 95, SamplingFactors = sampling, SmoothingFactor = smoothing,
-                    Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2
+                    Quality = 95,
+                    SamplingFactors = sampling,
+                    SmoothingFactor = smoothing,
+                    Progressive = true,
+                    ProgressiveRefinementBits = 2,
+                    RestartInterval = 2
                 };
                 JpegDocument actual = Read(Encode(pixels, width, height, PixelLayout.Rgb24, options), options);
                 AssertIndependentDc(actual, index => pixels[index], smoothing);
             }
+        }
     }
 
     [Theory]
@@ -140,17 +166,24 @@ public sealed class SubsampledLumaTests
         const int width = 35, height = 27;
         byte[] pixels = Pattern(width, height, PixelLayout.Rgb24);
         foreach (bool optimize in new[] { false, true })
+        {
             foreach ((bool progressive, int refinement) in new[] { (false, 0), (true, 0), (true, 2) })
             {
                 var options = new JpegliEncoderOptions
                 {
-                    Quality = 85, SamplingFactors = Factors(yh, yv, cbh, cbv, crh, crv),
-                    AdaptiveQuantization = false, SmoothingFactor = 37, OptimizeHuffmanTables = optimize,
-                    Progressive = progressive, ProgressiveRefinementBits = refinement, RestartInterval = 2
+                    Quality = 85,
+                    SamplingFactors = Factors(yh, yv, cbh, cbv, crh, crv),
+                    AdaptiveQuantization = false,
+                    SmoothingFactor = 37,
+                    OptimizeHuffmanTables = optimize,
+                    Progressive = progressive,
+                    ProgressiveRefinementBits = refinement,
+                    RestartInterval = 2
                 };
                 Assert.Equal(Encode(pixels, width, height, PixelLayout.Rgb24, options),
                     Encode(pixels, width, height, PixelLayout.Rgb24, options with { AdaptiveQuantization = true }));
             }
+        }
     }
 
     [Theory]
@@ -158,23 +191,26 @@ public sealed class SubsampledLumaTests
     public void PaddedByteWordAndFractionalFloatInputsPreserveSamplingAndScanParity(
         int yh, int yv, int cbh, int cbv, int crh, int crv)
     {
-        const int width = 17, height = 25, stride = width * 4 + 13;
+        const int width = 17, height = 25, stride = (width * 4) + 13;
         byte[] compact = Pattern(width, height, PixelLayout.Rgb24);
-        byte[] padded = Enumerable.Repeat((byte)0xe5, (height - 1) * stride + width * 4).ToArray();
-        float[] floats = compact.Select((value, index) => (value + index % 7 / 8f) / 255f).ToArray();
+        byte[] padded = Enumerable.Repeat((byte)0xe5, ((height - 1) * stride) + (width * 4)).ToArray();
+        float[] floats = compact.Select((value, index) => (value + (index % 7 / 8f)) / 255f).ToArray();
         float[] paddedFloats = Enumerable.Repeat(float.NaN, padded.Length).ToArray();
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
             {
-                int input = (y * width + x) * 3, output = y * stride + x * 4;
+                int input = ((y * width) + x) * 3, output = (y * stride) + (x * 4);
                 padded[output] = compact[input + 2];
                 padded[output + 1] = compact[input + 1];
                 padded[output + 2] = compact[input];
-                padded[output + 3] = (byte)(17 * x + 29 * y);
+                padded[output + 3] = (byte)((17 * x) + (29 * y));
                 paddedFloats[output] = floats[input + 2];
                 paddedFloats[output + 1] = floats[input + 1];
                 paddedFloats[output + 2] = floats[input];
             }
+        }
+
         ushort[] words = padded.Select(value => (ushort)(value * 257)).ToArray();
         JpegSamplingFactors sampling = Factors(yh, yv, cbh, cbv, crh, crv);
         JpegDocument? floatReference = null;
@@ -182,8 +218,12 @@ public sealed class SubsampledLumaTests
         {
             var options = new JpegliEncoderOptions
             {
-                Quality = 90, SamplingFactors = sampling, SmoothingFactor = 73,
-                Progressive = progressive, ProgressiveRefinementBits = refinement, RestartInterval = 2
+                Quality = 90,
+                SamplingFactors = sampling,
+                SmoothingFactor = 73,
+                Progressive = progressive,
+                ProgressiveRefinementBits = refinement,
+                RestartInterval = 2
             };
             byte[] expected = Encode(compact, width, height, PixelLayout.Rgb24, options);
             Assert.Equal(expected, JpegliEncoder.Encode(padded, width, height, PixelLayout.Bgra32,
@@ -207,9 +247,13 @@ public sealed class SubsampledLumaTests
             AssertSamplingAndDummyDc(actual, sampling, interval: 2, refinement);
             AssertIndependentDc(actual, index => floats[index] * 255d, options.SmoothingFactor);
             if (floatReference is null)
+            {
                 floatReference = actual;
+            }
             else
+            {
                 AssertRealCoefficients(floatReference, actual);
+            }
         }
     }
 
@@ -221,15 +265,18 @@ public sealed class SubsampledLumaTests
         const int width = 35, height = 27;
         byte[] pixels = Pattern(width, height, PixelLayout.Gray8);
         ushort[] words = pixels.Select(value => (ushort)(value * 257)).ToArray();
-        float[] floats = pixels.Select((value, index) => (value + index % 7 / 8f) / 255f).ToArray();
+        float[] floats = pixels.Select((value, index) => (value + (index % 7 / 8f)) / 255f).ToArray();
         foreach ((bool progressive, int refinement) in new[] { (false, 0), (true, 2) })
         {
             var options = new JpegliEncoderOptions
             {
-                Quality = 85, Progressive = progressive, ProgressiveRefinementBits = refinement,
-                SmoothingFactor = 37, RestartInterval = 2
+                Quality = 85,
+                Progressive = progressive,
+                ProgressiveRefinementBits = refinement,
+                SmoothingFactor = 37,
+                RestartInterval = 2
             };
-            var custom = options with { SamplingFactors = Factors(yh, yv, cbh, cbv, crh, crv) };
+            JpegliEncoderOptions custom = options with { SamplingFactors = Factors(yh, yv, cbh, cbv, crh, crv) };
             byte[] expected = Encode(pixels, width, height, PixelLayout.Gray8, options);
             Assert.NotEqual(expected, Encode(pixels, width, height, PixelLayout.Gray8,
                 options with { AdaptiveQuantization = false }));
@@ -256,6 +303,7 @@ public sealed class SubsampledLumaTests
             Factors(1, 1, 2, 1, 3, 1), Factors(1, 1, 1, 3, 1, 2),
             Factors(1, 1, 4, 1, 3, 1), Factors(1, 1, 1, 4, 1, 3)
         })
+        {
             foreach (bool grayscale in new[] { false, true })
             {
                 int channels = grayscale ? 1 : 3;
@@ -282,14 +330,22 @@ public sealed class SubsampledLumaTests
                     JpegDocument document = Read(jpeg, options);
                     Assert.Equal(grayscale ? 1 : 3, document.Components.Count);
                     if (grayscale)
+                    {
                         Assert.Equal(Encode(new byte[1], 1, 1, PixelLayout.Gray8, new()), jpeg);
+                    }
                     else
+                    {
                         for (int id = 1; id <= 3; id++)
+                        {
                             Assert.Equal((sampling[id - 1].Horizontal, sampling[id - 1].Vertical),
                                 (document.Components[id].H, document.Components[id].V));
+                        }
+                    }
+
                     Assert.False(output.Closed);
                 }
             }
+        }
     }
 
     private static void AssertIndependentDc(JpegDocument document, Func<int, double> sample, int smoothing)
@@ -302,8 +358,13 @@ public sealed class SubsampledLumaTests
             int sampleWidth = maxH / component.H, sampleHeight = maxV / component.V;
             double sum = 0;
             for (int y = key.Y * 8 * sampleHeight; y < (key.Y + 1) * 8 * sampleHeight; y++)
+            {
                 for (int x = key.X * 8 * sampleWidth; x < (key.X + 1) * 8 * sampleWidth; x++)
+                {
                     sum += SmoothedComponent(document, sample, key.Component, x, y, smoothing);
+                }
+            }
+
             int quantizer = document.Quantizers[component.Quantizer][0];
             double expected = sum / (8 * sampleWidth * sampleHeight * quantizer);
             // The DC coefficient is eight times the centered block mean.
@@ -317,20 +378,30 @@ public sealed class SubsampledLumaTests
     {
         double center = Converted(x, y);
         if (smoothing == 0)
+        {
             return center;
+        }
+
         double neighbors = 0;
         for (int dy = -1; dy <= 1; dy++)
+        {
             for (int dx = -1; dx <= 1; dx++)
+            {
                 if (dx != 0 || dy != 0)
+                {
                     neighbors += Converted(x + dx, y + dy);
-        return center * (1 - 8 * smoothing / 1024d) + neighbors * smoothing / 1024d;
+                }
+            }
+        }
+
+        return (center * (1 - (8 * smoothing / 1024d))) + (neighbors * smoothing / 1024d);
 
         double Converted(int column, int row)
         {
-            int offset = (Math.Clamp(row, 0, document.Height - 1) * document.Width
+            int offset = ((Math.Clamp(row, 0, document.Height - 1) * document.Width)
                 + Math.Clamp(column, 0, document.Width - 1)) * 3;
             double red = sample(offset), green = sample(offset + 1), blue = sample(offset + 2);
-            double luma = 0.299 * red + 0.587 * green + 0.114 * blue;
+            double luma = (0.299 * red) + (0.587 * green) + (0.114 * blue);
             return component switch
             {
                 1 => luma - 128,
@@ -363,12 +434,16 @@ public sealed class SubsampledLumaTests
             for (int mcu = 0; mcu < document.McuCount; mcu++)
             {
                 if (interval != 0 && mcu % interval == 0)
+                {
                     previousDc = 0;
+                }
+
                 for (int y = 0; y < factor.Vertical; y++)
+                {
                     for (int x = 0; x < factor.Horizontal; x++)
                     {
-                        int blockX = mcu % columns * factor.Horizontal + x;
-                        int blockY = mcu / columns * factor.Vertical + y;
+                        int blockX = (mcu % columns * factor.Horizontal) + x;
+                        int blockY = (mcu / columns * factor.Vertical) + y;
                         Block block = document.Blocks[new(id, blockX, blockY)];
                         Assert.Equal(blockX >= realColumns || blockY >= realRows, block.IsDummy);
                         Assert.Equal((block.Coefficients[0] >> refinement) - (previousDc >> refinement), block.DcDifference);
@@ -380,6 +455,7 @@ public sealed class SubsampledLumaTests
                         }
                         previousDc = block.Coefficients[0];
                     }
+                }
             }
         }
     }
@@ -391,13 +467,18 @@ public sealed class SubsampledLumaTests
         Assert.Equal(expected.Components, actual.Components);
         Assert.Equal(expected.Quantizers.Count, actual.Quantizers.Count);
         foreach ((int selector, byte[] quantizer) in expected.Quantizers)
+        {
             Assert.Equal(quantizer, actual.Quantizers[selector]);
+        }
+
         Assert.Equal(expected.Blocks.Count, actual.Blocks.Count);
         foreach ((BlockKey key, Block block) in expected.Blocks)
         {
             Assert.Equal(block.IsDummy, actual.Blocks[key].IsDummy);
             if (!block.IsDummy)
+            {
                 Assert.Equal(block.Coefficients, actual.Blocks[key].Coefficients);
+            }
         }
     }
 

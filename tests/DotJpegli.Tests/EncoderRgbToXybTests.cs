@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderRgbToXybTests
 {
@@ -16,9 +16,14 @@ public sealed class EncoderRgbToXybTests
         {
             var modes = new TheoryData<int, PixelComponentLayout>();
             for (int kind = 0; kind < 3; kind++)
+            {
                 foreach (PixelComponentLayout layout in new[]
                     { PixelComponentLayout.Rgb, PixelComponentLayout.Bgr, PixelComponentLayout.Rgba, PixelComponentLayout.Bgra, PixelComponentLayout.Gray })
+                {
                     modes.Add(kind, layout);
+                }
+            }
+
             return modes;
         }
     }
@@ -30,11 +35,15 @@ public sealed class EncoderRgbToXybTests
         const int width = 19, height = 17;
         Array rgb = RgbSource(kind, width, height);
         Array source = Arrange(rgb, kind, width, height, layout);
-        var options = Options() with
+        JpegliEncoderOptions options = Options() with
         {
-            Distance = 0.375f, AdaptiveQuantization = false, SmoothingFactor = 37,
+            Distance = 0.375f,
+            AdaptiveQuantization = false,
+            SmoothingFactor = 37,
             SamplingFactors = new(new(1, 2), new(2, 1), new(1, 1)),
-            Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2
         };
         byte[] actual = Encode(source, width, height, layout, options);
         // Transform rounding can put a channel just outside 0..1 (for example,
@@ -47,7 +56,7 @@ public sealed class EncoderRgbToXybTests
         AssertCoefficients(Read(expected, options), Read(actual, options), tolerance: 1);
 
         // Element strides, trailing storage and alpha must never enter the transform.
-        int stride = width * Components(layout) + 13;
+        int stride = (width * Components(layout)) + 13;
         Array padded = Arrange(rgb, kind, width, height, layout, stride);
         Assert.Equal(actual, Encode(padded, width, height, layout, options, stride));
         using var destination = new MemoryStream();
@@ -68,7 +77,7 @@ public sealed class EncoderRgbToXybTests
         const int width = 19, height = 17;
         byte[] source = (byte[])Arrange(RgbSource(0, width, height), 0, width, height, layout);
         ushort[] expanded = source.Select(value => (ushort)(value * 257)).ToArray();
-        var options = Options() with { Progressive = true, ProgressiveRefinementBits = 2, SmoothingFactor = 37, RestartInterval = 2 };
+        JpegliEncoderOptions options = Options() with { Progressive = true, ProgressiveRefinementBits = 2, SmoothingFactor = 37, RestartInterval = 2 };
         Assert.Equal(Encode(source, width, height, layout, options), Encode(expanded, width, height, layout, options));
     }
 
@@ -83,17 +92,23 @@ public sealed class EncoderRgbToXybTests
         AssertNormalizedTransformRange(scaled);
         foreach (JpegSamplingFactors? factors in new JpegSamplingFactors?[]
             { null, FullResolution, new(new(1, 2), new(2, 1), new(1, 1)), new(new(2, 1), new(1, 1), new(1, 1)) })
+        {
             foreach (int smoothing in new[] { 0, 37 })
             {
-                var options = Options() with
+                JpegliEncoderOptions options = Options() with
                 {
-                    Distance = 0.375f, AdaptiveQuantization = adaptive, SamplingFactors = factors,
-                    SmoothingFactor = smoothing, OptimizeHuffmanTables = false, RestartInterval = 2
+                    Distance = 0.375f,
+                    AdaptiveQuantization = adaptive,
+                    SamplingFactors = factors,
+                    SmoothingFactor = smoothing,
+                    OptimizeHuffmanTables = false,
+                    RestartInterval = 2
                 };
                 AssertCoefficients(Read(Encode(scaled, width, height, PixelComponentLayout.Xyb,
                     options with { AllowOutOfRangeFloatSamples = true }), options),
                     Read(Encode(rgb, width, height, PixelComponentLayout.Rgb, options), options), tolerance: 1);
             }
+        }
     }
 
     [Theory]
@@ -105,19 +120,23 @@ public sealed class EncoderRgbToXybTests
         Array pixels = RgbSource(2, width, height);
         foreach (JpegSamplingFactors? factors in new JpegSamplingFactors?[] { null, new(new(1, 2), new(2, 1), new(1, 1)) })
         {
-            var options = Options() with
+            JpegliEncoderOptions options = Options() with
             {
-                AdaptiveQuantization = adaptive, SamplingFactors = factors,
-                SmoothingFactor = 37, OptimizeHuffmanTables = false
+                AdaptiveQuantization = adaptive,
+                SamplingFactors = factors,
+                SmoothingFactor = 37,
+                OptimizeHuffmanTables = false
             };
             JpegDocument baseline = Read(Encode(pixels, width, height, PixelComponentLayout.Rgb, options), options);
             foreach ((bool progressive, int bits, bool optimize, int interval) in new[]
                 { (false, 0, true, 2), (false, 0, false, 1), (true, 0, false, 2), (true, 2, true, 1), (true, 10, false, 2) })
             {
-                var variant = options with
+                JpegliEncoderOptions variant = options with
                 {
-                    Progressive = progressive, ProgressiveRefinementBits = bits,
-                    OptimizeHuffmanTables = optimize, RestartInterval = interval
+                    Progressive = progressive,
+                    ProgressiveRefinementBits = bits,
+                    OptimizeHuffmanTables = optimize,
+                    RestartInterval = interval
                 };
                 AssertCoefficients(baseline, Read(Encode(pixels, width, height, PixelComponentLayout.Rgb, variant), variant));
             }
@@ -130,20 +149,23 @@ public sealed class EncoderRgbToXybTests
     {
         const int width = 19, height = 17;
         Array source = Arrange(RgbSource(kind, width, height), kind, width, height, layout);
-        var options = Options();
+        JpegliEncoderOptions options = Options();
         JpegColorSpace automatic = layout == PixelComponentLayout.Gray ? JpegColorSpace.Grayscale : JpegColorSpace.YCbCr;
         Assert.Equal(Encode(source, width, height, layout, options with { ColorSpace = automatic }),
             Encode(source, width, height, layout, options with { ColorSpace = JpegColorSpace.Automatic }));
 
         byte[] jpeg = Encode(source, width, height, layout, options);
         foreach (ChromaSubsampling preset in Enum.GetValues<ChromaSubsampling>())
+        {
             Assert.Equal(jpeg, Encode(source, width, height, layout, options with { Subsampling = preset }));
+        }
+
         JpegDocument document = Read(jpeg, options);
         Assert.Equal(ComponentIds, document.Components.Keys);
         Assert.Equal(new Component(2, 2, 0), document.Components['R']);
         Assert.Equal(new Component(2, 2, 1), document.Components['G']);
         Assert.Equal(new Component(1, 1, 2), document.Components['B']);
-        Assert.Equal(new[] { 0, 1, 2 }, document.Quantizers.Keys);
+        Assert.Equal([0, 1, 2], document.Quantizers.Keys);
         Dictionary<int, List<byte[]>> headers = HeaderPayloads(jpeg);
         Assert.False(headers.ContainsKey(0xe0));
         Assert.False(headers.ContainsKey(0xee));
@@ -170,7 +192,9 @@ public sealed class EncoderRgbToXybTests
         Array source = RgbSource(kind, 8, 8);
         AssertRejected(source, PixelComponentLayout.YCbCr, Options(), "ColorSpace");
         foreach (JpegColorSpace output in new[] { JpegColorSpace.Grayscale, JpegColorSpace.YCbCr, JpegColorSpace.Rgb })
+        {
             AssertRejected(source, PixelComponentLayout.Xyb, Options() with { ColorSpace = output }, "ColorSpace");
+        }
     }
 
     [Theory]
@@ -193,12 +217,14 @@ public sealed class EncoderRgbToXybTests
             for (int channel = 0; channel < (layout == PixelComponentLayout.Gray ? 1 : 3); channel++)
             {
                 Array.Fill(source, 0.5f);
-                source[63 * components + channel] = invalid;
+                source[(63 * components) + channel] = invalid;
                 AssertRejected(source, layout, Options(), "pixels");
                 // The smaller finite maximum scales to JPEG units without overflow,
                 // but nonlinear sRGB conversion must still reject it before output.
                 if (!float.IsFinite(invalid) || Math.Abs(invalid) > 1e10f)
+                {
                     AssertRejected(source, layout, Options() with { AllowOutOfRangeFloatSamples = true }, "pixels");
+                }
             }
         }
     }
@@ -210,28 +236,36 @@ public sealed class EncoderRgbToXybTests
     {
         float[] source = Enumerable.Repeat(value, 64 * 3).ToArray();
         foreach ((bool progressive, int bits, bool optimize) in new[] { (false, 0, false), (true, 10, true) })
+        {
             AssertRejected(source, PixelComponentLayout.Rgb, Options() with
             {
-                AllowOutOfRangeFloatSamples = true, Progressive = progressive,
-                ProgressiveRefinementBits = bits, OptimizeHuffmanTables = optimize
+                AllowOutOfRangeFloatSamples = true,
+                Progressive = progressive,
+                ProgressiveRefinementBits = bits,
+                OptimizeHuffmanTables = optimize
             }, "pixels");
+        }
     }
 
     [Fact]
     public void PermittedOutsideSrgbSamplesTransformWithoutClippingAndPreflightUnencodableCoefficients()
     {
         const int width = 8, height = 8;
-        var source = new float[width * height * 3];
+        float[] source = new float[width * height * 3];
         for (int pixel = 0; pixel < width * height; pixel++)
         {
             source[pixel * 3] = -0.002f;
-            source[pixel * 3 + 1] = 1.002f;
-            source[pixel * 3 + 2] = 0.50037f;
+            source[(pixel * 3) + 1] = 1.002f;
+            source[(pixel * 3) + 2] = 0.50037f;
         }
-        var options = Options() with
+        JpegliEncoderOptions options = Options() with
         {
-            Distance = 0.375f, SamplingFactors = FullResolution, AdaptiveQuantization = false,
-            AllowOutOfRangeFloatSamples = true, Progressive = true, ProgressiveRefinementBits = 2
+            Distance = 0.375f,
+            SamplingFactors = FullResolution,
+            AdaptiveQuantization = false,
+            AllowOutOfRangeFloatSamples = true,
+            Progressive = true,
+            ProgressiveRefinementBits = 2
         };
         JpegDocument actual = Read(Encode(source, width, height, PixelComponentLayout.Rgb, options), options);
         float[] scaled = ScaledXyb(source, width, height, grayscale: false);
@@ -242,24 +276,33 @@ public sealed class EncoderRgbToXybTests
 
         Array.Fill(source, 20f);
         foreach ((bool progressive, int bits, bool optimize) in new[] { (false, 0, false), (false, 0, true), (true, 2, false), (true, 10, true) })
+        {
             AssertRejected(source, PixelComponentLayout.Rgb,
                 options with { Progressive = progressive, ProgressiveRefinementBits = bits, OptimizeHuffmanTables = optimize }, "pixels");
+        }
     }
 
     private static JpegliEncoderOptions Options() => new() { ColorSpace = JpegColorSpace.Xyb, IccProfile = OpaqueProfile };
 
     private static Array RgbSource(int kind, int width, int height)
     {
-        var bytes = new byte[width * height * 3];
+        byte[] bytes = new byte[width * height * 3];
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < 3; channel++)
-                    bytes[(y * width + x) * 3 + channel] = (byte)((19 * x + 37 * y + 71 * channel + 11 * x * y) % 256);
+                {
+                    bytes[(((y * width) + x) * 3) + channel] = (byte)(((19 * x) + (37 * y) + (71 * channel) + (11 * x * y)) % 256);
+                }
+            }
+        }
+
         return kind switch
         {
             0 => bytes,
-            1 => bytes.Select((value, index) => (ushort)Math.Clamp(value * 257 + index % 47 - 23, 0, 65535)).ToArray(),
-            _ => bytes.Select((value, index) => Math.Clamp(value / 255f + (index % 47 - 23) / 65535f, 0f, 1f)).ToArray()
+            1 => bytes.Select((value, index) => (ushort)Math.Clamp((value * 257) + (index % 47) - 23, 0, 65535)).ToArray(),
+            _ => bytes.Select((value, index) => Math.Clamp((value / 255f) + (((index % 47) - 23) / 65535f), 0f, 1f)).ToArray()
         };
     }
 
@@ -267,6 +310,10 @@ public sealed class EncoderRgbToXybTests
     {
         PixelComponentLayout.Gray => 1,
         PixelComponentLayout.Rgba or PixelComponentLayout.Bgra => 4,
+        PixelComponentLayout.Rgb => 3,
+        PixelComponentLayout.Bgr => 3,
+        PixelComponentLayout.YCbCr => 3,
+        PixelComponentLayout.Xyb => 3,
         _ => 3
     };
 
@@ -274,8 +321,11 @@ public sealed class EncoderRgbToXybTests
     {
         int components = Components(layout);
         if (stride == 0)
+        {
             stride = width * components;
-        int length = (height - 1) * stride + width * components + 7;
+        }
+
+        int length = ((height - 1) * stride) + (width * components) + 7;
         Array result = kind switch
         {
             0 => Enumerable.Repeat((byte)0xdd, length).ToArray(),
@@ -283,12 +333,17 @@ public sealed class EncoderRgbToXybTests
             _ => Enumerable.Repeat(float.NaN, length).ToArray()
         };
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < Math.Min(components, 3); channel++)
                 {
                     int rgbChannel = layout is PixelComponentLayout.Bgr or PixelComponentLayout.Bgra ? 2 - channel : channel;
-                    result.SetValue(rgb.GetValue((y * width + x) * 3 + rgbChannel), y * stride + x * components + channel);
+                    result.SetValue(rgb.GetValue((((y * width) + x) * 3) + rgbChannel), (y * stride) + (x * components) + channel);
                 }
+            }
+        }
+
         return result;
     }
 
@@ -301,7 +356,7 @@ public sealed class EncoderRgbToXybTests
 
     private static float[] ScaledXyb(Array rgb, int width, int height, bool grayscale)
     {
-        var result = new float[width * height * 3];
+        float[] result = new float[width * height * 3];
         for (int offset = 0; offset < result.Length; offset += 3)
         {
             float r = SrgbSample(rgb, offset), g = grayscale ? r : SrgbSample(rgb, offset + 1), b = grayscale ? r : SrgbSample(rgb, offset + 2);
@@ -331,11 +386,17 @@ public sealed class EncoderRgbToXybTests
     private static void Encode(Stream output, Array source, int width, int height, PixelComponentLayout layout, JpegliEncoderOptions options, int stride = 0)
     {
         if (source is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, (PixelLayout)(int)layout, options, stride, TestContext.Current.CancellationToken);
+        }
         else if (source is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, layout, options, stride, TestContext.Current.CancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])source, width, height, layout, options, stride, TestContext.Current.CancellationToken);
+        }
     }
 
     private static void AssertRejected(Array source, PixelComponentLayout layout, JpegliEncoderOptions options, string parameter)
@@ -359,18 +420,29 @@ public sealed class EncoderRgbToXybTests
         Assert.Equal(expected.Components, actual.Components);
         Assert.Equal(expected.Blocks.Count, actual.Blocks.Count);
         foreach ((int selector, byte[] quantizer) in expected.Quantizers)
+        {
             Assert.Equal(quantizer, actual.Quantizers[selector]);
+        }
+
         foreach ((BlockKey key, Block block) in expected.Blocks)
         {
             Block other = actual.Blocks[key];
             Assert.Equal(block.IsDummy, other.IsDummy);
             if (block.IsDummy)
+            {
                 Assert.All(other.Coefficients[1..], coefficient => Assert.Equal(0, coefficient));
+            }
             else if (tolerance == 0)
+            {
                 Assert.Equal(block.Coefficients, other.Coefficients);
+            }
             else
+            {
                 for (int frequency = 0; frequency < 64; frequency++)
+                {
                     Assert.InRange(Math.Abs(block.Coefficients[frequency] - other.Coefficients[frequency]), 0, tolerance);
+                }
+            }
         }
     }
 
@@ -381,9 +453,12 @@ public sealed class EncoderRgbToXybTests
         while (jpeg[offset + 1] != 0xda)
         {
             Assert.Equal(0xff, jpeg[offset]);
-            int marker = jpeg[offset + 1], length = jpeg[offset + 2] * 256 + jpeg[offset + 3];
+            int marker = jpeg[offset + 1], length = (jpeg[offset + 2] * 256) + jpeg[offset + 3];
             if (!result.TryGetValue(marker, out List<byte[]>? payloads))
+            {
                 result.Add(marker, payloads = []);
+            }
+
             payloads.Add(jpeg[(offset + 4)..(offset + 2 + length)]);
             offset += 2 + length;
         }

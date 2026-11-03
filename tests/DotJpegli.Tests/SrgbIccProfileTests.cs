@@ -1,11 +1,11 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
 using DotJpegli.Internal;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class SrgbIccProfileTests
 {
@@ -47,8 +47,8 @@ public sealed class SrgbIccProfileTests
         Assert.Equal("mntr", Signature(profile, 12));
         Assert.Equal("RGB ", Signature(profile, 16));
         Assert.Equal("XYZ ", Signature(profile, 20));
-        Assert.Equal(new[] { 2019, 12, 1, 0, 0, 0 },
-            Enumerable.Range(0, 6).Select(index => UInt16(profile, 24 + index * 2)));
+        Assert.Equal([2019, 12, 1, 0, 0, 0],
+            Enumerable.Range(0, 6).Select(index => UInt16(profile, 24 + (index * 2))));
         Assert.Equal("acsp", Signature(profile, 36));
         Assert.Equal("APPL", Signature(profile, 40));
         Assert.All(profile[44..64], value => Assert.Equal(0, value));
@@ -60,7 +60,7 @@ public sealed class SrgbIccProfileTests
         Assert.All(profile[100..128], value => Assert.Equal(0, value));
 
         Dictionary<string, Tag> tags = Tags(profile);
-        Assert.Equal(new[] { "bTRC", "bXYZ", "chad", "cicp", "cprt", "desc", "gTRC", "gXYZ", "rTRC", "rXYZ", "wtpt" },
+        Assert.Equal(["bTRC", "bXYZ", "chad", "cicp", "cprt", "desc", "gTRC", "gXYZ", "rTRC", "rXYZ", "wtpt"],
             tags.Keys.Order());
         Assert.Equal("sRGB", Text(profile, tags["desc"]));
         Assert.Equal("CC0", Text(profile, tags["cprt"]));
@@ -88,8 +88,10 @@ public sealed class SrgbIccProfileTests
         Assert.Equal(0, UInt16(profile, curve.Offset + 10));
         double[] expected = [2.4, 1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045];
         for (int index = 0; index < expected.Length; index++)
-            AssertClose(expected[index], Fixed(profile, curve.Offset + 12 + index * 4),
+        {
+            AssertClose(expected[index], Fixed(profile, curve.Offset + 12 + (index * 4)),
                 0.5 / 65536, $"sRGB curve parameter {index}");
+        }
     }
 
     [Fact]
@@ -117,15 +119,21 @@ public sealed class SrgbIccProfileTests
             roundedThreshold - 1e-8, roundedThreshold, roundedThreshold + 1e-8,
             0.0625, 0.25, 0.5, 0.75, 1];
         foreach (double r in values)
+        {
             foreach (double g in values)
+            {
                 foreach (double b in values)
                 {
                     double[] expected = SrgbToD50Xyz(r, g, b);
                     double[] actual = EvaluateMatrixProfile(profile, tags, r, g, b);
                     for (int channel = 0; channel < 3; channel++)
+                    {
                         AssertClose(expected[channel], actual[channel], 0.0001,
                             $"PCS channel {channel}, sRGB ({r:R}, {g:R}, {b:R})");
+                    }
                 }
+            }
+        }
     }
 
     [Fact]
@@ -141,7 +149,10 @@ public sealed class SrgbIccProfileTests
         {
             double value = 0;
             for (int column = 0; column < 3; column++)
-                value += Fixed(profile, chad.Offset + 8 + (row * 3 + column) * 4) * d65[column];
+            {
+                value += Fixed(profile, chad.Offset + 8 + (((row * 3) + column) * 4)) * d65[column];
+            }
+
             AssertClose(d50[row], value, 0.00003, $"adapted white channel {row}");
         }
     }
@@ -152,9 +163,16 @@ public sealed class SrgbIccProfileTests
         {
             var modes = new TheoryData<int, JpegColorSpace, bool>();
             for (int kind = 0; kind < 3; kind++)
+            {
                 foreach (JpegColorSpace colorSpace in new[] { JpegColorSpace.YCbCr, JpegColorSpace.Rgb })
+                {
                     foreach (bool progressive in new[] { false, true })
+                    {
                         modes.Add(kind, colorSpace, progressive);
+                    }
+                }
+            }
+
             return modes;
         }
     }
@@ -164,30 +182,41 @@ public sealed class SrgbIccProfileTests
     public void ExplicitProfileEmbedsExactBytesWithoutChangingSrgbCodingOrInputStorage(
         int kind, JpegColorSpace colorSpace, bool progressive)
     {
-        const int width = 19, height = 17, stride = width * 4 + 5;
-        byte[] bytes = Enumerable.Repeat((byte)0xad, (height - 1) * stride + width * 4).ToArray();
+        const int width = 19, height = 17, stride = (width * 4) + 5;
+        byte[] bytes = Enumerable.Repeat((byte)0xad, ((height - 1) * stride) + (width * 4)).ToArray();
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < 3; channel++)
-                    bytes[y * stride + x * 4 + channel] = (byte)((x * 73 + y * 29 + channel * 61) % 256);
+                {
+                    bytes[(y * stride) + (x * 4) + channel] = (byte)(((x * 73) + (y * 29) + (channel * 61)) % 256);
+                }
+            }
+        }
+
         Array pixels = kind switch
         {
             0 => bytes,
-            1 => bytes.Select((value, index) => (ushort)Math.Clamp(value * 257 + index % 47 - 23, 0, 65535)).ToArray(),
+            1 => bytes.Select((value, index) => (ushort)Math.Clamp((value * 257) + (index % 47) - 23, 0, 65535)).ToArray(),
             _ => bytes.Select((value, index) => index % stride >= width * 4 || index % stride % 4 == 3
-                ? float.NaN : Math.Clamp(value / 255f + (index % 47 - 23) / 65535f, 0f, 1f)).ToArray()
+                ? float.NaN : Math.Clamp((value / 255f) + (((index % 47) - 23) / 65535f), 0f, 1f)).ToArray()
         };
-        Array originalPixels = (Array)pixels.Clone();
+        var originalPixels = (Array)pixels.Clone();
         byte[] profile = JpegliIccProfiles.CreateSrgbProfile();
         byte[] backing = Enumerable.Repeat((byte)0x5b, profile.Length + 11).ToArray();
         profile.CopyTo(backing, 3);
         byte[] originalBacking = backing.ToArray();
         var options = new JpegliEncoderOptions
         {
-            ColorSpace = colorSpace, IccProfile = backing.AsMemory(3, profile.Length),
-            InferCicpTransferFunctionFromIccProfile = true, Distance = 1.375f,
-            SmoothingFactor = 37, Progressive = progressive,
-            ProgressiveRefinementBits = progressive ? 2 : 0, RestartInterval = 2
+            ColorSpace = colorSpace,
+            IccProfile = backing.AsMemory(3, profile.Length),
+            InferCicpTransferFunctionFromIccProfile = true,
+            Distance = 1.375f,
+            SmoothingFactor = 37,
+            Progressive = progressive,
+            ProgressiveRefinementBits = progressive ? 2 : 0,
+            RestartInterval = 2
         };
         byte[] actual = Encode(pixels, width, height, stride, options);
         (byte[] embedded, byte[] coding) = ReadIccAndCoding(actual);
@@ -210,26 +239,29 @@ public sealed class SrgbIccProfileTests
 
     private static Dictionary<string, Tag> Tags(byte[] profile)
     {
-        int count = Int32(profile, 128), end = 132 + count * 12;
+        int count = Int32(profile, 128), end = 132 + (count * 12);
         Assert.Equal(11, count);
         var result = new Dictionary<string, Tag>();
         var extents = new HashSet<Tag>();
         for (int index = 0; index < count; index++)
         {
-            int entry = 132 + index * 12;
+            int entry = 132 + (index * 12);
             var tag = new Tag(Int32(profile, entry + 4), Int32(profile, entry + 8));
             Assert.Equal(0, tag.Offset % 4);
             Assert.InRange(tag.Offset, end, profile.Length - 8);
             Assert.InRange(tag.Length, 8, profile.Length - tag.Offset);
             Assert.Equal(0, Int32(profile, tag.Offset + 4));
             Assert.True(result.TryAdd(Signature(profile, entry), tag));
-            extents.Add(tag); // ICC allows multiple entries for one identical payload.
+            _ = extents.Add(tag); // ICC allows multiple entries for one identical payload.
         }
         Assert.Equal(9, extents.Count);
         Tag[] ordered = extents.OrderBy(tag => tag.Offset).ToArray();
         Assert.Equal(end, ordered[0].Offset);
         for (int index = 1; index < ordered.Length; index++)
+        {
             Assert.True(ordered[index].Offset >= ordered[index - 1].Offset + ordered[index - 1].Length);
+        }
+
         Assert.Equal(profile.Length, ordered[^1].Offset + ordered[^1].Length);
         return result;
     }
@@ -259,10 +291,12 @@ public sealed class SrgbIccProfileTests
                 offset = Fixed(profile, curve.Offset + 20), c = Fixed(profile, curve.Offset + 24),
                 threshold = Fixed(profile, curve.Offset + 28);
             double linear = input[channel] >= threshold
-                ? Math.Pow(a * input[channel] + offset, gamma) : c * input[channel];
+                ? Math.Pow((a * input[channel]) + offset, gamma) : c * input[channel];
             Tag primary = tags[colors[channel] + "XYZ"];
             for (int row = 0; row < 3; row++)
-                xyz[row] += Fixed(profile, primary.Offset + 8 + row * 4) * linear;
+            {
+                xyz[row] += Fixed(profile, primary.Offset + 8 + (row * 4)) * linear;
+            }
         }
         return xyz;
     }
@@ -274,9 +308,9 @@ public sealed class SrgbIccProfileTests
         r = Linearize(r);
         g = Linearize(g);
         b = Linearize(b);
-        return [0.4360747 * r + 0.3850649 * g + 0.1430804 * b,
-            0.2225045 * r + 0.7168786 * g + 0.0606169 * b,
-            0.0139322 * r + 0.0971045 * g + 0.7141733 * b];
+        return [(0.4360747 * r) + (0.3850649 * g) + (0.1430804 * b),
+            (0.2225045 * r) + (0.7168786 * g) + (0.0606169 * b),
+            (0.0139322 * r) + (0.0971045 * g) + (0.7141733 * b)];
     }
 
     private static double Linearize(double value) => value <= 0.04045
@@ -304,7 +338,10 @@ public sealed class SrgbIccProfileTests
                 profile = jpeg[(offset + 18)..end];
             }
             else
+            {
                 coding.Write(jpeg.AsSpan(offset, end - offset));
+            }
+
             offset = end;
         }
         coding.Write(jpeg.AsSpan(offset));
@@ -314,27 +351,33 @@ public sealed class SrgbIccProfileTests
 
     private static byte[] Encode(Array source, int width, int height, int stride,
         JpegliEncoderOptions options) => source switch
-    {
-        byte[] bytes => JpegliEncoder.Encode(bytes, width, height, PixelLayout.Bgra32,
-            options, stride, TestContext.Current.CancellationToken),
-        ushort[] words => JpegliEncoder.Encode(words, width, height, PixelComponentLayout.Bgra,
-            options, stride, TestContext.Current.CancellationToken),
-        _ => JpegliEncoder.Encode((float[])source, width, height, PixelComponentLayout.Bgra,
-            options, stride, TestContext.Current.CancellationToken)
-    };
+        {
+            byte[] bytes => JpegliEncoder.Encode(bytes, width, height, PixelLayout.Bgra32,
+                options, stride, TestContext.Current.CancellationToken),
+            ushort[] words => JpegliEncoder.Encode(words, width, height, PixelComponentLayout.Bgra,
+                options, stride, TestContext.Current.CancellationToken),
+            _ => JpegliEncoder.Encode((float[])source, width, height, PixelComponentLayout.Bgra,
+                options, stride, TestContext.Current.CancellationToken)
+        };
 
     private static void Encode(Stream output, Array source, int width, int height, int stride,
         JpegliEncoderOptions options)
     {
         if (source is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, PixelLayout.Bgra32,
                 options, stride, TestContext.Current.CancellationToken);
+        }
         else if (source is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, PixelComponentLayout.Bgra,
                 options, stride, TestContext.Current.CancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])source, width, height, PixelComponentLayout.Bgra,
                 options, stride, TestContext.Current.CancellationToken);
+        }
     }
 
     private static int Int32(byte[] profile, int offset) => BinaryPrimitives.ReadInt32BigEndian(profile.AsSpan(offset, 4));

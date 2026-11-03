@@ -1,7 +1,7 @@
+namespace DotJpegli;
+
 using System.Xml;
 using System.Xml.Linq;
-
-namespace DotJpegli;
 
 /// <summary>
 /// Edits properties in an ordinary, empty-subject XMP RDF packet. Unknown properties,
@@ -26,10 +26,10 @@ public sealed class XmpMetadata
     /// <summary>Creates an empty XMP packet with one empty-subject RDF description.</summary>
     public XmpMetadata()
     {
-        rdf = new XElement(Rdf + "RDF", new XAttribute(XNamespace.Xmlns + "rdf", Rdf.NamespaceName),
+        this.rdf = new XElement(Rdf + "RDF", new XAttribute(XNamespace.Xmlns + "rdf", Rdf.NamespaceName),
             new XElement(Rdf + "Description", new XAttribute(Rdf + "about", "")));
-        document = new XDocument(new XElement(Meta + "xmpmeta",
-            new XAttribute(XNamespace.Xmlns + "x", Meta.NamespaceName), rdf));
+        this.document = new XDocument(new XElement(Meta + "xmpmeta",
+            new XAttribute(XNamespace.Xmlns + "x", Meta.NamespaceName), this.rdf));
     }
 
     private XmpMetadata(XDocument document, XElement rdf, bool hasExtendedLink)
@@ -55,27 +55,34 @@ public sealed class XmpMetadata
                 XmlResolver = null,
                 MaxCharactersInDocument = Math.Max(1, packet.Length)
             });
-            XDocument parsed = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
+            var parsed = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
             XElement? root = parsed.Root;
             XElement? parsedRdf = root?.Name == Rdf + "RDF" ? root
                 : root?.Name == Meta + "xmpmeta" && root.Elements().Count() == 1
                     ? root.Element(Rdf + "RDF") : null;
             if (parsedRdf is null || HasText(root!) || HasText(parsedRdf) || !parsedRdf.Elements().Any() ||
                 parsedRdf.Elements().Any(element => element.Name != Rdf + "Description"))
+            {
                 throw new ArgumentException(message, nameof(packet));
+            }
+
             foreach (XElement description in parsedRdf.Elements())
             {
                 if (!string.IsNullOrEmpty((string?)description.Attribute(Rdf + "about")) ||
                     description.Attribute(Rdf + "ID") is not null || description.Attribute(Rdf + "nodeID") is not null ||
                     HasText(description))
+                {
                     throw new ArgumentException(message, nameof(packet));
+                }
             }
             bool hasExtendedLink = false;
             foreach (XElement element in root!.DescendantsAndSelf())
             {
                 hasExtendedLink |= element.Name == ExtendedLink || element.Attribute(ExtendedLink) is not null;
                 if (element.Nodes().OfType<XProcessingInstruction>().Any(instruction => instruction.Target == "xpacket"))
+                {
                     throw new ArgumentException("XMP packet instructions must be outside the XML root.", nameof(packet));
+                }
             }
             return new(parsed, parsedRdf, hasExtendedLink);
         }
@@ -86,16 +93,16 @@ public sealed class XmpMetadata
     }
 
     /// <summary>Serializes the current XML packet, including outer packet instructions.</summary>
-    public string ToPacket() => document.ToString(SaveOptions.DisableFormatting);
+    public string ToPacket() => this.document.ToString(SaveOptions.DisableFormatting);
 
     /// <summary>Gets the first property as an owned XML copy, or null if absent.</summary>
     /// <remarks>Attribute-form properties are returned as equivalent literal elements. Inherited XML context is copied.</remarks>
-    public XElement? GetProperty(XmpPropertyName name) => FindProperty(name, copy: true);
+    public XElement? GetProperty(XmpPropertyName name) => this.FindProperty(name, copy: true);
 
     private XElement? FindProperty(XmpPropertyName name, bool copy)
     {
         XName xmlName = PropertyName(name);
-        foreach (XElement description in rdf.Elements())
+        foreach (XElement description in this.rdf.Elements())
         {
             if (description.Attribute(xmlName) is { } attribute)
             {
@@ -103,7 +110,9 @@ public sealed class XmpMetadata
                 return copy ? CopyContext(description, literal) : literal;
             }
             if (description.Element(xmlName) is { } element)
+            {
                 return copy ? CopyContext(element, new XElement(element)) : element;
+            }
         }
         return null;
     }
@@ -115,11 +124,17 @@ public sealed class XmpMetadata
         Guard.ThrowIfNull(value);
         XName xmlName = PropertyName(name);
         if (value.Name != xmlName)
+        {
             throw new ArgumentException("The XML element name must match the property name.", nameof(value));
+        }
+
         XElement copy = CopyContext(value, new XElement(value));
         if (HasExtendedLink(copy) ||
             copy.DescendantNodes().OfType<XProcessingInstruction>().Any(instruction => instruction.Target == "xpacket"))
+        {
             throw new ArgumentException("Properties cannot introduce extended-XMP links or packet instructions.", nameof(value));
+        }
+
         try
         {
             // XElement permits invalid character data until serialization. Check
@@ -130,18 +145,21 @@ public sealed class XmpMetadata
         {
             throw new ArgumentException("The property must serialize as well-formed XML.", nameof(value), error);
         }
-        EnsureEditable();
-        RemoveForms(xmlName);
-        rdf.Elements().First().Add(copy);
+        this.EnsureEditable();
+        _ = this.RemoveForms(xmlName);
+        this.rdf.Elements().First().Add(copy);
     }
 
     /// <summary>Gets a literal simple property, or null if absent.</summary>
     /// <exception cref="InvalidOperationException">The property is a structured or URI value.</exception>
     public string? GetSimpleProperty(XmpPropertyName name)
     {
-        XElement? property = FindProperty(name, copy: false);
+        XElement? property = this.FindProperty(name, copy: false);
         if (property is null)
+        {
             return null;
+        }
+
         return LiteralValue(property);
     }
 
@@ -149,7 +167,7 @@ public sealed class XmpMetadata
     public void SetSimpleProperty(XmpPropertyName name, string value)
     {
         Guard.ThrowIfNull(value);
-        SetProperty(name, new XElement(PropertyName(name), value));
+        this.SetProperty(name, new XElement(PropertyName(name), value));
     }
 
     /// <summary>Gets the exact language entry of an RDF alternative, or null if absent. Language matching ignores case.</summary>
@@ -157,9 +175,12 @@ public sealed class XmpMetadata
     public string? GetLocalizedText(XmpPropertyName name, string language)
     {
         ValidateLanguage(language);
-        XElement? property = FindProperty(name, copy: false);
+        XElement? property = this.FindProperty(name, copy: false);
         if (property is null)
+        {
             return null;
+        }
+
         XElement alternative = Alternative(property);
         XElement? item = alternative.Elements(Rdf + "li").FirstOrDefault(element =>
             string.Equals((string?)element.Attribute(XNamespace.Xml + "lang"), language, StringComparison.OrdinalIgnoreCase));
@@ -172,35 +193,52 @@ public sealed class XmpMetadata
     {
         ValidateLanguage(language);
         Guard.ThrowIfNull(value);
-        XElement property = GetProperty(name) ?? new XElement(PropertyName(name), new XElement(Rdf + "Alt"));
+        XElement property = this.GetProperty(name) ?? new XElement(PropertyName(name), new XElement(Rdf + "Alt"));
         XElement alternative = Alternative(property);
         XElement[] matching = alternative.Elements(Rdf + "li").Where(element =>
             string.Equals((string?)element.Attribute(XNamespace.Xml + "lang"), language, StringComparison.OrdinalIgnoreCase)).ToArray();
         XElement item = matching.Length == 0 ? new XElement(Rdf + "li") : new XElement(matching[0]);
         if (matching.Length != 0)
+        {
             _ = LiteralValue(item);
+        }
+
         item.SetAttributeValue(XNamespace.Xml + "lang", language);
         item.Value = value;
         foreach (XElement duplicate in matching)
+        {
             duplicate.Remove();
+        }
+
         if (string.Equals(language, "x-default", StringComparison.OrdinalIgnoreCase))
+        {
             alternative.AddFirst(item);
+        }
         else
+        {
             alternative.Add(item);
-        SetProperty(name, property);
+        }
+
+        this.SetProperty(name, property);
     }
 
     /// <summary>Gets an RDF bag or sequence of literal strings, or an empty list if the property is absent.</summary>
     /// <exception cref="InvalidOperationException">The property is not an array of literal strings.</exception>
     public IReadOnlyList<string> GetStringArray(XmpPropertyName name)
     {
-        XElement? property = FindProperty(name, copy: false);
+        XElement? property = this.FindProperty(name, copy: false);
         if (property is null)
-            return Array.Empty<string>();
+        {
+            return [];
+        }
+
         XElement? container = property.Elements().SingleOrDefault();
         if (container is null || (container.Name != Rdf + "Bag" && container.Name != Rdf + "Seq") ||
             HasText(property) || HasText(container) || container.Elements().Any(element => element.Name != Rdf + "li"))
+        {
             throw new InvalidOperationException("The XMP property is not an RDF bag or sequence of strings.");
+        }
+
         return Array.AsReadOnly(container.Elements().Select(LiteralValue).ToArray());
     }
 
@@ -214,7 +252,7 @@ public sealed class XmpMetadata
             Guard.ThrowIfNull(value);
             container.Add(new XElement(Rdf + "li", value));
         }
-        SetProperty(name, new XElement(PropertyName(name), container));
+        this.SetProperty(name, new XElement(PropertyName(name), container));
     }
 
     /// <summary>Removes all attribute and element forms of a property from every description.</summary>
@@ -222,14 +260,14 @@ public sealed class XmpMetadata
     public bool Remove(XmpPropertyName name)
     {
         XName xmlName = PropertyName(name);
-        EnsureEditable();
-        return RemoveForms(xmlName);
+        this.EnsureEditable();
+        return this.RemoveForms(xmlName);
     }
 
     private bool RemoveForms(XName name)
     {
         bool removed = false;
-        foreach (XElement description in rdf.Elements())
+        foreach (XElement description in this.rdf.Elements())
         {
             if (description.Attribute(name) is { } attribute)
             {
@@ -247,8 +285,10 @@ public sealed class XmpMetadata
 
     private void EnsureEditable()
     {
-        if (hasExtendedLink)
+        if (this.hasExtendedLink)
+        {
             throw new InvalidOperationException("Combine standard and extended XMP, remove the digest link, and repartition before editing.");
+        }
     }
 
     private static bool HasExtendedLink(XElement root) => root.DescendantsAndSelf()
@@ -259,13 +299,19 @@ public sealed class XmpMetadata
         try
         {
             if (string.IsNullOrEmpty(name.NamespaceUri) || string.IsNullOrEmpty(name.LocalName))
+            {
                 throw new XmlException("A property requires a namespace URI and local name.");
-            XmlConvert.VerifyNCName(name.LocalName);
-            XmlConvert.VerifyXmlChars(name.NamespaceUri);
-            XName xmlName = XName.Get(name.LocalName, name.NamespaceUri);
+            }
+
+            _ = XmlConvert.VerifyNCName(name.LocalName);
+            _ = XmlConvert.VerifyXmlChars(name.NamespaceUri);
+            var xmlName = XName.Get(name.LocalName, name.NamespaceUri);
             if (xmlName.Namespace == Rdf || xmlName.Namespace == Meta || xmlName.Namespace == XNamespace.Xml ||
                 xmlName.Namespace == XNamespace.Xmlns || xmlName == ExtendedLink)
+            {
                 throw new XmlException("Envelope namespaces and extended-XMP links cannot be edited as properties.");
+            }
+
             return xmlName;
         }
         catch (XmlException error)
@@ -279,9 +325,16 @@ public sealed class XmpMetadata
         // QName-valued attributes/text can depend on ancestor declarations. Carry
         // those bindings and inherited XML context into a detached owned copy.
         foreach (XElement ancestor in source.AncestorsAndSelf())
+        {
             foreach (XAttribute attribute in ancestor.Attributes())
+            {
                 if ((attribute.IsNamespaceDeclaration || attribute.Name.Namespace == XNamespace.Xml) && copy.Attribute(attribute.Name) is null)
+                {
                     copy.Add(new XAttribute(attribute));
+                }
+            }
+        }
+
         return copy;
     }
 
@@ -289,7 +342,10 @@ public sealed class XmpMetadata
     {
         if (element.HasElements || element.Attribute(Rdf + "resource") is not null ||
             element.Attribute(Rdf + "parseType") is not null)
+        {
             throw new InvalidOperationException("The XMP value is not a literal string.");
+        }
+
         return element.Value;
     }
 
@@ -298,7 +354,10 @@ public sealed class XmpMetadata
         XElement[] children = property.Elements().ToArray();
         if (children.Length != 1 || children[0].Name != Rdf + "Alt" || HasText(property) || HasText(children[0]) ||
             children[0].Elements().Any(element => element.Name != Rdf + "li" || element.Attribute(XNamespace.Xml + "lang") is null))
+        {
             throw new InvalidOperationException("The XMP property is not an RDF language alternative.");
+        }
+
         return children[0];
     }
 
@@ -313,16 +372,25 @@ public sealed class XmpMetadata
             if (character == '-')
             {
                 if (!hasCharacter)
+                {
                     throw new ArgumentException("The language must be a hyphen-separated ASCII language tag.", nameof(language));
+                }
+
                 hasCharacter = false;
             }
-            else if (character is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9')
+            else if (character is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9'))
+            {
                 hasCharacter = true;
+            }
             else
+            {
                 throw new ArgumentException("The language must be a hyphen-separated ASCII language tag.", nameof(language));
+            }
         }
         if (!hasCharacter)
+        {
             throw new ArgumentException("The language must be a hyphen-separated ASCII language tag.", nameof(language));
+        }
     }
 
     private static bool HasText(XElement element) =>

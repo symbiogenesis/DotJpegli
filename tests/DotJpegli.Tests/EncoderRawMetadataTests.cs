@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using System.Security.Cryptography;
 using StbImageSharp;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderRawMetadataTests
 {
@@ -14,10 +14,10 @@ public sealed class EncoderRawMetadataTests
         byte[] reference = Encode(new());
         Assert.Equal("42F2E14F627342F0603E9BA08653777959192031987F82F32BFB9664F0EC7DD6",
             Convert.ToHexString(SHA256.HashData(reference)));
-        Assert.Equal(reference, JpegliEncoder.Encode(new byte[] { 255, 0, 0 }, 1, 1,
+        Assert.Equal(reference, JpegliEncoder.Encode([255, 0, 0], 1, 1,
             cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(reference, Encode(new() { MetadataMarkers = [] }));
-        Assert.Equal(reference, Encode(new() { MetadataMarkers = Array.Empty<JpegMetadataMarker>() }));
+        Assert.Equal(reference, Encode(new() { MetadataMarkers = [] }));
 
         JpegliEncoderOptions metadata = AllMetadata();
         byte[] existingMetadata = Encode(metadata);
@@ -39,7 +39,10 @@ public sealed class EncoderRawMetadataTests
         Segment[] raw = headers.Skip(1).Take(markers.Count).ToArray();
         Assert.Equal(markers.Select(marker => marker.MarkerCode), raw.Select(segment => segment.Code));
         for (int index = 0; index < markers.Count; index++)
+        {
             AssertRawSegment(raw[index], markers[index]);
+        }
+
         Assert.Equal(0xe0, headers[0].Code); // Existing JFIF remains first.
         Assert.Equal(0xdb, headers[markers.Count + 1].Code);
         Assert.Equal(Encode(new()), RemoveRange(jpeg, raw[0].Start, raw[^1].End));
@@ -61,10 +64,13 @@ public sealed class EncoderRawMetadataTests
         List<Segment> headers = ReadHeaders(jpeg);
         Segment actual = Assert.Single(headers, segment => segment.Code == 0xe3);
         AssertRawSegment(actual, marker);
-        Assert.Equal(new[] { 0xe0, 0xe3, 0xdb }, headers.Take(3).Select(segment => segment.Code));
+        Assert.Equal([0xe0, 0xe3, 0xdb], headers.Take(3).Select(segment => segment.Code));
         Assert.Equal(length + 2, actual.Length);
         if (length == MaximumPayloadBytes)
+        {
             Assert.Equal(65_535, actual.Length);
+        }
+
         Assert.Equal(Encode(new()), RemoveRange(jpeg, actual.Start, actual.End));
     }
 
@@ -75,10 +81,13 @@ public sealed class EncoderRawMetadataTests
         var options = new JpegliEncoderOptions { ColorSpace = JpegColorSpace.Rgb, MetadataMarkers = markers };
         byte[] jpeg = Encode(options);
         List<Segment> headers = ReadHeaders(jpeg);
-        Assert.Equal(new[] { 0xe3, 0xfe, 0xdb }, headers.Take(3).Select(segment => segment.Code));
+        Assert.Equal([0xe3, 0xfe, 0xdb], headers.Take(3).Select(segment => segment.Code));
         Assert.Equal(2, headers[0].Start);
         for (int index = 0; index < markers.Length; index++)
+        {
             AssertRawSegment(headers[index], markers[index]);
+        }
+
         Assert.Equal(Encode(options with { MetadataMarkers = null }), RemoveRange(jpeg, headers[0].Start, headers[1].End));
     }
 
@@ -95,7 +104,10 @@ public sealed class EncoderRawMetadataTests
         // Standalone/coding markers, out-of-byte codes, and APP15's following gap
         // must not enter the file even when valid markers precede the bad entry.
         foreach (int code in new[] { int.MinValue, -1, 0, 0xd8, 0xd9, 0xda, 0xdb, 0xdf, 0xf0, 0xfd, 0xff, 0x1e0, int.MaxValue })
+        {
             AssertRejected(new(code, OpaqueBytes(3)), outOfRange: true);
+        }
+
         AssertRejected(new(0xe3, new byte[MaximumPayloadBytes + 1]), outOfRange: true);
         AssertRejected(null!, outOfRange: false);
 
@@ -104,9 +116,12 @@ public sealed class EncoderRawMetadataTests
             JpegliEncoderOptions options = AllMetadata() with
             {
                 MetadataMarkers = [new(0xe3, OpaqueBytes(3)), new(0xfe, default), bad],
-                Progressive = true, ProgressiveRefinementBits = 2,
-                OptimizeHuffmanTables = false, RestartInterval = 2,
-                SmoothingFactor = 37, AllowOutOfRangeFloatSamples = true
+                Progressive = true,
+                ProgressiveRefinementBits = 2,
+                OptimizeHuffmanTables = false,
+                RestartInterval = 2,
+                SmoothingFactor = 37,
+                AllowOutOfRangeFloatSamples = true
             };
             using var destination = new MemoryStream();
             using var output = new WriteOnlyStream(destination);
@@ -134,7 +149,7 @@ public sealed class EncoderRawMetadataTests
         JpegliEncoderOptions options = AllMetadata() with { MetadataMarkers = markers };
         byte[] jpeg = Encode(options);
         List<Segment> headers = ReadHeaders(jpeg);
-        Assert.Equal(new[] { 0xe0, 0xe1, 0xe1, 0xe1, 0xe1, 0xe2, 0xe2, 0xed, 0xfe, 0xe3, 0xe3, 0xfe, 0xe4, 0xdb },
+        Assert.Equal([0xe0, 0xe1, 0xe1, 0xe1, 0xe1, 0xe2, 0xe2, 0xed, 0xfe, 0xe3, 0xe3, 0xfe, 0xe4, 0xdb],
             headers.Take(14).Select(segment => segment.Code));
         Assert.True(headers[1].Payload.Span.StartsWith("Exif\0\0"u8));
         Assert.True(headers[2].Payload.Span.StartsWith("http://ns.adobe.com/xap/1.0/\0"u8));
@@ -145,7 +160,10 @@ public sealed class EncoderRawMetadataTests
         Assert.True(headers[7].Payload.Span.StartsWith("Photoshop 3.0\0"u8));
         Assert.True(headers[8].Payload.Span.SequenceEqual("before raw markers"u8));
         for (int index = 0; index < markers.Length; index++)
+        {
             AssertRawSegment(headers[9 + index], markers[index]);
+        }
+
         Assert.Equal(Encode(options with { MetadataMarkers = null }), RemoveRange(jpeg, headers[9].Start, headers[12].End));
     }
 
@@ -162,7 +180,7 @@ public sealed class EncoderRawMetadataTests
         string format, bool grayscale, string scans, bool optimize)
     {
         const int width = 33, height = 19;
-        int stride = width * (grayscale ? 1 : 3) + 5;
+        int stride = (width * (grayscale ? 1 : 3)) + 5;
         Array pixels = Pixels(format, grayscale, width, height, stride);
         var options = new JpegliEncoderOptions
         {
@@ -170,22 +188,27 @@ public sealed class EncoderRawMetadataTests
             ProgressiveRefinementBits = scans == "refined" ? 2 : 0,
             SequentialInterleaveComponents = scans != "separate sequential",
             ScanScript = scans == "script" ? [new([2]), new([0, 1])] : null,
-            OptimizeHuffmanTables = optimize, RestartInterval = 2, SmoothingFactor = 37
+            OptimizeHuffmanTables = optimize,
+            RestartInterval = 2,
+            SmoothingFactor = 37
         };
         JpegMetadataMarker[] markers = [new(0xe3, OpaqueBytes(513)), new(0xe4, OpaqueBytes(11)), new(0xfe, OpaqueBytes(19))];
         byte[] reference = Encode(pixels, width, height, grayscale, options, stride);
         byte[] actual = Encode(pixels, width, height, grayscale, options with { MetadataMarkers = markers }, stride);
         List<Segment> actualHeaders = ReadHeaders(actual);
         for (int index = 0; index < markers.Length; index++)
+        {
             AssertRawSegment(actualHeaders[index + 1], markers[index]);
+        }
+
         int expectedStart = ReadHeaders(reference).First(segment => segment.Code == 0xdb).Start;
         int actualStart = actualHeaders.First(segment => segment.Code == 0xdb).Start;
         // Equality through EOI checks every coding table, scan, restart marker,
         // entropy byte and stuffing sequence without depending on the decoder.
         Assert.True(reference.AsSpan(expectedStart).SequenceEqual(actual.AsSpan(actualStart)));
         ColorComponents channels = grayscale ? ColorComponents.Grey : ColorComponents.RedGreenBlue;
-        ImageResult expectedImage = ImageResult.FromMemory(reference, channels);
-        ImageResult actualImage = ImageResult.FromMemory(actual, channels);
+        var expectedImage = ImageResult.FromMemory(reference, channels);
+        var actualImage = ImageResult.FromMemory(actual, channels);
         Assert.Equal(width, actualImage.Width);
         Assert.Equal(height, actualImage.Height);
         Assert.Equal(expectedImage.Data, actualImage.Data);
@@ -209,7 +232,10 @@ public sealed class EncoderRawMetadataTests
         using var output = new WriteOnlyStream(destination, afterWrite: () =>
         {
             if (mutated)
+            {
                 return;
+            }
+
             mutated = true;
             markers.Reverse();
             markers.Clear();
@@ -241,7 +267,7 @@ public sealed class EncoderRawMetadataTests
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
         var token = new CancellationToken(true);
-        var error = Assert.Throws<OperationCanceledException>(() => Encode(output, BoundaryMetadata(), token));
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() => Encode(output, BoundaryMetadata(), token));
         Assert.Equal(token, error.CancellationToken);
         Assert.Equal(0, destination.Length);
         Assert.False(output.Closed);
@@ -263,9 +289,11 @@ public sealed class EncoderRawMetadataTests
         using var output = new WriteOnlyStream(destination, afterWrite: () =>
         {
             if (destination.Length >= boundary)
+            {
                 cancellation.Cancel();
+            }
         });
-        var error = Assert.Throws<OperationCanceledException>(() => Encode(output, options, cancellation.Token));
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() => Encode(output, options, cancellation.Token));
         Assert.Equal(cancellation.Token, error.CancellationToken);
         Assert.Equal(complete[..boundary], destination.ToArray());
         Assert.False(output.Closed);
@@ -291,7 +319,7 @@ public sealed class EncoderRawMetadataTests
         var failure = new IOException("Injected raw APP4 write failure.");
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination, failureBoundary: boundary, failure: failure);
-        var error = Assert.Throws<IOException>(() => Encode(output, options, TestContext.Current.CancellationToken));
+        IOException error = Assert.Throws<IOException>(() => Encode(output, options, TestContext.Current.CancellationToken));
         Assert.Same(failure, error);
         Assert.Equal(complete[..boundary], destination.ToArray());
         Assert.False(output.Closed);
@@ -299,8 +327,11 @@ public sealed class EncoderRawMetadataTests
 
     private static JpegliEncoderOptions AllMetadata() => new()
     {
-        ExifData = OpaqueBytes(19), ExtendedXmpPacket = new string('a', 65_459),
-        IccProfile = OpaqueBytes(65_520), IptcData = OpaqueBytes(13), Comment = "before raw markers"
+        ExifData = OpaqueBytes(19),
+        ExtendedXmpPacket = new string('a', 65_459),
+        IccProfile = OpaqueBytes(65_520),
+        IptcData = OpaqueBytes(13),
+        Comment = "before raw markers"
     };
 
     private static JpegliEncoderOptions BoundaryMetadata() => new()
@@ -310,11 +341,11 @@ public sealed class EncoderRawMetadataTests
     };
 
     private static byte[] Encode(JpegliEncoderOptions options) =>
-        JpegliEncoder.Encode(new byte[] { 255, 0, 0 }, 1, 1, options: options,
+        JpegliEncoder.Encode([255, 0, 0], 1, 1, options: options,
             cancellationToken: TestContext.Current.CancellationToken);
 
     private static void Encode(Stream output, JpegliEncoderOptions options, CancellationToken token) =>
-        JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1, options: options, cancellationToken: token);
+        JpegliEncoder.Encode(output, [255, 0, 0], 1, 1, options: options, cancellationToken: token);
 
     private static byte[] Encode(Array pixels, int width, int height, bool grayscale, JpegliEncoderOptions options, int stride = 0)
     {
@@ -356,16 +387,24 @@ public sealed class EncoderRawMetadataTests
     {
         int rowElements = width * (grayscale ? 1 : 3);
         if (stride == 0)
+        {
             stride = rowElements;
-        byte[] bytes = Enumerable.Repeat((byte)0xf1, (height - 1) * stride + rowElements).ToArray();
+        }
+
+        byte[] bytes = Enumerable.Repeat((byte)0xf1, ((height - 1) * stride) + rowElements).ToArray();
         for (int y = 0; y < height; y++)
+        {
             for (int index = 0; index < rowElements; index++)
-                bytes[y * stride + index] = (byte)(index * 73 + y * 19);
+            {
+                bytes[(y * stride) + index] = (byte)((index * 73) + (y * 19));
+            }
+        }
+
         return format switch
         {
             "byte" => bytes,
-            "ushort" => bytes.Select((value, index) => (ushort)(value * 251 + index % 6)).ToArray(),
-            "float" => bytes.Select((value, index) => (value * 251 + index % 6) / 65535f).ToArray(),
+            "ushort" => bytes.Select((value, index) => (ushort)((value * 251) + (index % 6))).ToArray(),
+            "float" => bytes.Select((value, index) => ((value * 251) + (index % 6)) / 65535f).ToArray(),
             _ => throw new ArgumentException("Unknown pixel format.", nameof(format))
         };
     }
@@ -374,8 +413,11 @@ public sealed class EncoderRawMetadataTests
     {
         byte[] bytes = new byte[length];
         for (int index = 0; index < length; index++)
-            bytes[index] = (byte)(index * 73 + 19);
-        ReadOnlySpan<byte> prefix = new byte[] { 0xff, 0xd8, 0xff, 0xe3, 0, 0, 0xff, 0xda };
+        {
+            bytes[index] = (byte)((index * 73) + 19);
+        }
+
+        ReadOnlySpan<byte> prefix = [0xff, 0xd8, 0xff, 0xe3, 0, 0, 0xff, 0xda];
         prefix[..Math.Min(length, prefix.Length)].CopyTo(bytes);
         return bytes;
     }
@@ -392,7 +434,7 @@ public sealed class EncoderRawMetadataTests
 
     private sealed record Segment(int Code, int Start, int Length, ReadOnlyMemory<byte> Payload)
     {
-        public int End => Start + Length + 2;
+        public int End => this.Start + this.Length + 2;
     }
 
     // Parse segment lengths independently. Payload bytes resembling JPEG markers
@@ -408,12 +450,14 @@ public sealed class EncoderRawMetadataTests
             int start = position;
             Assert.Equal(0xff, jpeg[position++]);
             int code = jpeg[position++];
-            int length = jpeg[position] * 256 + jpeg[position + 1];
+            int length = (jpeg[position] * 256) + jpeg[position + 1];
             Assert.InRange(length, 2, jpeg.Length - position);
             segments.Add(new(code, start, length, jpeg.AsMemory(position + 2, length - 2)));
             position += length;
             if (code == 0xda)
+            {
                 return segments;
+            }
         }
     }
 
@@ -423,31 +467,33 @@ public sealed class EncoderRawMetadataTests
         public bool Closed { get; private set; }
         public override bool CanRead => false;
         public override bool CanSeek => false;
-        public override bool CanWrite => !Closed;
+        public override bool CanWrite => !this.Closed;
         public override long Length => throw new NotSupportedException();
         public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
         public override void Flush() => inner.Flush();
         public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
+        public override void Write(byte[] buffer, int offset, int count) => this.Write(buffer.AsSpan(offset, count));
         public override void Write(ReadOnlySpan<byte> buffer)
         {
             int count = failureBoundary is long boundary ? (int)Math.Min(buffer.Length, boundary - inner.Length) : buffer.Length;
             inner.Write(buffer[..count]);
             if (failureBoundary is long end && inner.Length >= end)
+            {
                 throw failure!;
+            }
+
             afterWrite?.Invoke();
         }
         public override void WriteByte(byte value)
         {
-            Span<byte> buffer = stackalloc byte[1];
-            buffer[0] = value;
-            Write(buffer);
+            Span<byte> buffer = [value];
+            this.Write(buffer);
         }
         protected override void Dispose(bool disposing)
         {
-            Closed = true;
+            this.Closed = true;
             base.Dispose(disposing);
         }
     }

@@ -1,10 +1,10 @@
+namespace DotJpegli.Tests;
+
 using System.Security.Cryptography;
 using System.Text;
 using System.Xml.Linq;
 using StbImageSharp;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderExtendedXmpTests
 {
@@ -44,7 +44,7 @@ public sealed class EncoderExtendedXmpTests
     [InlineData(ExtendedChunkBytes + 1)]
     [InlineData(65_504)]
     [InlineData(2 * ExtendedChunkBytes)]
-    [InlineData(2 * ExtendedChunkBytes + 1)]
+    [InlineData((2 * ExtendedChunkBytes) + 1)]
     public void ChunksHaveExactLengthsOffsetsDigestAndUnmodifiedSerialization(int length)
     {
         string packet = new('a', length);
@@ -62,7 +62,7 @@ public sealed class EncoderExtendedXmpTests
     {
         // Exceed both ICC's 255-chunk cap and 24-bit byte offsets. The extension
         // format uses uint32 lengths/offsets and does not have a chunk-count byte.
-        string packet = new('a', 257 * ExtendedChunkBytes + 1);
+        string packet = new('a', (257 * ExtendedChunkBytes) + 1);
         List<Segment> segments = ReadHeaders(Encode(new() { ExtendedXmpPacket = packet }));
         List<Segment> chunks = AssertExtendedPacket(segments, packet);
         Assert.Equal(258, chunks.Count);
@@ -118,14 +118,18 @@ public sealed class EncoderExtendedXmpTests
             _ => LinkedStandard(digest)
         };
         if (kind == "standard byte limit")
+        {
             packet += new string(' ', MaximumStandardBytes - Encoding.UTF8.GetByteCount(packet));
+        }
 
         List<Segment> segments = ReadHeaders(Encode(new() { XmpPacket = packet, ExtendedXmpPacket = extended }));
-        AssertExtendedPacket(segments, extended);
+        _ = AssertExtendedPacket(segments, extended);
         Segment standard = Assert.Single(segments, segment => HasSignature(segment, StandardSignature));
         Assert.Equal(Encoding.UTF8.GetBytes(packet), standard.Payload[StandardSignature.Length..].ToArray());
         if (kind == "standard byte limit")
+        {
             Assert.Equal(65_535, standard.Length);
+        }
     }
 
     [Theory]
@@ -178,8 +182,8 @@ public sealed class EncoderExtendedXmpTests
         string packet = LinkedStandard(Digest(extended));
         packet += new string(' ', MaximumStandardBytes + 1 - Encoding.UTF8.GetByteCount(packet));
         using var destination = new MemoryStream();
-        var error = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            JpegliEncoder.Encode(destination, new byte[] { 255, 0, 0 }, 1, 1,
+        ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            JpegliEncoder.Encode(destination, [255, 0, 0], 1, 1,
                 options: new() { XmpPacket = packet, ExtendedXmpPacket = extended },
                 cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(nameof(JpegliEncoderOptions.XmpPacket), error.ParamName);
@@ -207,8 +211,8 @@ public sealed class EncoderExtendedXmpTests
         };
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
-        var error = Assert.Throws<ArgumentException>(() =>
-            JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1,
+        ArgumentException error = Assert.Throws<ArgumentException>(() =>
+            JpegliEncoder.Encode(output, [255, 0, 0], 1, 1,
                 options: new() { ExifData = OpaqueBytes(19), ExtendedXmpPacket = packet },
                 cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(nameof(JpegliEncoderOptions.ExtendedXmpPacket), error.ParamName);
@@ -255,21 +259,27 @@ public sealed class EncoderExtendedXmpTests
     {
         const int width = 33, height = 19;
         byte[] pixels = layout == PixelLayout.Gray8
-            ? Enumerable.Range(0, width * height).Select(index => (byte)(index * 73 + index / width * 19)).ToArray()
+            ? Enumerable.Range(0, width * height).Select(index => (byte)((index * 73) + (index / width * 19))).ToArray()
             : TestImages.Gradient(width, height);
         var options = new JpegliEncoderOptions
         {
-            Progressive = progressive, ProgressiveRefinementBits = refinementBits,
-            OptimizeHuffmanTables = optimize, RestartInterval = 2
+            Progressive = progressive,
+            ProgressiveRefinementBits = refinementBits,
+            OptimizeHuffmanTables = optimize,
+            RestartInterval = 2
         };
         byte[] reference = JpegliEncoder.Encode(pixels, width, height, layout, options,
             cancellationToken: TestContext.Current.CancellationToken);
         JpegliEncoderOptions metadata = AllMetadata();
         byte[] jpeg = JpegliEncoder.Encode(pixels, width, height, layout, options with
         {
-            ExifData = metadata.ExifData, ExtendedXmpPacket = metadata.ExtendedXmpPacket,
-            IccProfile = metadata.IccProfile, Comment = metadata.Comment,
-            DensityUnit = JpegDensityUnit.DotsPerInch, HorizontalDensity = 300, VerticalDensity = 150
+            ExifData = metadata.ExifData,
+            ExtendedXmpPacket = metadata.ExtendedXmpPacket,
+            IccProfile = metadata.IccProfile,
+            Comment = metadata.Comment,
+            DensityUnit = JpegDensityUnit.DotsPerInch,
+            HorizontalDensity = 300,
+            VerticalDensity = 150
         }, cancellationToken: TestContext.Current.CancellationToken);
         // Equality from DQT through EOI covers every scan and refinement,
         // entropy byte, stuffing byte, restart marker and final marker.
@@ -277,8 +287,8 @@ public sealed class EncoderExtendedXmpTests
         int actualStart = ReadHeaders(jpeg).Single(segment => segment.Code == 0xdb).Start;
         Assert.True(reference.AsSpan(referenceStart).SequenceEqual(jpeg.AsSpan(actualStart)));
         ColorComponents channels = layout == PixelLayout.Gray8 ? ColorComponents.Grey : ColorComponents.RedGreenBlue;
-        ImageResult expected = ImageResult.FromMemory(reference, channels);
-        ImageResult actual = ImageResult.FromMemory(jpeg, channels);
+        var expected = ImageResult.FromMemory(reference, channels);
+        var actual = ImageResult.FromMemory(jpeg, channels);
         Assert.Equal(width, actual.Width);
         Assert.Equal(height, actual.Height);
         Assert.Equal(expected.Data, actual.Data);
@@ -287,11 +297,11 @@ public sealed class EncoderExtendedXmpTests
     [Fact]
     public void NonseekableStreamProducesIdenticalBytesAndRemainsOpen()
     {
-        var options = AllMetadata() with { Progressive = true, ProgressiveRefinementBits = 2 };
+        JpegliEncoderOptions options = AllMetadata() with { Progressive = true, ProgressiveRefinementBits = 2 };
         byte[] expected = Encode(options);
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
-        JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1, options: options,
+        JpegliEncoder.Encode(output, [255, 0, 0], 1, 1, options: options,
             cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(expected, destination.ToArray());
         Assert.False(output.Closed);
@@ -305,8 +315,8 @@ public sealed class EncoderExtendedXmpTests
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
         var token = new CancellationToken(true);
-        var error = Assert.Throws<OperationCanceledException>(() =>
-            JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1,
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() =>
+            JpegliEncoder.Encode(output, [255, 0, 0], 1, 1,
                 options: AllMetadata(), cancellationToken: token));
         Assert.Equal(token, error.CancellationToken);
         Assert.Equal(0, destination.Length);
@@ -333,10 +343,12 @@ public sealed class EncoderExtendedXmpTests
         using var output = new WriteOnlyStream(destination, afterWrite: () =>
         {
             if (destination.Length >= boundary)
+            {
                 cancellation.Cancel();
+            }
         });
-        var error = Assert.Throws<OperationCanceledException>(() =>
-            JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1,
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() =>
+            JpegliEncoder.Encode(output, [255, 0, 0], 1, 1,
                 options: options, cancellationToken: cancellation.Token));
         Assert.Equal(cancellation.Token, error.CancellationToken);
         Assert.Equal(complete[..boundary], destination.ToArray());
@@ -361,8 +373,8 @@ public sealed class EncoderExtendedXmpTests
         var expectedError = new IOException("Injected extended-XMP write failure.");
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination, failureBoundary: boundary, failure: expectedError);
-        var actualError = Assert.Throws<IOException>(() =>
-            JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1,
+        IOException actualError = Assert.Throws<IOException>(() =>
+            JpegliEncoder.Encode(output, [255, 0, 0], 1, 1,
                 options: options, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Same(expectedError, actualError);
         Assert.Equal(complete[..boundary], destination.ToArray());
@@ -370,13 +382,15 @@ public sealed class EncoderExtendedXmpTests
     }
 
     private static byte[] Encode(JpegliEncoderOptions options) =>
-        JpegliEncoder.Encode(new byte[] { 255, 0, 0 }, 1, 1, options: options,
+        JpegliEncoder.Encode([255, 0, 0], 1, 1, options: options,
             cancellationToken: TestContext.Current.CancellationToken);
 
     private static JpegliEncoderOptions AllMetadata() => new()
     {
-        ExifData = OpaqueBytes(37), ExtendedXmpPacket = SplitUnicodePacket(),
-        IccProfile = OpaqueBytes(IccChunkBytes + 1), Comment = "after all XMP 😀"
+        ExifData = OpaqueBytes(37),
+        ExtendedXmpPacket = SplitUnicodePacket(),
+        IccProfile = OpaqueBytes(IccChunkBytes + 1),
+        Comment = "after all XMP 😀"
     };
 
     private static string SplitUnicodePacket() =>
@@ -393,8 +407,8 @@ public sealed class EncoderExtendedXmpTests
     {
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
-        var error = Assert.Throws<ArgumentException>(() =>
-            JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1,
+        ArgumentException error = Assert.Throws<ArgumentException>(() =>
+            JpegliEncoder.Encode(output, [255, 0, 0], 1, 1,
                 options: new() { ExifData = OpaqueBytes(19), XmpPacket = packet, ExtendedXmpPacket = extended },
                 cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(nameof(JpegliEncoderOptions.XmpPacket), error.ParamName);
@@ -406,9 +420,15 @@ public sealed class EncoderExtendedXmpTests
     {
         byte[] bytes = new byte[length];
         for (int index = 0; index < bytes.Length; index++)
-            bytes[index] = (byte)(index * 73 + 19);
+        {
+            bytes[index] = (byte)((index * 73) + 19);
+        }
+
         if (length >= 8)
+        {
             new byte[] { 0xff, 0xd8, 0xff, 0xe1, 0, 0, 0xff, 0xda }.CopyTo(bytes, 0);
+        }
+
         return bytes;
     }
 
@@ -422,12 +442,12 @@ public sealed class EncoderExtendedXmpTests
         Segment standard = Assert.Single(segments, segment => HasSignature(segment, StandardSignature));
         byte[] standardBytes = standard.Payload[StandardSignature.Length..].ToArray();
         Assert.False(standardBytes.AsSpan().StartsWith(new byte[] { 0xef, 0xbb, 0xbf }));
-        XDocument document = XDocument.Parse(Encoding.UTF8.GetString(standardBytes));
+        var document = XDocument.Parse(Encoding.UTF8.GetString(standardBytes));
         string[] links = document.Descendants().Attributes(LinkName).Select(attribute => attribute.Value)
             .Concat(document.Descendants(LinkName).Select(element => element.Value)).ToArray();
         Assert.Equal(digest, Assert.Single(links));
 
-        List<Segment> chunks = segments.Where(segment => HasSignature(segment, ExtendedSignature)).ToList();
+        var chunks = segments.Where(segment => HasSignature(segment, ExtendedSignature)).ToList();
         Assert.Equal((expected.Length + ExtendedChunkBytes - 1) / ExtendedChunkBytes, chunks.Count);
         using var reconstructed = new MemoryStream();
         int offset = 0;
@@ -452,7 +472,7 @@ public sealed class EncoderExtendedXmpTests
     private static void AssertBigEndianField(ReadOnlySpan<byte> field, int value)
     {
         Assert.Equal(new byte[] { (byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8), (byte)value }, field.ToArray());
-        long parsed = (long)field[0] * 16_777_216 + field[1] * 65_536 + field[2] * 256 + field[3];
+        long parsed = ((long)field[0] * 16_777_216) + (field[1] * 65_536) + (field[2] * 256) + field[3];
         Assert.Equal(value, parsed);
     }
 
@@ -461,7 +481,7 @@ public sealed class EncoderExtendedXmpTests
 
     private sealed record Segment(int Code, int Start, int Length, ReadOnlyMemory<byte> Payload)
     {
-        public int End => Start + Length + 2;
+        public int End => this.Start + this.Length + 2;
     }
 
     // Traverse JPEG segment lengths independently of the production writer.
@@ -476,12 +496,14 @@ public sealed class EncoderExtendedXmpTests
             int start = position;
             Assert.Equal(0xff, jpeg[position++]);
             int code = jpeg[position++];
-            int length = jpeg[position] * 256 + jpeg[position + 1];
+            int length = (jpeg[position] * 256) + jpeg[position + 1];
             Assert.InRange(length, 2, jpeg.Length - position);
             segments.Add(new(code, start, length, jpeg.AsMemory(position + 2, length - 2)));
             position += length;
             if (code == 0xda)
+            {
                 return segments;
+            }
         }
     }
 
@@ -491,31 +513,33 @@ public sealed class EncoderExtendedXmpTests
         public bool Closed { get; private set; }
         public override bool CanRead => false;
         public override bool CanSeek => false;
-        public override bool CanWrite => !Closed;
+        public override bool CanWrite => !this.Closed;
         public override long Length => throw new NotSupportedException();
         public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
         public override void Flush() => inner.Flush();
         public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
+        public override void Write(byte[] buffer, int offset, int count) => this.Write(buffer.AsSpan(offset, count));
         public override void Write(ReadOnlySpan<byte> buffer)
         {
             int count = failureBoundary is long boundary ? (int)Math.Min(buffer.Length, boundary - inner.Length) : buffer.Length;
             inner.Write(buffer[..count]);
             if (failureBoundary is long end && inner.Length >= end)
+            {
                 throw failure!;
+            }
+
             afterWrite?.Invoke();
         }
         public override void WriteByte(byte value)
         {
-            Span<byte> buffer = stackalloc byte[1];
-            buffer[0] = value;
-            Write(buffer);
+            Span<byte> buffer = [value];
+            this.Write(buffer);
         }
         protected override void Dispose(bool disposing)
         {
-            Closed = true;
+            this.Closed = true;
             base.Dispose(disposing);
         }
     }

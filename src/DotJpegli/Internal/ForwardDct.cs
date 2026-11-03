@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in LICENSE.jpegli or at https://developers.google.com/open-source/licenses/bsd.
 
+namespace DotJpegli.Internal;
+
 using System.Numerics;
 using System.Runtime.CompilerServices;
 #if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
 #endif
-
-namespace DotJpegli.Internal;
 
 /// <summary>Managed scalar and SIMD implementations of Google's recursive JPEGli DCT.</summary>
 internal static class ForwardDct
@@ -37,9 +37,13 @@ internal static class ForwardDct
     {
         ValidateBuffers(samples, coefficients);
         if (Vector.IsHardwareAccelerated && CanUseVector)
+        {
             TransformVectorCore(samples, coefficients);
+        }
         else
+        {
             TransformScalarCore(samples, coefficients);
+        }
     }
 
     /// <summary>Loads and level-shifts an interior 8 by 8 block directly from an uncentered plane.</summary>
@@ -48,24 +52,31 @@ internal static class ForwardDct
     {
         ValidatePlane(plane, stride, left, top);
         if (coefficients.Length < 64)
+        {
             throw new ArgumentException("The coefficient buffer requires at least 64 values.", nameof(coefficients));
+        }
 
 #if !NETSTANDARD2_1
         if (Vector.IsHardwareAccelerated && Vector<float>.Count == 8)
         {
-            TransformEightLane(plane[(top * stride + left)..], stride, centerInput: true, coefficients);
+            TransformEightLane(plane[((top * stride) + left)..], stride, centerInput: true, coefficients);
         }
         else if (Vector.IsHardwareAccelerated && Vector<float>.Count == 4)
         {
-            TransformFourLane(plane[(top * stride + left)..], stride, centerInput: true, coefficients);
+            TransformFourLane(plane[((top * stride) + left)..], stride, centerInput: true, coefficients);
         }
         else
 #endif
         {
             Span<float> samples = stackalloc float[64];
             for (int row = 0; row < 8; row++)
+            {
                 for (int column = 0; column < 8; column++)
-                    samples[row * 8 + column] = plane[(top + row) * stride + left + column] - 128f;
+                {
+                    samples[(row * 8) + column] = plane[((top + row) * stride) + left + column] - 128f;
+                }
+            }
+
             Transform(samples, coefficients);
         }
     }
@@ -75,7 +86,7 @@ internal static class ForwardDct
         Quantization.PreparedTable table, Span<short> output, float adaptiveStrength = 0f, bool zigZagOrdered = true)
     {
         ValidatePlane(plane, stride, left, top);
-        TransformQuantizeCore(plane[(top * stride + left)..], stride, centerInput: true,
+        TransformQuantizeCore(plane[((top * stride) + left)..], stride, centerInput: true,
             table, output, adaptiveStrength, zigZagOrdered);
     }
 
@@ -84,7 +95,10 @@ internal static class ForwardDct
         Quantization.PreparedTable table, Span<short> output, float adaptiveStrength = 0f, bool zigZagOrdered = true)
     {
         if (samples.Length != 64)
+        {
             throw new ArgumentException("An 8 by 8 block requires exactly 64 samples.", nameof(samples));
+        }
+
         TransformQuantizeCore(samples, 8, centerInput: false, table, output, adaptiveStrength, zigZagOrdered);
     }
 
@@ -95,17 +109,26 @@ internal static class ForwardDct
         Guard.ThrowIfNegativeOrZero(width);
         Guard.ThrowIfNegativeOrZero(height);
         if ((uint)left >= (uint)width)
+        {
             throw new ArgumentOutOfRangeException(nameof(left));
+        }
+
         if ((uint)top >= (uint)height)
+        {
             throw new ArgumentOutOfRangeException(nameof(top));
+        }
+
         if ((long)width * height > plane.Length)
+        {
             throw new ArgumentException("The plane must contain every image row.", nameof(plane));
+        }
+
         Span<float> padded = stackalloc float[64];
         int copied = Math.Min(8, width - left);
         for (int row = 0; row < 8; row++)
         {
             Span<float> destination = padded.Slice(row * 8, 8);
-            plane.Slice(Math.Min(top + row, height - 1) * width + left, copied).CopyTo(destination);
+            plane.Slice((Math.Min(top + row, height - 1) * width) + left, copied).CopyTo(destination);
             destination[copied..].Fill(destination[copied - 1]);
         }
         TransformQuantizeCore(padded, 8, centerInput: true, table, output, adaptiveStrength, zigZagOrdered: true);
@@ -116,7 +139,10 @@ internal static class ForwardDct
         Quantization.PreparedTable table, Span<short> output, float adaptiveStrength, bool zigZagOrdered)
     {
         if (output.Length < 64)
+        {
             throw new ArgumentException("A quantized block requires 64 values.", nameof(output));
+        }
+
         Guard.ThrowIfNull(table);
 #if !NETSTANDARD2_1
         if (zigZagOrdered && Vector.IsHardwareAccelerated && Vector<float>.Count == 8
@@ -128,7 +154,9 @@ internal static class ForwardDct
                 out Vector<float> r4, out Vector<float> r5, out Vector<float> r6, out Vector<float> r7);
             if (Quantization.TryQuantizeTransposed(r0.AsVector256(), r1.AsVector256(), r2.AsVector256(), r3.AsVector256(),
                 r4.AsVector256(), r5.AsVector256(), r6.AsVector256(), r7.AsVector256(), table, transposed, adaptiveStrength, output))
+            {
                 return;
+            }
         }
 #endif
         TransformQuantizeFallback(samples, stride, centerInput, table, output, adaptiveStrength, zigZagOrdered);
@@ -141,14 +169,21 @@ internal static class ForwardDct
         Span<float> coefficients = stackalloc float[64];
         Span<short> temporary = stackalloc short[64];
         if (centerInput)
+        {
             TransformPlane(samples, stride, 0, 0, coefficients);
+        }
         else
+        {
             Transform(samples, coefficients);
+        }
+
         Span<short> natural = zigZagOrdered ? temporary : output;
         Quantization.QuantizePrepared(coefficients, table, natural, adaptiveStrength);
         EntropyEncoder.ValidateAc(natural[..64]);
         if (zigZagOrdered)
+        {
             ZigZagOrdering.Reorder(natural, output);
+        }
     }
 
     private static void ValidatePlane(ReadOnlySpan<float> plane, int stride, int left, int top)
@@ -157,8 +192,10 @@ internal static class ForwardDct
         Guard.ThrowIfNegative(left);
         Guard.ThrowIfNegative(top);
         Guard.ThrowIfGreaterThan(left, stride - 8);
-        if (((long)top + 7) * stride + left + 8 > plane.Length)
+        if ((((long)top + 7) * stride) + left + 8 > plane.Length)
+        {
             throw new ArgumentException("The plane must contain the complete 8 by 8 block.", nameof(plane));
+        }
     }
 
     // Explicit implementations also allow bitwise regression checks against
@@ -173,9 +210,13 @@ internal static class ForwardDct
     {
         ValidateBuffers(samples, coefficients);
         if (CanUseVector)
+        {
             TransformVectorCore(samples, coefficients);
+        }
         else
+        {
             TransformScalarCore(samples, coefficients);
+        }
     }
 
     // A future runtime may use vectors wider than one eight-sample row.
@@ -207,13 +248,13 @@ internal static class ForwardDct
         {
             for (int y = 0; y < 8; y++)
             {
-                lane[y] = samples[y * 8 + x];
+                lane[y] = samples[(y * 8) + x];
             }
 
             TransformRecursive(lane);
             for (int v = 0; v < 8; v++)
             {
-                intermediate[v * 8 + x] = lane[v] * 0.125f;
+                intermediate[(v * 8) + x] = lane[v] * 0.125f;
             }
         }
 
@@ -245,7 +286,7 @@ internal static class ForwardDct
     {
         // Keep both four-column panels in locals. Stack-allocated vector spans
         // require zeroing and force intermediate rows through memory per block.
-        Vector<float> a0 = new(samples.Slice(0, 4));
+        Vector<float> a0 = new(samples[..4]);
         Vector<float> a1 = new(samples.Slice(stride, 4));
         Vector<float> a2 = new(samples.Slice(2 * stride, 4));
         Vector<float> a3 = new(samples.Slice(3 * stride, 4));
@@ -255,35 +296,51 @@ internal static class ForwardDct
         Vector<float> a7 = new(samples.Slice(7 * stride, 4));
         Vector<float> b0 = new(samples.Slice(4, 4));
         Vector<float> b1 = new(samples.Slice(stride + 4, 4));
-        Vector<float> b2 = new(samples.Slice(2 * stride + 4, 4));
-        Vector<float> b3 = new(samples.Slice(3 * stride + 4, 4));
-        Vector<float> b4 = new(samples.Slice(4 * stride + 4, 4));
-        Vector<float> b5 = new(samples.Slice(5 * stride + 4, 4));
-        Vector<float> b6 = new(samples.Slice(6 * stride + 4, 4));
-        Vector<float> b7 = new(samples.Slice(7 * stride + 4, 4));
+        Vector<float> b2 = new(samples.Slice((2 * stride) + 4, 4));
+        Vector<float> b3 = new(samples.Slice((3 * stride) + 4, 4));
+        Vector<float> b4 = new(samples.Slice((4 * stride) + 4, 4));
+        Vector<float> b5 = new(samples.Slice((5 * stride) + 4, 4));
+        Vector<float> b6 = new(samples.Slice((6 * stride) + 4, 4));
+        Vector<float> b7 = new(samples.Slice((7 * stride) + 4, 4));
         if (centerInput)
         {
             var center = new Vector<float>(128f);
-            a0 -= center; b0 -= center;
-            a1 -= center; b1 -= center;
-            a2 -= center; b2 -= center;
-            a3 -= center; b3 -= center;
-            a4 -= center; b4 -= center;
-            a5 -= center; b5 -= center;
-            a6 -= center; b6 -= center;
-            a7 -= center; b7 -= center;
+            a0 -= center;
+            b0 -= center;
+            a1 -= center;
+            b1 -= center;
+            a2 -= center;
+            b2 -= center;
+            a3 -= center;
+            b3 -= center;
+            a4 -= center;
+            b4 -= center;
+            a5 -= center;
+            b5 -= center;
+            a6 -= center;
+            b6 -= center;
+            a7 -= center;
+            b7 -= center;
         }
         TransformRecursiveVector(ref a0, ref a1, ref a2, ref a3, ref a4, ref a5, ref a6, ref a7);
         TransformRecursiveVector(ref b0, ref b1, ref b2, ref b3, ref b4, ref b5, ref b6, ref b7);
         var scale = new Vector<float>(0.125f);
-        a0 *= scale; b0 *= scale;
-        a1 *= scale; b1 *= scale;
-        a2 *= scale; b2 *= scale;
-        a3 *= scale; b3 *= scale;
-        a4 *= scale; b4 *= scale;
-        a5 *= scale; b5 *= scale;
-        a6 *= scale; b6 *= scale;
-        a7 *= scale; b7 *= scale;
+        a0 *= scale;
+        b0 *= scale;
+        a1 *= scale;
+        b1 *= scale;
+        a2 *= scale;
+        b2 *= scale;
+        a3 *= scale;
+        b3 *= scale;
+        a4 *= scale;
+        b4 *= scale;
+        a5 *= scale;
+        b5 *= scale;
+        a6 *= scale;
+        b6 *= scale;
+        a7 *= scale;
+        b7 *= scale;
         // Four quadrant transposes turn the column panels into horizontal DCTs.
         TransformFourRows(ref a0, ref a1, ref a2, ref a3, ref b0, ref b1, ref b2, ref b3, coefficients[..32]);
         TransformFourRows(ref a4, ref a5, ref a6, ref a7, ref b4, ref b5, ref b6, ref b7, coefficients.Slice(32, 32));
@@ -299,7 +356,7 @@ internal static class ForwardDct
         TransformRecursiveVector(ref a0, ref a1, ref a2, ref a3, ref b0, ref b1, ref b2, ref b3);
         TransposeFourRows(ref a0, ref a1, ref a2, ref a3);
         TransposeFourRows(ref b0, ref b1, ref b2, ref b3);
-        a0.CopyTo(coefficients.Slice(0, 4));
+        a0.CopyTo(coefficients[..4]);
         b0.CopyTo(coefficients.Slice(4, 4));
         a1.CopyTo(coefficients.Slice(8, 4));
         b1.CopyTo(coefficients.Slice(12, 4));
@@ -316,7 +373,7 @@ internal static class ForwardDct
             out Vector<float> r0, out Vector<float> r1, out Vector<float> r2, out Vector<float> r3,
             out Vector<float> r4, out Vector<float> r5, out Vector<float> r6, out Vector<float> r7);
         TransposeEightRows(ref r0, ref r1, ref r2, ref r3, ref r4, ref r5, ref r6, ref r7);
-        r0.CopyTo(coefficients.Slice(0, 8));
+        r0.CopyTo(coefficients[..8]);
         r1.CopyTo(coefficients.Slice(8, 8));
         r2.CopyTo(coefficients.Slice(16, 8));
         r3.CopyTo(coefficients.Slice(24, 8));
@@ -332,7 +389,7 @@ internal static class ForwardDct
         out Vector<float> r4, out Vector<float> r5, out Vector<float> r6, out Vector<float> r7)
     {
         // Read every row before storing output, preserving overlapping spans.
-        r0 = new(samples.Slice(0, 8));
+        r0 = new(samples[..8]);
         r1 = new(samples.Slice(stride, 8));
         r2 = new(samples.Slice(2 * stride, 8));
         r3 = new(samples.Slice(3 * stride, 8));
@@ -394,7 +451,10 @@ internal static class ForwardDct
     internal static void TransposePortable(Span<Vector256<float>> rows)
     {
         if (rows.Length < 8)
+        {
             throw new ArgumentException("An 8 by 8 transpose requires eight vector rows.", nameof(rows));
+        }
+
         TransposeEightRows(ref rows[0], ref rows[1], ref rows[2], ref rows[3],
             ref rows[4], ref rows[5], ref rows[6], ref rows[7]);
     }
@@ -587,7 +647,7 @@ internal static class ForwardDct
         for (int i = 0; i < half; i++)
         {
             values[2 * i] = even[i];
-            values[2 * i + 1] = odd[i];
+            values[(2 * i) + 1] = odd[i];
         }
     }
 }

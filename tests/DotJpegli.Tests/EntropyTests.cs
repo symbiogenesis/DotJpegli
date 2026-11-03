@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class EntropyTests
 {
@@ -10,8 +10,8 @@ public sealed class EntropyTests
     [InlineData(true)]
     public void EveryBaselineAmplitudePreservesItsCategoryAndComplementSuffix(bool ordered)
     {
-        HuffmanTable dc = HuffmanTable.CreateDefault(false, false);
-        HuffmanTable ac = HuffmanTable.CreateDefault(true, false);
+        var dc = HuffmanTable.CreateDefault(false, false);
+        var ac = HuffmanTable.CreateDefault(true, false);
         using var expected = new MemoryStream();
         using var actual = new MemoryStream();
         var expectedWriter = new BitWriter(expected, buffered: true);
@@ -25,7 +25,10 @@ public sealed class EntropyTests
             EntropyEncoder.WriteBlock(actualWriter, block, ref previous, dc, ac, zigZagOrdered: ordered);
             WriteAmplitude(expectedWriter, dc, value);
             if (block[1] != 0)
+            {
                 WriteAmplitude(expectedWriter, ac, block[1]);
+            }
+
             ac.WriteSymbol(expectedWriter, 0);
         }
         expectedWriter.Flush();
@@ -81,7 +84,7 @@ public sealed class EntropyTests
         using var stream = new MemoryStream();
         var writer = new BitWriter(stream);
         writer.WriteBits(0, 1);
-        Assert.Throws<ArgumentOutOfRangeException>(() => writer.WriteRestartMarker(index));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => writer.WriteRestartMarker(index));
         Assert.Equal(0, stream.Length);
         writer.Flush();
         Assert.Equal(new byte[] { 0x7f }, stream.ToArray());
@@ -97,7 +100,7 @@ public sealed class EntropyTests
             HuffmanTable.CreateDefault(false, false), HuffmanTable.CreateDefault(true, false));
         writer.Flush();
         // DC category zero = 00; EOB = 1010; pad = 11.
-        Assert.Equal(new byte[] { 0x2b }, stream.ToArray());
+        Assert.Equal("+"u8.ToArray(), stream.ToArray());
     }
 
     [Theory]
@@ -137,10 +140,10 @@ public sealed class EntropyTests
         using var stream = new MemoryStream();
         var writer = new BitWriter(stream);
 
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             EntropyEncoder.WriteBlock(writer, block, ref previous,
                 HuffmanTable.CreateDefault(false, false), HuffmanTable.CreateDefault(true, false)));
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             EntropyEncoder.AccumulateFrequencies(block, ref previous, dc, ac));
 
         writer.Flush();
@@ -156,8 +159,11 @@ public sealed class EntropyTests
         long[] frequencies = new long[256];
         var random = new Random(42);
         for (int i = 0; i < frequencies.Length; i++)
+        {
             frequencies[i] = i % 7 == 0 ? 0 : random.Next(1, 10000);
-        HuffmanTable table = HuffmanTable.CreateOptimized(frequencies);
+        }
+
+        var table = HuffmanTable.CreateOptimized(frequencies);
         Assert.Equal(16, table.Counts.Length);
         Assert.Equal(frequencies.Count(value => value != 0), table.Symbols.Length);
         Assert.Equal(table.Symbols.Length, table.Symbols.Distinct().Count());

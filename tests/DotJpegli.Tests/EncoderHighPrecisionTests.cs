@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderHighPrecisionTests
 {
@@ -12,13 +12,20 @@ public sealed class EncoderHighPrecisionTests
         {
             var modes = new TheoryData<bool, PixelComponentLayout, ChromaSubsampling, bool, int>();
             foreach (bool floatingPoint in new[] { false, true })
+            {
                 foreach (bool adaptive in new[] { false, true })
+                {
                     foreach (int smoothing in new[] { 0, 37 })
                     {
                         modes.Add(floatingPoint, PixelComponentLayout.Gray, ChromaSubsampling.Quarter, adaptive, smoothing);
                         foreach (ChromaSubsampling sampling in Enum.GetValues<ChromaSubsampling>())
+                        {
                             modes.Add(floatingPoint, PixelComponentLayout.Rgb, sampling, adaptive, smoothing);
+                        }
                     }
+                }
+            }
+
             return modes;
         }
     }
@@ -41,14 +48,20 @@ public sealed class EncoderHighPrecisionTests
         double sample = floatingPoint ? normalized * 255d : value * (255d / 65535);
         Assert.Equal(128d, Math.Round(sample, MidpointRounding.AwayFromZero));
         foreach (bool adaptive in new[] { false, true })
+        {
             foreach (int smoothing in new[] { 0, 37, 100 })
+            {
                 foreach (bool optimize in new[] { false, true })
+                {
                     foreach (bool progressive in new[] { false, true })
                     {
                         var options = new JpegliEncoderOptions
                         {
-                            Quality = 100, AdaptiveQuantization = adaptive, SmoothingFactor = smoothing,
-                            OptimizeHuffmanTables = optimize, Progressive = progressive,
+                            Quality = 100,
+                            AdaptiveQuantization = adaptive,
+                            SmoothingFactor = smoothing,
+                            OptimizeHuffmanTables = optimize,
+                            Progressive = progressive,
                             ProgressiveRefinementBits = progressive ? 2 : 0
                         };
                         byte[] jpeg = Encode(pixels, width, height, PixelComponentLayout.Gray, options);
@@ -62,6 +75,9 @@ public sealed class EncoderHighPrecisionTests
                         Assert.All(block.Coefficients[1..], coefficient => Assert.Equal(0, coefficient));
                         Assert.Equal((byte)8, FramePrecision(jpeg));
                     }
+                }
+            }
+        }
     }
 
     [Theory]
@@ -74,27 +90,36 @@ public sealed class EncoderHighPrecisionTests
         Array pixels = Pattern(floatingPoint, width, height, layout);
         var options = new JpegliEncoderOptions
         {
-            Quality = 90, Subsampling = sampling, AdaptiveQuantization = adaptive,
-            SmoothingFactor = smoothing, OptimizeHuffmanTables = false, RestartInterval = 2
+            Quality = 90,
+            Subsampling = sampling,
+            AdaptiveQuantization = adaptive,
+            SmoothingFactor = smoothing,
+            OptimizeHuffmanTables = false,
+            RestartInterval = 2
         };
         byte[] baseline = Encode(pixels, width, height, layout, options);
         JpegDocument reference = Read(baseline, options);
         ColorComponents channels = layout == PixelComponentLayout.Gray ? ColorComponents.Grey : ColorComponents.RedGreenBlue;
-        ImageResult decoded = ImageResult.FromMemory(baseline, channels);
+        var decoded = ImageResult.FromMemory(baseline, channels);
         Assert.Equal(width, decoded.Width);
         Assert.Equal(height, decoded.Height);
         foreach (bool optimize in new[] { false, true })
+        {
             foreach (int refinementBits in new[] { 0, 2 })
             {
-                var progressiveOptions = options with
+                JpegliEncoderOptions progressiveOptions = options with
                 {
-                    OptimizeHuffmanTables = optimize, Progressive = true, ProgressiveRefinementBits = refinementBits
+                    OptimizeHuffmanTables = optimize,
+                    Progressive = true,
+                    ProgressiveRefinementBits = refinementBits
                 };
                 byte[] progressive = Encode(pixels, width, height, layout, progressiveOptions);
                 JpegDocument actual = Read(progressive, progressiveOptions);
                 AssertCoefficients(reference, actual);
                 Assert.Equal(decoded.Data, ImageResult.FromMemory(progressive, channels).Data);
             }
+        }
+
         byte[] optimized = Encode(pixels, width, height, layout, options with { OptimizeHuffmanTables = true });
         AssertCoefficients(reference, Read(optimized, options));
         Assert.Equal(decoded.Data, ImageResult.FromMemory(optimized, channels).Data);
@@ -117,10 +142,13 @@ public sealed class EncoderHighPrecisionTests
         {
             PixelComponentLayout compactLayout = layout == PixelComponentLayout.Gray ? PixelComponentLayout.Gray : PixelComponentLayout.Rgb;
             Array compact = Pattern(floatingPoint, width, height, compactLayout);
-            int stride = width * Components(layout) + 13;
+            int stride = (width * Components(layout)) + 13;
             var options = new JpegliEncoderOptions
             {
-                SmoothingFactor = 73, Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2
+                SmoothingFactor = 73,
+                Progressive = true,
+                ProgressiveRefinementBits = 2,
+                RestartInterval = 2
             };
             byte[] expected = Encode(compact, width, height, compactLayout, options);
             // The shortest source has no final-row padding. The longer source has
@@ -144,7 +172,10 @@ public sealed class EncoderHighPrecisionTests
         Array pixels = Pattern(floatingPoint, width, height, layout);
         var options = new JpegliEncoderOptions
         {
-            Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2, SmoothingFactor = 37
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2,
+            SmoothingFactor = 37
         };
         byte[] expected = Encode(pixels, width, height, layout, options);
         using var destination = new MemoryStream();
@@ -152,7 +183,7 @@ public sealed class EncoderHighPrecisionTests
         Encode(output, pixels, width, height, layout, options);
         Assert.False(output.Closed);
         Assert.Equal(expected, destination.ToArray());
-        Read(destination.ToArray(), options);
+        _ = Read(destination.ToArray(), options);
     }
 
     [Theory]
@@ -164,7 +195,10 @@ public sealed class EncoderHighPrecisionTests
         Array pixels = Pattern(floatingPoint, width, height, PixelComponentLayout.Rgb);
         var options = new JpegliEncoderOptions
         {
-            Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2, SmoothingFactor = 37
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2,
+            SmoothingFactor = 37
         };
         byte[] complete = Encode(pixels, width, height, PixelComponentLayout.Rgb, options);
         int cancelAfter = Read(complete, options).Scans[2].DataStart + 1;
@@ -173,7 +207,9 @@ public sealed class EncoderHighPrecisionTests
         using var output = new WriteOnlyStream(destination, () =>
         {
             if (destination.Length >= cancelAfter)
+            {
                 cancellation.Cancel();
+            }
         });
         OperationCanceledException error = Assert.Throws<OperationCanceledException>(() =>
             EncodeWithCancellation(output, pixels, width, height, cancellation.Token, options: options));
@@ -198,7 +234,9 @@ public sealed class EncoderHighPrecisionTests
         using var output = new WriteOnlyStream(destination, () =>
         {
             if (destination.Length >= failAfter)
+            {
                 throw failure;
+            }
         });
         IOException error = Assert.Throws<IOException>(() => Encode(output, pixels, width, height, options: options));
         Assert.Same(failure, error);
@@ -234,20 +272,30 @@ public sealed class EncoderHighPrecisionTests
         byte[] bytes = EncoderProgressiveTests.Pattern(width, height, byteLayout);
         ushort[] pixels = bytes.Select(value => (ushort)(value * 257)).ToArray();
         foreach (bool adaptive in new[] { false, true })
+        {
             foreach (int smoothing in new[] { 0, 37 })
+            {
                 foreach (bool optimize in new[] { false, true })
+                {
                     foreach (bool progressive in new[] { false, true })
                     {
                         var options = new JpegliEncoderOptions
                         {
-                            Subsampling = sampling, AdaptiveQuantization = adaptive, SmoothingFactor = smoothing,
-                            OptimizeHuffmanTables = optimize, Progressive = progressive,
-                            ProgressiveRefinementBits = progressive ? 2 : 0, RestartInterval = 2
+                            Subsampling = sampling,
+                            AdaptiveQuantization = adaptive,
+                            SmoothingFactor = smoothing,
+                            OptimizeHuffmanTables = optimize,
+                            Progressive = progressive,
+                            ProgressiveRefinementBits = progressive ? 2 : 0,
+                            RestartInterval = 2
                         };
                         byte[] expected = JpegliEncoder.Encode(bytes, width, height, byteLayout, options,
                             cancellationToken: TestContext.Current.CancellationToken);
                         Assert.Equal(expected, Encode(pixels, width, height, layout, options));
                     }
+                }
+            }
+        }
     }
 
     [Theory]
@@ -256,9 +304,9 @@ public sealed class EncoderHighPrecisionTests
     public void StreamValidationRejectsNullOrReadOnlyDestination(bool floatingPoint)
     {
         Array pixels = Pattern(floatingPoint, 1, 1, PixelComponentLayout.Rgb);
-        Assert.Throws<ArgumentNullException>(() => Encode(null!, pixels, 1, 1));
+        _ = Assert.Throws<ArgumentNullException>(() => Encode(null!, pixels, 1, 1));
         using var output = new MemoryStream(new byte[16], writable: false);
-        var error = Assert.Throws<ArgumentException>(() => Encode(output, pixels, 1, 1));
+        ArgumentException error = Assert.Throws<ArgumentException>(() => Encode(output, pixels, 1, 1));
         Assert.Equal("output", error.ParamName);
         Assert.Equal(16, output.Length);
         Assert.Equal(new byte[16], output.ToArray());
@@ -271,21 +319,21 @@ public sealed class EncoderHighPrecisionTests
     {
         Array pixels = Pattern(floatingPoint, 2, 2, PixelComponentLayout.Rgb);
         using var output = new MemoryStream();
-        Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 0, 1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 65536, 1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 0));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 65536));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 2, 2, options: new() { MaxPixels = 3 }));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 1, options: new() { MaxPixels = 0 }));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 1, options: new() { Quality = float.NaN }));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 1, options: new() { SmoothingFactor = 101 }));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 1, options: new() { Subsampling = (ChromaSubsampling)99 }));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 1, layout: (PixelComponentLayout)99));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 1, stride: -1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 2, 1, stride: 5));
-        Assert.Throws<ArgumentException>(() => Encode(output, pixels, 3, 2));
-        Assert.Throws<ArgumentException>(() => Encode(output, pixels, 2, 2, stride: 7));
-        Assert.Throws<ArgumentException>(() => Encode(output, pixels, 1, 2, stride: int.MaxValue));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 0, 1));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 65536, 1));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 0));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 65536));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 2, 2, options: new() { MaxPixels = 3 }));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 1, options: new() { MaxPixels = 0 }));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 1, options: new() { Quality = float.NaN }));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 1, options: new() { SmoothingFactor = 101 }));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 1, options: new() { Subsampling = (ChromaSubsampling)99 }));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 1, layout: (PixelComponentLayout)99));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 1, 1, stride: -1));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Encode(output, pixels, 2, 1, stride: 5));
+        _ = Assert.Throws<ArgumentException>(() => Encode(output, pixels, 3, 2));
+        _ = Assert.Throws<ArgumentException>(() => Encode(output, pixels, 2, 2, stride: 7));
+        _ = Assert.Throws<ArgumentException>(() => Encode(output, pixels, 1, 2, stride: int.MaxValue));
         var token = new CancellationToken(true);
         OperationCanceledException error = Assert.Throws<OperationCanceledException>(() =>
             EncodeWithCancellation(output, pixels, 2, 2, token));
@@ -304,19 +352,21 @@ public sealed class EncoderHighPrecisionTests
     {
         const int width = 17, height = 9;
         foreach (PixelComponentLayout layout in Enum.GetValues<PixelComponentLayout>().Where(layout => layout != PixelComponentLayout.Xyb))
+        {
             foreach (bool optimize in new[] { false, true })
             {
                 float[] pixels = (float[])Pattern(true, width, height, layout);
                 // The invalid value is in a color channel of the last source pixel,
                 // so rejecting only the initial block or validating after headers fails.
-                pixels[(width * height - 1) * Components(layout) + (layout == PixelComponentLayout.Gray ? 0 : 2)] = invalid;
+                pixels[(((width * height) - 1) * Components(layout)) + (layout == PixelComponentLayout.Gray ? 0 : 2)] = invalid;
                 using var output = new MemoryStream();
-                var error = Assert.ThrowsAny<ArgumentException>(() => Encode(output, pixels, width, height, layout,
+                ArgumentException error = Assert.ThrowsAny<ArgumentException>(() => Encode(output, pixels, width, height, layout,
                     new() { OptimizeHuffmanTables = optimize, Progressive = true, ProgressiveRefinementBits = 2 }));
                 Assert.Equal("pixels", error.ParamName);
                 Assert.Equal(0, output.Length);
                 Assert.True(output.CanWrite);
             }
+        }
     }
 
     [Theory]
@@ -330,7 +380,7 @@ public sealed class EncoderHighPrecisionTests
                 ? Enumerable.Repeat(white ? 1f : 0f, 64).ToArray()
                 : Enumerable.Repeat(white ? ushort.MaxValue : ushort.MinValue, 64).ToArray();
             byte[] jpeg = Encode(pixels, 8, 8, PixelComponentLayout.Gray, new() { Quality = 100 });
-            ImageResult decoded = ImageResult.FromMemory(jpeg, ColorComponents.Grey);
+            var decoded = ImageResult.FromMemory(jpeg, ColorComponents.Grey);
             Assert.All(decoded.Data, sample => Assert.Equal(white ? (byte)255 : (byte)0, sample));
         }
     }
@@ -344,7 +394,10 @@ public sealed class EncoderHighPrecisionTests
         Assert.Equal(expected.Height, actual.Height);
         Assert.Equal(expected.Components, actual.Components);
         foreach ((int selector, byte[] quantizer) in expected.Quantizers)
+        {
             Assert.Equal(quantizer, actual.Quantizers[selector]);
+        }
+
         Assert.Equal(expected.Blocks.Count, actual.Blocks.Count);
         foreach ((BlockKey key, Block block) in expected.Blocks)
         {
@@ -357,6 +410,10 @@ public sealed class EncoderHighPrecisionTests
     {
         PixelComponentLayout.Gray => 1,
         PixelComponentLayout.Rgba or PixelComponentLayout.Bgra => 4,
+        PixelComponentLayout.Rgb => 3,
+        PixelComponentLayout.Bgr => 3,
+        PixelComponentLayout.YCbCr => 3,
+        PixelComponentLayout.Xyb => 3,
         _ => 3
     };
 
@@ -365,32 +422,51 @@ public sealed class EncoderHighPrecisionTests
     {
         int components = Components(layout);
         if (stride == 0)
+        {
             stride = width * components;
-        int length = (height - 1) * stride + width * components + trailing;
+        }
+
+        int length = ((height - 1) * stride) + (width * components) + trailing;
         Array result = floatingPoint ? Enumerable.Repeat(float.NaN, length).ToArray()
             : Enumerable.Repeat(ushort.MaxValue, length).ToArray();
         bool bgr = layout is PixelComponentLayout.Bgr or PixelComponentLayout.Bgra;
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < (layout == PixelComponentLayout.Gray ? 1 : 3); channel++)
                 {
-                    int offset = y * stride + x * components + (bgr ? 2 - channel : channel);
-                    ushort value = (ushort)(4000 + (977 * x + 1703 * y + 11007 * channel + 59 * x * y) % 55000);
+                    int offset = (y * stride) + (x * components) + (bgr ? 2 - channel : channel);
+                    ushort value = (ushort)(4000 + (((977 * x) + (1703 * y) + (11007 * channel) + (59 * x * y)) % 55000));
                     if (result is float[] floats)
+                    {
                         floats[offset] = value / 65535f;
+                    }
                     else
+                    {
                         ((ushort[])result)[offset] = value;
+                    }
                 }
+            }
+        }
+
         if (result is float[] alpha && components == 4)
+        {
             for (int y = 0; y < height; y++)
+            {
                 for (int x = 0; x < width; x++)
-                    alpha[y * stride + x * components + 3] = ((x + y) % 4) switch
+                {
+                    alpha[(y * stride) + (x * components) + 3] = ((x + y) % 4) switch
                     {
                         0 => float.NaN,
                         1 => float.PositiveInfinity,
                         2 => -3f,
                         _ => 4f
                     };
+                }
+            }
+        }
+
         return result;
     }
 
@@ -409,9 +485,13 @@ public sealed class EncoderHighPrecisionTests
         JpegliEncoderOptions? options = null, int stride = 0)
     {
         if (pixels is float[] floats)
+        {
             JpegliEncoder.Encode(output, floats, width, height, layout, options, stride, cancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (ushort[])pixels, width, height, layout, options, stride, cancellationToken);
+        }
     }
 
     private static byte FramePrecision(byte[] jpeg)
@@ -421,8 +501,11 @@ public sealed class EncoderHighPrecisionTests
             Assert.Equal(0xff, jpeg[position]);
             int marker = jpeg[position + 1];
             if (marker is 0xc0 or 0xc2)
+            {
                 return jpeg[position + 4];
-            int length = jpeg[position + 2] * 256 + jpeg[position + 3];
+            }
+
+            int length = (jpeg[position + 2] * 256) + jpeg[position + 3];
             position += length + 2;
         }
         throw new InvalidDataException("No JPEG frame marker was emitted.");

@@ -37,11 +37,13 @@ internal static class XybColorConversion
         float opsin2 = MathF.Cbrt(MathF.Max(0f, mixed2)) - BiasCubeRoot;
         float unscaledX = 0.5f * (opsin0 - opsin1);
         float unscaledY = 0.5f * (opsin0 + opsin1);
-        x = ((unscaledX + 0.015386134f) * 22.995788804f) * 255f;
-        y = (unscaledY * 1.183000077f) * 255f;
-        bMinusY = ((opsin2 - unscaledY + 0.27770459f) * 1.502141333f) * 255f;
+        x = (unscaledX + 0.015386134f) * 22.995788804f * 255f;
+        y = unscaledY * 1.183000077f * 255f;
+        bMinusY = (opsin2 - unscaledY + 0.27770459f) * 1.502141333f * 255f;
         if (!float.IsFinite(x) || !float.IsFinite(y) || !float.IsFinite(bMinusY))
+        {
             throw NonfinitePixels();
+        }
     }
 
     private static float Linearize(float value)
@@ -52,7 +54,10 @@ internal static class XybColorConversion
         float linear = magnitude <= 0.04045f ? magnitude / 12.92f
             : MathF.Pow((magnitude + 0.055f) / 1.055f, 2.4f);
         if (!float.IsFinite(linear))
+        {
             throw NonfinitePixels();
+        }
+
         return StandardFloatingPoint.CopySign(linear, value);
     }
 
@@ -61,7 +66,10 @@ internal static class XybColorConversion
         float mixed = FloatingPointMath.FusedMultiplyAdd(mr, r,
             FloatingPointMath.FusedMultiplyAdd(mg, g, FloatingPointMath.FusedMultiplyAdd(mb, b, Bias)));
         if (!float.IsFinite(mixed))
+        {
             throw NonfinitePixels();
+        }
+
         return mixed;
     }
 

@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class XybQuantizationTests
 {
@@ -41,9 +41,9 @@ public sealed class XybQuantizationTests
     [MemberData(nameof(QuantizationFixtures))]
     public void ThreeEmittedTablesMatchPinnedUpstreamCapture(float distance, string x, string y, string b)
     {
-        var options = new JpegliEncoderOptions { Distance = distance, IccProfile = new byte[] { 0x23 }, AdaptiveQuantization = false };
+        var options = new JpegliEncoderOptions { Distance = distance, IccProfile = "#"u8.ToArray(), AdaptiveQuantization = false };
         JpegDocument document = Read(Encode(options), options);
-        Assert.Equal(new[] { 0, 1, 2 }, document.Quantizers.Keys);
+        Assert.Equal([0, 1, 2], document.Quantizers.Keys);
         Assert.Equal(Convert.FromHexString(x), document.Quantizers[0]);
         Assert.Equal(Convert.FromHexString(y), document.Quantizers[1]);
         Assert.Equal(Convert.FromHexString(b), document.Quantizers[2]);
@@ -51,15 +51,20 @@ public sealed class XybQuantizationTests
         Assert.Equal(1, document.Components['G'].Quantizer);
         Assert.Equal(2, document.Components['B'].Quantizer);
         foreach (bool standard in new[] { false, true })
+        {
             foreach (int transfer in new[] { 0, 2, 16, 18, 255 })
             {
-                var variant = options with { UseStandardQuantizationTables = standard, CicpTransferFunction = transfer };
+                JpegliEncoderOptions variant = options with { UseStandardQuantizationTables = standard, CicpTransferFunction = transfer };
                 Assert.Equal(Encode(options), Encode(variant));
             }
-        var custom = options with { SamplingFactors = new(new(2, 2), new(1, 1), new(1, 1)) };
+        }
+
+        JpegliEncoderOptions custom = options with { SamplingFactors = new(new(2, 2), new(1, 1), new(1, 1)) };
         JpegDocument sampled = Read(Encode(custom), custom);
         for (int channel = 0; channel < 3; channel++)
+        {
             Assert.Equal(document.Quantizers[channel], sampled.Quantizers[channel]);
+        }
     }
 
     [Theory]
@@ -67,37 +72,49 @@ public sealed class XybQuantizationTests
     [InlineData(float.MaxValue, 255)]
     public void ExtremeDistancesClampEveryTableWithoutIntegerOverflow(float distance, byte expected)
     {
-        var options = new JpegliEncoderOptions { Distance = distance, IccProfile = new byte[] { 0x23 } };
+        var options = new JpegliEncoderOptions { Distance = distance, IccProfile = "#"u8.ToArray() };
         JpegDocument document = Read(Encode(options), options);
         Assert.Equal(3, document.Quantizers.Count);
         foreach (byte[] table in document.Quantizers.Values)
+        {
             Assert.All(table, value => Assert.Equal(expected, value));
+        }
     }
 
     [Fact]
     public void DistanceOverridesQualityAndCicpHintsDoNotAlterAdaptiveCoefficients()
     {
         const int width = 33, height = 19;
-        var pixels = new byte[width * height * 3];
+        byte[] pixels = new byte[width * height * 3];
         for (int index = 0; index < pixels.Length; index++)
-            pixels[index] = (byte)((index * 73 + index / 7 * 31) % 256);
+        {
+            pixels[index] = (byte)(((index * 73) + (index / 7 * 31)) % 256);
+        }
+
         var options = new JpegliEncoderOptions
         {
-            Distance = 1.45f, Quality = 1, IccProfile = new byte[] { 0x23 }, SmoothingFactor = 37,
-            Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2
+            Distance = 1.45f,
+            Quality = 1,
+            IccProfile = "#"u8.ToArray(),
+            SmoothingFactor = 37,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2
         };
         byte[] expected = JpegliEncoder.Encode(pixels, width, height, PixelLayout.Xyb24, options,
             cancellationToken: TestContext.Current.CancellationToken);
         foreach (bool standard in new[] { false, true })
+        {
             foreach (int transfer in new[] { 2, 16, 18 })
             {
-                var variant = options with { Quality = 100, UseStandardQuantizationTables = standard, CicpTransferFunction = transfer };
+                JpegliEncoderOptions variant = options with { Quality = 100, UseStandardQuantizationTables = standard, CicpTransferFunction = transfer };
                 Assert.Equal(expected, JpegliEncoder.Encode(pixels, width, height, PixelLayout.Xyb24, variant,
                     cancellationToken: TestContext.Current.CancellationToken));
             }
+        }
     }
 
-    private static byte[] Encode(JpegliEncoderOptions options) => JpegliEncoder.Encode(new byte[] { 32, 128, 224 }, 1, 1,
+    private static byte[] Encode(JpegliEncoderOptions options) => JpegliEncoder.Encode([32, 128, 224], 1, 1,
         PixelLayout.Xyb24, options, cancellationToken: TestContext.Current.CancellationToken);
 
     private static JpegDocument Read(byte[] jpeg, JpegliEncoderOptions options) =>

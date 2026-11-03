@@ -1,9 +1,9 @@
+namespace DotJpegli.Tests;
+
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class FusedPlaneQuantizationTests
 {
@@ -31,16 +31,23 @@ public sealed class FusedPlaneQuantizationTests
         const int stride = 17, left = 3, top = 2;
         var random = new Random(31729);
         foreach (bool adaptive in new[] { false, true })
+        {
             foreach (int component in new[] { 0, 1, 2 })
+            {
                 for (int block = 0; block < 80; block++)
                 {
-                    float[] plane = Enumerable.Repeat(float.NaN, (top + 7) * stride + left + 8).ToArray();
+                    float[] plane = Enumerable.Repeat(float.NaN, ((top + 7) * stride) + left + 8).ToArray();
                     for (int y = 0; y < 8; y++)
+                    {
                         for (int x = 0; x < 8; x++)
-                            plane[(top + y) * stride + left + x] = block < 64
-                                ? y * 8 + x == block ? 231.375f : 128f : (float)(random.NextDouble() * 255.5);
-                    ushort[] divisors = Enumerable.Range(0, 64).Select(index => (ushort)(1 + (index * 7 + block) % 19)).ToArray();
-                    float[] multipliers = Enumerable.Range(0, 64).Select(index => (index % 7) * 0.1875f).ToArray();
+                        {
+                            plane[((top + y) * stride) + left + x] = block < 64
+                                ? (y * 8) + x == block ? 231.375f : 128f : (float)(random.NextDouble() * 255.5);
+                        }
+                    }
+
+                    ushort[] divisors = Enumerable.Range(0, 64).Select(index => (ushort)(1 + (((index * 7) + block) % 19))).ToArray();
+                    float[] multipliers = Enumerable.Range(0, 64).Select(index => index % 7 * 0.1875f).ToArray();
                     var table = Quantization.PreparedTable.Create(divisors, component, 1f,
                         adaptiveQuantization: adaptive, adaptiveMultipliers: multipliers);
                     float strength = block % 3 == 0 ? 0f : block % 3 == 1 ? 0.625f : float.MaxValue;
@@ -49,13 +56,17 @@ public sealed class FusedPlaneQuantizationTests
                     ForwardDct.TransformQuantizePlane(plane, stride, left, top, table, actual, strength, ordered);
                     Assert.Equal(expected, actual);
                 }
+            }
+        }
     }
 
     [Fact]
     public void TransposedQuantizationPreservesHalfTiesAndStrictAdaptiveBiasBoundaries()
     {
         foreach (ushort divisor in new ushort[] { 1, 3, 7, 19, 255, 32767 })
+        {
             foreach (float strength in new[] { 0f, 0.625f, 2f })
+            {
                 foreach (int component in new[] { 0, 1, 2 })
                 {
                     ushort[] divisors = Enumerable.Repeat(divisor, 64).ToArray();
@@ -73,7 +84,7 @@ public sealed class FusedPlaneQuantizationTests
                     float offset = component switch { 0 => 0.59082f, 1 => 0.58146f, _ => 0.57988f };
                     float[] biased = Enumerable.Range(0, 64).Select(index =>
                     {
-                        float center = (offset + strength * multipliers[index]) * divisor;
+                        float center = (offset + (strength * multipliers[index])) * divisor;
                         return (index % 2 == 0 ? 1 : -1) * ((index % 3) switch
                         {
                             0 => MathF.BitDecrement(center),
@@ -83,12 +94,15 @@ public sealed class FusedPlaneQuantizationTests
                     }).ToArray();
                     AssertTransposed(biased, table, strength);
                 }
+            }
+        }
     }
 
     [Fact]
     public void FullySuppressedFrequencyRowsPreserveDcAndMixedRowRounding()
     {
         foreach (bool adaptive in new[] { false, true })
+        {
             foreach (int component in new[] { 0, 1, 2 })
             {
                 var table = Quantization.PreparedTable.Create(Enumerable.Repeat((ushort)3, 64).ToArray(),
@@ -107,12 +121,14 @@ public sealed class FusedPlaneQuantizationTests
                     coefficients[horizontalFrequency] = 0f;
                 }
             }
+        }
     }
 
     [Fact]
     public void ExactZeroAcRowsPreserveSignedZerosDcAndEarlierValidationFailures()
     {
         foreach (bool adaptive in new[] { false, true })
+        {
             foreach (float zero in new[] { 0f, BitConverter.Int32BitsToSingle(int.MinValue) })
             {
                 var table = Quantization.PreparedTable.Create(Enumerable.Repeat((ushort)3, 64).ToArray(),
@@ -126,6 +142,7 @@ public sealed class FusedPlaneQuantizationTests
                 }
                 coefficients[0] = zero;
                 foreach (int index in new[] { 0, 1, 8, 16, 63 })
+                {
                     foreach (float invalid in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
                     {
                         coefficients[index] = invalid;
@@ -134,7 +151,9 @@ public sealed class FusedPlaneQuantizationTests
                         Assert.All(output, value => Assert.Equal((short)-23456, value));
                         coefficients[index] = zero;
                     }
+                }
             }
+        }
     }
 
     [Fact]
@@ -146,12 +165,14 @@ public sealed class FusedPlaneQuantizationTests
             transposed[0] = dc;
             AssertNarrowOrdering(transposed);
             foreach (short value in new short[] { -1023, 1, 1023 })
+            {
                 for (int position = 1; position < 64; position++)
                 {
                     transposed[position] = value;
                     AssertNarrowOrdering(transposed);
                     transposed[position] = 0;
                 }
+            }
         }
     }
 
@@ -159,7 +180,9 @@ public sealed class FusedPlaneQuantizationTests
     public void FlatPlanesPreserveDcRoundingAndOutputSentinels()
     {
         foreach (bool adaptive in new[] { false, true })
+        {
             foreach (ushort divisor in new ushort[] { 1, 3, 255 })
+            {
                 foreach (float sample in new[] { 0f, 127.5f, 128f, 128.5f, 255f })
                 {
                     var table = Quantization.PreparedTable.Create(Enumerable.Repeat(divisor, 64).ToArray(),
@@ -172,12 +195,14 @@ public sealed class FusedPlaneQuantizationTests
                     Assert.Equal(expected, actual);
                     Assert.All(actual.AsSpan(1, 63).ToArray(), value => Assert.Equal((short)0, value));
                 }
+            }
+        }
     }
 
     private static void AssertNarrowOrdering(short[] transposed)
     {
         short[] expected = JpegConstants.ZigZag.ToArray()
-            .Select(index => transposed[(index % 8) * 8 + index / 8]).ToArray();
+            .Select(index => transposed[(index % 8 * 8) + (index / 8)]).ToArray();
         foreach (NarrowOrdering path in NarrowPaths)
         {
             short[] actual = Enumerable.Repeat((short)-23456, 80).ToArray();
@@ -198,12 +223,14 @@ public sealed class FusedPlaneQuantizationTests
         // at every tile boundary, including the sign bit of each coefficient.
         short[] transposed = new short[64];
         for (int position = 0; position < transposed.Length; position++)
+        {
             for (int bit = 0; bit < 16; bit++)
             {
                 transposed[position] = unchecked((short)(1 << bit));
                 AssertNarrowOrdering(transposed);
                 transposed[position] = 0;
             }
+        }
     }
 
     [Fact]
@@ -212,14 +239,15 @@ public sealed class FusedPlaneQuantizationTests
         foreach (bool dcOnly in new[] { false, true })
         {
             short[] transposed = Enumerable.Range(0, 64)
-                .Select(index => dcOnly && index != 0 ? (short)0 : unchecked((short)(index * 997 - 23456))).ToArray();
+                .Select(index => dcOnly && index != 0 ? (short)0 : unchecked((short)((index * 997) - 23456))).ToArray();
             short[] expected = JpegConstants.ZigZag.ToArray()
-                .Select(index => transposed[(index % 8) * 8 + index / 8]).ToArray();
+                .Select(index => transposed[(index % 8 * 8) + (index / 8)]).ToArray();
             foreach (NarrowOrdering path in NarrowPaths)
+            {
                 for (int length = 0; length < 64; length++)
                 {
                     short[] actual = Enumerable.Repeat((short)-12345, 80).ToArray();
-                    Assert.Throws<ArgumentOutOfRangeException>(() => path(
+                    _ = Assert.Throws<ArgumentOutOfRangeException>(() => path(
                         Vector128.Create(transposed.AsSpan(0, 8)), Vector128.Create(transposed.AsSpan(8, 8)),
                         Vector128.Create(transposed.AsSpan(16, 8)), Vector128.Create(transposed.AsSpan(24, 8)),
                         Vector128.Create(transposed.AsSpan(32, 8)), Vector128.Create(transposed.AsSpan(40, 8)),
@@ -229,6 +257,7 @@ public sealed class FusedPlaneQuantizationTests
                     Assert.All(actual[..3], value => Assert.Equal((short)-12345, value));
                     Assert.All(actual[(3 + written)..], value => Assert.Equal((short)-12345, value));
                 }
+            }
         }
     }
 
@@ -241,6 +270,7 @@ public sealed class FusedPlaneQuantizationTests
         coefficients[0] = 7.5f;
         AssertTransposed(coefficients, table, 0.625f);
         foreach (int index in new[] { 1, 8, 16, 63 })
+        {
             foreach (float invalid in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity, 3072f, -3072f })
             {
                 float previous = coefficients[index];
@@ -250,6 +280,7 @@ public sealed class FusedPlaneQuantizationTests
                 Assert.All(output, value => Assert.Equal((short)-23456, value));
                 coefficients[index] = previous;
             }
+        }
     }
 
     [Theory]
@@ -257,9 +288,9 @@ public sealed class FusedPlaneQuantizationTests
     [InlineData(2)]
     public void ForcedNarrowTablePreferencesPreserveQuantizedCoefficients(int preference)
     {
-        ushort[] divisors = Enumerable.Range(0, 64).Select(index => (ushort)(index % 17 + 1)).ToArray();
+        ushort[] divisors = Enumerable.Range(0, 64).Select(index => (ushort)((index % 17) + 1)).ToArray();
         float[] coefficients = Enumerable.Range(0, 64)
-            .Select(index => (index % 2 == 0 ? -1f : 1f) * (index * 15f + 0.5f) * divisors[index]).ToArray();
+            .Select(index => (index % 2 == 0 ? -1f : 1f) * ((index * 15f) + 0.5f) * divisors[index]).ToArray();
         foreach (bool adaptive in new[] { false, true })
         {
             var table = Quantization.PreparedTable.Create(divisors, 0, 4f,
@@ -267,7 +298,9 @@ public sealed class FusedPlaneQuantizationTests
                 adaptiveMultipliers: Enumerable.Range(0, 64).Select(index => index * 0.1875f).ToArray(),
                 narrowZigZagKernel: (KernelPreference)preference);
             foreach (float strength in new[] { 0f, 0.625f, 4f })
+            {
                 AssertTransposed(coefficients, table, strength);
+            }
         }
     }
 
@@ -290,9 +323,12 @@ public sealed class FusedPlaneQuantizationTests
         Assert.Equal(KernelPolicy.UseTiledZigZag(KernelPreference.Automatic, 768, 512), automaticLarge.UseTiledZigZag);
         Assert.False(automaticTiny.UseTiledZigZag);
         Assert.False(automaticUnspecified.UseTiledZigZag);
-        float[] coefficients = Enumerable.Range(0, 64).Select(index => index * 7f + 0.5f).ToArray();
+        float[] coefficients = Enumerable.Range(0, 64).Select(index => (index * 7f) + 0.5f).ToArray();
         foreach (Quantization.PreparedTable table in new[] { original, optimized, automaticLarge, automaticTiny, automaticUnspecified })
+        {
             AssertTransposed(coefficients, table, 0);
+        }
+
         Assert.False(original.UseTiledZigZag);
         Assert.True(optimized.UseTiledZigZag);
     }
@@ -300,12 +336,13 @@ public sealed class FusedPlaneQuantizationTests
     [Fact]
     public void ConservativeAcSuppressionPreservesDivisionBoundariesForEveryDivisor()
     {
-        const float margin = 1f - 1f / 1048576f;
+        const float margin = 1f - (1f / 1048576f);
         foreach (float threshold in new[] { 1e-20f, 0.5f, 0.59082f, 1f, 65536f })
+        {
             for (int first = 1; first <= 32767; first += 8)
             {
                 float[] divisors = Enumerable.Range(0, 8).Select(lane => (float)Math.Min(first + lane, 32767)).ToArray();
-                float[] cutoffs = divisors.Select(divisor => (threshold * margin) * divisor).ToArray();
+                float[] cutoffs = divisors.Select(divisor => threshold * margin * divisor).ToArray();
                 foreach (int position in new[] { -1, 0, 1 })
                 {
                     float[] coefficients = cutoffs.Select(cutoff => position < 0 ? MathF.BitDecrement(cutoff)
@@ -313,14 +350,19 @@ public sealed class FusedPlaneQuantizationTests
                     bool suppressed = CanSuppress(coefficients, divisors, threshold, threshold);
                     Assert.Equal(position < 0, suppressed);
                     if (suppressed)
+                    {
                         for (int lane = 0; lane < 8; lane++)
+                        {
                             Assert.True(coefficients[lane] / divisors[lane] < threshold);
+                        }
+                    }
                 }
                 // A coefficient near the true suppression boundary must use
                 // division, even when its quotient happens to round below it.
                 float[] boundary = divisors.Select(divisor => threshold * divisor).ToArray();
                 Assert.False(CanSuppress(boundary, divisors, threshold, threshold));
             }
+        }
     }
 
     [Fact]
@@ -329,17 +371,25 @@ public sealed class FusedPlaneQuantizationTests
         float[] divisors = [1f, 2f, 3f, 17f, 255f, 256f, 16384f, 32767f];
         float[] zeros = new float[8];
         foreach (float threshold in new[] { 0f, float.Epsilon, 1e-30f, MathF.BitDecrement(1e-20f) })
+        {
             Assert.False(CanSuppress(zeros, divisors, threshold, threshold));
+        }
+
         foreach (float threshold in new[] { float.MaxValue, float.PositiveInfinity, float.NaN })
+        {
             Assert.False(CanSuppress(zeros, divisors, threshold, 0.5f));
+        }
+
         Assert.False(CanSuppress(zeros, divisors, 0.59082f, float.NaN));
         foreach (float invalid in new[] { float.NaN, float.PositiveInfinity })
+        {
             for (int lane = 0; lane < 8; lane++)
             {
                 float[] magnitudes = new float[8];
                 magnitudes[lane] = invalid;
                 Assert.False(CanSuppress(magnitudes, divisors, 0.59082f, 0.59082f));
             }
+        }
         // Subnormal quotients remain far below the supported normal threshold.
         Assert.True(CanSuppress(Enumerable.Repeat(float.Epsilon, 8).ToArray(), divisors, 1e-20f, 1e-20f));
         var random = new Random(174029);
@@ -347,12 +397,19 @@ public sealed class FusedPlaneQuantizationTests
         {
             float threshold = MathF.ScaleB(0.5f + (float)random.NextDouble(), random.Next(-65, 128));
             for (int lane = 0; lane < 8; lane++)
+            {
                 divisors[lane] = random.Next(1, 32768);
+            }
+
             float[] magnitudes = Enumerable.Range(0, 8).Select(_ =>
                 BitConverter.Int32BitsToSingle(random.Next(0, 0x7f800000))).ToArray();
             if (CanSuppress(magnitudes, divisors, threshold, 1e-20f))
+            {
                 for (int lane = 0; lane < 8; lane++)
+                {
                     Assert.True(magnitudes[lane] / divisors[lane] < threshold);
+                }
+            }
         }
     }
 
@@ -365,8 +422,8 @@ public sealed class FusedPlaneQuantizationTests
     {
         for (int shift = 0; shift < 1024; shift++)
         {
-            short[] transposed = Enumerable.Range(0, 64).Select(index => unchecked((short)(index + shift * 64))).ToArray();
-            short[] expected = JpegConstants.ZigZag.ToArray().Select(index => transposed[(index % 8) * 8 + index / 8]).ToArray();
+            short[] transposed = Enumerable.Range(0, 64).Select(index => unchecked((short)(index + (shift * 64)))).ToArray();
+            short[] expected = JpegConstants.ZigZag.ToArray().Select(index => transposed[(index % 8 * 8) + (index / 8)]).ToArray();
             AssertNarrowOrdering(transposed);
             short[] wide = new short[64];
             Quantization.StoreTransposedZigZag512(Vector128.Create(transposed.AsSpan(0, 8)), Vector128.Create(transposed.AsSpan(8, 8)),
@@ -382,6 +439,7 @@ public sealed class FusedPlaneQuantizationTests
     {
         var table = Quantization.PreparedTable.Create(Enumerable.Repeat((ushort)1, 64).ToArray(), 0, 1f);
         foreach (int index in new[] { 0, 1, 7, 8, 16, 63 })
+        {
             foreach (float value in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity,
                 float.MaxValue, -float.MaxValue, 1024f, -1024f })
             {
@@ -396,6 +454,7 @@ public sealed class FusedPlaneQuantizationTests
                 Assert.False(TryTransposed(coefficients, table, 0, output));
                 Assert.All(output, item => Assert.Equal((short)-23456, item));
             }
+        }
     }
 
     [Theory]
@@ -406,6 +465,7 @@ public sealed class FusedPlaneQuantizationTests
         var table = Quantization.PreparedTable.Create(Enumerable.Repeat((ushort)1, 64).ToArray(), 0, 1f,
             adaptiveQuantization: true, adaptiveMultipliers: Enumerable.Repeat(0.5f, 64).ToArray());
         foreach (float sample in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity, float.MaxValue, 8192f })
+        {
             foreach (float strength in new[] { 0f, float.NaN, float.PositiveInfinity, -1f })
             {
                 float[] plane = Enumerable.Range(0, 64).Select(index => index % 2 == 0 ? sample : -sample).ToArray();
@@ -417,12 +477,13 @@ public sealed class FusedPlaneQuantizationTests
                 Assert.Equal(expectedError.Message, actualError.Message);
                 Assert.Equal(expected, actual);
             }
+        }
     }
 
     [Fact]
     public void OverlappingPlaneAndOrderedOutputConsumeAllSamplesBeforeWriting()
     {
-        const int stride = 13, left = 3, top = 2, length = (top + 7) * stride + left + 8;
+        const int stride = 13, left = 3, top = 2, length = ((top + 7) * stride) + left + 8;
         var table = Quantization.PreparedTable.Create(Enumerable.Repeat((ushort)3, 64).ToArray(), 0, 1f);
         foreach (int offset in new[] { 0, 1, 7, 19, 63, 128 })
         {
@@ -448,7 +509,7 @@ public sealed class FusedPlaneQuantizationTests
 
     private static bool TryTransposed(float[] coefficients, Quantization.PreparedTable table, float strength, Span<short> output)
     {
-        float[] transposed = Enumerable.Range(0, 64).Select(index => coefficients[(index % 8) * 8 + index / 8]).ToArray();
+        float[] transposed = Enumerable.Range(0, 64).Select(index => coefficients[(index % 8 * 8) + (index / 8)]).ToArray();
         return Quantization.TryQuantizeTransposed(Vector256.Create(transposed.AsSpan(0, 8)), Vector256.Create(transposed.AsSpan(8, 8)),
             Vector256.Create(transposed.AsSpan(16, 8)), Vector256.Create(transposed.AsSpan(24, 8)),
             Vector256.Create(transposed.AsSpan(32, 8)), Vector256.Create(transposed.AsSpan(40, 8)),
@@ -465,6 +526,8 @@ public sealed class FusedPlaneQuantizationTests
         Quantization.QuantizePrepared(coefficients, table, natural, strength);
         EntropyEncoder.ValidateAc(natural);
         if (ordered)
+        {
             ZigZagOrdering.Reorder(natural, output);
+        }
     }
 }

@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class KernelDispatchTests
 {
@@ -19,18 +19,24 @@ public sealed class KernelDispatchTests
             {
                 var settings = new JpegliEncoderOptions
                 {
-                    Progressive = progressive, Subsampling = sampling,
-                    MaxDegreeOfParallelism = workers, SmoothingFactor = workers == 1 ? 0 : 27,
+                    Progressive = progressive,
+                    Subsampling = sampling,
+                    MaxDegreeOfParallelism = workers,
+                    SmoothingFactor = workers == 1 ? 0 : 27,
                     FuzzyErosionKernel = KernelPreference.Original,
                     NarrowZigZagKernel = KernelPreference.Original
                 };
                 byte[] expected = JpegliEncoder.Encode(pixels, width, height, options: settings,
                     cancellationToken: TestContext.Current.CancellationToken);
                 foreach (KernelPreference erosion in Enum.GetValues<KernelPreference>())
+                {
                     foreach (KernelPreference zigzag in Enum.GetValues<KernelPreference>())
+                    {
                         Assert.Equal(expected, JpegliEncoder.Encode(pixels, width, height,
                             options: settings with { FuzzyErosionKernel = erosion, NarrowZigZagKernel = zigzag },
                             cancellationToken: TestContext.Current.CancellationToken));
+                    }
+                }
             }
         }
     }
@@ -50,7 +56,9 @@ public sealed class KernelDispatchTests
                     cancellationToken: TestContext.Current.CancellationToken),
                 TestContext.Current.CancellationToken))).ToArray();
         foreach (byte[] actual in await Task.WhenAll(encodes))
+        {
             Assert.Equal(expected, actual);
+        }
     }
 
     [Fact]
@@ -63,9 +71,9 @@ public sealed class KernelDispatchTests
         }
         Assert.False(KernelPolicy.UseTiledZigZag(KernelPreference.Original));
         Assert.True(KernelPolicy.UseTiledZigZag(KernelPreference.Optimized));
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             KernelPolicy.UseSelectionNetwork((KernelPreference)3, 67));
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             KernelPolicy.UseTiledZigZag((KernelPreference)3));
     }
 
@@ -73,7 +81,10 @@ public sealed class KernelDispatchTests
     {
         byte[] pixels = new byte[width * height * 3];
         for (int index = 0; index < pixels.Length; index++)
-            pixels[index] = (byte)((index * 73 + index / 11 * 19) & 255);
+        {
+            pixels[index] = (byte)(((index * 73) + (index / 11 * 19)) & 255);
+        }
+
         return pixels;
     }
 

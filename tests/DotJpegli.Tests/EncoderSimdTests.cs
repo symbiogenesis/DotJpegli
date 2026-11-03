@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using System.Security.Cryptography;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderSimdTests
 {
@@ -59,39 +59,69 @@ public sealed class EncoderSimdTests
         bool direct = mode == 8;
         bool bgr = mode % 2 != 0;
         int components = gray ? 1 : direct ? 3 : 4;
-        int stride = width * components + 5;
-        byte[] bytes = Enumerable.Repeat((byte)231, height * stride + 7).ToArray();
+        int stride = (width * components) + 5;
+        byte[] bytes = Enumerable.Repeat((byte)231, (height * stride) + 7).ToArray();
         ushort[] words = Enumerable.Repeat((ushort)54321, bytes.Length).ToArray();
         float[] floats = Enumerable.Repeat(float.NaN, bytes.Length).ToArray();
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int c = 0; c < (gray ? 1 : 3); c++)
                 {
-                    int offset = y * stride + x * components + c;
-                    int value = (x * 29 + y * 53 + c * 97 + x * y * 3) & 255;
+                    int offset = (y * stride) + (x * components) + c;
+                    int value = ((x * 29) + (y * 53) + (c * 97) + (x * y * 3)) & 255;
                     bytes[offset] = (byte)value;
-                    words[offset] = (ushort)Math.Min(65535, value * 257 + (x * 17 + y * 31 + c * 11) % 257);
-                    floats[offset] = Math.Min(1f, (value + (x * 17 + y * 31 + c * 11) % 257 / 257f) / 255f);
+                    words[offset] = (ushort)Math.Min(65535, (value * 257) + (((x * 17) + (y * 31) + (c * 11)) % 257));
+                    floats[offset] = Math.Min(1f, (value + (((x * 17) + (y * 31) + (c * 11)) % 257 / 257f)) / 255f);
                 }
-        var options = mode switch
+            }
+        }
+
+        JpegliEncoderOptions options = mode switch
         {
             0 => new JpegliEncoderOptions(),
             1 => new() { Subsampling = ChromaSubsampling.None, ProgressiveLevel = 2, RestartRows = 1 },
-            2 => new() { Subsampling = ChromaSubsampling.HalfHorizontalThirdVertical, AdaptiveQuantization = false,
-                OptimizeHuffmanTables = false, SequentialInterleaveComponents = false, RestartInterval = 3 },
+            2 => new()
+            {
+                Subsampling = ChromaSubsampling.HalfHorizontalThirdVertical,
+                AdaptiveQuantization = false,
+                OptimizeHuffmanTables = false,
+                SequentialInterleaveComponents = false,
+                RestartInterval = 3
+            },
             3 => new() { ColorSpace = JpegColorSpace.Grayscale, Quality = 97, RestartInterval = 2 },
-            4 => new() { ColorSpace = JpegColorSpace.Rgb, Progressive = true, ProgressiveRefinementBits = 2,
-                RestartInterval = 3 },
-            5 => new() { ForceBaseline = false, Progressive = true, ProgressiveRefinementBits = 1,
-                QuantizationTables = new ReadOnlyMemory<ushort>[] {
-                    Enumerable.Range(0, 64).Select(i => (ushort)(i == 0 ? 7 : 1 + i * 11)).ToArray(),
-                    Enumerable.Range(0, 64).Select(i => (ushort)(i == 0 ? 13 : 1 + i * 7)).ToArray() } },
-            6 => new() { SamplingFactors = new(new(3, 1), new(1, 1), new(1, 1)),
-                UseStandardQuantizationTables = true, RestartRows = 1 },
+            4 => new()
+            {
+                ColorSpace = JpegColorSpace.Rgb,
+                Progressive = true,
+                ProgressiveRefinementBits = 2,
+                RestartInterval = 3
+            },
+            5 => new()
+            {
+                ForceBaseline = false,
+                Progressive = true,
+                ProgressiveRefinementBits = 1,
+                QuantizationTables = [
+                    Enumerable.Range(0, 64).Select(i => (ushort)(i == 0 ? 7 : 1 + (i * 11))).ToArray(),
+                    Enumerable.Range(0, 64).Select(i => (ushort)(i == 0 ? 13 : 1 + (i * 7))).ToArray() ]
+            },
+            6 => new()
+            {
+                SamplingFactors = new(new(3, 1), new(1, 1), new(1, 1)),
+                UseStandardQuantizationTables = true,
+                RestartRows = 1
+            },
             7 => new() { Subsampling = ChromaSubsampling.None, SmoothingFactor = 37, ProgressiveLevel = 1 },
             8 => new() { Subsampling = ChromaSubsampling.None, CicpTransferFunction = 16, ProgressiveLevel = 2 },
-            9 => new() { ColorSpace = JpegColorSpace.Xyb, IccProfile = JpegliIccProfiles.CreateXybProfile(),
-                ProgressiveLevel = 2, RestartRows = 1 },
+            9 => new()
+            {
+                ColorSpace = JpegColorSpace.Xyb,
+                IccProfile = JpegliIccProfiles.CreateXybProfile(),
+                ProgressiveLevel = 2,
+                RestartRows = 1
+            },
             _ => new() { ColorSpace = JpegColorSpace.YCbCr, Subsampling = ChromaSubsampling.None, Progressive = true }
         };
         PixelLayout byteLayout = gray ? PixelLayout.Gray8 : direct ? PixelLayout.YCbCr24

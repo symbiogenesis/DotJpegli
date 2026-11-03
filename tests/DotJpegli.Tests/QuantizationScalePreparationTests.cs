@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class QuantizationScalePreparationTests
 {
@@ -29,6 +29,7 @@ public sealed class QuantizationScalePreparationTests
     public void PreparedFrequencyFactorsPreserveOriginalScaleBits()
     {
         foreach (float distance in Distances)
+        {
             for (int frequency = 0; frequency < 64; frequency++)
             {
                 float exponent = Exponents[frequency];
@@ -38,6 +39,7 @@ public sealed class QuantizationScalePreparationTests
                 Assert.Equal(BitConverter.SingleToInt32Bits(expected),
                     BitConverter.SingleToInt32Bits(Quantization.DistanceToScale(distance, frequency)));
             }
+        }
     }
 
     [Fact]
@@ -61,14 +63,15 @@ public sealed class QuantizationScalePreparationTests
                     BitConverter.SingleToInt32Bits(prepared[index]));
             }
         }
-        Assert.Throws<ArgumentOutOfRangeException>(() => Quantization.GetInverseBaseQuantizers(-1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Quantization.GetInverseBaseQuantizers(256));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Quantization.GetInverseBaseQuantizers(-1));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Quantization.GetInverseBaseQuantizers(256));
     }
 
     [Fact]
     public void PreparedInverseFactorsPreserveOriginalScaleBits()
     {
         foreach (float scale in Distances)
+        {
             for (int frequency = 0; frequency < 64; frequency++)
             {
                 float exponent = (float)(1.0 / Exponents[frequency]);
@@ -78,5 +81,6 @@ public sealed class QuantizationScalePreparationTests
                 Assert.Equal(BitConverter.SingleToInt32Bits(expected),
                     BitConverter.SingleToInt32Bits(Quantization.ScaleToDistance(scale, frequency)));
             }
+        }
     }
 }

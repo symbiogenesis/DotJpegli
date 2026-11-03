@@ -1,9 +1,11 @@
+namespace DotJpegli.Internal;
+
 using System.Buffers;
 using System.Diagnostics;
+#if !NETSTANDARD2_1
 using System.Numerics;
+#endif
 using System.Runtime.CompilerServices;
-
-namespace DotJpegli.Internal;
 
 /// <summary>Bounded pooled entropy decisions retained between histogram collection and emission.</summary>
 internal sealed class EntropyTokens : IDisposable
@@ -31,13 +33,16 @@ internal sealed class EntropyTokens : IDisposable
     {
         Guard.ThrowIfNegative(maximumBytes);
         if ((uint)huffmanContextMask > 63)
+        {
             throw new ArgumentOutOfRangeException(nameof(huffmanContextMask));
+        }
+
         this.huffmanContextMask = huffmanContextMask;
         this.maximumBytes = Math.Min(maximumBytes, 64L * 1024 * 1024);
         uint available = (uint)Math.Min(DefaultSegmentLength, this.maximumBytes / sizeof(uint));
         // Shared-pool buckets start at sixteen elements. Smaller budgets simply
         // abandon on the first add; no allocation is needed for empty scans.
-        nextSegmentLength = available < 16 ? 0 : 1 << BitOperations.Log2(available);
+        this.nextSegmentLength = available < 16 ? 0 : 1 << BitOperations.Log2(available);
     }
 
     internal bool IsComplete { get; private set; } = true;
@@ -48,7 +53,7 @@ internal sealed class EntropyTokens : IDisposable
         Debug.Assert((uint)component < 3 && (uint)symbol < 256 && (uint)count <= 16);
         Debug.Assert(count == 32 || (suffix >> count) == 0);
         int context = (component << 1) | (isAc ? 1 : 0);
-        Add(PackHuffman(context, symbol, suffix, count));
+        this.Add(PackHuffman(context, symbol, suffix, count));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -60,10 +65,10 @@ internal sealed class EntropyTokens : IDisposable
     // ordinary Add handles allocation, segment boundaries and small budgets.
     internal bool TryReserveBlock(out Span<uint> destination)
     {
-        uint[]? segment = current;
-        if (IsComplete && segment is not null && segment.Length - currentCount >= 64)
+        uint[]? segment = this.current;
+        if (this.IsComplete && segment is not null && segment.Length - this.currentCount >= 64)
         {
-            destination = segment.AsSpan(currentCount, 64);
+            destination = segment.AsSpan(this.currentCount, 64);
             return true;
         }
         destination = default;
@@ -72,8 +77,8 @@ internal sealed class EntropyTokens : IDisposable
 
     internal void CommitBlock(int count)
     {
-        Debug.Assert(IsComplete && current is not null && (uint)count <= 64 && currentCount + count <= current.Length);
-        currentCount += count;
+        Debug.Assert(this.IsComplete && this.current is not null && (uint)count <= 64 && this.currentCount + count <= this.current.Length);
+        this.currentCount += count;
     }
 
     internal void AddBits(uint bits, int count)
@@ -84,96 +89,116 @@ internal sealed class EntropyTokens : IDisposable
             // Raw payloads have 24 available bits. Keep stream order, including
             // when these two records cross a segment or abandon the budget.
             int remaining = count - 24;
-            Add(RawBitsContext | (24U << CountShift) | (bits >> remaining));
-            Add(RawBitsContext | ((uint)remaining << CountShift) | (bits & ((1U << remaining) - 1)));
+            this.Add(RawBitsContext | (24U << CountShift) | (bits >> remaining));
+            this.Add(RawBitsContext | ((uint)remaining << CountShift) | (bits & ((1U << remaining) - 1)));
         }
         else
-            Add(RawBitsContext | bits | ((uint)count << CountShift));
+        {
+            this.Add(RawBitsContext | bits | ((uint)count << CountShift));
+        }
     }
 
     internal void AddRestart(int index)
     {
         Debug.Assert((uint)index < 8);
-        Add(RestartContext | (uint)index);
+        this.Add(RestartContext | (uint)index);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void Add(uint token)
     {
-        if (!IsComplete)
+        if (!this.IsComplete)
+        {
             return;
-        uint[]? segment = current;
-        int index = currentCount;
+        }
+
+        uint[]? segment = this.current;
+        int index = this.currentCount;
         if (segment is not null && (uint)index < (uint)segment.Length)
         {
             segment[index] = token;
-            currentCount = index + 1;
+            this.currentCount = index + 1;
             return;
         }
-        AddSegment(token);
+        this.AddSegment(token);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void AddSegment(uint token)
     {
-        uint available = (uint)Math.Min(MaximumSegmentLength, (maximumBytes - rentedBytes) / sizeof(uint));
-        if (nextSegmentLength == 0 || available < 16)
+        uint available = (uint)Math.Min(MaximumSegmentLength, (this.maximumBytes - this.rentedBytes) / sizeof(uint));
+        if (this.nextSegmentLength == 0 || available < 16)
         {
-            Dispose();
+            this.Dispose();
             return;
         }
         // A small first segment retains the existing tiny-image behavior.
         // Growing segments use fewer rentals for larger scans, while the final
         // power-of-two request still fits the remaining actual-storage budget.
-        int segmentLength = Math.Min(nextSegmentLength, 1 << BitOperations.Log2(available));
+        int segmentLength = Math.Min(this.nextSegmentLength, 1 << BitOperations.Log2(available));
         uint[] next = ArrayPool<uint>.Shared.Rent(segmentLength);
-        if (rentedBytes + (long)next.Length * sizeof(uint) > maximumBytes)
+        if (this.rentedBytes + ((long)next.Length * sizeof(uint)) > this.maximumBytes)
         {
             ArrayPool<uint>.Shared.Return(next);
-            Dispose();
+            this.Dispose();
             return;
         }
-        segments.Add(next);
-        rentedBytes += (long)next.Length * sizeof(uint);
-        nextSegmentLength = Math.Min(MaximumSegmentLength, next.Length * 2);
-        current = next;
+        this.segments.Add(next);
+        this.rentedBytes += (long)next.Length * sizeof(uint);
+        this.nextSegmentLength = Math.Min(MaximumSegmentLength, next.Length * 2);
+        this.current = next;
         next[0] = token;
-        currentCount = 1;
+        this.currentCount = 1;
     }
 
     internal void Replay(BitWriter writer, HuffmanCodingPlan.ScanCoding coding, CancellationToken cancellationToken)
     {
         Guard.ThrowIfNull(writer);
         Guard.ThrowIfNull(coding);
-        if (!IsComplete)
+        if (!this.IsComplete)
+        {
             throw new InvalidOperationException("An abandoned entropy token sequence cannot be replayed.");
+        }
+
         cancellationToken.ThrowIfCancellationRequested();
-        if (segments.Count == 0)
+        if (this.segments.Count == 0)
+        {
             return;
+        }
         // Tiny scans do not amortize preparing and copying 256 lookup entries
         // per Huffman context. Their complete bounded stream can use the strict
         // symbol writer directly, including noncanonical suffix widths.
-        if (segments.Count == 1 && currentCount <= 32)
+        if (this.segments.Count == 1 && this.currentCount <= 32)
         {
-            ReplaySmall(writer, coding, cancellationToken);
+            this.ReplaySmall(writer, coding, cancellationToken);
             return;
         }
         // Progressive scans usually emit one Huffman context. Prepare only
         // their selected tables, without copying unused component/DC contexts
         // for every scan. Raw-only scans need no Huffman lookup storage.
-        int contextCount = huffmanContextMask == 0 ? 0 : BitOperations.Log2((uint)huffmanContextMask) + 1;
+        int contextCount = this.huffmanContextMask == 0 ? 0 : BitOperations.Log2((uint)this.huffmanContextMask) + 1;
         Span<ulong> lookups = stackalloc ulong[contextCount * 256];
         lookups.Clear();
         for (int component = 0; component < coding.DcTables.Length; component++)
-            if ((huffmanContextMask & (1 << (component * 2))) != 0)
-                coding.DcTables[component].GetPrebiasedCodes().CopyTo(lookups.Slice(component * 512, 256));
-        for (int component = 0; component < coding.AcTables.Length; component++)
-            if ((huffmanContextMask & (2 << (component * 2))) != 0)
-                coding.AcTables[component].GetPrebiasedCodes().CopyTo(lookups.Slice(component * 512 + 256, 256));
-        for (int segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
         {
-            uint[] segment = segments[segmentIndex];
-            int length = segmentIndex == segments.Count - 1 ? currentCount : segment.Length;
+            if ((this.huffmanContextMask & (1 << (component * 2))) != 0)
+            {
+                coding.DcTables[component].GetPrebiasedCodes().CopyTo(lookups.Slice(component * 512, 256));
+            }
+        }
+
+        for (int component = 0; component < coding.AcTables.Length; component++)
+        {
+            if ((this.huffmanContextMask & (2 << (component * 2))) != 0)
+            {
+                coding.AcTables[component].GetPrebiasedCodes().CopyTo(lookups.Slice((component * 512) + 256, 256));
+            }
+        }
+
+        for (int segmentIndex = 0; segmentIndex < this.segments.Count; segmentIndex++)
+        {
+            uint[] segment = this.segments[segmentIndex];
+            int length = segmentIndex == this.segments.Count - 1 ? this.currentCount : segment.Length;
             for (int chunk = 0; chunk < length; chunk += 256)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -183,7 +208,10 @@ internal sealed class EntropyTokens : IDisposable
                 {
                     index += writer.WriteEntropyTokens(segment.AsSpan(index, end - index), lookups);
                     if (index == end)
+                    {
                         break;
+                    }
+
                     uint token = segment[index++];
                     int context = (int)(token >> ContextShift) & 7;
                     int count = (int)(token >> CountShift);
@@ -194,7 +222,9 @@ internal sealed class EntropyTokens : IDisposable
                         int lookupIndex = (int)(token >> SymbolShift) & 2047;
                         ulong prepared = lookupIndex < lookups.Length ? lookups[lookupIndex] : 0;
                         if ((int)(prepared >> 38) == count + 1)
+                        {
                             writer.WriteBitsPrevalidated((uint)prepared | (token & 0xffffU), (int)(prepared >> 32) & 63);
+                        }
                         else
                         {
                             HuffmanTable table = (context & 1) == 0 ? coding.DcTables[context >> 1] : coding.AcTables[context >> 1];
@@ -202,9 +232,13 @@ internal sealed class EntropyTokens : IDisposable
                         }
                     }
                     else if (context == 6)
+                    {
                         writer.WriteBitsPrevalidated(token & 0xffffffU, count);
+                    }
                     else
+                    {
                         writer.WriteRestartMarker((int)token & 7);
+                    }
                 }
             }
         }
@@ -215,8 +249,8 @@ internal sealed class EntropyTokens : IDisposable
     private void ReplaySmall(BitWriter writer, HuffmanCodingPlan.ScanCoding coding, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        uint[] segment = segments[0];
-        int length = currentCount;
+        uint[] segment = this.segments[0];
+        int length = this.currentCount;
         for (int index = 0; index < length; index++)
         {
             uint token = segment[index];
@@ -228,21 +262,28 @@ internal sealed class EntropyTokens : IDisposable
                 table.WriteSymbolWithBits(writer, (int)(token >> SymbolShift) & 255, token & 0xffffU, count);
             }
             else if (context == 6)
+            {
                 writer.WriteBitsPrevalidated(token & 0xffffffU, count);
+            }
             else
+            {
                 writer.WriteRestartMarker((int)token & 7);
+            }
         }
         cancellationToken.ThrowIfCancellationRequested();
     }
 
     public void Dispose()
     {
-        IsComplete = false;
-        current = null;
-        currentCount = 0;
-        rentedBytes = 0;
-        foreach (uint[] segment in segments)
+        this.IsComplete = false;
+        this.current = null;
+        this.currentCount = 0;
+        this.rentedBytes = 0;
+        foreach (uint[] segment in this.segments)
+        {
             ArrayPool<uint>.Shared.Return(segment);
-        segments.Clear();
+        }
+
+        this.segments.Clear();
     }
 }

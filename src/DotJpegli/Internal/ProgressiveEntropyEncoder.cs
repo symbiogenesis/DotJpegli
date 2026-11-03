@@ -2,14 +2,16 @@
 // Use of this source code is governed by the BSD-3-Clause license in
 // THIRD-PARTY-NOTICES.md.
 
+namespace DotJpegli.Internal;
+
 using System.Buffers.Binary;
+#if !NETSTANDARD2_1
 using System.Numerics;
+#endif
 using System.Runtime.CompilerServices;
 #if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
 #endif
-
-namespace DotJpegli.Internal;
 
 // Progressive scans use the difference, run/category and refinement tokens from
 // TokenizeProgressiveDC, TokenizeACProgressiveScan and TokenizeACRefinementScan
@@ -54,7 +56,8 @@ internal static class ProgressiveEntropyEncoder
         int currentDc = naturalCoefficients[0] >> successiveLow;
         int difference = currentDc - previousDc;
         int category = Category(difference);
-        checked { dc[category]++; }
+        checked
+        { dc[category]++; }
         tokens?.AddHuffman(component, false, category, AdditionalBits(difference, category), category);
         previousDc = currentDc;
     }
@@ -195,7 +198,10 @@ internal static class ProgressiveEntropyEncoder
             {
                 pendingEobRun++;
                 if (pendingEobRun == MaximumEobRun)
+                {
                     FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
+                }
+
                 return;
             }
             if (tokens is not null && tokens.TryReserveBlock(out Span<uint> destination))
@@ -224,14 +230,16 @@ internal static class ProgressiveEntropyEncoder
 
             while (run >= 16)
             {
-                checked { ac[0xf0]++; }
+                checked
+                { ac[0xf0]++; }
                 tokens?.AddHuffman(component, true, 0xf0, 0, 0);
                 run -= 16;
             }
 
             int category = Category(value);
             int symbol = (run << 4) | category;
-            checked { ac[symbol]++; }
+            checked
+            { ac[symbol]++; }
             tokens?.AddHuffman(component, true, symbol, AdditionalBits(value, category), category);
             run = 0;
         }
@@ -253,7 +261,9 @@ internal static class ProgressiveEntropyEncoder
         int count = 0;
         int context = (component << 1) | 1;
         if (nonzero != 0 && pendingEobRun != 0)
+        {
             FlushReservedAcFrequencies(frequencies, ref pendingEobRun, tokens, context, destination, ref count);
+        }
 
         int previousPosition = spectralStart - 1;
         while (nonzero != 0)
@@ -278,7 +288,9 @@ internal static class ProgressiveEntropyEncoder
         {
             pendingEobRun++;
             if (pendingEobRun == MaximumEobRun)
+            {
                 FlushReservedAcFrequencies(frequencies, ref pendingEobRun, tokens, context, destination, ref count);
+            }
         }
         tokens.CommitBlock(count);
     }
@@ -315,9 +327,16 @@ internal static class ProgressiveEntropyEncoder
         }
         else
 #endif
+        {
             for (int position = spectralStart; position <= spectralEnd; position++)
+            {
                 if ((Math.Abs((int)coefficients[position]) >> successiveLow) != 0)
+                {
                     mask |= 1UL << position;
+                }
+            }
+        }
+
         return mask & (ulong.MaxValue << spectralStart) & (ulong.MaxValue >> (63 - spectralEnd));
     }
 
@@ -484,7 +503,10 @@ internal static class ProgressiveEntropyEncoder
                 {
                     WriteRefinementSymbol(0xf0, writer, ac, frequencies, tokens: tokens, component: component);
                     if (correctionCount != 0)
+                    {
                         WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
+                    }
+
                     correctionCount = 0;
                     run = 0;
                 }
@@ -499,7 +521,10 @@ internal static class ProgressiveEntropyEncoder
                 WriteRefinementSymbol((run << 4) | 1, writer, ac, frequencies, value > 0 ? 1U : 0U, 1,
                     tokens, component);
                 if (correctionCount != 0)
+                {
                     WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
+                }
+
                 correctionCount = 0;
                 run = 0;
             }
@@ -528,7 +553,10 @@ internal static class ProgressiveEntropyEncoder
         int lastNew = newlySignificant == 0 ? spectralStart - 1 : BitOperations.Log2(newlySignificant);
         int oldCount = BitOperations.PopCount(previouslySignificant);
         if (lastNew >= spectralStart || state.CorrectionBitCount + oldCount > ProgressiveAcRefinementState.MaximumCorrectionBits)
+        {
             FlushAcRefinementCore(state, writer, ac, frequencies, tokens, component);
+        }
+
         if (newlySignificant != 0 && writer is null && frequencies is not null && tokens is not null
             && tokens.TryReserveBlock(out Span<uint> destination))
         {
@@ -554,19 +582,27 @@ internal static class ProgressiveEntropyEncoder
             {
                 WriteRefinementSymbol(0xf0, writer, ac, frequencies, tokens: tokens, component: component);
                 if (correctionCount != 0)
+                {
                     WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
+                }
+
                 correctionCount = 0;
                 run -= 16;
             }
             int value = coefficients[position];
             if ((previouslySignificant & (1UL << position)) != 0)
+            {
                 corrections[correctionCount++] = (byte)((Math.Abs(value) >> successiveLow) & 1);
+            }
             else
             {
                 WriteRefinementSymbol((run << 4) | 1, writer, ac, frequencies, value > 0 ? 1U : 0U, 1,
                     tokens, component);
                 if (correctionCount != 0)
+                {
                     WriteCorrectionBits(writer, corrections[..correctionCount], tokens);
+                }
+
                 correctionCount = 0;
                 run = 0;
             }
@@ -576,7 +612,9 @@ internal static class ProgressiveEntropyEncoder
         {
             state.AppendBlock(corrections[..correctionCount]);
             if (state.PendingEobRun == MaximumEobRun)
+            {
                 FlushAcRefinementCore(state, writer, ac, frequencies, tokens, component);
+            }
         }
     }
 
@@ -606,27 +644,38 @@ internal static class ProgressiveEntropyEncoder
                 IncrementReservedFrequency(frequencies, 0xf0, tokens, count);
                 destination[count++] = EntropyTokens.PackHuffman(context, 0xf0, 0, 0);
                 if (correctionCount != 0)
+                {
                     WriteReservedCorrectionBits(corrections[..correctionCount], destination, ref count);
+                }
+
                 correctionCount = 0;
                 run -= 16;
             }
             int value = coefficients[position];
             if ((previouslySignificant & (1UL << position)) != 0)
+            {
                 corrections[correctionCount++] = (byte)((Math.Abs(value) >> successiveLow) & 1);
+            }
             else
             {
                 int symbol = (run << 4) | 1;
                 IncrementReservedFrequency(frequencies, symbol, tokens, count);
                 destination[count++] = EntropyTokens.PackHuffman(context, symbol, value > 0 ? 1U : 0U, 1);
                 if (correctionCount != 0)
+                {
                     WriteReservedCorrectionBits(corrections[..correctionCount], destination, ref count);
+                }
+
                 correctionCount = 0;
                 run = 0;
             }
             previousPosition = position;
         }
         if (lastNew < spectralEnd)
+        {
             state.AppendBlock(corrections[..correctionCount]);
+        }
+
         tokens.CommitBlock(count);
     }
 
@@ -635,9 +684,9 @@ internal static class ProgressiveEntropyEncoder
         const uint rawContext = 6U << 24;
         while (corrections.Length >= 32)
         {
-            uint packed = PackCorrectionByte(corrections) << 24
-                | PackCorrectionByte(corrections[8..]) << 16
-                | PackCorrectionByte(corrections[16..]) << 8
+            uint packed = (PackCorrectionByte(corrections) << 24)
+                | (PackCorrectionByte(corrections[8..]) << 16)
+                | (PackCorrectionByte(corrections[16..]) << 8)
                 | PackCorrectionByte(corrections[24..]);
             // AddBits stores a 32-bit correction group as these same two
             // records. Retain its exact prefix and pooled-budget behavior.
@@ -651,10 +700,16 @@ internal static class ProgressiveEntropyEncoder
             corrections = corrections[8..];
         }
         if (corrections.IsEmpty)
+        {
             return;
+        }
+
         uint remainder = 0;
         foreach (byte correction in corrections)
+        {
             remainder = (remainder << 1) | correction;
+        }
+
         destination[count++] = rawContext | ((uint)corrections.Length << 27) | remainder;
     }
 
@@ -702,9 +757,13 @@ internal static class ProgressiveEntropyEncoder
             {
                 int magnitude = Math.Abs((int)coefficients[position]) >> successiveLow;
                 if (magnitude == 1)
+                {
                     newlySignificant |= 1UL << position;
+                }
                 else if (magnitude > 1)
+                {
                     previouslySignificant |= 1UL << position;
+                }
             }
         }
     }
@@ -750,7 +809,8 @@ internal static class ProgressiveEntropyEncoder
     {
         if (frequencies is not null)
         {
-            checked { frequencies[symbol]++; }
+            checked
+            { frequencies[symbol]++; }
             tokens?.AddHuffman(component, true, symbol, additionalBits, bitCount);
         }
         else
@@ -762,15 +822,17 @@ internal static class ProgressiveEntropyEncoder
     private static void WriteCorrectionBits(BitWriter? writer, ReadOnlySpan<byte> corrections, EntropyTokens? tokens = null)
     {
         if (writer is null && tokens?.IsComplete != true)
+        {
             return;
+        }
         // Eight bytes containing one bit each can be gathered with a multiply.
         // Big-endian loading places the first correction in the highest bit;
         // four such groups supply one complete 32-bit write.
         while (corrections.Length >= 32)
         {
-            uint packed = PackCorrectionByte(corrections) << 24
-                | PackCorrectionByte(corrections[8..]) << 16
-                | PackCorrectionByte(corrections[16..]) << 8
+            uint packed = (PackCorrectionByte(corrections) << 24)
+                | (PackCorrectionByte(corrections[8..]) << 16)
+                | (PackCorrectionByte(corrections[16..]) << 8)
                 | PackCorrectionByte(corrections[24..]);
             WriteRawBits(writer, tokens, packed, 32);
             corrections = corrections[32..];
@@ -781,7 +843,10 @@ internal static class ProgressiveEntropyEncoder
             corrections = corrections[8..];
         }
         if (corrections.IsEmpty)
+        {
             return;
+        }
+
         uint remainder = 0;
         foreach (byte correction in corrections)
         {
@@ -793,9 +858,13 @@ internal static class ProgressiveEntropyEncoder
     private static void WriteRawBits(BitWriter? writer, EntropyTokens? tokens, uint bits, int count)
     {
         if (writer is not null)
+        {
             writer.WriteBits(bits, count);
+        }
         else
+        {
             tokens!.AddBits(bits, count);
+        }
     }
 
     private static uint PackCorrectionByte(ReadOnlySpan<byte> corrections)
@@ -829,7 +898,8 @@ internal static class ProgressiveEntropyEncoder
         }
 
         int bits = BitOperations.Log2((uint)pendingEobRun);
-        checked { ac[bits << 4]++; }
+        checked
+        { ac[bits << 4]++; }
         tokens?.AddHuffman(component, true, bits << 4, (uint)(pendingEobRun - (1 << bits)), bits);
         pendingEobRun = 0;
     }
@@ -884,9 +954,14 @@ internal static class ProgressiveEntropyEncoder
     private static void ValidateSpectralRange(int spectralStart, int spectralEnd)
     {
         if (spectralStart is < 1 or > 63)
+        {
             throw new ArgumentOutOfRangeException(nameof(spectralStart), "An AC scan must start at a zigzag position from 1 to 63.");
+        }
+
         if (spectralEnd < spectralStart || spectralEnd > 63)
+        {
             throw new ArgumentOutOfRangeException(nameof(spectralEnd), "An AC scan must end at or after its start, at most at position 63.");
+        }
     }
 
     private static void ValidateLength(ReadOnlySpan<short> coefficients)
@@ -911,6 +986,8 @@ internal static class ProgressiveEntropyEncoder
     {
         ValidateLength(coefficients);
         if (!coefficientsValidated && !EntropyEncoder.AcCoefficientsInRange(coefficients))
+        {
             throw new ArgumentOutOfRangeException(nameof(coefficients), "An AC coefficient exceeds eight-bit JPEG's 10-bit category.");
+        }
     }
 }

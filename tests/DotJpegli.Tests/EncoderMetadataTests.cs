@@ -1,9 +1,9 @@
+namespace DotJpegli.Tests;
+
 using System.Security.Cryptography;
 using System.Text;
 using StbImageSharp;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderMetadataTests
 {
@@ -20,7 +20,7 @@ public sealed class EncoderMetadataTests
         // Metadata-free fixture recaptured after Huffman clustering at 28184c1.
         Assert.Equal("42F2E14F627342F0603E9BA08653777959192031987F82F32BFB9664F0EC7DD6",
             Convert.ToHexString(SHA256.HashData(jpeg)));
-        Assert.Equal(jpeg, JpegliEncoder.Encode(new byte[] { 255, 0, 0 }, 1, 1,
+        Assert.Equal(jpeg, JpegliEncoder.Encode([255, 0, 0], 1, 1,
             cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(jpeg, Encode(new() { IccProfile = ReadOnlyMemory<byte>.Empty, Comment = "" }));
 
@@ -36,7 +36,7 @@ public sealed class EncoderMetadataTests
     [InlineData(IccChunkBytes)]
     [InlineData(IccChunkBytes + 1)]
     [InlineData(2 * IccChunkBytes)]
-    [InlineData(2 * IccChunkBytes + 1)]
+    [InlineData((2 * IccChunkBytes) + 1)]
     [InlineData(MaximumIccBytes)]
     public void IccChunksHaveExactLengthsSequenceNumbersAndUnmodifiedPayload(int length)
     {
@@ -69,11 +69,8 @@ public sealed class EncoderMetadataTests
     }
 
     [Fact]
-    public void OversizedIccProfileIsRejectedBeforeAnyOutput()
-    {
-        AssertRejected(new() { IccProfile = new byte[MaximumIccBytes + 1] },
+    public void OversizedIccProfileIsRejectedBeforeAnyOutput() => AssertRejected(new() { IccProfile = new byte[MaximumIccBytes + 1] },
             nameof(JpegliEncoderOptions.IccProfile));
-    }
 
     [Theory]
     [InlineData("mixed")]
@@ -93,7 +90,9 @@ public sealed class EncoderMetadataTests
         Assert.Equal(expected.Length + 2, segment.Length);
         Assert.Equal(expected, segment.Payload.ToArray());
         if (kind != "mixed")
+        {
             Assert.Equal(MaximumCommentBytes, expected.Length);
+        }
     }
 
     [Theory]
@@ -162,18 +161,23 @@ public sealed class EncoderMetadataTests
     {
         const int width = 33, height = 19;
         byte[] pixels = layout == PixelLayout.Gray8
-            ? Enumerable.Range(0, width * height).Select(index => (byte)(index * 73 + index / width * 19)).ToArray()
+            ? Enumerable.Range(0, width * height).Select(index => (byte)((index * 73) + (index / width * 19))).ToArray()
             : TestImages.Gradient(width, height);
         var options = new JpegliEncoderOptions
         {
-            Progressive = progressive, ProgressiveRefinementBits = refinementBits, RestartInterval = 2
+            Progressive = progressive,
+            ProgressiveRefinementBits = refinementBits,
+            RestartInterval = 2
         };
         byte[] reference = JpegliEncoder.Encode(pixels, width, height, layout, options,
             cancellationToken: TestContext.Current.CancellationToken);
         byte[] jpeg = JpegliEncoder.Encode(pixels, width, height, layout, options with
         {
-            IccProfile = Profile(IccChunkBytes + 5), Comment = "JPEG\0metadata — 😀",
-            DensityUnit = JpegDensityUnit.DotsPerInch, HorizontalDensity = 300, VerticalDensity = 150
+            IccProfile = Profile(IccChunkBytes + 5),
+            Comment = "JPEG\0metadata — 😀",
+            DensityUnit = JpegDensityUnit.DotsPerInch,
+            HorizontalDensity = 300,
+            VerticalDensity = 150
         }, cancellationToken: TestContext.Current.CancellationToken);
         // Comparing from DQT through EOI also covers every progressive/refinement
         // scan, including entropy bytes, stuffing and restart markers.
@@ -181,8 +185,8 @@ public sealed class EncoderMetadataTests
         int actualStart = ReadHeaders(jpeg).Single(segment => segment.Code == 0xdb).Start;
         Assert.True(reference.AsSpan(referenceStart).SequenceEqual(jpeg.AsSpan(actualStart)));
         ColorComponents channels = layout == PixelLayout.Gray8 ? ColorComponents.Grey : ColorComponents.RedGreenBlue;
-        ImageResult expected = ImageResult.FromMemory(reference, channels);
-        ImageResult decoded = ImageResult.FromMemory(jpeg, channels);
+        var expected = ImageResult.FromMemory(reference, channels);
+        var decoded = ImageResult.FromMemory(jpeg, channels);
         Assert.Equal(width, decoded.Width);
         Assert.Equal(height, decoded.Height);
         Assert.Equal(expected.Data, decoded.Data);
@@ -193,13 +197,17 @@ public sealed class EncoderMetadataTests
     {
         var options = new JpegliEncoderOptions
         {
-            IccProfile = Profile(IccChunkBytes + 1), Comment = "stream 😀", Progressive = true,
-            DensityUnit = JpegDensityUnit.DotsPerCentimeter, HorizontalDensity = 118, VerticalDensity = 118
+            IccProfile = Profile(IccChunkBytes + 1),
+            Comment = "stream 😀",
+            Progressive = true,
+            DensityUnit = JpegDensityUnit.DotsPerCentimeter,
+            HorizontalDensity = 118,
+            VerticalDensity = 118
         };
         byte[] expected = Encode(options);
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
-        JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1, options: options,
+        JpegliEncoder.Encode(output, [255, 0, 0], 1, 1, options: options,
             cancellationToken: TestContext.Current.CancellationToken);
         Assert.False(output.Closed);
         Assert.Equal(expected, destination.ToArray());
@@ -210,8 +218,8 @@ public sealed class EncoderMetadataTests
     {
         using var destination = new MemoryStream();
         using var output = new WriteOnlyStream(destination);
-        Assert.Throws<OperationCanceledException>(() =>
-            JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1,
+        _ = Assert.Throws<OperationCanceledException>(() =>
+            JpegliEncoder.Encode(output, [255, 0, 0], 1, 1,
                 options: new() { IccProfile = Profile(IccChunkBytes + 1), Comment = "cancel" },
                 cancellationToken: new CancellationToken(true)));
         Assert.Equal(0, destination.Length);
@@ -233,10 +241,12 @@ public sealed class EncoderMetadataTests
         using var output = new WriteOnlyStream(destination, afterWrite: () =>
         {
             if (destination.Length >= boundary)
+            {
                 cancellation.Cancel();
+            }
         });
-        var error = Assert.Throws<OperationCanceledException>(() =>
-            JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1, options: options,
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() =>
+            JpegliEncoder.Encode(output, [255, 0, 0], 1, 1, options: options,
                 cancellationToken: cancellation.Token));
         Assert.Equal(cancellation.Token, error.CancellationToken);
         Assert.Equal(complete[..boundary], destination.ToArray());
@@ -256,10 +266,12 @@ public sealed class EncoderMetadataTests
         using var output = new WriteOnlyStream(destination, afterWrite: () =>
         {
             if (destination.Length >= boundary)
+            {
                 throw expectedError;
+            }
         });
         IOException actualError = Assert.Throws<IOException>(() =>
-            JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1, options: options,
+            JpegliEncoder.Encode(output, [255, 0, 0], 1, 1, options: options,
                 cancellationToken: TestContext.Current.CancellationToken));
         Assert.Same(expectedError, actualError);
         Assert.Equal(complete[..boundary], destination.ToArray());
@@ -267,14 +279,17 @@ public sealed class EncoderMetadataTests
     }
 
     private static byte[] Encode(JpegliEncoderOptions options) =>
-        JpegliEncoder.Encode(new byte[] { 255, 0, 0 }, 1, 1, options: options,
+        JpegliEncoder.Encode([255, 0, 0], 1, 1, options: options,
             cancellationToken: TestContext.Current.CancellationToken);
 
     private static byte[] Profile(int length)
     {
         byte[] bytes = new byte[length];
         for (int i = 0; i < bytes.Length; i++)
-            bytes[i] = (byte)(i * 73 + 19);
+        {
+            bytes[i] = (byte)((i * 73) + 19);
+        }
+
         return bytes;
     }
 
@@ -289,8 +304,8 @@ public sealed class EncoderMetadataTests
     private static void AssertRejected(JpegliEncoderOptions options, string property)
     {
         using var output = new MemoryStream();
-        var error = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            JpegliEncoder.Encode(output, new byte[] { 255, 0, 0 }, 1, 1, options: options,
+        ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            JpegliEncoder.Encode(output, [255, 0, 0], 1, 1, options: options,
                 cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(property, error.ParamName);
         Assert.Equal(0, output.Length);
@@ -298,7 +313,7 @@ public sealed class EncoderMetadataTests
 
     private sealed record Segment(int Code, int Start, int Length, ReadOnlyMemory<byte> Payload)
     {
-        public int End => Start + Length + 2;
+        public int End => this.Start + this.Length + 2;
     }
 
     // Independent length-based reader. Marker-looking bytes within APP2 and COM
@@ -314,12 +329,14 @@ public sealed class EncoderMetadataTests
             int start = position;
             Assert.Equal(0xff, jpeg[position++]);
             int code = jpeg[position++];
-            int length = jpeg[position] * 256 + jpeg[position + 1];
+            int length = (jpeg[position] * 256) + jpeg[position + 1];
             Assert.InRange(length, 2, jpeg.Length - position);
             segments.Add(new(code, start, length, jpeg.AsMemory(position + 2, length - 2)));
             position += length;
             if (code == 0xda)
+            {
                 return segments;
+            }
         }
     }
 
@@ -328,7 +345,7 @@ public sealed class EncoderMetadataTests
         public bool Closed { get; private set; }
         public override bool CanRead => false;
         public override bool CanSeek => false;
-        public override bool CanWrite => !Closed;
+        public override bool CanWrite => !this.Closed;
         public override long Length => throw new NotSupportedException();
         public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
         public override void Flush() => inner.Flush();
@@ -352,7 +369,7 @@ public sealed class EncoderMetadataTests
         }
         protected override void Dispose(bool disposing)
         {
-            Closed = true;
+            this.Closed = true;
             base.Dispose(disposing);
         }
     }

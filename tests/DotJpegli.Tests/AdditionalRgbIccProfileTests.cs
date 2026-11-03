@@ -1,11 +1,11 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
 using DotJpegli.Internal;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class AdditionalRgbIccProfileTests
 {
@@ -60,18 +60,18 @@ public sealed class AdditionalRgbIccProfileTests
         Assert.Equal("mntr", Signature(profile, 12));
         Assert.Equal("RGB ", Signature(profile, 16));
         Assert.Equal("XYZ ", Signature(profile, 20));
-        Assert.Equal(new[] { 2019, 12, 1, 0, 0, 0 },
-            Enumerable.Range(0, 6).Select(index => UInt16(profile, 24 + index * 2)));
+        Assert.Equal([2019, 12, 1, 0, 0, 0],
+            Enumerable.Range(0, 6).Select(index => UInt16(profile, 24 + (index * 2))));
         Assert.Equal("acsp", Signature(profile, 36));
         Assert.Equal("APPL", Signature(profile, 40));
         Assert.All(profile[44..68], value => Assert.Equal(0, value));
-        Assert.Equal(new[] { 0x0000f6d6, 0x00010000, 0x0000d32d },
-            Enumerable.Range(0, 3).Select(index => Int32(profile, 68 + index * 4)));
+        Assert.Equal([0x0000f6d6, 0x00010000, 0x0000d32d],
+            Enumerable.Range(0, 3).Select(index => Int32(profile, 68 + (index * 4))));
         Assert.Equal("jxl ", Signature(profile, 80));
         Assert.All(profile[100..128], value => Assert.Equal(0, value));
 
         Dictionary<string, Tag> tags = Tags(profile);
-        Assert.Equal(new[] { "desc", "cprt", "wtpt", "chad", "cicp", "rXYZ", "gXYZ", "bXYZ", "rTRC", "gTRC", "bTRC" },
+        Assert.Equal(["desc", "cprt", "wtpt", "chad", "cicp", "rXYZ", "gXYZ", "bXYZ", "rTRC", "gTRC", "bTRC"],
             tags.Keys);
         Assert.Equal(68, tags["desc"].Length);
         Assert.Equal(description, Text(profile, tags["desc"]));
@@ -81,8 +81,11 @@ public sealed class AdditionalRgbIccProfileTests
         Assert.Equal(20, white.Length);
         double[] expectedWhite = [0.964203, 1, 0.824905];
         for (int channel = 0; channel < 3; channel++)
-            AssertClose(expectedWhite[channel], Fixed(profile, white.Offset + 8 + channel * 4),
+        {
+            AssertClose(expectedWhite[channel], Fixed(profile, white.Offset + 8 + (channel * 4)),
                 0.5 / 65536, $"media white channel {channel}");
+        }
+
         Assert.Equal("sf32", Signature(profile, tags["chad"].Offset));
         Assert.Equal(44, tags["chad"].Length);
         Tag cicp = tags["cicp"];
@@ -101,8 +104,11 @@ public sealed class AdditionalRgbIccProfileTests
             ? [2.4, 1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045]
             : [1 / 0.45, 1 / 1.099, 0.099 / 1.099, 1 / 4.5, 0.081];
         for (int index = 0; index < parameters.Length; index++)
-            AssertClose(parameters[index], Fixed(profile, curve.Offset + 12 + index * 4),
+        {
+            AssertClose(parameters[index], Fixed(profile, curve.Offset + 12 + (index * 4)),
                 0.5 / 65536, $"curve parameter {index}");
+        }
+
         foreach (string color in new[] { "r", "g", "b" })
         {
             Assert.Equal(curve, tags[color + "TRC"]);
@@ -157,9 +163,16 @@ public sealed class AdditionalRgbIccProfileTests
         double threshold = Fixed(profile, tags["rTRC"].Offset + 28);
         double[] values = [-0.125, 0, 0.001, 0.081, 0.25, 0.5, 1];
         foreach (double r in values)
+        {
             foreach (double g in values)
+            {
                 foreach (double b in values)
+                {
                     CheckColor(r, g, b);
+                }
+            }
+        }
+
         foreach (double value in new[] { threshold - 1e-8, threshold, threshold + 1e-8,
             0.04044999, 0.04045001, 0.08099999, 0.08100001 })
         {
@@ -171,16 +184,21 @@ public sealed class AdditionalRgbIccProfileTests
         Tag chad = tags["chad"];
         double[,] actualAdaptation = new double[3, 3];
         for (int row = 0; row < 3; row++)
+        {
             for (int column = 0; column < 3; column++)
             {
-                actualAdaptation[row, column] = Fixed(profile, chad.Offset + 8 + (row * 3 + column) * 4);
+                actualAdaptation[row, column] = Fixed(profile, chad.Offset + 8 + (((row * 3) + column) * 4));
                 AssertClose(adaptation[row, column], actualAdaptation[row, column], 0.5 / 65536,
                     $"Bradford adaptation entry ({row}, {column})");
             }
+        }
+
         double[] adaptedWhite = Multiply(actualAdaptation, D65White());
         for (int channel = 0; channel < 3; channel++)
+        {
             AssertClose(new[] { 0.96422, 1, 0.82521 }[channel], adaptedWhite[channel],
                 0.00003, $"adapted D65 white channel {channel}");
+        }
 
         void CheckColor(double r, double g, double b)
         {
@@ -193,7 +211,7 @@ public sealed class AdditionalRgbIccProfileTests
                 for (int channel = 0; channel < 3; channel++)
                 {
                     string color = new[] { "r", "g", "b" }[channel];
-                    actual += Fixed(profile, tags[color + "XYZ"].Offset + 8 + row * 4)
+                    actual += Fixed(profile, tags[color + "XYZ"].Offset + 8 + (row * 4))
                         * EvaluateCurve(profile, tags[color + "TRC"], input[channel]);
                 }
                 AssertClose(expected[row], actual, 0.0001,
@@ -212,19 +230,23 @@ public sealed class AdditionalRgbIccProfileTests
     public void ExplicitEmbeddingPreservesCodingAndPaddedSamplesAcrossPrecisionsAndScans(
         bool rec2020, int kind, JpegColorSpace colorSpace, bool progressive)
     {
-        const int width = 19, height = 17, stride = width * 4 + 5;
+        const int width = 19, height = 17, stride = (width * 4) + 5;
         int refinement = progressive ? 2 : 0;
         Array pixels = Source(kind, width, height, stride);
-        Array originalPixels = (Array)pixels.Clone();
+        var originalPixels = (Array)pixels.Clone();
         byte[] profile = Create(rec2020);
         byte[] backing = Enumerable.Repeat((byte)0x5b, profile.Length + 11).ToArray();
         profile.CopyTo(backing, 3);
         byte[] originalBacking = backing.ToArray();
         var options = new JpegliEncoderOptions
         {
-            ColorSpace = colorSpace, IccProfile = backing.AsMemory(3, profile.Length),
-            Distance = 1.375f, SmoothingFactor = 37, Progressive = progressive,
-            ProgressiveRefinementBits = refinement, RestartInterval = 2,
+            ColorSpace = colorSpace,
+            IccProfile = backing.AsMemory(3, profile.Length),
+            Distance = 1.375f,
+            SmoothingFactor = 37,
+            Progressive = progressive,
+            ProgressiveRefinementBits = refinement,
+            RestartInterval = 2,
             OptimizeHuffmanTables = progressive
         };
         byte[] actual = Encode(pixels, width, height, stride, options);
@@ -232,16 +254,16 @@ public sealed class AdditionalRgbIccProfileTests
         Assert.Equal(profile, embedded);
         Assert.Equal(coding, ReadIccAndCoding(Encode(pixels, width, height, stride,
             options with { IccProfile = OpaqueProfile })).Coding);
-        var withoutProfile = ReadIccAndCoding(Encode(pixels, width, height, stride,
+        (byte[]? withoutIcc, byte[]? withoutCoding) = ReadIccAndCoding(Encode(pixels, width, height, stride,
             options with { IccProfile = default }));
-        Assert.Null(withoutProfile.Icc);
-        Assert.Equal(coding, withoutProfile.Coding);
+        Assert.Null(withoutIcc);
+        Assert.Equal(coding, withoutCoding);
         Assert.Equal(actual, Encode(pixels, width, height, stride,
             options with { InferCicpTransferFunctionFromIccProfile = true }));
         Assert.Equal(actual, Encode(pixels, width, height, stride,
             options with { CicpTransferFunction = rec2020 ? 13 : 1 }));
 
-        JpegDocument document = JpegDocument.Read(actual, progressive, 2, refinement);
+        var document = JpegDocument.Read(actual, progressive, 2, refinement);
         Assert.Equal((width, height), (document.Width, document.Height));
         Assert.Equal(3, document.Components.Count);
         using var destination = new MemoryStream();
@@ -258,20 +280,20 @@ public sealed class AdditionalRgbIccProfileTests
 
     private static Dictionary<string, Tag> Tags(byte[] profile)
     {
-        int count = Int32(profile, 128), end = 132 + count * 12;
+        int count = Int32(profile, 128), end = 132 + (count * 12);
         Assert.Equal(11, count);
         var result = new Dictionary<string, Tag>();
         var extents = new HashSet<Tag>();
         for (int index = 0; index < count; index++)
         {
-            int entry = 132 + index * 12;
+            int entry = 132 + (index * 12);
             var tag = new Tag(Int32(profile, entry + 4), Int32(profile, entry + 8));
             Assert.Equal(0, tag.Offset % 4);
             Assert.InRange(tag.Offset, end, profile.Length - 8);
             Assert.InRange(tag.Length, 8, profile.Length - tag.Offset);
             Assert.Equal(0, Int32(profile, tag.Offset + 4));
             Assert.True(result.TryAdd(Signature(profile, entry), tag));
-            extents.Add(tag);
+            _ = extents.Add(tag);
         }
         Assert.Equal(9, extents.Count);
         Tag[] ordered = extents.OrderBy(tag => tag.Offset).ToArray();
@@ -305,7 +327,7 @@ public sealed class AdditionalRgbIccProfileTests
         double gamma = Fixed(profile, curve.Offset + 12), a = Fixed(profile, curve.Offset + 16),
             b = Fixed(profile, curve.Offset + 20), c = Fixed(profile, curve.Offset + 24),
             threshold = Fixed(profile, curve.Offset + 28);
-        return value >= threshold ? Math.Pow(a * value + b, gamma) : c * value;
+        return value >= threshold ? Math.Pow((a * value) + b, gamma) : c * value;
     }
 
     private static double DecodeTransfer(double value, double threshold, bool rec2020) => rec2020
@@ -328,8 +350,13 @@ public sealed class AdditionalRgbIccProfileTests
         }
         double[] scale = Solve(primaries, D65White());
         for (int row = 0; row < 3; row++)
+        {
             for (int channel = 0; channel < 3; channel++)
+            {
                 primaries[row, channel] *= scale[channel];
+            }
+        }
+
         return primaries;
     }
 
@@ -345,10 +372,15 @@ public sealed class AdditionalRgbIccProfileTests
         {
             double[] adapted = new double[3];
             for (int row = 0; row < 3; row++)
+            {
                 adapted[row] = bradford[row, column] * destination[row] / source[row];
+            }
+
             double[] xyz = Solve(bradford, adapted);
             for (int row = 0; row < 3; row++)
+            {
                 result[row, column] = xyz[row];
+            }
         }
         return result;
     }
@@ -359,28 +391,47 @@ public sealed class AdditionalRgbIccProfileTests
         for (int row = 0; row < 3; row++)
         {
             for (int column = 0; column < 3; column++)
+            {
                 augmented[row, column] = matrix[row, column];
+            }
+
             augmented[row, 3] = vector[row];
         }
         for (int column = 0; column < 3; column++)
         {
             int pivot = column;
             for (int row = column + 1; row < 3; row++)
+            {
                 if (Math.Abs(augmented[row, column]) > Math.Abs(augmented[pivot, column]))
+                {
                     pivot = row;
+                }
+            }
+
             for (int index = column; index < 4; index++)
+            {
                 (augmented[column, index], augmented[pivot, index]) =
                     (augmented[pivot, index], augmented[column, index]);
+            }
+
             double divisor = augmented[column, column];
             for (int index = column; index < 4; index++)
+            {
                 augmented[column, index] /= divisor;
+            }
+
             for (int row = 0; row < 3; row++)
             {
                 if (row == column)
+                {
                     continue;
+                }
+
                 double factor = augmented[row, column];
                 for (int index = column; index < 4; index++)
+                {
                     augmented[row, index] -= factor * augmented[column, index];
+                }
             }
         }
         return [augmented[0, 3], augmented[1, 3], augmented[2, 3]];
@@ -390,8 +441,13 @@ public sealed class AdditionalRgbIccProfileTests
     {
         double[] result = new double[3];
         for (int row = 0; row < 3; row++)
+        {
             for (int column = 0; column < 3; column++)
+            {
                 result[row] += matrix[row, column] * vector[column];
+            }
+        }
+
         return result;
     }
 
@@ -419,7 +475,10 @@ public sealed class AdditionalRgbIccProfileTests
                 profile = jpeg[(offset + 18)..end];
             }
             else
+            {
                 coding.Write(jpeg.AsSpan(offset, end - offset));
+            }
+
             offset = end;
         }
         coding.Write(jpeg.AsSpan(offset));
@@ -429,43 +488,56 @@ public sealed class AdditionalRgbIccProfileTests
     private static Array Source(int kind, int width, int height, int stride)
     {
         int rowLength = width * 4;
-        byte[] bytes = Enumerable.Repeat((byte)0xad, (height - 1) * stride + rowLength).ToArray();
+        byte[] bytes = Enumerable.Repeat((byte)0xad, ((height - 1) * stride) + rowLength).ToArray();
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < 3; channel++)
-                    bytes[y * stride + x * 4 + channel] = (byte)((x * 73 + y * 29 + channel * 61) % 256);
+                {
+                    bytes[(y * stride) + (x * 4) + channel] = (byte)(((x * 73) + (y * 29) + (channel * 61)) % 256);
+                }
+            }
+        }
+
         return kind switch
         {
             0 => bytes,
-            1 => bytes.Select((value, index) => (ushort)Math.Clamp(value * 257 + index % 47 - 23, 0, 65535)).ToArray(),
+            1 => bytes.Select((value, index) => (ushort)Math.Clamp((value * 257) + (index % 47) - 23, 0, 65535)).ToArray(),
             _ => bytes.Select((value, index) => index % stride >= rowLength || index % stride % 4 == 3
-                ? float.NaN : Math.Clamp(value / 255f + (index % 47 - 23) / 65535f, 0f, 1f)).ToArray()
+                ? float.NaN : Math.Clamp((value / 255f) + (((index % 47) - 23) / 65535f), 0f, 1f)).ToArray()
         };
     }
 
     private static byte[] Encode(Array source, int width, int height, int stride,
         JpegliEncoderOptions options) => source switch
-    {
-        byte[] bytes => JpegliEncoder.Encode(bytes, width, height, PixelLayout.Bgra32,
-            options, stride, TestContext.Current.CancellationToken),
-        ushort[] words => JpegliEncoder.Encode(words, width, height, PixelComponentLayout.Bgra,
-            options, stride, TestContext.Current.CancellationToken),
-        _ => JpegliEncoder.Encode((float[])source, width, height, PixelComponentLayout.Bgra,
-            options, stride, TestContext.Current.CancellationToken)
-    };
+        {
+            byte[] bytes => JpegliEncoder.Encode(bytes, width, height, PixelLayout.Bgra32,
+                options, stride, TestContext.Current.CancellationToken),
+            ushort[] words => JpegliEncoder.Encode(words, width, height, PixelComponentLayout.Bgra,
+                options, stride, TestContext.Current.CancellationToken),
+            _ => JpegliEncoder.Encode((float[])source, width, height, PixelComponentLayout.Bgra,
+                options, stride, TestContext.Current.CancellationToken)
+        };
 
     private static void Encode(Stream output, Array source, int width, int height, int stride,
         JpegliEncoderOptions options)
     {
         if (source is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, PixelLayout.Bgra32,
                 options, stride, TestContext.Current.CancellationToken);
+        }
         else if (source is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, PixelComponentLayout.Bgra,
                 options, stride, TestContext.Current.CancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])source, width, height, PixelComponentLayout.Bgra,
                 options, stride, TestContext.Current.CancellationToken);
+        }
     }
 
     private static int Int32(byte[] bytes, int offset) => BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(offset, 4));

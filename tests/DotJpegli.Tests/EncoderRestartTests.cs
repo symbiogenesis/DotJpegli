@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using StbImageSharp;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderRestartTests
 {
@@ -11,12 +11,17 @@ public sealed class EncoderRestartTests
         {
             var modes = new TheoryData<PixelLayout, ChromaSubsampling, bool, bool>();
             foreach (bool optimize in new[] { false, true })
+            {
                 foreach (bool adaptive in new[] { false, true })
                 {
                     modes.Add(PixelLayout.Gray8, ChromaSubsampling.Quarter, optimize, adaptive);
                     foreach (ChromaSubsampling sampling in Enum.GetValues<ChromaSubsampling>())
+                    {
                         modes.Add(PixelLayout.Rgb24, sampling, optimize, adaptive);
+                    }
                 }
+            }
+
             return modes;
         }
     }
@@ -32,20 +37,22 @@ public sealed class EncoderRestartTests
         byte[] pixels = Pattern(width, height, layout);
         var options = new JpegliEncoderOptions
         {
-            Quality = 90, Subsampling = sampling,
-            OptimizeHuffmanTables = optimize, AdaptiveQuantization = adaptive
+            Quality = 90,
+            Subsampling = sampling,
+            OptimizeHuffmanTables = optimize,
+            AdaptiveQuantization = adaptive
         };
         Assert.Equal(0, options.RestartInterval);
         byte[] uninterrupted = Encode(pixels, width, height, layout, options);
         Assert.Equal(uninterrupted, Encode(pixels, width, height, layout, options with { RestartInterval = 0 }));
-        BaselineScan reference = BaselineScan.Read(uninterrupted, 0);
+        var reference = BaselineScan.Read(uninterrupted, 0);
         ColorComponents channels = layout == PixelLayout.Gray8 ? ColorComponents.Grey : ColorComponents.RedGreenBlue;
         byte[] expectedPixels = ImageResult.FromMemory(uninterrupted, channels).Data;
 
         foreach (int interval in new[] { 1, 2, 7, reference.McuCount, reference.McuCount + 1, 65535 })
         {
             byte[] restarted = Encode(pixels, width, height, layout, options with { RestartInterval = interval });
-            BaselineScan actual = BaselineScan.Read(restarted, interval);
+            var actual = BaselineScan.Read(restarted, interval);
             Assert.Equal(reference.McuCount, actual.McuCount);
             Assert.Equal(reference.Blocks.Count, actual.Blocks.Count);
             for (int i = 0; i < reference.Blocks.Count; i++)
@@ -65,7 +72,7 @@ public sealed class EncoderRestartTests
                     Assert.Equal(expected.Coefficients, block.Coefficients);
                 }
             }
-            ImageResult decoded = ImageResult.FromMemory(restarted, channels);
+            var decoded = ImageResult.FromMemory(restarted, channels);
             Assert.Equal(width, decoded.Width);
             Assert.Equal(height, decoded.Height);
             Assert.Equal(expectedPixels, decoded.Data);
@@ -85,9 +92,15 @@ public sealed class EncoderRestartTests
         int channels = layout == PixelLayout.Gray8 ? 1 : 3;
         byte[] pixels = new byte[4 * mcuWidth * mcuHeight * channels];
         for (int y = 0; y < mcuHeight; y++)
+        {
             for (int x = 0; x < 4 * mcuWidth; x++)
+            {
                 for (int channel = 0; channel < channels; channel++)
-                    pixels[(y * 4 * mcuWidth + x) * channels + channel] = (byte)(128 + x / mcuWidth * (channel + 1));
+                {
+                    pixels[(((y * 4 * mcuWidth) + x) * channels) + channel] = (byte)(128 + (x / mcuWidth * (channel + 1)));
+                }
+            }
+        }
 
         foreach (bool adaptive in new[] { false, true })
         {
@@ -95,18 +108,26 @@ public sealed class EncoderRestartTests
             // each reset require categories absent from an uninterrupted first pass.
             var options = new JpegliEncoderOptions
             {
-                Quality = 100, Subsampling = sampling, AdaptiveQuantization = adaptive,
-                OptimizeHuffmanTables = false, RestartInterval = 1
+                Quality = 100,
+                Subsampling = sampling,
+                AdaptiveQuantization = adaptive,
+                OptimizeHuffmanTables = false,
+                RestartInterval = 1
             };
-            BaselineScan standard = BaselineScan.Read(Encode(pixels, 4 * mcuWidth, mcuHeight, layout, options), 1);
-            BaselineScan optimized = BaselineScan.Read(Encode(pixels, 4 * mcuWidth, mcuHeight, layout,
+            var standard = BaselineScan.Read(Encode(pixels, 4 * mcuWidth, mcuHeight, layout, options), 1);
+            var optimized = BaselineScan.Read(Encode(pixels, 4 * mcuWidth, mcuHeight, layout,
                 options with { OptimizeHuffmanTables = true }), 1);
             Assert.Equal(standard.Blocks.Count, optimized.Blocks.Count);
             for (int i = 0; i < standard.Blocks.Count; i++)
+            {
                 Assert.Equal(standard.Blocks[i].Coefficients, optimized.Blocks[i].Coefficients);
+            }
+
             foreach (int component in optimized.Blocks.Select(block => block.Component).Distinct())
+            {
                 Assert.True(optimized.Blocks.Where(block => block.Component == component)
                     .Select(block => block.Coefficients[0]).Distinct().Count() > 2);
+            }
         }
     }
 
@@ -125,7 +146,7 @@ public sealed class EncoderRestartTests
             cancellationToken: TestContext.Current.CancellationToken);
         Assert.False(output.Closed);
         Assert.Equal(expected, destination.ToArray());
-        BaselineScan.Read(destination.ToArray(), 2);
+        _ = BaselineScan.Read(destination.ToArray(), 2);
     }
 
     [Theory]
@@ -152,10 +173,17 @@ public sealed class EncoderRestartTests
         int channels = layout == PixelLayout.Gray8 ? 1 : 3;
         byte[] pixels = new byte[width * height * channels];
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
+            {
                 for (int channel = 0; channel < channels; channel++)
-                    pixels[(y * width + x) * channels + channel] =
-                        (byte)(24 + (11 * x + 19 * y + 37 * channel + 7 * (x / 8) * (channel + 1)) % 208);
+                {
+                    pixels[(((y * width) + x) * channels) + channel] =
+                        (byte)(24 + (((11 * x) + (19 * y) + (37 * channel) + (7 * (x / 8) * (channel + 1))) % 208));
+                }
+            }
+        }
+
         return pixels;
     }
 
@@ -215,7 +243,10 @@ public sealed class EncoderRestartTests
                         for (int bits = 1; bits <= 16; bits++)
                         {
                             for (int i = 0; i < counts[bits - 1]; i++)
+                            {
                                 codes.Add((bits << 16) | code++, jpeg[position++]);
+                            }
+
                             code <<= 1;
                         }
                         tables.Add(selector, codes);
@@ -255,7 +286,7 @@ public sealed class EncoderRestartTests
                     bytes.Add(0xff); // Stuffed data, never a marker.
                     continue;
                 }
-                Assert.True(next == 0xd9 || next is >= 0xd0 and <= 0xd7, $"Unexpected scan marker 0x{next:x2}.");
+                Assert.True(next is 0xd9 or (>= 0xd0 and <= 0xd7), $"Unexpected scan marker 0x{next:x2}.");
                 segments.Add(new(bytes.ToArray(), next));
                 bytes.Clear();
                 if (next == 0xd9)
@@ -267,25 +298,27 @@ public sealed class EncoderRestartTests
 
             int maxH = components.Values.Max(component => component.H);
             int maxV = components.Values.Max(component => component.V);
-            int columns = (width + 8 * maxH - 1) / (8 * maxH);
-            int rows = (height + 8 * maxV - 1) / (8 * maxV);
+            int columns = (width + (8 * maxH) - 1) / (8 * maxH);
+            int rows = (height + (8 * maxV) - 1) / (8 * maxV);
             int mcuCount = columns * rows;
-            int expectedSegments = expectedInterval == 0 ? 1 : (mcuCount - 1) / expectedInterval + 1;
+            int expectedSegments = expectedInterval == 0 ? 1 : ((mcuCount - 1) / expectedInterval) + 1;
             Assert.Equal(expectedSegments, segments.Count); // No trailing RST, even at an exact interval.
             var blocks = new List<Block>();
             int mcu = 0;
             for (int segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
             {
                 EntropySegment segment = segments[segmentIndex];
-                Assert.Equal(segmentIndex == segments.Count - 1 ? 0xd9 : 0xd0 + segmentIndex % 8, segment.Terminator);
+                Assert.Equal(segmentIndex == segments.Count - 1 ? 0xd9 : 0xd0 + (segmentIndex % 8), segment.Terminator);
                 var reader = new EntropyBits(segment.Bytes);
                 var previousDc = components.Keys.ToDictionary(component => component, _ => 0);
                 int endMcu = expectedInterval == 0 ? mcuCount : Math.Min(mcuCount, mcu + expectedInterval);
                 for (; mcu < endMcu; mcu++)
+                {
                     foreach ((int component, int dcTable, int acTable) in selectors)
                     {
                         (int horizontal, int vertical) = components[component];
                         for (int y = 0; y < vertical; y++)
+                        {
                             for (int x = 0; x < horizontal; x++)
                             {
                                 int difference = reader.SignedValue(reader.Symbol(tables[dcTable]));
@@ -297,9 +330,15 @@ public sealed class EncoderRestartTests
                                 {
                                     int symbol = reader.Symbol(tables[acTable]);
                                     if (firstAc < 0)
+                                    {
                                         firstAc = symbol;
+                                    }
+
                                     if (symbol == 0)
+                                    {
                                         break;
+                                    }
+
                                     if (symbol == 0xf0)
                                     {
                                         coefficient += 16;
@@ -313,13 +352,15 @@ public sealed class EncoderRestartTests
                                     Assert.NotEqual(0, value);
                                     coefficients[coefficient++] = value;
                                 }
-                                int left = mcu % columns * 8 * horizontal + 8 * x;
-                                int top = mcu / columns * 8 * vertical + 8 * y;
-                                bool dummy = left >= (width * horizontal + maxH - 1) / maxH
-                                    || top >= (height * vertical + maxV - 1) / maxV;
+                                int left = (mcu % columns * 8 * horizontal) + (8 * x);
+                                int top = (mcu / columns * 8 * vertical) + (8 * y);
+                                bool dummy = left >= ((width * horizontal) + maxH - 1) / maxH
+                                    || top >= ((height * vertical) + maxV - 1) / maxV;
                                 blocks.Add(new(component, left, top, dummy, difference, firstAc, coefficients));
                             }
+                        }
                     }
+                }
                 // A decoder that merely skips to markers could overlook extra MCUs,
                 // partial blocks or invalid byte-alignment padding at a boundary.
                 reader.AssertOnlyPaddingRemains();
@@ -328,7 +369,7 @@ public sealed class EncoderRestartTests
             return new(mcuCount, blocks);
         }
 
-        private static int Word(byte[] bytes, int position) => bytes[position] * 256 + bytes[position + 1];
+        private static int Word(byte[] bytes, int position) => (bytes[position] * 256) + bytes[position + 1];
     }
 
     private sealed class EntropyBits(byte[] bytes)
@@ -340,9 +381,11 @@ public sealed class EncoderRestartTests
             int code = 0;
             for (int length = 1; length <= 16; length++)
             {
-                code = (code << 1) | Bit();
+                code = (code << 1) | this.Bit();
                 if (table.TryGetValue((length << 16) | code, out int symbol))
+                {
                     return symbol;
+                }
             }
             throw new InvalidDataException("Invalid Huffman code in encoder output.");
         }
@@ -352,21 +395,26 @@ public sealed class EncoderRestartTests
             Assert.InRange(count, 0, 11);
             int value = 0;
             for (int i = 0; i < count; i++)
-                value = (value << 1) | Bit();
+            {
+                value = (value << 1) | this.Bit();
+            }
+
             return count == 0 || value >= (1 << (count - 1)) ? value : value - (1 << count) + 1;
         }
 
         public void AssertOnlyPaddingRemains()
         {
-            Assert.InRange(bytes.Length * 8 - position, 0, 7);
-            while (position < bytes.Length * 8)
-                Assert.Equal(1, Bit());
+            Assert.InRange((bytes.Length * 8) - this.position, 0, 7);
+            while (this.position < bytes.Length * 8)
+            {
+                Assert.Equal(1, this.Bit());
+            }
         }
 
         private int Bit()
         {
-            Assert.True(position < bytes.Length * 8, "Unexpected end of entropy data.");
-            return (bytes[position / 8] >> (7 - position++ % 8)) & 1;
+            Assert.True(this.position < bytes.Length * 8, "Unexpected end of entropy data.");
+            return (bytes[this.position / 8] >> (7 - (this.position++ % 8))) & 1;
         }
     }
 
@@ -375,7 +423,7 @@ public sealed class EncoderRestartTests
         public bool Closed { get; private set; }
         public override bool CanRead => false;
         public override bool CanSeek => false;
-        public override bool CanWrite => !Closed;
+        public override bool CanWrite => !this.Closed;
         public override long Length => throw new NotSupportedException();
         public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
         public override void Flush() => inner.Flush();
@@ -387,7 +435,7 @@ public sealed class EncoderRestartTests
         public override void WriteByte(byte value) => inner.WriteByte(value);
         protected override void Dispose(bool disposing)
         {
-            Closed = true;
+            this.Closed = true;
             base.Dispose(disposing);
         }
     }

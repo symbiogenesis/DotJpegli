@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class EncoderRefinementTests
 {
@@ -11,13 +11,20 @@ public sealed class EncoderRefinementTests
         {
             var modes = new TheoryData<PixelLayout, ChromaSubsampling, bool, bool, int>();
             foreach (bool optimize in new[] { false, true })
+            {
                 foreach (bool adaptive in new[] { false, true })
+                {
                     foreach (int bits in new[] { 1, 2 })
                     {
                         modes.Add(PixelLayout.Gray8, ChromaSubsampling.Quarter, optimize, adaptive, bits);
                         foreach (ChromaSubsampling sampling in Enum.GetValues<ChromaSubsampling>())
+                        {
                             modes.Add(PixelLayout.Rgb24, sampling, optimize, adaptive, bits);
+                        }
                     }
+                }
+            }
+
             return modes;
         }
     }
@@ -33,25 +40,33 @@ public sealed class EncoderRefinementTests
         byte[] pixels = Pattern(width, height, layout);
         var options = new JpegliEncoderOptions
         {
-            Quality = 90, Subsampling = sampling,
-            OptimizeHuffmanTables = optimize, AdaptiveQuantization = adaptive
+            Quality = 90,
+            Subsampling = sampling,
+            OptimizeHuffmanTables = optimize,
+            AdaptiveQuantization = adaptive
         };
         byte[] baseline = Encode(pixels, width, height, layout, options);
-        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        var reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
         foreach (int interval in new[] { 0, 1, 7, 65535 })
         {
             byte[] jpeg = Encode(pixels, width, height, layout, options with
             {
-                Progressive = true, ProgressiveRefinementBits = bits, RestartInterval = interval
+                Progressive = true,
+                ProgressiveRefinementBits = bits,
+                RestartInterval = interval
             });
             // The independent reader validates every SOS's component order,
             // Ss/Se/Ah/Al, MCU counts, restart cycling/reset and one-bit padding.
-            JpegDocument actual = JpegDocument.Read(jpeg, progressive: true,
+            var actual = JpegDocument.Read(jpeg, progressive: true,
                 expectedInterval: interval, expectedRefinementBits: bits);
             AssertBaselineParity(baseline, reference, jpeg, actual, layout);
             if (!optimize)
+            {
                 foreach (Scan scan in actual.Scans.Where(scan => scan.High != 0 && scan.First != 0))
+                {
                     Assert.All(scan.EobRuns, run => Assert.Equal(1, run));
+                }
+            }
         }
     }
 
@@ -63,24 +78,30 @@ public sealed class EncoderRefinementTests
     public void MaximumRefinementDepthHandlesTinyNarrowAndOddImages(PixelLayout layout, bool optimize)
     {
         foreach ((int width, int height) in new[] { (1, 1), (1, 33), (33, 1), (17, 17) })
+        {
             foreach (int quality in new[] { 0, 100 })
             {
                 byte[] pixels = Pattern(width, height, layout);
                 var options = new JpegliEncoderOptions
                 {
-                    Quality = quality, Subsampling = ChromaSubsampling.Quarter,
-                    OptimizeHuffmanTables = optimize, AdaptiveQuantization = false, RestartInterval = 2
+                    Quality = quality,
+                    Subsampling = ChromaSubsampling.Quarter,
+                    OptimizeHuffmanTables = optimize,
+                    AdaptiveQuantization = false,
+                    RestartInterval = 2
                 };
                 byte[] baseline = Encode(pixels, width, height, layout, options);
-                JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 2);
+                var reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 2);
                 byte[] jpeg = Encode(pixels, width, height, layout, options with
                 {
-                    Progressive = true, ProgressiveRefinementBits = 10
+                    Progressive = true,
+                    ProgressiveRefinementBits = 10
                 });
-                JpegDocument actual = JpegDocument.Read(jpeg, progressive: true,
+                var actual = JpegDocument.Read(jpeg, progressive: true,
                     expectedInterval: 2, expectedRefinementBits: 10);
                 AssertBaselineParity(baseline, reference, jpeg, actual, layout);
             }
+        }
     }
 
     [Theory]
@@ -96,16 +117,18 @@ public sealed class EncoderRefinementTests
         for (int y = 0; y < 8; y++)
         {
             pixels.AsSpan(y * width, 8).Fill(127);
-            pixels.AsSpan(y * width + 8, 8).Fill(129);
+            pixels.AsSpan((y * width) + 8, 8).Fill(129);
         }
         pixels[0] = 119;
         pixels[8] = 137;
         var options = new JpegliEncoderOptions
         {
-            Quality = 100, AdaptiveQuantization = false, OptimizeHuffmanTables = optimize
+            Quality = 100,
+            AdaptiveQuantization = false,
+            OptimizeHuffmanTables = optimize
         };
         byte[] baseline = Encode(pixels, width, height, PixelLayout.Gray8, options);
-        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        var reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
         Assert.Equal(-9, reference.Blocks[new(1, 0, 0)].Coefficients[0]);
         Assert.Equal(9, reference.Blocks[new(1, 1, 0)].Coefficients[0]);
         int[] dc = reference.Blocks.Values.Select(block => block.Coefficients[0]).ToArray();
@@ -120,9 +143,11 @@ public sealed class EncoderRefinementTests
         {
             byte[] jpeg = Encode(pixels, width, height, PixelLayout.Gray8, options with
             {
-                Progressive = true, ProgressiveRefinementBits = bits, RestartInterval = 1
+                Progressive = true,
+                ProgressiveRefinementBits = bits,
+                RestartInterval = 1
             });
-            JpegDocument actual = JpegDocument.Read(jpeg, progressive: true,
+            var actual = JpegDocument.Read(jpeg, progressive: true,
                 expectedInterval: 1, expectedRefinementBits: bits);
             AssertBaselineParity(baseline, reference, jpeg, actual, PixelLayout.Gray8);
         }
@@ -145,17 +170,20 @@ public sealed class EncoderRefinementTests
         var options = new JpegliEncoderOptions
         {
             Subsampling = sampling,
-            AdaptiveQuantization = false, OptimizeHuffmanTables = optimize
+            AdaptiveQuantization = false,
+            OptimizeHuffmanTables = optimize
         };
         byte[] baseline = Encode(pixels, width, height, layout, options);
-        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        var reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
         foreach (int interval in new[] { 0, 1, 7 })
         {
             byte[] jpeg = Encode(pixels, width, height, layout, options with
             {
-                Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = interval
+                Progressive = true,
+                ProgressiveRefinementBits = 2,
+                RestartInterval = interval
             });
-            JpegDocument actual = JpegDocument.Read(jpeg, progressive: true,
+            var actual = JpegDocument.Read(jpeg, progressive: true,
                 expectedInterval: interval, expectedRefinementBits: 2);
             AssertBaselineParity(baseline, reference, jpeg, actual, layout);
             foreach (Scan scan in actual.Scans)
@@ -169,8 +197,8 @@ public sealed class EncoderRefinementTests
                 int realBlocks = reference.Blocks.Count(pair =>
                     pair.Key.Component == component && !pair.Value.IsDummy);
                 int runLimit = !optimize ? 1 : interval == 0 ? realBlocks : interval;
-                int[] expectedRuns = Enumerable.Range(0, (realBlocks - 1) / runLimit + 1)
-                    .Select(index => Math.Min(runLimit, realBlocks - index * runLimit)).ToArray();
+                int[] expectedRuns = Enumerable.Range(0, ((realBlocks - 1) / runLimit) + 1)
+                    .Select(index => Math.Min(runLimit, realBlocks - (index * runLimit))).ToArray();
                 Assert.Equal(expectedRuns, scan.EobRuns);
                 Assert.Equal(realBlocks, scan.EobRuns.Sum());
             }
@@ -191,10 +219,12 @@ public sealed class EncoderRefinementTests
         byte[] pixels = StripePixels(width, height);
         var options = new JpegliEncoderOptions
         {
-            Quality = 100, AdaptiveQuantization = false, OptimizeHuffmanTables = optimize
+            Quality = 100,
+            AdaptiveQuantization = false,
+            OptimizeHuffmanTables = optimize
         };
         byte[] baseline = Encode(pixels, width, height, PixelLayout.Gray8, options);
-        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        var reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
         Block[] blocks = reference.Blocks.OrderBy(pair => pair.Key.Y).ThenBy(pair => pair.Key.X)
             .Select(pair => pair.Value).ToArray();
         Assert.Equal(600, blocks.Length);
@@ -218,9 +248,11 @@ public sealed class EncoderRefinementTests
         {
             byte[] jpeg = Encode(pixels, width, height, PixelLayout.Gray8, options with
             {
-                Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = interval
+                Progressive = true,
+                ProgressiveRefinementBits = 2,
+                RestartInterval = interval
             });
-            JpegDocument actual = JpegDocument.Read(jpeg, progressive: true,
+            var actual = JpegDocument.Read(jpeg, progressive: true,
                 expectedInterval: interval, expectedRefinementBits: 2);
             AssertBaselineParity(baseline, reference, jpeg, actual, PixelLayout.Gray8);
             Scan[] refinements = actual.Scans.Where(scan => scan.High != 0 && scan.First != 0).ToArray();
@@ -240,7 +272,10 @@ public sealed class EncoderRefinementTests
                 {
                     Assert.InRange(oldCounts.AsSpan(firstBlock, run).ToArray().Sum(), 1, correctionCapacity);
                     if (interval != 0)
+                    {
                         Assert.Equal(firstBlock / interval, (firstBlock + run - 1) / interval);
+                    }
+
                     firstBlock += run;
                 }
                 Assert.Equal(blocks.Length, firstBlock);
@@ -259,14 +294,18 @@ public sealed class EncoderRefinementTests
         pixels[15 * 8] -= 8;
         var options = new JpegliEncoderOptions { Quality = 100, AdaptiveQuantization = false };
         byte[] baseline = Encode(pixels, width, height, PixelLayout.Gray8, options);
-        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        var reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
         foreach (int block in new[] { 7, 15 })
+        {
             Assert.Contains(reference.Blocks[new(1, block, 0)].Coefficients[1..], coefficient => Math.Abs(coefficient) == 1);
+        }
+
         byte[] jpeg = Encode(pixels, width, height, PixelLayout.Gray8, options with
         {
-            Progressive = true, ProgressiveRefinementBits = 1
+            Progressive = true,
+            ProgressiveRefinementBits = 1
         });
-        JpegDocument actual = JpegDocument.Read(jpeg, progressive: true,
+        var actual = JpegDocument.Read(jpeg, progressive: true,
             expectedInterval: 0, expectedRefinementBits: 1);
         AssertBaselineParity(baseline, reference, jpeg, actual, PixelLayout.Gray8);
         Scan refinement = Assert.Single(actual.Scans, scan => scan.High != 0 && scan.First != 0);
@@ -282,16 +321,19 @@ public sealed class EncoderRefinementTests
         byte[] pixels = FlatPixels(width, height, PixelLayout.Gray8);
         var options = new JpegliEncoderOptions { AdaptiveQuantization = false };
         byte[] baseline = Encode(pixels, width, height, PixelLayout.Gray8, options);
-        JpegDocument reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
+        var reference = JpegDocument.Read(baseline, progressive: false, expectedInterval: 0);
         byte[] jpeg = Encode(pixels, width, height, PixelLayout.Gray8, options with
         {
-            Progressive = true, ProgressiveRefinementBits = 1
+            Progressive = true,
+            ProgressiveRefinementBits = 1
         });
-        JpegDocument actual = JpegDocument.Read(jpeg, progressive: true,
+        var actual = JpegDocument.Read(jpeg, progressive: true,
             expectedInterval: 0, expectedRefinementBits: 1);
         AssertBaselineParity(baseline, reference, jpeg, actual, PixelLayout.Gray8);
         foreach (Scan scan in actual.Scans.Where(scan => scan.First != 0))
+        {
             Assert.Equal(new[] { 32767, 257 }, scan.EobRuns);
+        }
     }
 
     private static byte[] StripePixels(int width, int height)
@@ -299,12 +341,15 @@ public sealed class EncoderRefinementTests
         ReadOnlySpan<byte> stripe = [39, 68, 90, 116, 140, 166, 188, 217];
         byte[] pixels = new byte[width * height];
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
             {
                 int amplitude = x / 8 % 3;
                 int value = stripe[x % 8] + (x % 8 < 4 ? amplitude : -amplitude);
-                pixels[y * width + x] = (byte)(x / 8 % 2 == 0 ? value : 256 - value);
+                pixels[(y * width) + x] = (byte)(x / 8 % 2 == 0 ? value : 256 - value);
             }
+        }
+
         return pixels;
     }
 
@@ -320,22 +365,32 @@ public sealed class EncoderRefinementTests
         PixelLayout referenceLayout = layout == PixelLayout.Gray8 ? layout : PixelLayout.Rgb24;
         byte[] pixels = Pattern(width, height, referenceLayout);
         int channels = referenceLayout == PixelLayout.Gray8 ? 1 : 3;
-        int stride = width * bytesPerPixel + 13;
-        byte[] source = new byte[(height - 1) * stride + width * bytesPerPixel];
+        int stride = (width * bytesPerPixel) + 13;
+        byte[] source = new byte[((height - 1) * stride) + (width * bytesPerPixel)];
         bool bgr = layout is PixelLayout.Bgr24 or PixelLayout.Bgra32;
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
             {
-                int input = (y * width + x) * channels;
-                int output = y * stride + x * bytesPerPixel;
+                int input = ((y * width) + x) * channels;
+                int output = (y * stride) + (x * bytesPerPixel);
                 for (int channel = 0; channel < channels; channel++)
+                {
                     source[output + (bgr ? 2 - channel : channel)] = pixels[input + channel];
+                }
+
                 if (bytesPerPixel == 4)
+                {
                     source[output + 3] = (byte)(x * 17);
+                }
             }
+        }
+
         var options = new JpegliEncoderOptions
         {
-            Progressive = true, ProgressiveRefinementBits = 2, RestartInterval = 2
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2
         };
         byte[] expected = Encode(pixels, width, height, referenceLayout, options);
         Assert.Equal(expected, JpegliEncoder.Encode(source, width, height, layout, options, stride,
@@ -357,11 +412,13 @@ public sealed class EncoderRefinementTests
         byte[] pixels = Pattern(width, height, PixelLayout.Rgb24);
         var options = new JpegliEncoderOptions
         {
-            Progressive = true, ProgressiveRefinementBits = 2,
-            RestartInterval = 2, OptimizeHuffmanTables = optimize
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2,
+            OptimizeHuffmanTables = optimize
         };
         byte[] complete = Encode(pixels, width, height, PixelLayout.Rgb24, options);
-        JpegDocument document = JpegDocument.Read(complete, progressive: true,
+        var document = JpegDocument.Read(complete, progressive: true,
             expectedInterval: 2, expectedRefinementBits: 2);
         int cancelAfter = document.Scans[^1].DataStart + 1;
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
@@ -369,7 +426,9 @@ public sealed class EncoderRefinementTests
         using var output = new WriteOnlyStream(destination, () =>
         {
             if (destination.Length >= cancelAfter)
+            {
                 cancellation.Cancel();
+            }
         });
         OperationCanceledException exception = Assert.Throws<OperationCanceledException>(() =>
             JpegliEncoder.Encode(output, pixels, width, height, options: options, cancellationToken: cancellation.Token));

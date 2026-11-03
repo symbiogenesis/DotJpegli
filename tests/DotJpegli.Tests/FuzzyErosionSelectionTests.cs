@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using System.Numerics;
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class FuzzyErosionSelectionTests
 {
@@ -25,17 +25,20 @@ public sealed class FuzzyErosionSelectionTests
             // Each lane receives a different permutation and distinct values,
             // exposing lane mixing as well as an incorrect selection network.
             for (int input = 0; input < 9; input++)
-                columns[input][lane] = values[input] + lane * 16f;
+            {
+                columns[input][lane] = values[input] + (lane * 16f);
+            }
+
             if (++lane == Vector<float>.Count)
             {
-                var selected = SelectVector(columns, useNetwork);
+                (Vector<float> vector0, Vector<float> vector1, Vector<float> vector2, Vector<float> vector3) = SelectVector(columns, useNetwork);
                 for (int outputLane = 0; outputLane < Vector<float>.Count; outputLane++)
                 {
                     float offset = outputLane * 16f;
-                    Assert.Equal(1f + offset, selected.V0[outputLane]);
-                    Assert.Equal(2f + offset, selected.V1[outputLane]);
-                    Assert.Equal(3f + offset, selected.V2[outputLane]);
-                    Assert.Equal(4f + offset, selected.V3[outputLane]);
+                    Assert.Equal(1f + offset, vector0[outputLane]);
+                    Assert.Equal(2f + offset, vector1[outputLane]);
+                    Assert.Equal(3f + offset, vector2[outputLane]);
+                    Assert.Equal(4f + offset, vector3[outputLane]);
                 }
                 lane = 0;
             }
@@ -56,8 +59,13 @@ public sealed class FuzzyErosionSelectionTests
         for (int mask = 0; mask < 512; mask += Vector<float>.Count)
         {
             for (int lane = 0; lane < Vector<float>.Count; lane++)
+            {
                 for (int input = 0; input < 9; input++)
+                {
                     columns[input][lane] = (((mask + lane) & (1 << input)) == 0) ? 1.25f : 17.5f;
+                }
+            }
+
             AssertMatchesSortedNeighborhoods(columns, useNetwork);
         }
     }
@@ -80,9 +88,11 @@ public sealed class FuzzyErosionSelectionTests
             for (int lane = 0; lane < Vector<float>.Count; lane++)
             {
                 for (int input = 0; input < 9; input++)
+                {
                     columns[input][lane] = batch < boundaries.Length
                         ? boundaries[(batch + input + lane) % boundaries.Length]
                         : BitConverter.Int32BitsToSingle(random.Next(1, 0x7f800000));
+                }
                 // Include repeated positive values across several ranks.
                 columns[4][lane] = columns[1][lane];
                 columns[8][lane] = columns[1][lane];
@@ -98,7 +108,7 @@ public sealed class FuzzyErosionSelectionTests
     [InlineData(4)]
     public void ExplicitKernelsPreserveStrengthBitsAcrossEdgesAndReusedNeighborhoods(int sampling)
     {
-        int mcuHeight = sampling * 8, height = mcuHeight * 3 + 3;
+        int mcuHeight = sampling * 8, height = (mcuHeight * 3) + 3;
         foreach (int width in new[] { 1, 3, 9, 19, 67, 129 })
         {
             int stride = width + 7;
@@ -114,6 +124,7 @@ public sealed class FuzzyErosionSelectionTests
             float[] expected = new float[insertion.BlocksWide * sampling];
             float[] actual = new float[expected.Length];
             foreach (bool vector in new[] { false, true })
+            {
                 foreach (int row in new[] { 0, 1, 2, 3, 3, 0, 2, 1, 2, 3 })
                 {
                     if (vector)
@@ -131,64 +142,85 @@ public sealed class FuzzyErosionSelectionTests
                             TestContext.Current.CancellationToken);
                     }
                     for (int block = 0; block < expected.Length; block++)
+                    {
                         AssertSameBits(expected[block], actual[block]);
+                    }
                 }
+            }
         }
     }
 
     private static void AssertMatchesSortedNeighborhoods(float[][] columns, bool useNetwork)
     {
-        var selected = SelectVector(columns, useNetwork);
+        (Vector<float> vector0, Vector<float> vector1, Vector<float> vector2, Vector<float> vector3) = SelectVector(columns, useNetwork);
         Span<float> expected = stackalloc float[9];
         Span<float> inputs = stackalloc float[9];
         for (int lane = 0; lane < Vector<float>.Count; lane++)
         {
             for (int input = 0; input < 9; input++)
+            {
                 inputs[input] = expected[input] = columns[input][lane];
+            }
+
             expected.Sort();
             SelectScalar(inputs, useNetwork, out float v0, out float v1, out float v2, out float v3);
             AssertSameBits(expected[0], v0);
             AssertSameBits(expected[1], v1);
             AssertSameBits(expected[2], v2);
             AssertSameBits(expected[3], v3);
-            AssertSameBits(expected[0], selected.V0[lane]);
-            AssertSameBits(expected[1], selected.V1[lane]);
-            AssertSameBits(expected[2], selected.V2[lane]);
-            AssertSameBits(expected[3], selected.V3[lane]);
+            AssertSameBits(expected[0], vector0[lane]);
+            AssertSameBits(expected[1], vector1[lane]);
+            AssertSameBits(expected[2], vector2[lane]);
+            AssertSameBits(expected[3], vector3[lane]);
         }
     }
 
-    private static (Vector<float> V0, Vector<float> V1, Vector<float> V2, Vector<float> V3)
+    private static (Vector<float> v0, Vector<float> v1, Vector<float> v2, Vector<float> v3)
         SelectVector(float[][] columns, bool useNetwork)
     {
         Vector<float> v0 = new(columns[0]), v1 = new(columns[1]);
         Vector<float> v2 = new(columns[2]), v3 = new(columns[3]);
         if (useNetwork)
+        {
             AdaptiveQuantization.SelectFourMinimaNetwork(ref v0, ref v1, ref v2, ref v3,
                 new(columns[4]), new(columns[5]), new(columns[6]), new(columns[7]), new(columns[8]));
+        }
         else
+        {
             AdaptiveQuantization.SelectFourMinimaInsertion(ref v0, ref v1, ref v2, ref v3,
                 new(columns[4]), new(columns[5]), new(columns[6]), new(columns[7]), new(columns[8]));
+        }
+
         return (v0, v1, v2, v3);
     }
 
     private static void SelectScalar(ReadOnlySpan<float> values, bool useNetwork,
         out float v0, out float v1, out float v2, out float v3)
     {
-        v0 = values[0]; v1 = values[1]; v2 = values[2]; v3 = values[3];
+        v0 = values[0];
+        v1 = values[1];
+        v2 = values[2];
+        v3 = values[3];
         if (useNetwork)
+        {
             AdaptiveQuantization.SelectFourMinimaNetwork(ref v0, ref v1, ref v2, ref v3,
                 values[4], values[5], values[6], values[7], values[8]);
+        }
         else
+        {
             AdaptiveQuantization.SelectFourMinimaInsertion(ref v0, ref v1, ref v2, ref v3,
                 values[4], values[5], values[6], values[7], values[8]);
+        }
     }
 
     private static float[][] CreateColumns()
     {
-        var columns = new float[9][];
+        float[][] columns = new float[9][];
         for (int input = 0; input < columns.Length; input++)
+        {
             columns[input] = new float[Vector<float>.Count];
+        }
+
         return columns;
     }
 
@@ -196,12 +228,21 @@ public sealed class FuzzyErosionSelectionTests
     {
         int pivot = values.Length - 2;
         while (pivot >= 0 && values[pivot] >= values[pivot + 1])
+        {
             pivot--;
+        }
+
         if (pivot < 0)
+        {
             return false;
+        }
+
         int successor = values.Length - 1;
         while (values[successor] <= values[pivot])
+        {
             successor--;
+        }
+
         (values[pivot], values[successor]) = (values[successor], values[pivot]);
         values[(pivot + 1)..].Reverse();
         return true;

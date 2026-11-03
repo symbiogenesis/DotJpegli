@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class EntropyValidationTests
 {
@@ -22,7 +22,7 @@ public sealed class EntropyValidationTests
                 foreach (short invalid in new short[] { short.MinValue, -1024, 1024, short.MaxValue })
                 {
                     block[position] = invalid;
-                    var error = Assert.Throws<ArgumentOutOfRangeException>(() => EntropyEncoder.ValidateAc(block));
+                    ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() => EntropyEncoder.ValidateAc(block));
                     Assert.Equal("coefficients", error.ParamName);
                 }
                 block[position] = 0;
@@ -39,9 +39,9 @@ public sealed class EntropyValidationTests
         var writer = new BitWriter(output);
         long[] dc = new long[256], ac = new long[256];
         int previous = 0;
-        Assert.Throws<ArgumentOutOfRangeException>(() => EntropyEncoder.WriteBlock(writer, block, ref previous,
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => EntropyEncoder.WriteBlock(writer, block, ref previous,
             HuffmanTable.CreateDefault(false, false), HuffmanTable.CreateDefault(true, false), coefficientsValidated: true));
-        Assert.Throws<ArgumentOutOfRangeException>(() => EntropyEncoder.AccumulateFrequencies(block, ref previous,
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => EntropyEncoder.AccumulateFrequencies(block, ref previous,
             dc, ac, coefficientsValidated: true));
         Assert.Equal(0, output.Length);
         Assert.Equal(0, previous);
@@ -66,8 +66,8 @@ public sealed class EntropyValidationTests
         void Write(Stream output, bool validated)
         {
             var writer = new BitWriter(output);
-            HuffmanTable dc = HuffmanTable.CreateDefault(false, false);
-            HuffmanTable ac = HuffmanTable.CreateDefault(true, false);
+            var dc = HuffmanTable.CreateDefault(false, false);
+            var ac = HuffmanTable.CreateDefault(true, false);
             int previous = 0;
             foreach (short[] block in blocks)
             {
@@ -79,7 +79,9 @@ public sealed class EntropyValidationTests
                         coefficientsValidated: validated);
                 }
                 else
+                {
                     EntropyEncoder.WriteBlock(writer, block, ref previous, dc, ac, coefficientsValidated: validated);
+                }
             }
             writer.Flush();
         }

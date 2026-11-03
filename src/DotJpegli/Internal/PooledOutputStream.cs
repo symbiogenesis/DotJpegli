@@ -1,6 +1,6 @@
-using System.Buffers;
-
 namespace DotJpegli.Internal;
+
+using System.Buffers;
 
 /// <summary>Reusable staging storage for the byte-array encode API's owned result.</summary>
 internal sealed class PooledOutputStream : Stream
@@ -15,78 +15,89 @@ internal sealed class PooledOutputStream : Stream
 
     public override bool CanRead => false;
     public override bool CanSeek => false;
-    public override bool CanWrite => !disposed;
+    public override bool CanWrite => !this.disposed;
     public override long Length
     {
         get
         {
-            Guard.ThrowIfDisposed(disposed, this);
-            return count;
+            Guard.ThrowIfDisposed(this.disposed, this);
+            return this.count;
         }
     }
-    public override long Position { get => Length; set => throw new NotSupportedException(); }
+    public override long Position { get => this.Length; set => throw new NotSupportedException(); }
 
     internal byte[] ToArray()
     {
-        Guard.ThrowIfDisposed(disposed, this);
-        return buffer.AsSpan(0, count).ToArray();
+        Guard.ThrowIfDisposed(this.disposed, this);
+        return this.buffer.AsSpan(0, this.count).ToArray();
     }
 
     public override void Write(ReadOnlySpan<byte> source)
     {
-        Guard.ThrowIfDisposed(disposed, this);
-        EnsureCapacity(source.Length);
-        source.CopyTo(buffer.AsSpan(count));
-        count += source.Length;
+        Guard.ThrowIfDisposed(this.disposed, this);
+        this.EnsureCapacity(source.Length);
+        source.CopyTo(this.buffer.AsSpan(this.count));
+        this.count += source.Length;
     }
 
     public override void Write(byte[] source, int offset, int length)
     {
         Guard.ThrowIfNull(source);
-        Write(source.AsSpan(offset, length));
+        this.Write(source.AsSpan(offset, length));
     }
 
     public override void WriteByte(byte value)
     {
-        Guard.ThrowIfDisposed(disposed, this);
-        EnsureCapacity(1);
-        buffer[count++] = value;
+        Guard.ThrowIfDisposed(this.disposed, this);
+        this.EnsureCapacity(1);
+        this.buffer[this.count++] = value;
     }
 
     private void EnsureCapacity(int additional)
     {
-        if (additional <= buffer.Length - count)
+        if (additional <= this.buffer.Length - this.count)
+        {
             return;
-        if (additional > RuntimeLimits.ArrayMaxLength - count)
+        }
+
+        if (additional > RuntimeLimits.ArrayMaxLength - this.count)
+        {
             throw new IOException("The encoded JPEG exceeds the maximum array length.");
-        int capacity = (int)Math.Max(count + additional,
-            Math.Min(RuntimeLimits.ArrayMaxLength, Math.Max(4096L, (long)buffer.Length * 2)));
+        }
+
+        int capacity = (int)Math.Max(this.count + additional,
+            Math.Min(RuntimeLimits.ArrayMaxLength, Math.Max(4096L, (long)this.buffer.Length * 2)));
         bool nextPooled = capacity <= MaximumPooledCapacity;
         byte[] next = nextPooled ? ArrayPool<byte>.Shared.Rent(capacity) : new byte[capacity];
-        buffer.AsSpan(0, count).CopyTo(next);
-        byte[] previous = buffer;
-        bool previousPooled = pooled;
-        buffer = next;
-        pooled = nextPooled;
+        this.buffer.AsSpan(0, this.count).CopyTo(next);
+        byte[] previous = this.buffer;
+        bool previousPooled = this.pooled;
+        this.buffer = next;
+        this.pooled = nextPooled;
         if (previousPooled)
+        {
             ArrayPool<byte>.Shared.Return(previous);
+        }
     }
 
-    public override void Flush() => Guard.ThrowIfDisposed(disposed, this);
+    public override void Flush() => Guard.ThrowIfDisposed(this.disposed, this);
     public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
     public override void SetLength(long value) => throw new NotSupportedException();
 
     protected override void Dispose(bool disposing)
     {
-        if (!disposed)
+        if (!this.disposed)
         {
-            disposed = true;
-            if (pooled)
-                ArrayPool<byte>.Shared.Return(buffer);
-            buffer = [];
-            count = 0;
-            pooled = false;
+            this.disposed = true;
+            if (this.pooled)
+            {
+                ArrayPool<byte>.Shared.Return(this.buffer);
+            }
+
+            this.buffer = [];
+            this.count = 0;
+            this.pooled = false;
         }
         base.Dispose(disposing);
     }

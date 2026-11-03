@@ -1,3 +1,5 @@
+namespace DotJpegli.Tests;
+
 using System.Buffers.Binary;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -5,8 +7,6 @@ using System.Text;
 using DotJpegli.Internal;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
-
-namespace DotJpegli.Tests;
 
 public sealed class CustomChromaticityIccProfileTests
 {
@@ -54,10 +54,12 @@ public sealed class CustomChromaticityIccProfileTests
         Assert.Equal(sha256, Convert.ToHexString(SHA256.HashData(profile)));
         Dictionary<string, Tag> tags = ParseProfile(profile, gray ? "GRAY" : "RGB ", intent);
         if (kind == "scientific")
+        {
             Assert.Contains(";1e-06;-1e-05_", Text(profile, tags["desc"]), StringComparison.Ordinal);
+        }
     }
 
-    public static IEnumerable<object[]> NativeCases()
+    public static IEnumerable<TheoryDataRow<string, int, IccRenderingIntent, string>> NativeCases()
     {
         const string fixtures = """
             adobe-custom-d65 0 0 89581A486DE58403950C5A66EA458EDDBA4461525764E25110BFF4AAC312B636
@@ -316,8 +318,8 @@ public sealed class CustomChromaticityIccProfileTests
         foreach (string line in fixtures.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             string[] fields = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            yield return [fields[0], int.Parse(fields[1], CultureInfo.InvariantCulture),
-                (IccRenderingIntent)int.Parse(fields[2], CultureInfo.InvariantCulture), fields[3]];
+            yield return new(fields[0], int.Parse(fields[1], CultureInfo.InvariantCulture),
+                (IccRenderingIntent)int.Parse(fields[2], CultureInfo.InvariantCulture), fields[3]);
         }
     }
     [Fact]
@@ -332,9 +334,9 @@ public sealed class CustomChromaticityIccProfileTests
         Assert.Equal((red, new IccChromaticity(0.21, 0.71), new IccChromaticity(0.14, 0.08)), (r, g, b));
         Assert.NotEqual(primaries, primaries with { Red = new(0.68, 0.31) });
         Assert.Equal(new IccChromaticity(double.NaN, -1), new IccChromaticity(double.NaN, -1));
-        Assert.Throws<ArgumentException>(() =>
-            JpegliIccProfiles.CreateRgbProfile(default(IccRgbPrimaries), CustomWhite, IccTransferFunction.Linear));
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        _ = Assert.Throws<ArgumentException>(() =>
+            JpegliIccProfiles.CreateRgbProfile(default, CustomWhite, IccTransferFunction.Linear));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             JpegliIccProfiles.CreateGrayscaleProfile(default(IccChromaticity), IccTransferFunction.Linear));
     }
 
@@ -386,7 +388,7 @@ public sealed class CustomChromaticityIccProfileTests
         {
             byte[] profile = JpegliIccProfiles.CreateRgbProfile(primaries, white, transfer);
             Dictionary<string, Tag> tags = ParseProfile(profile, "RGB ", IccRenderingIntent.Perceptual);
-            Assert.Equal(new[] { "desc", "cprt", "wtpt", "chad", "rXYZ", "gXYZ", "bXYZ", "rTRC", "gTRC", "bTRC" }, tags.Keys);
+            Assert.Equal(["desc", "cprt", "wtpt", "chad", "rXYZ", "gXYZ", "bXYZ", "rTRC", "gTRC", "bTRC"], tags.Keys);
             Assert.Equal(2, IccProfile.LookupTransferFunction(profile, TestContext.Current.CancellationToken));
             Assert.Equal("sf32", Signature(profile, tags["chad"].Offset));
             Assert.Equal(44, tags["chad"].Length);
@@ -400,15 +402,15 @@ public sealed class CustomChromaticityIccProfileTests
             for (int row = 0; row < 3; row++)
             {
                 Close(new[] { 0.964203, 1, 0.824905 }[row],
-                    Fixed(profile, tags["wtpt"].Offset + 8 + row * 4), 0.5 / 65536, "D50 media white");
+                    Fixed(profile, tags["wtpt"].Offset + 8 + (row * 4)), 0.5 / 65536, "D50 media white");
                 for (int column = 0; column < 3; column++)
                 {
-                    actualAdaptation[row, column] = Fixed(profile, tags["chad"].Offset + 8 + (row * 3 + column) * 4);
+                    actualAdaptation[row, column] = Fixed(profile, tags["chad"].Offset + 8 + (((row * 3) + column) * 4));
                     Close(adaptation[row, column], actualAdaptation[row, column], 0.00002, "Bradford adaptation");
                     Tag colorant = tags[new[] { "rXYZ", "gXYZ", "bXYZ" }[column]];
                     Assert.Equal("XYZ ", Signature(profile, colorant.Offset));
                     Assert.Equal(20, colorant.Length);
-                    actualColorants[row, column] = Fixed(profile, colorant.Offset + 8 + row * 4);
+                    actualColorants[row, column] = Fixed(profile, colorant.Offset + 8 + (row * 4));
                     Close(expectedColorants[row, column], actualColorants[row, column], 0.00003, "adapted primary");
                 }
             }
@@ -420,15 +422,17 @@ public sealed class CustomChromaticityIccProfileTests
                     actualColorants[row, 0] + actualColorants[row, 1] + actualColorants[row, 2],
                     0.00005, "colorant sum");
             }
-            foreach (double[] encoded in new[] { new[] { 0.0, 0.0, 0.0 }, new[] { 1.0, 1.0, 1.0 },
-                new[] { 0.125, 0.5, 0.875 }, new[] { 0.9, 0.2, 0.05 } })
+            foreach (double[] encoded in new[] { new[] { 0.0, 0.0, 0.0 }, [1.0, 1.0, 1.0],
+                [0.125, 0.5, 0.875], [0.9, 0.2, 0.05] })
             {
                 // Isolate matrix correctness from the coarse HDR curve grid.
                 double[] decoded = encoded.Select(value => EvaluateCurve(profile, tags["rTRC"], value)).ToArray();
                 double[] expected = Multiply(expectedColorants, decoded);
                 double[] actual = Multiply(actualColorants, decoded);
                 for (int row = 0; row < 3; row++)
+                {
                     Close(expected[row], actual[row], 0.00007, "profile RGB to D50 XYZ");
+                }
             }
         }
     }
@@ -447,12 +451,15 @@ public sealed class CustomChromaticityIccProfileTests
         {
             byte[] profile = JpegliIccProfiles.CreateGrayscaleProfile(white, transfer);
             Dictionary<string, Tag> tags = ParseProfile(profile, "GRAY", IccRenderingIntent.Perceptual);
-            Assert.Equal(new[] { "desc", "cprt", "wtpt", "kTRC" }, tags.Keys);
+            Assert.Equal(["desc", "cprt", "wtpt", "kTRC"], tags.Keys);
             Assert.Equal("XYZ ", Signature(profile, tags["wtpt"].Offset));
             double[] expectedWhite = Xyz(white);
             for (int row = 0; row < 3; row++)
-                Close(expectedWhite[row], Fixed(profile, tags["wtpt"].Offset + 8 + row * 4),
+            {
+                Close(expectedWhite[row], Fixed(profile, tags["wtpt"].Offset + 8 + (row * 4)),
                     0.00001, "unadapted grayscale white");
+            }
+
             VerifyCurve(profile, tags["kTRC"], transfer);
             Assert.Equal(2, IccProfile.LookupTransferFunction(profile, TestContext.Current.CancellationToken));
         }
@@ -486,6 +493,7 @@ public sealed class CustomChromaticityIccProfileTests
     public void RenderingIntentChangesDescriptionAndHeaderWithoutChangingTransforms(IccRenderingIntent intent, string name)
     {
         foreach (bool grayscale in new[] { false, true })
+        {
             foreach (bool gamma in new[] { false, true })
             {
                 byte[] profile = Create(grayscale, gamma, intent);
@@ -497,10 +505,15 @@ public sealed class CustomChromaticityIccProfileTests
                 Dictionary<string, Tag> expected = ParseProfile(perceptual, grayscale ? "GRAY" : "RGB ", IccRenderingIntent.Perceptual);
                 Assert.Equal(tags.Keys, expected.Keys);
                 foreach ((string signature, Tag tag) in tags)
+                {
                     if (signature != "desc")
+                    {
                         Assert.Equal(perceptual.AsSpan(expected[signature].Offset, expected[signature].Length).ToArray(),
                             profile.AsSpan(tag.Offset, tag.Length).ToArray());
+                    }
+                }
             }
+        }
     }
 
     [Theory]
@@ -528,7 +541,9 @@ public sealed class CustomChromaticityIccProfileTests
                 Assert.Equal(curve, tags["bTRC"]);
             }
             foreach (double value in new[] { 0, 1.0 / 255, 0.25, 0.5, 0.75, 0.9999, 1 })
+            {
                 Close(Math.Pow(value, gamma), EvaluateCurve(profile, curve, value), 0.000006, "gamma decoding");
+            }
         }
     }
 
@@ -536,6 +551,7 @@ public sealed class CustomChromaticityIccProfileTests
     public void AllFactoriesReturnFreshDeterministicMutableStorageWithCorrectProfileIds()
     {
         foreach (bool grayscale in new[] { false, true })
+        {
             foreach (bool gamma in new[] { false, true })
             {
                 byte[] first = Create(grayscale, gamma), second = Create(grayscale, gamma);
@@ -545,6 +561,7 @@ public sealed class CustomChromaticityIccProfileTests
                 Assert.Equal(second, Create(grayscale, gamma));
                 AssertProfileId(second);
             }
+        }
     }
 
     [Theory]
@@ -571,6 +588,7 @@ public sealed class CustomChromaticityIccProfileTests
         Assert.Equal("whitePoint", Assert.Throws<ArgumentOutOfRangeException>(() =>
             JpegliIccProfiles.CreateGammaGrayscaleProfile(invalid, 2.2)).ParamName);
         if (!double.IsFinite(x) || !double.IsFinite(y))
+        {
             foreach (IccRgbPrimaries primaries in new[] { CustomPrimaries with { Red = invalid },
                 CustomPrimaries with { Green = invalid }, CustomPrimaries with { Blue = invalid } })
             {
@@ -579,6 +597,7 @@ public sealed class CustomChromaticityIccProfileTests
                 Assert.Equal("primaries", Assert.Throws<ArgumentOutOfRangeException>(() =>
                     JpegliIccProfiles.CreateGammaRgbProfile(primaries, CustomWhite, 2.2)).ParamName);
             }
+        }
     }
 
     [Fact]
@@ -607,11 +626,11 @@ public sealed class CustomChromaticityIccProfileTests
         Assert.Equal("primaries", Assert.Throws<ArgumentOutOfRangeException>(() =>
             JpegliIccProfiles.CreateRgbProfile(floatOverflow, D65, IccTransferFunction.Linear)).ParamName);
         IccChromaticity enormousWhite = new(0.3, 1e-10);
-        Assert.Throws<ArgumentOutOfRangeException>(() => JpegliIccProfiles.CreateGrayscaleProfile(enormousWhite, IccTransferFunction.Linear));
-        Assert.Throws<ArgumentOutOfRangeException>(() => JpegliIccProfiles.CreateGammaGrayscaleProfile(enormousWhite, 2.2));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => JpegliIccProfiles.CreateGrayscaleProfile(enormousWhite, IccTransferFunction.Linear));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => JpegliIccProfiles.CreateGammaGrayscaleProfile(enormousWhite, 2.2));
         IccChromaticity underflowWhite = new(0.3, double.Epsilon);
-        Assert.Throws<ArgumentOutOfRangeException>(() => JpegliIccProfiles.CreateRgbProfile(CustomPrimaries, underflowWhite, IccTransferFunction.Linear));
-        Assert.Throws<ArgumentOutOfRangeException>(() => JpegliIccProfiles.CreateGammaRgbProfile(CustomPrimaries, underflowWhite, 2.2));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => JpegliIccProfiles.CreateRgbProfile(CustomPrimaries, underflowWhite, IccTransferFunction.Linear));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => JpegliIccProfiles.CreateGammaRgbProfile(CustomPrimaries, underflowWhite, 2.2));
     }
 
     [Theory]
@@ -642,7 +661,7 @@ public sealed class CustomChromaticityIccProfileTests
         }
         foreach (int value in new[] { -1, 4, 255, int.MaxValue })
         {
-            IccRenderingIntent intent = (IccRenderingIntent)value;
+            var intent = (IccRenderingIntent)value;
             Assert.Equal("renderingIntent", Assert.Throws<ArgumentOutOfRangeException>(() =>
                 JpegliIccProfiles.CreateRgbProfile(CustomPrimaries, CustomWhite, IccTransferFunction.Linear, intent)).ParamName);
             Assert.Equal("renderingIntent", Assert.Throws<ArgumentOutOfRangeException>(() =>
@@ -666,9 +685,9 @@ public sealed class CustomChromaticityIccProfileTests
     {
         const int width = 19, height = 17;
         bool gray = colorSpace == JpegColorSpace.Grayscale;
-        int stride = width * (gray ? 1 : 4) + 5;
+        int stride = (width * (gray ? 1 : 4)) + 5;
         Array source = Source(kind, width, height, stride, gray);
-        Array original = (Array)source.Clone();
+        var original = (Array)source.Clone();
         byte[] profile = kind == 1 ? Create(gray, true)
             : gray ? JpegliIccProfiles.CreateGrayscaleProfile(CustomWhite, IccTransferFunction.Hlg)
             : JpegliIccProfiles.CreateRgbProfile(CustomPrimaries, CustomWhite, IccTransferFunction.Pq);
@@ -677,20 +696,25 @@ public sealed class CustomChromaticityIccProfileTests
         byte[] originalBacking = backing.ToArray();
         var options = new JpegliEncoderOptions
         {
-            ColorSpace = colorSpace, IccProfile = backing.AsMemory(3, profile.Length),
-            Distance = 1.375f, SmoothingFactor = 37, Progressive = progressive,
-            ProgressiveRefinementBits = bits, RestartInterval = 2, OptimizeHuffmanTables = progressive
+            ColorSpace = colorSpace,
+            IccProfile = backing.AsMemory(3, profile.Length),
+            Distance = 1.375f,
+            SmoothingFactor = 37,
+            Progressive = progressive,
+            ProgressiveRefinementBits = bits,
+            RestartInterval = 2,
+            OptimizeHuffmanTables = progressive
         };
         byte[] actual = Encode(source, width, height, stride, gray, options);
         (byte[]? icc, byte[] coding) = ReadIccAndCoding(actual);
         Assert.Equal(profile, icc);
         Assert.Equal(coding, ReadIccAndCoding(Encode(source, width, height, stride, gray,
             options with { IccProfile = new byte[] { 1, 2, 3, 4 } })).Coding);
-        var withoutProfile = ReadIccAndCoding(Encode(source, width, height, stride, gray, options with { IccProfile = default }));
-        Assert.Null(withoutProfile.Icc);
-        Assert.Equal(coding, withoutProfile.Coding);
+        (byte[]? withoutIcc, byte[]? withoutCoding) = ReadIccAndCoding(Encode(source, width, height, stride, gray, options with { IccProfile = default }));
+        Assert.Null(withoutIcc);
+        Assert.Equal(coding, withoutCoding);
         Assert.Equal(actual, Encode(source, width, height, stride, gray, options with { InferCicpTransferFunctionFromIccProfile = true }));
-        JpegDocument document = JpegDocument.Read(actual, progressive, 2, bits);
+        var document = JpegDocument.Read(actual, progressive, 2, bits);
         Assert.Equal((width, height), (document.Width, document.Height));
         Assert.Equal(gray ? 1 : 3, document.Components.Count);
         using var destination = new MemoryStream();
@@ -704,12 +728,12 @@ public sealed class CustomChromaticityIccProfileTests
 
     private static byte[] Create(bool grayscale, bool gamma,
         IccRenderingIntent intent = IccRenderingIntent.Perceptual) => (grayscale, gamma) switch
-    {
-        (true, true) => JpegliIccProfiles.CreateGammaGrayscaleProfile(CustomWhite, 2.2, intent),
-        (true, false) => JpegliIccProfiles.CreateGrayscaleProfile(CustomWhite, IccTransferFunction.Srgb, intent),
-        (false, true) => JpegliIccProfiles.CreateGammaRgbProfile(CustomPrimaries, CustomWhite, 2.2, intent),
-        _ => JpegliIccProfiles.CreateRgbProfile(CustomPrimaries, CustomWhite, IccTransferFunction.Srgb, intent)
-    };
+        {
+            (true, true) => JpegliIccProfiles.CreateGammaGrayscaleProfile(CustomWhite, 2.2, intent),
+            (true, false) => JpegliIccProfiles.CreateGrayscaleProfile(CustomWhite, IccTransferFunction.Srgb, intent),
+            (false, true) => JpegliIccProfiles.CreateGammaRgbProfile(CustomPrimaries, CustomWhite, 2.2, intent),
+            _ => JpegliIccProfiles.CreateRgbProfile(CustomPrimaries, CustomWhite, IccTransferFunction.Srgb, intent)
+        };
 
     private static Dictionary<string, Tag> ParseProfile(byte[] profile, string colorSpace, IccRenderingIntent intent)
     {
@@ -719,29 +743,29 @@ public sealed class CustomChromaticityIccProfileTests
         Assert.Equal("mntr", Signature(profile, 12));
         Assert.Equal(colorSpace, Signature(profile, 16));
         Assert.Equal("XYZ ", Signature(profile, 20));
-        Assert.Equal(new[] { 2019, 12, 1, 0, 0, 0 }, Enumerable.Range(0, 6).Select(index => UInt16(profile, 24 + index * 2)));
+        Assert.Equal([2019, 12, 1, 0, 0, 0], Enumerable.Range(0, 6).Select(index => UInt16(profile, 24 + (index * 2))));
         Assert.Equal("acsp", Signature(profile, 36));
         Assert.Equal("APPL", Signature(profile, 40));
         Assert.All(profile[44..64], value => Assert.Equal(0, value));
         Assert.Equal((int)intent, Int32(profile, 64));
-        Assert.Equal(new[] { 0xf6d6, 0x10000, 0xd32d }, Enumerable.Range(0, 3).Select(index => Int32(profile, 68 + index * 4)));
+        Assert.Equal([0xf6d6, 0x10000, 0xd32d], Enumerable.Range(0, 3).Select(index => Int32(profile, 68 + (index * 4))));
         Assert.Equal("jxl ", Signature(profile, 80));
         Assert.All(profile[100..128], value => Assert.Equal(0, value));
         AssertProfileId(profile);
 
-        int count = Int32(profile, 128), end = 132 + count * 12;
+        int count = Int32(profile, 128), end = 132 + (count * 12);
         var tags = new Dictionary<string, Tag>();
         var extents = new HashSet<Tag>();
         for (int index = 0; index < count; index++)
         {
-            int offset = 132 + index * 12;
+            int offset = 132 + (index * 12);
             var tag = new Tag(Int32(profile, offset + 4), Int32(profile, offset + 8));
             Assert.True(tags.TryAdd(Signature(profile, offset), tag));
             Assert.Equal(0, tag.Offset % 4);
             Assert.InRange(tag.Offset, end, profile.Length - 8);
             Assert.InRange(tag.Length, 8, profile.Length - tag.Offset);
             Assert.Equal(0, Int32(profile, tag.Offset + 4));
-            extents.Add(tag);
+            _ = extents.Add(tag);
         }
         Tag[] ordered = extents.OrderBy(tag => tag.Offset).ToArray();
         Assert.Equal(end, ordered[0].Offset);
@@ -792,7 +816,7 @@ public sealed class CustomChromaticityIccProfileTests
             int previous = -1;
             for (int index = 0; index < 64; index++)
             {
-                int entry = UInt16(profile, tag.Offset + 12 + index * 2);
+                int entry = UInt16(profile, tag.Offset + 12 + (index * 2));
                 Assert.InRange(entry, previous, 65535);
                 Close(Decode(transfer, index / 63.0), entry / 65535.0, 0.00002, "HDR decoding table");
                 previous = entry;
@@ -808,8 +832,10 @@ public sealed class CustomChromaticityIccProfileTests
             Assert.Equal(0, UInt16(profile, tag.Offset + 10));
             double threshold = Fixed(profile, tag.Offset + 28);
             foreach (double value in Enumerable.Range(0, 256).Select(index => index / 255.0)
-                .Concat(new[] { -0.125, -1e-8, threshold - 1e-8, threshold, threshold + 1e-8 }))
+                .Concat([-0.125, -1e-8, threshold - 1e-8, threshold, threshold + 1e-8]))
+            {
                 Close(Decode(transfer, value, threshold), EvaluateCurve(profile, tag, value), 0.00004, "parametric decoding");
+            }
         }
     }
 
@@ -832,7 +858,7 @@ public sealed class CustomChromaticityIccProfileTests
         const double m1 = 2610.0 / 16384, m2 = 2523.0 / 32;
         const double c1 = 3424.0 / 4096, c2 = 2413.0 / 128, c3 = 2392.0 / 128;
         double power = Math.Pow(encoded, 1 / m2);
-        return Math.Pow(Math.Max(0, power - c1) / (c2 - c3 * power), 1 / m1);
+        return Math.Pow(Math.Max(0, power - c1) / (c2 - (c3 * power)), 1 / m1);
     }
 
     private static double EvaluateCurve(byte[] profile, Tag tag, double encoded)
@@ -842,15 +868,18 @@ public sealed class CustomChromaticityIccProfileTests
             double position = Math.Clamp(encoded, 0, 1) * 63;
             int left = Math.Min(62, (int)position);
             double fraction = position - left;
-            return ((1 - fraction) * UInt16(profile, tag.Offset + 12 + left * 2)
-                + fraction * UInt16(profile, tag.Offset + 14 + left * 2)) / 65535;
+            return (((1 - fraction) * UInt16(profile, tag.Offset + 12 + (left * 2)))
+                + (fraction * UInt16(profile, tag.Offset + 14 + (left * 2)))) / 65535;
         }
         double gamma = Fixed(profile, tag.Offset + 12);
         if (UInt16(profile, tag.Offset + 8) == 0)
+        {
             return Math.Pow(encoded, gamma);
+        }
+
         double a = Fixed(profile, tag.Offset + 16), b = Fixed(profile, tag.Offset + 20),
             c = Fixed(profile, tag.Offset + 24), threshold = Fixed(profile, tag.Offset + 28);
-        return encoded < threshold ? c * encoded : Math.Pow(a * encoded + b, gamma);
+        return encoded < threshold ? c * encoded : Math.Pow((a * encoded) + b, gamma);
     }
 
     private static double[,] AdaptedPrimaries(IccRgbPrimaries primaries, IccChromaticity white, double[,] adaptation)
@@ -863,7 +892,9 @@ public sealed class CustomChromaticityIccProfileTests
         {
             double[] xyz = [channels[column].X, channels[column].Y, 1 - channels[column].X - channels[column].Y];
             for (int row = 0; row < 3; row++)
+            {
                 unscaled[row, column] = xyz[row];
+            }
         }
         double[] scale = Solve(unscaled, Xyz(white));
         double[,] result = new double[3, 3];
@@ -872,7 +903,9 @@ public sealed class CustomChromaticityIccProfileTests
             double[] xyz = Enumerable.Range(0, 3).Select(row => unscaled[row, column] * scale[column]).ToArray();
             double[] adapted = Multiply(adaptation, xyz);
             for (int row = 0; row < 3; row++)
+            {
                 result[row, column] = adapted[row];
+            }
         }
         return result;
     }
@@ -886,10 +919,15 @@ public sealed class CustomChromaticityIccProfileTests
         {
             double[] adapted = new double[3];
             for (int row = 0; row < 3; row++)
+            {
                 adapted[row] = basis[row, column] * destination[row] / source[row];
+            }
+
             double[] xyz = Solve(basis, adapted);
             for (int row = 0; row < 3; row++)
+            {
                 result[row, column] = xyz[row];
+            }
         }
         return result;
     }
@@ -902,27 +940,46 @@ public sealed class CustomChromaticityIccProfileTests
         for (int row = 0; row < 3; row++)
         {
             for (int column = 0; column < 3; column++)
+            {
                 augmented[row, column] = matrix[row, column];
+            }
+
             augmented[row, 3] = vector[row];
         }
         for (int column = 0; column < 3; column++)
         {
             int pivot = column;
             for (int row = column + 1; row < 3; row++)
+            {
                 if (Math.Abs(augmented[row, column]) > Math.Abs(augmented[pivot, column]))
+                {
                     pivot = row;
+                }
+            }
+
             for (int index = column; index < 4; index++)
+            {
                 (augmented[column, index], augmented[pivot, index]) = (augmented[pivot, index], augmented[column, index]);
+            }
+
             double divisor = augmented[column, column];
             for (int index = column; index < 4; index++)
+            {
                 augmented[column, index] /= divisor;
+            }
+
             for (int row = 0; row < 3; row++)
             {
                 if (row == column)
+                {
                     continue;
+                }
+
                 double factor = augmented[row, column];
                 for (int index = column; index < 4; index++)
+                {
                     augmented[row, index] -= factor * augmented[column, index];
+                }
             }
         }
         return [augmented[0, 3], augmented[1, 3], augmented[2, 3]];
@@ -932,8 +989,13 @@ public sealed class CustomChromaticityIccProfileTests
     {
         double[] result = new double[3];
         for (int row = 0; row < 3; row++)
+        {
             for (int column = 0; column < 3; column++)
+            {
                 result[row] += matrix[row, column] * vector[column];
+            }
+        }
+
         return result;
     }
 
@@ -959,7 +1021,10 @@ public sealed class CustomChromaticityIccProfileTests
                 profile = jpeg[(offset + 18)..end];
             }
             else
+            {
                 coding.Write(jpeg.AsSpan(offset, end - offset));
+            }
+
             offset = end;
         }
         coding.Write(jpeg.AsSpan(offset));
@@ -969,17 +1034,24 @@ public sealed class CustomChromaticityIccProfileTests
     private static Array Source(int kind, int width, int height, int stride, bool gray)
     {
         int components = gray ? 1 : 4, rowLength = width * components;
-        byte[] bytes = Enumerable.Repeat((byte)0xad, (height - 1) * stride + rowLength).ToArray();
+        byte[] bytes = Enumerable.Repeat((byte)0xad, ((height - 1) * stride) + rowLength).ToArray();
         for (int row = 0; row < height; row++)
+        {
             for (int column = 0; column < width; column++)
+            {
                 for (int channel = 0; channel < (gray ? 1 : 3); channel++)
-                    bytes[row * stride + column * components + channel] = (byte)((column * 73 + row * 29 + channel * 61) % 256);
+                {
+                    bytes[(row * stride) + (column * components) + channel] = (byte)(((column * 73) + (row * 29) + (channel * 61)) % 256);
+                }
+            }
+        }
+
         return kind switch
         {
             0 => bytes,
-            1 => bytes.Select((value, index) => (ushort)Math.Clamp(value * 257 + index % 47 - 23, 0, 65535)).ToArray(),
-            _ => bytes.Select((value, index) => index % stride >= rowLength || !gray && index % stride % 4 == 3
-                ? float.NaN : Math.Clamp(value / 255f + (index % 47 - 23) / 65535f, 0f, 1f)).ToArray()
+            1 => bytes.Select((value, index) => (ushort)Math.Clamp((value * 257) + (index % 47) - 23, 0, 65535)).ToArray(),
+            _ => bytes.Select((value, index) => index % stride >= rowLength || (!gray && index % stride % 4 == 3)
+                ? float.NaN : Math.Clamp((value / 255f) + (((index % 47) - 23) / 65535f), 0f, 1f)).ToArray()
         };
     }
 
@@ -996,14 +1068,20 @@ public sealed class CustomChromaticityIccProfileTests
     private static void Encode(Stream output, Array source, int width, int height, int stride, bool gray, JpegliEncoderOptions options)
     {
         if (source is byte[] bytes)
+        {
             JpegliEncoder.Encode(output, bytes, width, height, gray ? PixelLayout.Gray8 : PixelLayout.Bgra32,
                 options, stride, TestContext.Current.CancellationToken);
+        }
         else if (source is ushort[] words)
+        {
             JpegliEncoder.Encode(output, words, width, height, gray ? PixelComponentLayout.Gray : PixelComponentLayout.Bgra,
                 options, stride, TestContext.Current.CancellationToken);
+        }
         else
+        {
             JpegliEncoder.Encode(output, (float[])source, width, height, gray ? PixelComponentLayout.Gray : PixelComponentLayout.Bgra,
                 options, stride, TestContext.Current.CancellationToken);
+        }
     }
 
     private static int Int32(byte[] bytes, int offset) => BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(offset, 4));

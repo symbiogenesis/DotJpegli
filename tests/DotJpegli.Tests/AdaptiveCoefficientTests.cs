@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class AdaptiveCoefficientTests
 {
@@ -20,9 +20,14 @@ public sealed class AdaptiveCoefficientTests
         float actual = Quantization.QuantValuesToDistance(tables);
         Assert.InRange(MathF.Abs(actual - expected), 0f, 0.00001f);
         if (quality == 0)
+        {
             Assert.Contains(tables.SelectMany(table => table), value => value == 255);
+        }
+
         if (quality == 100)
+        {
             Assert.Contains(tables.SelectMany(table => table), value => value == 1);
+        }
     }
 
     [Theory]
@@ -59,7 +64,9 @@ public sealed class AdaptiveCoefficientTests
         {
             Assert.Equal(0f, actual[component][0]);
             for (int i = 0; i < frequencies.Length; i++)
+            {
                 Assert.InRange(MathF.Abs(expected[component][i] - actual[component][frequencies[i]]), 0f, 0.000001f);
+            }
         }
     }
 
@@ -83,7 +90,7 @@ public sealed class AdaptiveCoefficientTests
     {
         float[][] multipliers = Quantization.CreateAdaptiveZeroBiasMultipliers(
             [Quantization.CreateGrayscaleTable(quality)], 1, 1, true);
-        Assert.Single(multipliers);
+        _ = Assert.Single(multipliers);
         Assert.Equal(0f, multipliers[0][0]);
         Assert.All(multipliers[0].Skip(1), value => Assert.Equal(0.5f, value));
     }
@@ -212,19 +219,19 @@ public sealed class AdaptiveCoefficientTests
         ushort[] table = UnitTable();
         short[] output = new short[64];
         float[] multipliers = new float[64];
-        Assert.Throws<ArgumentOutOfRangeException>(() => Quantization.Quantize(coefficients,
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Quantization.Quantize(coefficients,
             table, output, 0, 1f, adaptiveQuantization: true, adaptiveStrength: float.NaN,
             adaptiveMultipliers: multipliers));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Quantization.Quantize(coefficients,
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => Quantization.Quantize(coefficients,
             table, output, 0, 1f, adaptiveQuantization: true, adaptiveStrength: -1f,
             adaptiveMultipliers: multipliers));
-        Assert.Throws<ArgumentException>(() => Quantization.Quantize(coefficients,
+        _ = Assert.Throws<ArgumentException>(() => Quantization.Quantize(coefficients,
             table, output, 0, 1f, adaptiveQuantization: true));
         multipliers[63] = float.NaN;
-        Assert.Throws<ArgumentException>(() => Quantization.Quantize(coefficients,
+        _ = Assert.Throws<ArgumentException>(() => Quantization.Quantize(coefficients,
             table, output, 0, 1f, adaptiveQuantization: true, adaptiveMultipliers: multipliers));
-        Assert.Throws<ArgumentException>(() => Quantization.CreateAdaptiveZeroBiasMultipliers([table], 1, 1, false));
-        Assert.Throws<ArgumentException>(() => Quantization.QuantValuesToDistance([new ushort[64]]));
+        _ = Assert.Throws<ArgumentException>(() => Quantization.CreateAdaptiveZeroBiasMultipliers([table], 1, 1, false));
+        _ = Assert.Throws<ArgumentException>(() => Quantization.QuantValuesToDistance([new ushort[64]]));
     }
 
     private static ushort[][] CreateTables(float quality, int horizontalSampling = 1, int verticalSampling = 1)

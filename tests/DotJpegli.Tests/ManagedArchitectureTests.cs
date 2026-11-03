@@ -1,8 +1,8 @@
+namespace DotJpegli.Tests;
+
 using System.Reflection;
 using System.Runtime.Versioning;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class ManagedArchitectureTests
 {

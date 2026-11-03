@@ -1,9 +1,9 @@
 // Copyright (c) the JPEG XL Project Authors.
 // Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
 
-using static DotJpegli.Internal.IccProfileWriter;
-
 namespace DotJpegli.Internal;
+
+using static DotJpegli.Internal.IccProfileWriter;
 
 internal static class GrayscaleIccProfile
 {
@@ -40,7 +40,7 @@ internal static class GrayscaleIccProfile
     internal static byte[] CreateGamma(double gamma,
         IccRenderingIntent renderingIntent = IccRenderingIntent.Perceptual)
     {
-        GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
+        var curve = GammaTransferFunction.Create(gamma);
         return Create(TransferFunction.Linear, "Gra_D65_Per_" + curve.Description,
             IccWhitePoint.D65, curve.Exponent, renderingIntent);
     }
@@ -68,7 +68,7 @@ internal static class GrayscaleIccProfile
     {
         string whiteName = BuiltInIccColorEncoding.WhitePointName(whitePoint);
         _ = RenderingIntentName(renderingIntent);
-        GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
+        var curve = GammaTransferFunction.Create(gamma);
         return Create(TransferFunction.Linear, "Gra_" + whiteName + "_Per_" + curve.Description,
             whitePoint, curve.Exponent, renderingIntent);
     }
@@ -86,7 +86,7 @@ internal static class GrayscaleIccProfile
     internal static byte[] CreateGamma(IccChromaticity whitePoint, double gamma, IccRenderingIntent renderingIntent)
     {
         float[] whiteXyz = CustomIccColorEncoding.WhiteXyz(whitePoint);
-        GammaTransferFunction curve = GammaTransferFunction.Create(gamma);
+        var curve = GammaTransferFunction.Create(gamma);
         return Create(TransferFunction.Linear,
             "Gra_" + CustomIccColorEncoding.WhitePointName(whitePoint) + "_Per_" + curve.Description,
             IccWhitePoint.D65, curve.Exponent, renderingIntent, whiteXyz);
@@ -99,8 +99,8 @@ internal static class GrayscaleIccProfile
     {
         description = description.Replace("_Per_", "_" + RenderingIntentName(renderingIntent) + "_", StringComparison.Ordinal);
         bool tableCurve = transfer is TransferFunction.Pq or TransferFunction.Hlg;
-        int curveSize = gamma is not null ? 16 : tableCurve ? 12 + 64 * 2 : 32;
-        int descriptionSize = (28 + description.Length * 2 + 3) & ~3;
+        int curveSize = gamma is not null ? 16 : tableCurve ? 12 + (64 * 2) : 32;
+        int descriptionSize = (28 + (description.Length * 2) + 3) & ~3;
         int copyrightOffset = 180 + descriptionSize;
         int whiteOffset = copyrightOffset + 36;
         int curveOffset = whiteOffset + 20;
@@ -128,12 +128,21 @@ internal static class GrayscaleIccProfile
             Fixed(bytes, whiteOffset + 16, (float)((1.0 - whiteX - whiteY) * factor));
         }
         else
+        {
             for (int index = 0; index < 3; index++)
-                Fixed(bytes, whiteOffset + 8 + index * 4, customWhiteXyz[index]);
+            {
+                Fixed(bytes, whiteOffset + 8 + (index * 4), customWhiteXyz[index]);
+            }
+        }
+
         if (gamma is float exponent)
+        {
             Curve(bytes[curveOffset..], [exponent], 0);
+        }
         else if (tableCurve)
+        {
             WriteTableCurve(bytes[curveOffset..], transfer == TransferFunction.Pq);
+        }
         else
         {
             ReadOnlySpan<float> parameters = transfer switch
@@ -142,6 +151,12 @@ internal static class GrayscaleIccProfile
                 TransferFunction.Rec709 => [(float)(1.0 / 0.45), (float)(1.0 / 1.099),
                     (float)(0.099 / 1.099), (float)(1.0 / 4.5), 0.081f],
                 TransferFunction.Dci => [2.6f, 1f, 0f, 1f, 0f],
+                TransferFunction.Srgb => [2.4f, (float)(1.0 / 1.055), (float)(0.055 / 1.055),
+                    (float)(1.0 / 12.92), 0.04045f],
+                TransferFunction.Pq => [2.4f, (float)(1.0 / 1.055), (float)(0.055 / 1.055),
+                    (float)(1.0 / 12.92), 0.04045f],
+                TransferFunction.Hlg => [2.4f, (float)(1.0 / 1.055), (float)(0.055 / 1.055),
+                    (float)(1.0 / 12.92), 0.04045f],
                 _ => [2.4f, (float)(1.0 / 1.055), (float)(0.055 / 1.055),
                     (float)(1.0 / 12.92), 0.04045f]
             };
@@ -165,7 +180,7 @@ internal static class GrayscaleIccProfile
                 ? HdrToneMapping.PqDisplayFromEncoded(10000f, encoded)
                 : HdrToneMapping.HlgDisplayFromEncoded(encoded);
             float scaled = (float)(Math.Clamp(decoded, 0.0, 1.0) * 65535.0);
-            UInt16(tag, 12 + index * 2,
+            UInt16(tag, 12 + (index * 2),
                 (ushort)MathF.Round(scaled, MidpointRounding.AwayFromZero));
         }
     }

@@ -16,28 +16,41 @@ internal static class SelfTest
         Reject(() => Evidence.Iterations(double.NaN, policy));
         Reject(() => Evidence.Iterations(0, policy));
         TimingStatistics stats = Evidence.Statistics([7, 1, 3, 5]);
-        Near(stats.Median, 4); Near(stats.P10, 1.6); Near(stats.P90, 6.4); Near(stats.RelativeMad, .5);
+        Near(stats.Median, 4);
+        Near(stats.P10, 1.6);
+        Near(stats.P90, 6.4);
+        Near(stats.RelativeMad, .5);
         Assert(Evidence.Statistics([1, 1, 1]).RelativeMad == 0, "Constant samples should have zero MAD.");
-        Reject(() => Evidence.Statistics([])); Reject(() => Evidence.Statistics([1, double.PositiveInfinity]));
+        Reject(() => Evidence.Statistics([]));
+        Reject(() => Evidence.Statistics([1, double.PositiveInfinity]));
         Reject(() => Evidence.Statistics([0, 1]));
-        DiagnosticSelection defaults = DiagnosticSelection.Parse(new Dictionary<string, string>());
+        var defaults = DiagnosticSelection.Parse(new Dictionary<string, string>());
         Assert(defaults.ExpectedCases == 4 && defaults.Policy == policy, "Default diagnostic must select four representative cases with the unchanged sampling policy.");
-        DiagnosticSelection target = DiagnosticSelection.Parse(new Dictionary<string, string>
+        var target = DiagnosticSelection.Parse(new Dictionary<string, string>
         {
-            ["--images"] = "kodim03,line-art", ["--samplings"] = "420", ["--progressions"] = "2", ["--distances"] = "4",
-            ["--blocks"] = "3", ["--warmups"] = "5", ["--iterations"] = "4"
+            ["--images"] = "kodim03,line-art",
+            ["--samplings"] = "420",
+            ["--progressions"] = "2",
+            ["--distances"] = "4",
+            ["--blocks"] = "3",
+            ["--warmups"] = "5",
+            ["--iterations"] = "4"
         });
         Assert(target.ExpectedCases == 2 && target.Policy.Blocks == 3 && target.Policy.Warmups == 5 &&
             target.Policy.MinimumIterations == 4 && target.Policy.MaximumIterations == 4, "Bounded diagnostic overrides were ignored.");
-        foreach (var values in new Dictionary<string, string>[]
+        foreach (Dictionary<string, string> values in new Dictionary<string, string>[]
         {
             new() { ["--images"] = "untrusted" }, new() { ["--images"] = "kodim01,kodim01" }, new() { ["--distances"] = "2" },
             new() { ["--distances"] = "1,1.0" }, new() { ["--blocks"] = "1" }, new() { ["--iterations"] = "1000000" },
             new() { ["--warmups"] = "0" }, new() { ["--warmups"] = "1" }, new() { ["--warmups"] = "4" },
             new() { ["--warmups"] = "11" }, new() { ["--unknown"] = "1" }, new() { ["--samplings"] = "444," },
             new() { ["--images"] = string.Join(',', Evidence.ImageIds("natural")), ["--distances"] = "1,4" }
-        }) Reject(() => DiagnosticSelection.Parse(values));
-        const string nativeFixture = """
+        })
+        {
+            Reject(() => DiagnosticSelection.Parse(values));
+        }
+
+        const string nativeFixture = /*lang=json,strict*/ """
             {"encoder":"native-jpegli","upstreamPin":"031a0077f5799a6041004267fc12b956c1f52a20","width":768,"height":512,
             "distance":1,"sampling":"444","progressiveLevel":2,"optimizeHuffman":true,"adaptiveQuantization":true,
             "threads":1,"warmups":5,"iterations":3,"repeats":1,"bytes":12345,"deterministic":true,"samplesNsPerEncode":[1000000]}
@@ -77,13 +90,17 @@ internal static class SelfTest
         Evaluation meanSlow = Evidence.Evaluate(Corpus(1.051), policy);
         Assert(meanSlow.Valid && !meanSlow.Passed && meanSlow.Failures.Length == 8, "Group mean alone must fail despite acceptable individual ratios.");
         Assert(!Evidence.Evaluate(cases.Take(255).ToArray(), policy).Valid, "Missing matrix case must invalidate evidence.");
-        cases = Corpus(1); cases[0] = cases[1];
+        cases = Corpus(1);
+        cases[0] = cases[1];
         Assert(!Evidence.Evaluate(cases, policy).Valid, "Duplicate coverage must invalidate evidence even at the expected count.");
-        cases = Corpus(1); cases[0] = cases[0] with { Distance = 9 };
+        cases = Corpus(1);
+        cases[0] = cases[0] with { Distance = 9 };
         Assert(!Evidence.Evaluate(cases, policy).Valid, "Settings outside the predeclared matrix must be invalid.");
-        cases = Corpus(1); cases[0] = cases[0] with { MedianRatio = .1 };
+        cases = Corpus(1);
+        cases[0] = cases[0] with { MedianRatio = .1 };
         Assert(!Evidence.Evaluate(cases, policy).Valid, "Summaries cannot contradict raw timings.");
-        cases = Corpus(1); cases[0] = cases[0] with { StructureDifference = "wrong quantizers" };
+        cases = Corpus(1);
+        cases[0] = cases[0] with { StructureDifference = "wrong quantizers" };
         Evaluation wrongStructure = Evidence.Evaluate(cases, policy);
         Assert(!wrongStructure.Valid && !wrongStructure.Groups[0].Valid && !wrongStructure.Groups[0].Passed, "Different JPEG settings cannot establish speed parity or a valid group PASS.");
 
@@ -91,11 +108,14 @@ internal static class SelfTest
         Assert(Evidence.ValidateSamples(blocks, 3, policy).Length == 0, "Valid blocks rejected.");
         Assert(Evidence.ValidateSamples(blocks[..6], 3, policy).Length > 0, "Missing block accepted.");
         Assert(Evidence.ValidateSamples([.. blocks.Skip(1), blocks[1]], 3, policy).Length > 0, "Duplicate block accepted.");
-        BlockSample[] invalid = [.. blocks]; invalid[0] = invalid[0] with { NativeNsPerEncode = double.NaN };
+        BlockSample[] invalid = [.. blocks];
+        invalid[0] = invalid[0] with { NativeNsPerEncode = double.NaN };
         Assert(Evidence.ValidateSamples(invalid, 3, policy).Length > 0, "Nonfinite sample accepted.");
-        invalid = [.. blocks]; invalid[0] = invalid[0] with { ManagedNsPerEncode = 1 };
+        invalid = [.. blocks];
+        invalid[0] = invalid[0] with { ManagedNsPerEncode = 1 };
         Assert(Evidence.ValidateSamples(invalid, 3, policy).Length > 0, "Subminimum timer interval accepted.");
-        invalid = [.. blocks]; invalid[1] = invalid[1] with { Order = invalid[0].Order };
+        invalid = [.. blocks];
+        invalid[1] = invalid[1] with { Order = invalid[0].Order };
         Assert(Evidence.ValidateSamples(invalid, 3, policy).Length > 0, "Repeated nonalternating measurement order accepted.");
         invalid = blocks.Select((block, index) => block with { ManagedNsPerEncode = index < 3 ? 800_000 : index == 3 ? 1_000_000 : 1_200_000 }).ToArray();
         Assert(Evidence.ValidateSamples(invalid, 3, policy).Any(reason => reason.Contains("MAD", StringComparison.Ordinal)), "Unstable samples must invalidate evidence.");
@@ -106,11 +126,22 @@ internal static class SelfTest
     {
         var cases = new List<CaseResult>();
         foreach (string category in new[] { "natural", "controlled" })
+        {
             foreach (string id in Evidence.ImageIds(category))
+            {
                 foreach (int sampling in Evidence.Samplings)
+                {
                     foreach (int progression in Evidence.Progressions)
+                    {
                         foreach (float distance in Evidence.Distances)
+                        {
                             cases.Add(Case(id, category, sampling, progression, distance, ratio));
+                        }
+                    }
+                }
+            }
+        }
+
         return cases;
     }
 
@@ -124,10 +155,17 @@ internal static class SelfTest
     }
 
     private static void Near(double actual, double expected) => Assert(Math.Abs(actual - expected) < 1e-12, "Percentile/MAD math differs from the specified interpolation.");
-    private static void Assert(bool condition, string message) { if (!condition) throw new InvalidOperationException("Self-test: " + message); }
+    private static void Assert(bool condition, string message)
+    {
+        if (!condition)
+        {
+            throw new InvalidOperationException("Self-test: " + message);
+        }
+    }
     private static void Reject(Action action)
     {
-        try { action(); }
+        try
+        { action(); }
         catch (Exception error) when (error is InvalidDataException or KeyNotFoundException or ArgumentException or FormatException) { return; }
         throw new InvalidOperationException("Self-test: invalid timing input was accepted.");
     }

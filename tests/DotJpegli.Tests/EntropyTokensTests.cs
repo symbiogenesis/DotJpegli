@@ -1,7 +1,7 @@
+namespace DotJpegli.Tests;
+
 using DotJpegli.Internal;
 using Xunit;
-
-namespace DotJpegli.Tests;
 
 public sealed class EntropyTokensTests
 {
@@ -19,7 +19,7 @@ public sealed class EntropyTokensTests
     [InlineData(257, true)]
     public void SmallStreamAndBulkBoundariesPreserveContextsRawBitsFallbacksAndRestarts(int count, bool buffered)
     {
-        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        var table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
         var coding = new HuffmanCodingPlan.ScanCoding([table, table, table], [table, table, table], [], []);
         for (int prefix = 0; prefix < 64; prefix++)
         {
@@ -50,7 +50,10 @@ public sealed class EntropyTokensTests
                     int context = index % 6, symbol = index & 255;
                     int width = symbol == 0xf0 ? 0 : (symbol & 15) == 0 ? symbol >> 4 : symbol & 15;
                     if (index % 5 == 4)
+                    {
                         width = (width + 3) % 17;
+                    }
+
                     uint suffix = unchecked((uint)index * 0x9e3779b9U) & ((1U << width) - 1);
                     table.WriteSymbolWithBits(expectedWriter, symbol, suffix, width);
                     tokens.AddHuffman(context >> 1, (context & 1) != 0, symbol, suffix, width);
@@ -74,7 +77,7 @@ public sealed class EntropyTokensTests
     [InlineData(63)]
     public void SelectedLookupContextsPreserveUnexpectedContextsAndGenericSuffixFallbacks(int mask)
     {
-        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        var table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
         var coding = new HuffmanCodingPlan.ScanCoding([table, table, table], [table, table, table], [], []);
         using var tokens = new EntropyTokens(huffmanContextMask: mask);
         using var expected = new MemoryStream();
@@ -84,7 +87,10 @@ public sealed class EntropyTokensTests
             int context = index % 6, symbol = index & 255;
             int count = symbol == 0xf0 ? 0 : (symbol & 15) == 0 ? symbol >> 4 : symbol & 15;
             if (index % 19 == 18)
+            {
                 count = (count + 3) % 17;
+            }
+
             uint suffix = unchecked((uint)index * 0x9e3779b9U) & ((1U << count) - 1);
             table.WriteSymbolWithBits(writer, symbol, suffix, count);
             tokens.AddHuffman(context >> 1, (context & 1) != 0, symbol, suffix, count);
@@ -121,7 +127,7 @@ public sealed class EntropyTokensTests
         };
         using var scans = new EntropyTokenScans([scan], progressive: true);
         EntropyTokens tokens = scans[0];
-        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        var table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
         // Inactive contexts have no table at all. A scan must neither prepare
         // their codes nor touch them while replaying its selected decisions.
         HuffmanTable[] dc = [null!, null!, null!], ac = [null!, null!, null!];
@@ -130,9 +136,14 @@ public sealed class EntropyTokensTests
         if (mode < 2)
         {
             if (mode == 0)
+            {
                 dc[1] = table;
+            }
             else
+            {
                 ac[2] = table;
+            }
+
             table.WriteSymbolWithBits(writer, 3, 5, 3);
             tokens.AddHuffman(mode == 0 ? 1 : 2, mode == 1, 3, 5, 3);
         }
@@ -151,7 +162,7 @@ public sealed class EntropyTokensTests
     [Fact]
     public void BufferedTokenBatchesPreserveEveryAlignmentAcrossFallbacksAndRestarts()
     {
-        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        var table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
         var coding = new HuffmanCodingPlan.ScanCoding([table, table, table], [table, table, table], [], []);
         for (int prefix = 0; prefix < 64; prefix++)
         {
@@ -168,7 +179,10 @@ public sealed class EntropyTokensTests
                 int symbol = index & 255;
                 int count = symbol == 0xf0 ? 0 : (symbol & 15) == 0 ? symbol >> 4 : symbol & 15;
                 if (index % 129 == 128)
+                {
                     count = (count + 3) % 17;
+                }
+
                 uint suffix = unchecked((uint)index * 0x9e3779b9U) & ((1U << count) - 1);
                 table.WriteSymbolWithBits(writer, symbol, suffix, count);
                 tokens.AddHuffman(index % 3, (index & 1) != 0, symbol, suffix, count);
@@ -199,7 +213,7 @@ public sealed class EntropyTokensTests
     {
         long[] frequencies = new long[256];
         frequencies[5] = 1;
-        HuffmanTable table = HuffmanTable.CreateOptimized(frequencies);
+        var table = HuffmanTable.CreateOptimized(frequencies);
         var coding = new HuffmanCodingPlan.ScanCoding([table], [table], [], []);
         using var tokens = new EntropyTokens();
         using var expected = new MemoryStream();
@@ -212,7 +226,7 @@ public sealed class EntropyTokensTests
         tokens.AddHuffman(0, true, 0, 0, 0);
         using var actual = new MemoryStream();
         var writer = new BitWriter(actual, buffered: true);
-        var error = Assert.Throws<InvalidOperationException>(() =>
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
             tokens.Replay(writer, coding, TestContext.Current.CancellationToken));
         Assert.Equal("The Huffman table has no code for symbol 0.", error.Message);
         Assert.Equal(expected.ToArray(), actual.ToArray());
@@ -226,7 +240,7 @@ public sealed class EntropyTokensTests
     [InlineData(true)]
     public void PrebiasedCodesPreserveEverySymbolAndArbitrarySuffixWidths(bool buffered)
     {
-        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        var table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
         var coding = new HuffmanCodingPlan.ScanCoding([table], [table], [], []);
         using var tokens = new EntropyTokens();
         using var expected = new MemoryStream();
@@ -256,16 +270,16 @@ public sealed class EntropyTokensTests
     {
         long[] frequencies = new long[256];
         frequencies[5] = 1;
-        HuffmanTable table = HuffmanTable.CreateOptimized(frequencies);
+        var table = HuffmanTable.CreateOptimized(frequencies);
         using var tokens = new EntropyTokens();
         tokens.AddBits(0x42, 8);
         tokens.AddHuffman(0, true, 0, 0, 0);
         using var output = new MemoryStream();
         var writer = new BitWriter(output);
-        var error = Assert.Throws<InvalidOperationException>(() => tokens.Replay(writer,
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() => tokens.Replay(writer,
             new HuffmanCodingPlan.ScanCoding([table], [table], [], []), TestContext.Current.CancellationToken));
         Assert.Equal("The Huffman table has no code for symbol 0.", error.Message);
-        Assert.Equal(new byte[] { 0x42 }, output.ToArray());
+        Assert.Equal("B"u8.ToArray(), output.ToArray());
     }
 
     [Theory]
@@ -356,7 +370,7 @@ public sealed class EntropyTokensTests
         using var output = new MemoryStream();
         var writer = new BitWriter(output);
         var coding = new HuffmanCodingPlan.ScanCoding([], [], [], []);
-        Assert.Throws<InvalidOperationException>(() => tokens.Replay(writer, coding, TestContext.Current.CancellationToken));
+        _ = Assert.Throws<InvalidOperationException>(() => tokens.Replay(writer, coding, TestContext.Current.CancellationToken));
         Assert.Equal(0, output.Length);
     }
 
@@ -368,7 +382,7 @@ public sealed class EntropyTokensTests
         using var output = new MemoryStream();
         var writer = new BitWriter(output);
         var cancellation = new CancellationToken(true);
-        var error = Assert.Throws<OperationCanceledException>(() => tokens.Replay(writer,
+        OperationCanceledException error = Assert.Throws<OperationCanceledException>(() => tokens.Replay(writer,
             new HuffmanCodingPlan.ScanCoding([], [], [], []), cancellation));
         Assert.Equal(cancellation, error.CancellationToken);
         Assert.Equal(0, output.Length);
@@ -382,11 +396,11 @@ public sealed class EntropyTokensTests
         block[63] = 1024;
         long[] dc = new long[256], ac = new long[256];
         int previous = 0;
-        Assert.Throws<ArgumentOutOfRangeException>(() => EntropyEncoder.AccumulateFrequencies(block, ref previous, dc, ac,
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => EntropyEncoder.AccumulateFrequencies(block, ref previous, dc, ac,
             tokens: tokens));
         block[63] = 0;
         dc[0] = long.MaxValue;
-        Assert.Throws<OverflowException>(() => EntropyEncoder.AccumulateFrequencies(block, ref previous, dc, ac, tokens: tokens));
+        _ = Assert.Throws<OverflowException>(() => EntropyEncoder.AccumulateFrequencies(block, ref previous, dc, ac, tokens: tokens));
         using var output = new MemoryStream();
         var writer = new BitWriter(output);
         tokens.Replay(writer, new HuffmanCodingPlan.ScanCoding([], [], [], []), TestContext.Current.CancellationToken);
@@ -436,7 +450,7 @@ public sealed class EntropyTokensTests
     public void IrregularBudgetUsesSmallerFinalSegmentsBeforeAbandoningAndCannotReplayStaleData()
     {
         const int capacity = 8192 + 16384 + 512 + 128 + 16;
-        using var tokens = new EntropyTokens(capacity * sizeof(uint) + 3);
+        using var tokens = new EntropyTokens((capacity * sizeof(uint)) + 3);
         using var expected = new MemoryStream();
         var expectedWriter = new BitWriter(expected, buffered: true);
         for (int index = 0; index < capacity; index++)
@@ -459,7 +473,7 @@ public sealed class EntropyTokensTests
         Assert.False(tokens.IsComplete);
         tokens.AddRestart(7);
         using var rejected = new MemoryStream();
-        Assert.Throws<InvalidOperationException>(() =>
+        _ = Assert.Throws<InvalidOperationException>(() =>
             tokens.Replay(new BitWriter(rejected), coding, TestContext.Current.CancellationToken));
         Assert.Empty(rejected.ToArray());
     }
@@ -484,7 +498,10 @@ public sealed class EntropyTokensTests
             {
                 uint bits = unchecked((uint)width * 0x9e3779b9U);
                 if (width != 32)
+                {
                     bits &= (1U << width) - 1;
+                }
+
                 tokens.AddBits(bits, width);
                 expectedWriter.WriteBits(bits, width);
                 if (width % 7 == 6)
@@ -532,7 +549,10 @@ public sealed class EntropyTokensTests
     {
         using var complete = new EntropyTokens(16 * sizeof(uint));
         for (int index = 0; index < 16; index++)
+        {
             complete.AddBits(0, 0);
+        }
+
         Assert.True(complete.IsComplete);
         using var empty = new MemoryStream();
         complete.Replay(new BitWriter(empty), new HuffmanCodingPlan.ScanCoding([], [], [], []), TestContext.Current.CancellationToken);
@@ -542,11 +562,14 @@ public sealed class EntropyTokensTests
 
         using var partial = new EntropyTokens(16 * sizeof(uint));
         for (int index = 0; index < 15; index++)
+        {
             partial.AddBits(0, 0);
+        }
+
         partial.AddBits(uint.MaxValue, 32);
         Assert.False(partial.IsComplete);
         using var rejected = new MemoryStream();
-        Assert.Throws<InvalidOperationException>(() => partial.Replay(new BitWriter(rejected),
+        _ = Assert.Throws<InvalidOperationException>(() => partial.Replay(new BitWriter(rejected),
             new HuffmanCodingPlan.ScanCoding([], [], [], []), TestContext.Current.CancellationToken));
         Assert.Empty(rejected.ToArray());
     }
