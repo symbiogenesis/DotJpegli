@@ -10,6 +10,8 @@ using System.Text.Json.Serialization;
 /// <summary>CI-only, steady-state comparisons of two statically built encoder revisions.</summary>
 internal static class RevisionComparison
 {
+    // Source identity verified by the successful 1.0.0 NuGet publication run 38698571455.
+    private const string ReleasedRevision = "a40868bfdace7d737413085522a88d351aa16782";
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -26,7 +28,7 @@ internal static class RevisionComparison
     ];
 
     private sealed record Settings(string BaselineRunner, string BaselineRevision, string CurrentRevision,
-        string Corpus, string Output, DiagnosticSelection Selection);
+        string Corpus, string Output, DiagnosticSelection Selection, bool ReleaseRegression);
     internal sealed record Leg(int Position, string Variant, RevisionWorker.Measurement Measurement);
     internal sealed record Quartet(int Block, string Order, Leg[] Legs);
     private sealed record Result(string Id, string Category, int Width, int Height, int Sampling,
@@ -79,7 +81,9 @@ internal static class RevisionComparison
                 expectedComparisons = selection.ExpectedCases,
                 method = new
                 {
-                    scope = "Selected managed revision diagnostics; no native or full performance parity verdict",
+                    scope = options.ReleaseRegression
+                        ? "Complete 256-case managed comparison against released 1.0.0 source; no native parity verdict"
+                        : "Selected managed revision diagnostics; no native or full performance parity verdict",
                     order = "Balanced alternating ABBA/BAAB quartets by case and block index; A=baseline, B=current",
                     workers = "Two persistent processes using identical runner bytes and statically built encoder libraries; only one worker encodes at a time",
                     latency = "Complete public byte-array Encode calls; process startup, input loading, warmups and JPEG hash checks excluded",
@@ -166,12 +170,19 @@ internal static class RevisionComparison
             }
 
             string[] invalid = results.SelectMany(result => result.Analysis.InvalidReasons.Select(reason => $"{Label(result)}: {reason}")).ToArray();
-            if (results.Count != selection.ExpectedCases)
+            string[] expectedLabels = (from id in selection.Images
+                                       from sampling in selection.Samplings
+                                       from progression in selection.Progressions
+                                       from distance in selection.Distances
+                                       select FormattableString.Invariant($"{id}/{sampling}/p{progression}/d{distance:0}")).ToArray();
+            if (results.Count != selection.ExpectedCases || !results.Select(Label).Order(StringComparer.Ordinal)
+                .SequenceEqual(expectedLabels.Order(StringComparer.Ordinal)))
             {
                 invalid = [.. invalid, "Selected comparison coverage is incomplete."];
             }
 
             bool valid = invalid.Length == 0;
+            string[] regressions = results.Where(result => IsRegression(result.Analysis)).Select(Label).ToArray();
             await WriteJson(output, "summary.json", new
             {
                 schemaVersion = 1,
@@ -180,13 +191,19 @@ internal static class RevisionComparison
                 valid,
                 parityVerdict = "not-evaluated",
                 fullCoverageComplete = false,
+                releaseCoverageComplete = options.ReleaseRegression && results.Count == 256 && valid,
+                releaseRegressionVerdict = !options.ReleaseRegression ? "not-evaluated"
+                    : !valid ? "invalid" : regressions.Length != 0 ? "regressions-detected" : "no-regressions-detected",
+                baselineRevision = options.BaselineRevision,
+                currentRevision = options.CurrentRevision,
+                regressions,
                 comparisons = results.Count,
                 expectedComparisons = selection.ExpectedCases,
                 inconclusiveComparisons = results.Count(result => result.Analysis.InvalidReasons.Length == 0 && result.Analysis.EvidencePreference == "inconclusive"),
                 invalidReasons = invalid
             });
-            await File.WriteAllTextAsync(Path.Combine(output, "report.md"), Report(results, invalid));
-            return valid ? 0 : 2;
+            await File.WriteAllTextAsync(Path.Combine(output, "report.md"), Report(results, invalid, options.ReleaseRegression));
+            return ExitCode(valid, options.ReleaseRegression, regressions.Length);
         }
         catch (Exception error) when (error is ArgumentException or InvalidDataException or IOException
             or UnauthorizedAccessException or InvalidOperationException or OverflowException or JsonException or FormatException
@@ -218,7 +235,13 @@ internal static class RevisionComparison
             throw new ArgumentException("Supply --compare-revisions exactly once.");
         }
 
-        string[] pairs = args.Where(argument => argument != "--compare-revisions").ToArray();
+        int releaseFlags = args.Count(argument => argument == "--release-regression");
+        if (releaseFlags > 1)
+        {
+            throw new ArgumentException("Supply --release-regression at most once.");
+        }
+        bool releaseRegression = releaseFlags == 1;
+        string[] pairs = args.Where(argument => argument is not ("--compare-revisions" or "--release-regression")).ToArray();
         if (pairs.Length % 2 != 0)
         {
             throw new ArgumentException("Revision comparison options require name/value pairs.");
@@ -253,16 +276,36 @@ internal static class RevisionComparison
             throw new ArgumentException("Baseline runner and corpus must exist.");
         }
 
-        _ = values.TryAdd("--blocks", "6");
-        _ = values.TryAdd("--iterations", "20");
-        var selection = DiagnosticSelection.Parse(values);
+        DiagnosticSelection selection;
+        if (releaseRegression)
+        {
+            if (baseline != ReleasedRevision || values.Count != 0)
+            {
+                throw new ArgumentException("Release regression comparisons require the published 1.0.0 source and the complete fixed matrix, without selection or count overrides.");
+            }
+            selection = new(Evidence.ImageIds("natural").Concat(Evidence.ControlledIds).ToArray(),
+                Evidence.Distances, Evidence.Samplings, Evidence.Progressions,
+                new Policy { Blocks = 6, Warmups = 5, MinimumIterations = 20, MaximumIterations = 20 });
+        }
+        else
+        {
+            _ = values.TryAdd("--blocks", "6");
+            _ = values.TryAdd("--iterations", "20");
+            selection = DiagnosticSelection.Parse(values);
+        }
         if (selection.Policy.Blocks is not (4 or 6))
         {
             throw new ArgumentException("Revision comparisons require four or six balanced quartets.");
         }
 
-        return new(runner, baseline, current, corpus, output, selection);
+        return new(runner, baseline, current, corpus, output, selection, releaseRegression);
     }
+
+    private static bool IsRegression(KernelComparison.Analysis analysis)
+        => analysis.InvalidReasons.Length == 0 && analysis.EvidencePreference == "baseline";
+
+    private static int ExitCode(bool valid, bool releaseRegression, int regressions)
+        => !valid ? 2 : releaseRegression && regressions != 0 ? 1 : 0;
 
     private static void RequireRevision(string? value)
     {
@@ -344,11 +387,16 @@ internal static class RevisionComparison
     private static string Metric(double? value) => value?.ToString("F6", CultureInfo.InvariantCulture) ?? "n/a";
     private static string Label(Result result) => FormattableString.Invariant($"{result.Id}/{result.Sampling}/p{result.ProgressiveLevel}/d{result.Distance}");
 
-    private static string Report(IReadOnlyList<Result> results, string[] invalid)
+    private static string Report(IReadOnlyList<Result> results, string[] invalid, bool releaseRegression)
     {
         var report = new StringBuilder("# Interleaved revision comparison\n\n");
         _ = report.AppendLine("Persistent baseline and current workers run serially as balanced ABBA/BAAB quartets with identical fixed iterations, warmups, runtime, CPU affinity, encoding policy, inputs and JPEG hashes. Startup and IPC are outside encode timing. Ratios below1 favor current. Allocations are mean bytes per encode; retained rental capacity and peak working memory are separate measurements.");
-        _ = report.AppendLine("\nMAD, repeated-leg drift, p90/p10 minority-state drift and order bias guard the selected timing evidence. Invalid rows retain raw measurements and cannot support a speed claim. Valid rows remain inconclusive unless every quartet differs by more than0.5% in the same direction. This diagnostic has no native or whole-corpus parity verdict.");
+        _ = report.AppendLine("\nMAD, repeated-leg drift, p90/p10 minority-state drift and order bias guard the timing evidence. Invalid rows retain raw measurements and cannot support a speed claim. Valid rows remain inconclusive unless every quartet differs by more than 0.5% in the same direction. This comparison has no native parity verdict.");
+        if (releaseRegression)
+        {
+            int regressions = results.Count(result => IsRegression(result.Analysis));
+            _ = report.AppendLine(CultureInfo.InvariantCulture, $"\nRelease comparison: {results.Count}/256 cases against published 1.0.0 source `{ReleasedRevision}`, rebuilt with the candidate SDK. {regressions} valid cases consistently favor 1.0.0 and fail the regression gate. Invalid or missing evidence fails validation separately. Inconclusive differences are retained and do not prove equal performance. The gate checks latency; allocation counts are reported separately.");
+        }
         _ = report.AppendLine("\n| Case | Current/baseline | Order bias | Maximum repeat drift | Baseline p90/p10 | Current p90/p10 | Baseline B/encode | Current B/encode | Valid | Preference |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |");
         foreach (Result result in results)
         {
@@ -435,6 +483,14 @@ internal static class RevisionComparison
         Quartet[] tinyEffect = Mutate(samples, (_, leg) => leg.Variant == "current"
             ? leg with { Measurement = leg.Measurement with { NsPerEncode = 997_000 } } : leg);
         Check(Analyze(tinyEffect, 20, policy, 0).EvidencePreference == "inconclusive", "Small revision effect must remain inconclusive.");
+        Quartet[] slower = Mutate(samples, (_, leg) => leg.Variant == "current"
+            ? leg with { Measurement = leg.Measurement with { NsPerEncode = 1_020_000 } } : leg);
+        Check(IsRegression(Analyze(slower, 20, policy, 0)), "Consistent release regression was not detected.");
+        Check(!IsRegression(stable) && !IsRegression(minorityAnalysis)
+            && !IsRegression(Analyze(tinyEffect, 20, policy, 0)), "Invalid, faster or inconclusive evidence was called a regression.");
+        Check(ExitCode(true, true, 1) == 1 && ExitCode(false, true, 1) == 2
+            && ExitCode(true, true, 0) == 0 && ExitCode(true, false, 1) == 0,
+            "Release regression exit codes must distinguish regressions, invalid evidence and diagnostics.");
         Check(Analyze(samples[..5], 20, policy, 0).InvalidReasons.Length != 0, "Incomplete quartets accepted.");
         Check(Analyze(samples, 21, policy, 0).InvalidReasons.Length != 0, "Mismatched iterations accepted.");
         string[] arguments = ["--compare-revisions", "--baseline-runner", Assembly.GetExecutingAssembly().Location,
@@ -447,6 +503,18 @@ internal static class RevisionComparison
         Reject(() => Parse([.. arguments, "--iterations", "0"]));
         Reject(() => Parse([.. arguments, "--unknown", "value"]));
         Reject(() => Parse([.. arguments, "--current-revision", currentRevision]));
+        string[] releaseArguments = arguments.Select(argument => argument == baselineRevision ? ReleasedRevision : argument).ToArray();
+        Settings release = Parse([.. releaseArguments, "--release-regression"]);
+        Check(release.ReleaseRegression && release.Selection.ExpectedCases == 256
+            && release.Selection.Images.Length == 32 && release.Selection.Policy.Blocks == 6
+            && release.Selection.Policy.MinimumIterations == 20 && release.Selection.Policy.Warmups == 5,
+            "Release comparison must select the complete fixed matrix.");
+        Reject(() => Parse([.. arguments, "--release-regression"]));
+        Reject(() => Parse([.. releaseArguments, "--release-regression", "--release-regression"]));
+        foreach (string[] overrides in new[] { new[] { "--images", "kodim01" }, ["--blocks", "4"], ["--iterations", "100"] })
+        {
+            Reject(() => Parse([.. releaseArguments, "--release-regression", .. overrides]));
+        }
         Console.WriteLine("Revision comparison self-test passed (synthetic identities and timings only).");
     }
 

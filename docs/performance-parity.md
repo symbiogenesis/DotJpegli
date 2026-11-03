@@ -75,6 +75,16 @@ command is described in the [runner guide](../tools/DotJpegli.Performance/README
 
 ## Targeted development comparisons
 
+For a version regression investigation, `[compare-release]` requests a separate
+complete 256-case comparison against the source actually published as 1.0.0,
+`a40868bfdace7d737413085522a88d351aa16782`. Both versions are rebuilt with the
+current SDK and interleaved on the same CPU/runtime, on .NET 10/11 and
+x64/ARM64, including forced narrow x64 SIMD. The fixed comparison rejects
+invalid evidence and consistently slower cases; inconclusive rows remain
+explicit. See the [release comparison protocol](../tools/DotJpegli.Performance/README.md#regression-comparison-against-released-100).
+It can accompany `[full-parity]` in one automatic run. Historical README
+native-relative charts from different CPUs cannot establish version regressions.
+
 A normal push to `main` runs four cases directly: `kodim01` at distance 1,
 444/420 and progression 0/2 on .NET 11. Select `framework=net10.0` in a targeted
 dispatch to inspect the compatible .NET 10 build. It does not wait for the full quality/compression

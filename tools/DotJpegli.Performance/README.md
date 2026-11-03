@@ -1,5 +1,39 @@
 # Targeted performance development and full acceptance evidence
 
+## Regression comparison against released 1.0.0
+
+Include `[compare-release]` in the final commit message of a push to `main` to
+compare all 256 photograph/control configurations against the source published
+as NuGet 1.0.0, `a40868bfdace7d737413085522a88d351aa16782` (publication run
+[38698571455](https://github.com/symbiogenesis/DotJpegli/actions/runs/38698571455)).
+This runs in the same automatic workflow, independently of `[full-parity]`.
+Reuse that run; do not dispatch a duplicate.
+
+The release comparison uses .NET 10 and .NET 11 on x64 and ARM64, with additional
+x64 lanes disabling AVX-512 to cover the narrow SIMD path. Each lane rebuilds
+the release source with the current pinned SDK, refreshes only its isolated
+restore for that SDK, and normalizes its assembly binding version so identical
+measurement workers can load both versions. Source revision, SDK, dependency
+lock and binary identities are retained. This isolates encoder changes on each
+host/runtime; it does not measure the effect of upgrading the runtime itself.
+
+The CI-only `--compare-revisions --release-regression` command requires that
+baseline and the complete fixed matrix; it rejects selection/count overrides.
+Two persistent workers run serially on one CPU with six balanced ABBA/BAAB
+quartets, five warmups and 20 encodes per leg (100 for tiny inputs). JPEG bytes
+must match across both versions and every leg. Existing timing validity guards
+remain unchanged. Exit 1 means at least one valid case consistently favors the
+release by more than 0.5% in every quartet; exit 2 means incomplete or invalid
+evidence. Exit 0 means no detected latency regression within this matrix.
+Inconclusive rows remain in the report and do not prove equal speed. Managed
+allocations are reported separately. This comparison does not establish native
+Jpegli performance parity or cover every public encoder option.
+
+The `release-regression-<architecture>-<framework>-<SIMD>-<revision>` artifacts
+retain raw legs, identities, input hashes, reports and build provenance.
+`--self-test-revision-comparison` validates the gate and fixed selection using
+synthetic data locally, without encoding or reading clocks.
+
 The `--aq-reciprocal-analysis --photograph <PPM> --output <empty-directory>`
 command performs untimed numerical analysis and can run locally. It compares
 Original and forced certified-reciprocal AQ encodes on six images, distances

@@ -556,6 +556,116 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+  release-regression:
+    name: Release regression (${{ matrix.architecture }}, ${{ matrix.framework }}, ${{ matrix.simd }})
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[compare-release]')
+    needs: native-reference
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            architecture: X64
+            framework: net10.0
+            simd: default
+          - runner: ubuntu-latest
+            architecture: X64
+            framework: net11.0
+            simd: default
+          - runner: ubuntu-latest
+            architecture: X64
+            framework: net10.0
+            simd: avx2
+          - runner: ubuntu-latest
+            architecture: X64
+            framework: net11.0
+            simd: avx2
+          - runner: ubuntu-24.04-arm
+            architecture: ARM64
+            framework: net10.0
+            simd: default
+          - runner: ubuntu-24.04-arm
+            architecture: ARM64
+            framework: net11.0
+            simd: default
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    env:
+      # This is the source revision published as NuGet 1.0.0.
+      BASELINE_REVISION: a40868bfdace7d737413085522a88d351aa16782
+      DOTNET_TieredCompilation: '0'
+      # Disable both diagnostic names so .NET 10 and 11 exercise AVX2 even on
+      # an AVX-512 runner. The comparison verifies actual narrow capabilities.
+      DOTNET_EnableAVX512F: ${{ matrix.simd == 'avx2' && '0' || '1' }}
+      DOTNET_EnableAVX512: ${{ matrix.simd == 'avx2' && '0' || '1' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          dotnet-version: 10.0.403
+      # PPM inputs are architecture independent. No native executable is run by
+      # this comparison, so reuse the corpus already prepared for the CI run.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: parity-reference-X64-${{ github.sha }}
+          path: ${{ runner.temp }}
+      - name: Build current release comparison worker
+        run: |
+          dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
+          dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release -f ${{ matrix.framework }} --no-restore -p:SourceRevisionId="${{ github.sha }}"
+          dotnet tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll --self-test-revision-comparison
+      - name: Build released sources with the same SDK and worker
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASELINE_REVISION"
+          lane="${{ runner.temp }}/released-encoder-source"
+          worker="${{ runner.temp }}/released-encoder-worker"
+          provenance="${{ runner.temp }}/release-build-provenance"
+          mkdir -p "$lane" "$worker" "$provenance"
+          git archive "$BASELINE_REVISION" | tar -x -C "$lane"
+          cp global.json "$lane/global.json"
+          assembly_version=$(dotnet msbuild src/DotJpegli/DotJpegli.csproj -nologo -p:TargetFramework=${{ matrix.framework }} -getProperty:AssemblyVersion)
+          {
+            echo "Baseline source: $BASELINE_REVISION"
+            echo "Current source: ${{ github.sha }}"
+            echo "Framework: ${{ matrix.framework }}"
+            echo "SIMD lane: ${{ matrix.simd }}"
+            echo "Baseline AssemblyVersion override for identical worker binding: $assembly_version"
+            echo "Only global.json is copied from current into the released source tree."
+            echo "Baseline restore reevaluates SDK-owned ILLink tasks for the identical current SDK."
+            echo "Baseline static analyzers are disabled for SDK compatibility; current compilation keeps normal analyzer validation."
+            dotnet --info
+          } > "$provenance/build.txt"
+          cp "$lane/src/DotJpegli/packages.lock.json" "$provenance/released-packages.lock.json"
+          cd "$lane"
+          dotnet restore src/DotJpegli/DotJpegli.csproj --force-evaluate
+          cp src/DotJpegli/packages.lock.json "$provenance/rebuilt-packages.lock.json"
+          sha256sum "$provenance/released-packages.lock.json" "$provenance/rebuilt-packages.lock.json" >> "$provenance/build.txt"
+          dotnet build src/DotJpegli/DotJpegli.csproj -c Release -f ${{ matrix.framework }} --no-restore -p:SourceRevisionId="$BASELINE_REVISION" -p:AssemblyVersion="$assembly_version" -p:RunAnalyzers=false
+          cp "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/"* "$worker/"
+          cp "$lane/src/DotJpegli/bin/Release/${{ matrix.framework }}/DotJpegli.dll" "$worker/DotJpegli.dll"
+          sha256sum "$worker/DotJpegli.dll" "$worker/DotJpegli.Performance.dll" "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.dll" >> "$provenance/build.txt"
+      - name: Compare all 256 cases with released 1.0.0 on the same CPU (CI only)
+        run: |
+          cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
+          taskset -c "$cpu" dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll" --compare-revisions --release-regression --baseline-runner "${{ runner.temp }}/released-encoder-worker/DotJpegli.Performance.dll" --baseline-revision "$BASELINE_REVISION" --current-revision "${{ github.sha }}" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/release-regression"
+      - name: Publish release regression report
+        if: always()
+        run: |
+          if [[ -f "${{ runner.temp }}/release-regression/report.md" ]]; then
+            cat "${{ runner.temp }}/release-regression/report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Retain release regression evidence and build provenance
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-regression-${{ matrix.architecture }}-${{ matrix.framework }}-${{ matrix.simd }}-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/release-regression/
+            ${{ runner.temp }}/release-build-provenance/
+          retention-days: 30
+          if-no-files-found: warn
+
   runtime-comparison:
     if: inputs.compare_net11 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[compare-net11]'))
     needs: native-reference
