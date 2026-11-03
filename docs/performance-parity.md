@@ -78,6 +78,16 @@ they are its motivation, not evidence of that later policy's performance.
 The retained interpretation also covers concurrency, memory and minority timing
 states that the original MAD-only noise flag did not detect.
 
+The [later workload snapshot at `0104778`](performance-evidence/2026-11-03-0104778-workloads/README.md)
+retains all 26 scenarios on x64 and ARM64 after the segmented/partial
+converted-plane changes. Within that run, converted-plane boundary
+above-to-below median ratios are 1.098/1.068 for 4:4:4 and 1.021/1.027 for
+4:2:0 (x64/ARM64). Both sides pass the workload dispersion checks. These
+observations cover the later policy, but the separate hosts and runs do not
+establish a before/after speedup. The snapshot preserves noisy rows, memory
+observations and the added 256-warmup tiering scenario; it does not establish
+native parity or a release regression verdict.
+
 The complete 256-case comparison of revision
 `b07eb5d240c2be1f6b9aebac13d081fb50d740cd` in
 [hosted run 41690962313](https://github.com/symbiogenesis/DotJpegli/actions/runs/41690962313)

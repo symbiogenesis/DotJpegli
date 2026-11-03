@@ -1,0 +1,28 @@
+{
+    "schemaVersion":  1,
+    "revision":  "0104778b2691cf3e61d7dbac280457f383d9bc0c",
+    "githubRunId":  "41695349570",
+    "runUrl":  "https://github.com/symbiogenesis/DotJpegli/actions/runs/41695349570",
+    "workflowConclusion":  "failure",
+    "retainedFiles":  "retained-files.json",
+    "retainedFileCount":  372,
+    "retainedBytes":  1283908,
+    "artifacts":  [
+                      {
+                          "architecture":  "ARM64",
+                          "id":  13260362920,
+                          "name":  "performance-workloads-ARM64-0104778b2691cf3e61d7dbac280457f383d9bc0c",
+                          "archiveBytes":  130397,
+                          "githubReportedArchiveDigest":  "sha256:122316262ee312b33a0a24e819e1023fb3968a6e699f82504c7149a3fe8049f7",
+                          "createdAtUtc":  "2026-11-03T18:39:55Z"
+                      },
+                      {
+                          "architecture":  "X64",
+                          "id":  13260692531,
+                          "name":  "performance-workloads-X64-0104778b2691cf3e61d7dbac280457f383d9bc0c",
+                          "archiveBytes":  127542,
+                          "githubReportedArchiveDigest":  "sha256:15712d4453eb95205d19d8306cd02044fbabdf3a4856313f3ccb754a64e06534",
+                          "createdAtUtc":  "2026-11-03T18:38:38Z"
+                      }
+                  ]
+}

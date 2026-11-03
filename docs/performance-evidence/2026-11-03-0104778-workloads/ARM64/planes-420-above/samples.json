@@ -1,0 +1,212 @@
+[
+  {
+    "index": 0,
+    "batchMilliseconds": 186.8006,
+    "encodeMilliseconds": [
+      186.79
+    ],
+    "allocatedBytes": 8667656,
+    "gen0Collections": 0,
+    "gen1Collections": 0,
+    "gen2Collections": 0,
+    "memory": {
+      "workingSetBytes": 228380672,
+      "processPeakWorkingSetBytes": 228380672,
+      "managedBytesWithoutCollection": 184412120,
+      "lastGcHeapBytes": 135317760,
+      "lastGcFragmentedBytes": 283832,
+      "lastGcCommittedBytes": 135458816
+    },
+    "caches": [
+      {
+        "peakBytes": 123305984,
+        "convertedSamplePeakBytes": 50790400,
+        "coefficientPeakBytes": 50331648,
+        "entropyTokenPeakBytes": 22249472,
+        "currentBytesAfterEncode": 0,
+        "convertedSampleCachedRows": 2064,
+        "convertedSampleTotalRows": 2064
+      }
+    ]
+  },
+  {
+    "index": 1,
+    "batchMilliseconds": 193.986,
+    "encodeMilliseconds": [
+      193.9813
+    ],
+    "allocatedBytes": 52525528,
+    "gen0Collections": 0,
+    "gen1Collections": 0,
+    "gen2Collections": 0,
+    "memory": {
+      "workingSetBytes": 261296128,
+      "processPeakWorkingSetBytes": 261296128,
+      "managedBytesWithoutCollection": 237251496,
+      "lastGcHeapBytes": 135317760,
+      "lastGcFragmentedBytes": 283832,
+      "lastGcCommittedBytes": 135458816
+    },
+    "caches": [
+      {
+        "peakBytes": 123305984,
+        "convertedSamplePeakBytes": 50790400,
+        "coefficientPeakBytes": 50331648,
+        "entropyTokenPeakBytes": 22249472,
+        "currentBytesAfterEncode": 0,
+        "convertedSampleCachedRows": 2064,
+        "convertedSampleTotalRows": 2064
+      }
+    ]
+  },
+  {
+    "index": 2,
+    "batchMilliseconds": 190.3184,
+    "encodeMilliseconds": [
+      190.3131
+    ],
+    "allocatedBytes": 8670296,
+    "gen0Collections": 1,
+    "gen1Collections": 0,
+    "gen2Collections": 0,
+    "memory": {
+      "workingSetBytes": 269283328,
+      "processPeakWorkingSetBytes": 269283328,
+      "managedBytesWithoutCollection": 193751024,
+      "lastGcHeapBytes": 189467080,
+      "lastGcFragmentedBytes": 147952,
+      "lastGcCommittedBytes": 246390784
+    },
+    "caches": [
+      {
+        "peakBytes": 123305984,
+        "convertedSamplePeakBytes": 50790400,
+        "coefficientPeakBytes": 50331648,
+        "entropyTokenPeakBytes": 22249472,
+        "currentBytesAfterEncode": 0,
+        "convertedSampleCachedRows": 2064,
+        "convertedSampleTotalRows": 2064
+      }
+    ]
+  },
+  {
+    "index": 3,
+    "batchMilliseconds": 190.9541,
+    "encodeMilliseconds": [
+      190.9488
+    ],
+    "allocatedBytes": 52526560,
+    "gen0Collections": 0,
+    "gen1Collections": 0,
+    "gen2Collections": 0,
+    "memory": {
+      "workingSetBytes": 291586048,
+      "processPeakWorkingSetBytes": 291586048,
+      "managedBytesWithoutCollection": 246324072,
+      "lastGcHeapBytes": 189467080,
+      "lastGcFragmentedBytes": 147952,
+      "lastGcCommittedBytes": 246390784
+    },
+    "caches": [
+      {
+        "peakBytes": 123305984,
+        "convertedSamplePeakBytes": 50790400,
+        "coefficientPeakBytes": 50331648,
+        "entropyTokenPeakBytes": 22249472,
+        "currentBytesAfterEncode": 0,
+        "convertedSampleCachedRows": 2064,
+        "convertedSampleTotalRows": 2064
+      }
+    ]
+  },
+  {
+    "index": 4,
+    "batchMilliseconds": 183.6251,
+    "encodeMilliseconds": [
+      183.6203
+    ],
+    "allocatedBytes": 8667656,
+    "gen0Collections": 0,
+    "gen1Collections": 0,
+    "gen2Collections": 0,
+    "memory": {
+      "workingSetBytes": 291807232,
+      "processPeakWorkingSetBytes": 291807232,
+      "managedBytesWithoutCollection": 255037208,
+      "lastGcHeapBytes": 189467080,
+      "lastGcFragmentedBytes": 147952,
+      "lastGcCommittedBytes": 246390784
+    },
+    "caches": [
+      {
+        "peakBytes": 123305984,
+        "convertedSamplePeakBytes": 50790400,
+        "coefficientPeakBytes": 50331648,
+        "entropyTokenPeakBytes": 22249472,
+        "currentBytesAfterEncode": 0,
+        "convertedSampleCachedRows": 2064,
+        "convertedSampleTotalRows": 2064
+      }
+    ]
+  },
+  {
+    "index": 5,
+    "batchMilliseconds": 183.5607,
+    "encodeMilliseconds": [
+      183.5553
+    ],
+    "allocatedBytes": 8667656,
+    "gen0Collections": 0,
+    "gen1Collections": 0,
+    "gen2Collections": 0,
+    "memory": {
+      "workingSetBytes": 292302848,
+      "processPeakWorkingSetBytes": 292302848,
+      "managedBytesWithoutCollection": 263735624,
+      "lastGcHeapBytes": 189467080,
+      "lastGcFragmentedBytes": 147952,
+      "lastGcCommittedBytes": 246390784
+    },
+    "caches": [
+      {
+        "peakBytes": 123305984,
+        "convertedSamplePeakBytes": 50790400,
+        "coefficientPeakBytes": 50331648,
+        "entropyTokenPeakBytes": 22249472,
+        "currentBytesAfterEncode": 0,
+        "convertedSampleCachedRows": 2064,
+        "convertedSampleTotalRows": 2064
+      }
+    ]
+  },
+  {
+    "index": 6,
+    "batchMilliseconds": 183.6096,
+    "encodeMilliseconds": [
+      183.6042
+    ],
+    "allocatedBytes": 8667656,
+    "gen0Collections": 0,
+    "gen1Collections": 0,
+    "gen2Collections": 0,
+    "memory": {
+      "workingSetBytes": 292343808,
+      "processPeakWorkingSetBytes": 292343808,
+      "managedBytesWithoutCollection": 272433616,
+      "lastGcHeapBytes": 189467080,
+      "lastGcFragmentedBytes": 147952,
+      "lastGcCommittedBytes": 246390784
+    },
+    "caches": [
+      {
+        "peakBytes": 123305984,
+        "convertedSamplePeakBytes": 50790400,
+        "coefficientPeakBytes": 50331648,
+        "entropyTokenPeakBytes": 22249472,
+        "currentBytesAfterEncode": 0,
+        "convertedSampleCachedRows": 2064,
+        "convertedSampleTotalRows": 2064
+      }
+    ]
+  }
+]

@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "mode": "workload-diagnostics",
+  "expected": 26,
+  "completed": 26,
+  "valid": true,
+  "parityVerdict": "not-evaluated",
+  "observations": [
+    {
+      "id": "photo-array",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 88834048,
+        "samples": 17
+      }
+    },
+    {
+      "id": "photo-stream",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 86659072,
+        "samples": 18
+      }
+    },
+    {
+      "id": "photo-default-tiering",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 83976192,
+        "samples": 31
+      }
+    },
+    {
+      "id": "photo-default-tiering-extended",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 98611200,
+        "samples": 66
+      }
+    },
+    {
+      "id": "tiny",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 84123648,
+        "samples": 16
+      }
+    },
+    {
+      "id": "photograph-9m-444",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 684773376,
+        "samples": 232
+      }
+    },
+    {
+      "id": "photograph-9m-420",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 266346496,
+        "samples": 58
+      }
+    },
+    {
+      "id": "planes-444-below",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 297746432,
+        "samples": 82
+      }
+    },
+    {
+      "id": "planes-444-above",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 419991552,
+        "samples": 87
+      }
+    },
+    {
+      "id": "coefficients-444-below",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 674115584,
+        "samples": 179
+      }
+    },
+    {
+      "id": "coefficients-444-above",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 614486016,
+        "samples": 180
+      }
+    },
+    {
+      "id": "coefficients-64m-below",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 812978176,
+        "samples": 274
+      }
+    },
+    {
+      "id": "coefficients-64m-above",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 812843008,
+        "samples": 279
+      }
+    },
+    {
+      "id": "planes-420-below",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 276738048,
+        "samples": 82
+      }
+    },
+    {
+      "id": "planes-420-above",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 273559552,
+        "samples": 83
+      }
+    },
+    {
+      "id": "noise",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 242753536,
+        "samples": 54
+      }
+    },
+    {
+      "id": "rgb",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 114151424,
+        "samples": 37
+      }
+    },
+    {
+      "id": "xyb",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 111251456,
+        "samples": 58
+      }
+    },
+    {
+      "id": "icc",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 108101632,
+        "samples": 135
+      }
+    },
+    {
+      "id": "scaling-workers-1",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 140447744,
+        "samples": 28
+      }
+    },
+    {
+      "id": "cache-disabled",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 84410368,
+        "samples": 126
+      }
+    },
+    {
+      "id": "cache-16m",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 101396480,
+        "samples": 69
+      }
+    },
+    {
+      "id": "scaling-workers-2",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 196034560,
+        "samples": 36
+      }
+    },
+    {
+      "id": "scaling-workers-4",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 226914304,
+        "samples": 35
+      }
+    },
+    {
+      "id": "scaling-concurrent-2",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 183160832,
+        "samples": 29
+      }
+    },
+    {
+      "id": "scaling-concurrent-4",
+      "observation": {
+        "sampledPeakWorkingSetBytes": 236052480,
+        "samples": 36
+      }
+    }
+  ],
+  "errors": []
+}

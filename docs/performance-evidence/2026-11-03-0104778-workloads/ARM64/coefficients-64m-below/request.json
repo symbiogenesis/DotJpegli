@@ -1,0 +1,21 @@
+{
+  "scenario": {
+    "id": "coefficients-64m-below",
+    "width": 2048,
+    "height": 5456,
+    "sampling": 444,
+    "progression": 2,
+    "color": "ycbcr",
+    "stream": true,
+    "workers": 1,
+    "concurrent": 1,
+    "tiered": false,
+    "noise": false,
+    "cacheBytes": 201326592,
+    "scalePhotograph": false,
+    "warmupBatches": 3
+  },
+  "photograph": "/home/runner/work/_temp/parity-corpus/kodim01.ppm",
+  "photographSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273",
+  "output": "/home/runner/work/_temp/workload-evidence/coefficients-64m-below"
+}
