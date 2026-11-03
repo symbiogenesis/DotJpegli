@@ -164,7 +164,10 @@ internal sealed record ExtendedXmpMetadata(string Packet, string StandardPacket,
         // Encode complete Unicode scalars into three extra bytes, then carry any
         // excess to the next chunk. This preserves fixed byte offsets even when
         // a multibyte character spans APP1 segments.
-        private readonly byte[] buffer = new byte[MaxChunkBytes + 3];
+        // UTF-8 needs at most three bytes per UTF-16 code unit. Small packets
+        // fit in one smaller buffer; long packets retain the fixed chunk size.
+        private readonly byte[] buffer = new byte[packet.Length <= MaxChunkBytes / 3
+            ? (packet.Length * 3) + 3 : MaxChunkBytes + 3];
         private int position;
         private int pendingBytes;
 
