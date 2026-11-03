@@ -1,73 +1,68 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="820" viewBox="0 0 960 820" role="img" aria-labelledby="title desc">
-  <title id="title">Encoding wall time</title>
-  <desc id="desc">Geometric mean of DotJpegli/native median wall-time ratios. Native Google Jpegli is one. All bars start at zero. Photographs and controls appear separately.</desc>
-  <rect x="1" y="1" width="958" height="818" rx="16" fill="#ffffff" stroke="#e2e8f0"/>
-  <g font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
-    <text x="32.00" y="40" font-size="25" fill="#0f172a" font-weight="700" text-anchor="start">Encoding wall time</text>
-    <text x="32.00" y="68" font-size="15" fill="#64748b" font-weight="400" text-anchor="start">Less time is better · geometric mean of per-case median ratios</text>
-    <rect x="32" y="90" width="14" height="11" rx="3" fill="#4f46e5"/>
-    <text x="55.00" y="100" font-size="13" fill="#334155" font-weight="400" text-anchor="start">DotJpegli</text>
-    <rect x="170" y="90" width="14" height="11" rx="3" fill="#cbd5e1"/>
-    <text x="193.00" y="100" font-size="13" fill="#334155" font-weight="400" text-anchor="start">Native Google Jpegli = 1×</text>
-    <line x1="258.00" x2="258.00" y1="150" y2="676" stroke="#e2e8f0"/>
-    <text x="258.00" y="697" font-size="12" fill="#64748b" font-weight="400" text-anchor="middle">0×</text>
-    <line x1="356.00" x2="356.00" y1="150" y2="676" stroke="#e2e8f0"/>
-    <text x="356.00" y="697" font-size="12" fill="#64748b" font-weight="400" text-anchor="middle">0.25×</text>
-    <line x1="454.00" x2="454.00" y1="150" y2="676" stroke="#e2e8f0"/>
-    <text x="454.00" y="697" font-size="12" fill="#64748b" font-weight="400" text-anchor="middle">0.5×</text>
-    <line x1="552.00" x2="552.00" y1="150" y2="676" stroke="#e2e8f0"/>
-    <text x="552.00" y="697" font-size="12" fill="#64748b" font-weight="400" text-anchor="middle">0.75×</text>
-    <line x1="650.00" x2="650.00" y1="150" y2="676" stroke="#e2e8f0"/>
-    <text x="650.00" y="697" font-size="12" fill="#64748b" font-weight="400" text-anchor="middle">1×</text>
-    <line x1="748.00" x2="748.00" y1="150" y2="676" stroke="#e2e8f0"/>
-    <text x="748.00" y="697" font-size="12" fill="#64748b" font-weight="400" text-anchor="middle">1.25×</text>
-    <text x="32.00" y="143" font-size="12" fill="#475569" font-weight="700" text-anchor="start">KODAK PHOTOGRAPHS</text>
-    <text x="915.00" y="143" font-size="12" fill="#64748b" font-weight="400" text-anchor="end">24 images · 48 cases per row</text>
-    <text x="32.00" y="405" font-size="12" fill="#475569" font-weight="700" text-anchor="start">DETERMINISTIC CONTROLS</text>
-    <text x="915.00" y="405" font-size="12" fill="#64748b" font-weight="400" text-anchor="end">8 images · 16 cases per row</text>
-    <text x="32.00" y="185" font-size="15" fill="#334155" font-weight="500" text-anchor="start">Sequential · 4:4:4</text>
-    <rect x="258" y="165" width="392.00" height="10" rx="3" fill="#cbd5e1"/>
-    <rect x="258" y="180" width="455.21" height="14" rx="3" fill="#4f46e5"/>
-    <text x="772.00" y="190" font-size="16" fill="#312e81" font-weight="700" text-anchor="start">1.161×</text>
-    <text x="915.00" y="190" font-size="13" fill="#64748b" font-weight="400" text-anchor="end">16.1% more</text>
-    <text x="32.00" y="242" font-size="15" fill="#334155" font-weight="500" text-anchor="start">Sequential · 4:2:0</text>
-    <rect x="258" y="222" width="392.00" height="10" rx="3" fill="#cbd5e1"/>
-    <rect x="258" y="237" width="444.87" height="14" rx="3" fill="#4f46e5"/>
-    <text x="772.00" y="247" font-size="16" fill="#312e81" font-weight="700" text-anchor="start">1.135×</text>
-    <text x="915.00" y="247" font-size="13" fill="#64748b" font-weight="400" text-anchor="end">13.5% more</text>
-    <text x="32.00" y="299" font-size="15" fill="#334155" font-weight="500" text-anchor="start">Progressive · 4:4:4</text>
-    <rect x="258" y="279" width="392.00" height="10" rx="3" fill="#cbd5e1"/>
-    <rect x="258" y="294" width="314.52" height="14" rx="3" fill="#4f46e5"/>
-    <text x="772.00" y="304" font-size="16" fill="#312e81" font-weight="700" text-anchor="start">0.802×</text>
-    <text x="915.00" y="304" font-size="13" fill="#64748b" font-weight="400" text-anchor="end">19.8% less</text>
-    <text x="32.00" y="356" font-size="15" fill="#334155" font-weight="500" text-anchor="start">Progressive · 4:2:0</text>
-    <rect x="258" y="336" width="392.00" height="10" rx="3" fill="#cbd5e1"/>
-    <rect x="258" y="351" width="312.97" height="14" rx="3" fill="#4f46e5"/>
-    <text x="772.00" y="361" font-size="16" fill="#312e81" font-weight="700" text-anchor="start">0.798×</text>
-    <text x="915.00" y="361" font-size="13" fill="#64748b" font-weight="400" text-anchor="end">20.2% less</text>
-    <text x="32.00" y="447" font-size="15" fill="#334155" font-weight="500" text-anchor="start">Sequential · 4:4:4</text>
-    <rect x="258" y="427" width="392.00" height="10" rx="3" fill="#cbd5e1"/>
-    <rect x="258" y="442" width="468.74" height="14" rx="3" fill="#4f46e5"/>
-    <text x="772.00" y="452" font-size="16" fill="#312e81" font-weight="700" text-anchor="start">1.196×</text>
-    <text x="915.00" y="452" font-size="13" fill="#64748b" font-weight="400" text-anchor="end">19.6% more</text>
-    <text x="32.00" y="504" font-size="15" fill="#334155" font-weight="500" text-anchor="start">Sequential · 4:2:0</text>
-    <rect x="258" y="484" width="392.00" height="10" rx="3" fill="#cbd5e1"/>
-    <rect x="258" y="499" width="440.06" height="14" rx="3" fill="#4f46e5"/>
-    <text x="772.00" y="509" font-size="16" fill="#312e81" font-weight="700" text-anchor="start">1.123×</text>
-    <text x="915.00" y="509" font-size="13" fill="#64748b" font-weight="400" text-anchor="end">12.3% more</text>
-    <text x="32.00" y="561" font-size="15" fill="#334155" font-weight="500" text-anchor="start">Progressive · 4:4:4</text>
-    <rect x="258" y="541" width="392.00" height="10" rx="3" fill="#cbd5e1"/>
-    <rect x="258" y="556" width="388.37" height="14" rx="3" fill="#4f46e5"/>
-    <text x="772.00" y="566" font-size="16" fill="#312e81" font-weight="700" text-anchor="start">0.991×</text>
-    <text x="915.00" y="566" font-size="13" fill="#64748b" font-weight="400" text-anchor="end">0.9% less</text>
-    <text x="32.00" y="618" font-size="15" fill="#334155" font-weight="500" text-anchor="start">Progressive · 4:2:0</text>
-    <rect x="258" y="598" width="392.00" height="10" rx="3" fill="#cbd5e1"/>
-    <rect x="258" y="613" width="387.65" height="14" rx="3" fill="#4f46e5"/>
-    <text x="772.00" y="623" font-size="16" fill="#312e81" font-weight="700" text-anchor="start">0.989×</text>
-    <text x="915.00" y="623" font-size="13" fill="#64748b" font-weight="400" text-anchor="end">1.1% less</text>
-    <text x="32.00" y="727" font-size="14" fill="#92400e" font-weight="600" text-anchor="start">Full performance parity: not established · worst individual case: 1.503× native time</text>
-    <text x="32.00" y="752" font-size="12" fill="#64748b" font-weight="400" text-anchor="start">Distances 1 and 4 · one worker · tiered compilation disabled · 7 blocks / case</text>
-    <text x="32.00" y="775" font-size="12" fill="#64748b" font-weight="400" text-anchor="start">AMD EPYC 9V74 80-Core Processor · .NET 11.0.0-rc.3.26522.148</text>
-    <text x="32.00" y="800" font-size="12" fill="#64748b" font-weight="400" text-anchor="start">2026-11-03 UTC · revision f52961b · hosted run 41603913358</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="584" viewBox="0 0 880 584" role="img" aria-labelledby="title desc">
+  <title id="title">Encoding time</title>
+  <desc id="desc">Percentage change in elapsed encoding time versus native Google Jpegli. Left of zero means less time; right means more time. Geometric means of per-case median ratios, with photographs and deterministic controls shown separately.</desc>
+  <style>
+    :root { color-scheme: light dark; --bg: #ffffff; --ink: #1f2937; --muted: #576575; --grid: #e5eaf0; --baseline: #8996a6; --teal: #0b766e; --amber: #a25212; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0d1117; --ink: #e6edf3; --muted: #a3b1c2; --grid: #252e3a; --baseline: #738399; --teal: #5cdbca; --amber: #f2b36f; }
+    }
+    text { font-variant-numeric: tabular-nums; }
+  </style>
+  <rect width="880" height="584" rx="12" fill="var(--bg)"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="32.00" y="46" font-size="26" fill="var(--ink)" font-weight="650" text-anchor="start">Encoding time</text>
+    <text x="32.00" y="76" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Compared with native Google Jpegli · less time is better</text>
+    <text x="32.00" y="120" font-size="14" fill="var(--muted)" font-weight="600" text-anchor="start">Encoding</text>
+    <text x="244.00" y="120" font-size="14" fill="var(--muted)" font-weight="600" text-anchor="start">Inputs</text>
+    <text x="366.00" y="120" font-size="14" fill="var(--teal)" font-weight="400" text-anchor="start">Less time</text>
+    <text x="516.00" y="120" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="middle">Native</text>
+    <text x="666.00" y="120" font-size="14" fill="var(--amber)" font-weight="400" text-anchor="end">More time</text>
+    <line x1="366.00" y1="140" x2="366.00" y2="492" stroke="var(--grid)"/>
+    <text x="366.00" y="516" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">-30%</text>
+    <line x1="441.00" y1="140" x2="441.00" y2="492" stroke="var(--grid)"/>
+    <text x="441.00" y="516" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">-15%</text>
+    <line x1="516.00" y1="140" x2="516.00" y2="492" stroke="var(--baseline)"/>
+    <text x="516.00" y="516" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">0%</text>
+    <line x1="591.00" y1="140" x2="591.00" y2="492" stroke="var(--grid)"/>
+    <text x="591.00" y="516" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">+15%</text>
+    <line x1="666.00" y1="140" x2="666.00" y2="492" stroke="var(--grid)"/>
+    <text x="666.00" y="516" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">+30%</text>
+    <text x="32.00" y="173" font-size="18" fill="var(--ink)" font-weight="600" text-anchor="start">Sequential</text>
+    <text x="32.00" y="198" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">4:4:4</text>
+    <text x="244.00" y="171" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Photos</text>
+    <rect x="516.00" y="158" width="80.62" height="16" rx="3" fill="var(--amber)"/>
+    <text x="848.00" y="171" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">16.1% more</text>
+    <text x="244.00" y="205" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Controls</text>
+    <rect x="516.00" y="192" width="97.88" height="16" rx="3" fill="var(--amber)"/>
+    <text x="848.00" y="205" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">19.6% more</text>
+    <line x1="32.00" y1="226" x2="848.00" y2="226" stroke="var(--grid)"/>
+    <text x="32.00" y="265" font-size="18" fill="var(--ink)" font-weight="600" text-anchor="start">Sequential</text>
+    <text x="32.00" y="290" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">4:2:0</text>
+    <text x="244.00" y="263" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Photos</text>
+    <rect x="516.00" y="250" width="67.44" height="16" rx="3" fill="var(--amber)"/>
+    <text x="848.00" y="263" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">13.5% more</text>
+    <text x="244.00" y="297" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Controls</text>
+    <rect x="516.00" y="284" width="61.30" height="16" rx="3" fill="var(--amber)"/>
+    <text x="848.00" y="297" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">12.3% more</text>
+    <line x1="32.00" y1="318" x2="848.00" y2="318" stroke="var(--grid)"/>
+    <text x="32.00" y="357" font-size="18" fill="var(--ink)" font-weight="600" text-anchor="start">Progressive</text>
+    <text x="32.00" y="382" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">4:4:4</text>
+    <text x="244.00" y="355" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Photos</text>
+    <rect x="417.18" y="342" width="98.82" height="16" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="355" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">19.8% less</text>
+    <text x="244.00" y="389" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Controls</text>
+    <rect x="511.36" y="376" width="4.64" height="16" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="389" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">0.9% less</text>
+    <line x1="32.00" y1="410" x2="848.00" y2="410" stroke="var(--grid)"/>
+    <text x="32.00" y="449" font-size="18" fill="var(--ink)" font-weight="600" text-anchor="start">Progressive</text>
+    <text x="32.00" y="474" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">4:2:0</text>
+    <text x="244.00" y="447" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Photos</text>
+    <rect x="415.19" y="434" width="100.81" height="16" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="447" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">20.2% less</text>
+    <text x="244.00" y="481" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Controls</text>
+    <rect x="510.45" y="468" width="5.55" height="16" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="481" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">1.1% less</text>
+    <text x="32.00" y="546" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">Full performance parity: not established · worst case: 50.3% more</text>
+    <text x="32.00" y="568" font-size="12" fill="var(--muted)" font-weight="400" text-anchor="start">2026-11-03 UTC · revision f52961b · run 41603913358</text>
   </g>
 </svg>

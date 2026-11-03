@@ -17,18 +17,30 @@ prevent interpreting their differences as optimization gains or regressions.
 - [Fresh quality/compression report](../../parity-evidence/2026-11-03-f52961b/report.md), [summary](../../parity-evidence/2026-11-03-f52961b/summary.json), [matched-quality points](../../parity-evidence/2026-11-03-f52961b/matched-quality.json) and [artifact identity](../../parity-evidence/2026-11-03-f52961b/snapshot.json).
 - [Native provenance](native-provenance.json) and [artifact identities and retained-file hashes](provenance.json).
 - [README chart values](../../images/performance/metrics.json) and SVGs for [compression](../../images/performance/compression.svg), [wall time](../../images/performance/wall-time.svg) and [allocations](../../images/performance/allocations.svg).
+- Original CI SVGs: [compression](charts/compression.svg), [wall time](charts/wall-time.svg) and [allocations](charts/allocations.svg).
 
-The charts were generated in that CI run and copied without edits. Compression
-bars show the geometric mean of managed/native file-size ratios at five matched
-PSNR or SSIM anchors per photograph and mode, using quality curves measured at
-ten distances from 0.25 to 8. The complete 1,280-pair comparison includes eight
-controls and checks endpoints and curve knots as well as the displayed anchors.
-The largest matched-quality size overhead across all targets is 0.087051%.
+The measurements and numeric chart values were retained from that CI run.
+The original CI SVGs are archived in `charts/`, with their original hashes in
+`provenance.json`.
+The current README SVGs were regenerated locally with the chart generator to simplify
+the figures and support light and dark themes; the measured values are unchanged.
+The compression summary shows an upper bound on the largest absolute percentage
+file-size difference among the eight photograph mode/metric groups. For each
+group, the difference is `(geometric mean ratio − 1) × 100`; the maximum absolute
+difference is rounded up to the next 0.001%, yielding **≤0.002%**. Exact per-mode
+PSNR and SSIM ratios remain in `metrics.json`. Each ratio uses five matched PSNR
+or SSIM anchors per photograph and mode, using quality curves measured at ten
+distances from 0.25 to 8. This bound summarizes group means. Separately, the
+complete 1,280-pair comparison includes eight controls and checks endpoints and
+curve knots as well as the summarized anchors. The largest matched-quality size
+overhead across all targets is 0.087051%, displayed as 0.0871% in the summary.
 
-Wall-time bars show geometric means of per-case managed/native median ratios,
-separately for photographs and controls, using distances 1 and 4. Every median
-uses all seven measurement blocks. These group averages cannot override failed
-individual latency bounds.
+Wall-time bars show percentage differences from native, computed as
+`(geometric mean ratio − 1) × 100` from per-case managed/native median ratios.
+Photographs and controls are paired under each encoding mode on the same scale:
+left of zero means less time and right means more. Measurements use distances
+1 and 4, and every median uses all seven measurement blocks. These group averages
+cannot override failed individual latency bounds.
 
 Allocation bars show the arithmetic mean across photograph cases of each case's
 mean block allocations divided by encodes per block, converted to KiB. These
@@ -46,7 +58,7 @@ root with the pinned SDK and PowerShell 7.6 or newer:
 This reads evidence without encoding images or running benchmarks. The generator
 checks completeness, validity, source identities and agreement between raw
 values and summary statistics. Its focused `-SelfTest` uses synthetic data only.
-Future full CI runs retain the same three charts and their exact values in the
+Future full CI runs retain the three charts in this style and their exact values in the
 `performance-charts-<revision>` artifact.
 
 Exact inputs, JPEGs and instrumented diagnostic traces remain in the hosted

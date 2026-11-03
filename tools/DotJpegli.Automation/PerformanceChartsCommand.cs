@@ -9,11 +9,10 @@ using static DotJpegli.Automation.PerformanceJson;
 
 internal static class PerformanceChartsCommand
 {
-    private const string Indigo = "#4f46e5";
-    private const string Teal = "#0f766e";
-    private const string Slate = "#cbd5e1";
-    private const int PlotLeft = 258;
-    private const int PlotWidth = 490;
+    private const string Ink = "var(--ink)";
+    private const string Muted = "var(--muted)";
+    private const string Teal = "var(--teal)";
+    private const string Amber = "var(--amber)";
     private static readonly JsonSerializerOptions MetricsOptions = new(Indented) { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, NewLine = "\n" };
     private static readonly (int Sampling, int Progression, string Label)[] Modes =
     [
@@ -53,7 +52,7 @@ internal static class PerformanceChartsCommand
         double worstSizeRatio = matches.Max(item => Positive(item["sizeRatio"], "Matched-quality size ratio"));
         string output = args.Get("output");
         _ = Directory.CreateDirectory(output);
-        File.WriteAllText(Path.Combine(output, "wall-time.svg"), WallTime(timeRows, performanceIdentity, run, worstTimeRatio, True(performance["passed"])));
+        File.WriteAllText(Path.Combine(output, "wall-time.svg"), WallTime(timeRows, performanceIdentity, worstTimeRatio, True(performance["passed"])));
         File.WriteAllText(Path.Combine(output, "compression.svg"), Compression(sizeRows, qualityIdentity, worstSizeRatio));
         File.WriteAllText(Path.Combine(output, "allocations.svg"), Allocations(allocationRows, performanceIdentity));
         string metrics = JsonSerializer.Serialize(new
@@ -195,130 +194,131 @@ internal static class PerformanceChartsCommand
         Select(cases, "natural", mode.Sampling, mode.Progression, "progressiveLevel").Average(item =>
             Items(item["blocks"]).Average(block => Number(block["allocatedManagedBytes"]) / Number(item["iterations"])) / 1024))).ToArray();
 
-    private static string WallTime(Row[] rows, Identity identity, JsonNode run, double worst, bool passed)
+    private static string WallTime(Row[] rows, Identity identity, double worst, bool passed)
     {
-        double maximum = Math.Max(1.25, Math.Ceiling(rows.Max(row => row.Value) * 4) / 4);
-        StringBuilder svg = Start("Encoding wall time", "Geometric mean of DotJpegli/native median wall-time ratios. Native Google Jpegli is one. All bars start at zero. Photographs and controls appear separately.", 820);
-        TextAt(svg, 32, 40, "Encoding wall time", 25, "#0f172a", "700");
-        TextAt(svg, 32, 68, "Less time is better · geometric mean of per-case median ratios", 15);
-        Legend(svg, 32, 100, Indigo, "DotJpegli");
-        Legend(svg, 170, 100, Slate, "Native Google Jpegli = 1×");
-        Axis(svg, 150, 676, maximum, Enumerable.Range(0, 6).Select(index => maximum * index / 5).ToArray(), "×");
-        TextAt(svg, 32, 143, "KODAK PHOTOGRAPHS", 12, "#475569", "700");
-        TextAt(svg, 915, 143, "24 images · 48 cases per row", 12, anchor: "end");
-        TextAt(svg, 32, 405, "DETERMINISTIC CONTROLS", 12, "#475569", "700");
-        TextAt(svg, 915, 405, "8 images · 16 cases per row", 12, anchor: "end");
-        for (int index = 0; index < rows.Length; index++)
+        // A shared, symmetric scale shows both improvements and regressions against native.
+        double extent = Math.Max(30, Math.Ceiling(rows.Max(row => Math.Abs(row.Value - 1)) * 10) * 10);
+        const int zero = 516, halfWidth = 150;
+        StringBuilder svg = Start("Encoding time", "Percentage change in elapsed encoding time versus native Google Jpegli. Left of zero means less time; right means more time. Geometric means of per-case median ratios, with photographs and deterministic controls shown separately.", 584);
+        TextAt(svg, 32, 46, "Encoding time", 26, Ink, "650");
+        TextAt(svg, 32, 76, "Compared with native Google Jpegli · less time is better", 16);
+        TextAt(svg, 32, 120, "Encoding", 14, weight: "600");
+        TextAt(svg, 244, 120, "Inputs", 14, weight: "600");
+        TextAt(svg, zero - halfWidth, 120, "Less time", 14, Teal);
+        TextAt(svg, zero, 120, "Native", 14, anchor: "middle");
+        TextAt(svg, zero + halfWidth, 120, "More time", 14, Amber, anchor: "end");
+        foreach (int step in new[] { -2, -1, 0, 1, 2 })
         {
-            Row row = rows[index];
-            int y = index < 4 ? 165 + (index * 57) : 427 + ((index - 4) * 57);
-            TextAt(svg, 32, y + 20, row.Label, 15, "#334155", "500");
-            Bar(svg, y, 1, maximum, 10, Slate);
-            Bar(svg, y + 15, row.Value, maximum, 14, Indigo);
-            TextAt(svg, 772, y + 25, FormattableString.Invariant($"{row.Value:F3}×"), 16, "#312e81", "700");
-            double percent = (row.Value - 1) * 100;
-            TextAt(svg, 915, y + 25, FormattableString.Invariant($"{Math.Abs(percent):F1}% {(percent > 0 ? "more" : "less")}"), 13, anchor: "end");
+            double x = zero + (step * halfWidth / 2d);
+            Line(svg, x, 140, x, 492, step == 0 ? "var(--baseline)" : "var(--grid)");
+            TextAt(svg, x, 516, (step * extent / 2).ToString("+0;-0;0", CultureInfo.InvariantCulture) + "%", 13, anchor: "middle");
         }
 
-        TextAt(svg, 32, 727, FormattableString.Invariant($"Full performance parity: {(passed ? "passed" : "not established")} · worst individual case: {worst:F3}× native time"), 14, passed ? Teal : "#92400e", "600");
-        TextAt(svg, 32, 752, "Distances 1 and 4 · one worker · tiered compilation disabled · 7 blocks / case", 12);
-        TextAt(svg, 32, 775, Text(run["environment"]?["cpu"]) + " · " + Text(run["environment"]?["runtime"]), 12);
-        Footer(svg, identity, 800);
+        for (int index = 0; index < Modes.Length; index++)
+        {
+            int y = 166 + (index * 92);
+            TextAt(svg, 32, y + 7, Modes[index].Progression == 0 ? "Sequential" : "Progressive", 18, Ink, "600");
+            TextAt(svg, 32, y + 32, Modes[index].Sampling == 444 ? "4:4:4" : "4:2:0", 16);
+            for (int category = 0; category < 2; category++)
+            {
+                Row row = rows[index + (category * Modes.Length)];
+                int baseline = y + (category * 34);
+                double percent = (row.Value - 1) * 100;
+                double width = halfWidth * Math.Abs(percent) / extent;
+                string color = percent <= 0 ? Teal : Amber;
+                TextAt(svg, 244, baseline + 5, category == 0 ? "Photos" : "Controls", 16);
+                Rectangle(svg, percent < 0 ? zero - width : zero, baseline - 8, width, 16, color);
+                TextAt(svg, 848, baseline + 5, TimeChange(row.Value), 18, color, "600", "end");
+            }
+
+            if (index < Modes.Length - 1)
+            {
+                Line(svg, 32, y + 60, 848, y + 60);
+            }
+        }
+
+        TextAt(svg, 32, 546, $"Full performance parity: {(passed ? "passed" : "not established")} · worst case: {TimeChange(worst)}", 14);
+        Footer(svg, identity, 568);
         return Finish(svg);
     }
 
     private static string Compression(Row[] rows, Identity identity, double worst)
     {
-        StringBuilder svg = Start("Compression at matched quality", "Relative JPEG file sizes at matched PSNR and matched SSIM, geometric means over Kodak photographs. Native Google Jpegli is one. The axis starts at zero, so near-identical compression produces near-identical bars.", 575);
-        TextAt(svg, 32, 40, "Compression at matched quality", 25, "#0f172a", "700");
-        TextAt(svg, 32, 68, "Smaller files are better · native Google Jpegli = 1.000000×", 15);
-        Legend(svg, 32, 100, Indigo, "Matched PSNR");
-        Legend(svg, 210, 100, Teal, "Matched SSIM");
-        TextAt(svg, 915, 100, "24 photographs · 5 anchors / image / metric", 12, anchor: "end");
-        Axis(svg, 123, 425, 1.1, [0, .25, .5, .75, 1], "×");
-        Reference(svg, 123, 425, 1, 1.1);
-        for (int index = 0; index < 4; index++)
-        {
-            int y = 145 + (index * 68);
-            TextAt(svg, 32, y + 22, rows[index * 2].Label, 15, "#334155", "500");
-            for (int metric = 0; metric < 2; metric++)
-            {
-                Row row = rows[(index * 2) + metric];
-                string color = metric == 0 ? Indigo : Teal;
-                Bar(svg, y + (metric * 21), row.Value, 1.1, 14, color);
-                TextAt(svg, 915, y + 12 + (metric * 21), FormattableString.Invariant($"{row.Value:F6}×"), 15, color, "600", "end");
-            }
-        }
-
-        TextAt(svg, 32, 477, "Nearly identical compression: the zero-based bars preserve the scale of the measured differences.", 13, "#334155");
-        TextAt(svg, 32, 502, FormattableString.Invariant($"Full 1,280-pair quality matrix passed · worst matched-quality overhead, including controls: {(worst - 1) * 100:F5}%"), 13, Teal, "600");
-        TextAt(svg, 32, 527, "Ten distances from 0.25 to 8 · sizes interpolated on PSNR / SSIM quality envelopes", 12);
-        Footer(svg, identity, 554);
+        double difference = rows.Max(row => Math.Abs(row.Value - 1)) * 100;
+        // Round up so the compact headline remains an upper bound on every photo group mean.
+        double bound = Math.Ceiling(difference * 1000) / 1000;
+        StringBuilder svg = Start("JPEG file size at matched quality", "Maximum absolute percentage difference in JPEG file size versus native Google Jpegli among photograph group means at matched PSNR and SSIM, rounded up to 0.001 percentage points. Geometric means across 24 Kodak photographs, with five matched-quality anchors per image and metric. The worst individual matched-quality overhead, including controls, is shown separately.", 264);
+        TextAt(svg, 32, 46, "JPEG file size", 26, Ink, "650");
+        TextAt(svg, 32, 76, "Compared with native Google Jpegli at matched quality", 16);
+        TextAt(svg, 32, 144, "≤" + bound.ToString("0.###", CultureInfo.InvariantCulture) + "%", 40, Teal, "650");
+        TextAt(svg, 280, 124, "file-size difference on photographs", 19, Ink, "500");
+        TextAt(svg, 280, 151, "Across all four encoding modes · matched PSNR and SSIM", 15);
+        Line(svg, 32, 180, 848, 180);
+        TextAt(svg, 32, 207, "24 photos · five anchors per image and metric · bound on group means", 14);
+        TextAt(svg, 32, 230, FormattableString.Invariant($"Full quality matrix passed · worst size overhead: {(worst - 1) * 100:F4}% (including controls)"), 14);
+        Footer(svg, identity, 250);
         return Finish(svg);
     }
 
     private static string Allocations(Row[] rows, Identity identity)
     {
-        StringBuilder svg = Start("Managed allocations per encode", "Arithmetic mean allocated managed bytes per encode, shown in KiB for Kodak photographs. Native allocations were not measured. These values include the returned JPEG and do not measure retained pool capacity or peak memory.", 470);
-        TextAt(svg, 32, 40, "Managed allocations per encode", 25, "#0f172a", "700");
-        TextAt(svg, 32, 68, "Lower is better · DotJpegli only · native allocations were not measured", 15);
-        Legend(svg, 32, 100, Indigo, "Managed KiB / encode");
-        TextAt(svg, 915, 100, "24 photographs · 48 cases per row", 12, anchor: "end");
-        double maximum = Math.Ceiling(rows.Max(row => row.Value) / 50) * 50;
-        Axis(svg, 120, 327, maximum, Enumerable.Range(0, 6).Select(index => maximum * index / 5).ToArray(), string.Empty);
-        for (int index = 0; index < rows.Length; index++)
+        StringBuilder svg = Start("Managed allocations", "Average managed allocations per complete encode in KiB for 24 Kodak photographs. Bars start at zero. Includes the returned JPEG; native allocations, retained pool capacity and peak memory were not measured.", 386);
+        TextAt(svg, 32, 46, "Managed allocations", 26, Ink, "650");
+        TextAt(svg, 32, 76, "KiB per encode · DotJpegli only · lower is better", 16);
+        double maximum = Math.Max(50, Math.Ceiling(rows.Max(row => row.Value) / 50) * 50);
+        const int left = 278, width = 440;
+        for (int index = 0; index <= 4; index++)
         {
-            int y = 141 + (index * 45);
-            TextAt(svg, 32, y + 17, rows[index].Label, 15, "#334155", "500");
-            Bar(svg, y, rows[index].Value, maximum, 22, Indigo);
-            TextAt(svg, 915, y + 17, FormattableString.Invariant($"{rows[index].Value:F1} KiB"), 16, "#312e81", "700", "end");
+            double x = left + (width * index / 4d);
+            Line(svg, x, 108, x, 284);
+            TextAt(svg, x, 308, (maximum * index / 4).ToString("0.#", CultureInfo.InvariantCulture), 13, anchor: "middle");
         }
 
-        TextAt(svg, 32, 380, "Arithmetic mean across cases of mean block allocations ÷ encodes per block. 1 KiB = 1,024 bytes.", 13);
-        TextAt(svg, 32, 405, "Includes the returned JPEG; excludes warmup. Retained pool capacity and peak memory are not measured.", 13);
-        Footer(svg, identity, 447);
+        for (int index = 0; index < rows.Length; index++)
+        {
+            int y = 125 + (index * 46);
+            TextAt(svg, 32, y + 6, rows[index].Label, 17, Ink, "500");
+            Rectangle(svg, left, y - 9, width * rows[index].Value / maximum, 18, Teal);
+            TextAt(svg, 848, y + 6, FormattableString.Invariant($"{rows[index].Value:F1}"), 19, Ink, "600", "end");
+        }
+
+        TextAt(svg, 32, 340, "Includes JPEG output · native allocations and peak memory were not measured", 14);
+        Footer(svg, identity, 370);
         return Finish(svg);
     }
 
     private static StringBuilder Start(string title, string description, int height)
     {
         StringBuilder svg = new();
-        _ = svg.Append(CultureInfo.InvariantCulture, $"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"960\" height=\"{height}\" viewBox=\"0 0 960 {height}\" role=\"img\" aria-labelledby=\"title desc\">\n");
+        _ = svg.Append(CultureInfo.InvariantCulture, $"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"880\" height=\"{height}\" viewBox=\"0 0 880 {height}\" role=\"img\" aria-labelledby=\"title desc\">\n");
         _ = svg.Append("  <title id=\"title\">").Append(Escape(title)).Append("</title>\n  <desc id=\"desc\">").Append(Escape(description)).Append("</desc>\n");
-        _ = svg.Append(CultureInfo.InvariantCulture, $"  <rect x=\"1\" y=\"1\" width=\"958\" height=\"{height - 2}\" rx=\"16\" fill=\"#ffffff\" stroke=\"#e2e8f0\"/>\n  <g font-family=\"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif\">\n");
+        _ = svg.Append("""
+              <style>
+                :root { color-scheme: light dark; --bg: #ffffff; --ink: #1f2937; --muted: #576575; --grid: #e5eaf0; --baseline: #8996a6; --teal: #0b766e; --amber: #a25212; }
+                @media (prefers-color-scheme: dark) {
+                  :root { --bg: #0d1117; --ink: #e6edf3; --muted: #a3b1c2; --grid: #252e3a; --baseline: #738399; --teal: #5cdbca; --amber: #f2b36f; }
+                }
+                text { font-variant-numeric: tabular-nums; }
+              </style>
+            """);
+        _ = svg.Append(CultureInfo.InvariantCulture, $"\n  <rect width=\"880\" height=\"{height}\" rx=\"12\" fill=\"var(--bg)\"/>\n  <g font-family=\"-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif\">\n");
         return svg;
     }
 
-    private static void Axis(StringBuilder svg, int top, int bottom, double maximum, double[] ticks, string suffix)
-    {
-        foreach (double tick in ticks)
-        {
-            double x = PlotLeft + (PlotWidth * tick / maximum);
-            _ = svg.Append(CultureInfo.InvariantCulture, $"    <line x1=\"{x:F2}\" x2=\"{x:F2}\" y1=\"{top}\" y2=\"{bottom}\" stroke=\"#e2e8f0\"/>\n");
-            TextAt(svg, x, bottom + 21, tick.ToString("0.##", CultureInfo.InvariantCulture) + suffix, 12, anchor: "middle");
-        }
-    }
+    private static void Line(StringBuilder svg, double x1, int y1, double x2, int y2, string color = "var(--grid)") =>
+        svg.Append(CultureInfo.InvariantCulture, $"    <line x1=\"{x1:F2}\" y1=\"{y1}\" x2=\"{x2:F2}\" y2=\"{y2}\" stroke=\"{color}\"/>\n");
 
-    private static void Reference(StringBuilder svg, int top, int bottom, double value, double maximum)
-    {
-        double x = PlotLeft + (PlotWidth * value / maximum);
-        _ = svg.Append(CultureInfo.InvariantCulture, $"    <line x1=\"{x:F2}\" x2=\"{x:F2}\" y1=\"{top}\" y2=\"{bottom}\" stroke=\"#64748b\" stroke-dasharray=\"4 4\"/>\n");
-    }
+    private static void Rectangle(StringBuilder svg, double x, int y, double width, int height, string color) =>
+        svg.Append(CultureInfo.InvariantCulture, $"    <rect x=\"{x:F2}\" y=\"{y}\" width=\"{width:F2}\" height=\"{height}\" rx=\"3\" fill=\"{color}\"/>\n");
 
-    private static void Bar(StringBuilder svg, int y, double value, double maximum, int height, string color) =>
-        svg.Append(CultureInfo.InvariantCulture, $"    <rect x=\"{PlotLeft}\" y=\"{y}\" width=\"{PlotWidth * value / maximum:F2}\" height=\"{height}\" rx=\"3\" fill=\"{color}\"/>\n");
-
-    private static void Legend(StringBuilder svg, int x, int y, string color, string label)
-    {
-        _ = svg.Append(CultureInfo.InvariantCulture, $"    <rect x=\"{x}\" y=\"{y - 10}\" width=\"14\" height=\"11\" rx=\"3\" fill=\"{color}\"/>\n");
-        TextAt(svg, x + 23, y, label, 13, "#334155");
-    }
-
-    private static void TextAt(StringBuilder svg, double x, int y, string value, int size, string color = "#64748b", string weight = "400", string anchor = "start") =>
+    private static void TextAt(StringBuilder svg, double x, int y, string value, int size, string color = Muted, string weight = "400", string anchor = "start") =>
         svg.Append(CultureInfo.InvariantCulture, $"    <text x=\"{x:F2}\" y=\"{y}\" font-size=\"{size}\" fill=\"{color}\" font-weight=\"{weight}\" text-anchor=\"{anchor}\">{Escape(value)}</text>\n");
 
+    private static string TimeChange(double ratio) => ratio == 1 ? "Same time" :
+        FormattableString.Invariant($"{Math.Abs(ratio - 1) * 100:F1}% {(ratio > 1 ? "more" : "less")}");
+
     private static void Footer(StringBuilder svg, Identity identity, int y) =>
-        TextAt(svg, 32, y, $"{identity.DateUtc ?? "Date not recorded"} UTC · revision {identity.Revision[..Math.Min(7, identity.Revision.Length)]} · hosted run {identity.Run}", 12);
+        TextAt(svg, 32, y, $"{identity.DateUtc ?? "Date not recorded"} UTC · revision {identity.Revision[..Math.Min(7, identity.Revision.Length)]} · run {identity.Run}", 12);
 
     private static string Finish(StringBuilder svg) => svg.Append("  </g>\n</svg>\n").ToString();
 

@@ -47,15 +47,15 @@
                       "sha256":  "1a3b176aa8dbd98dcdb1054e5ec3952f02b4ccae10b23bbee2ff09f0230d79fc"
                   },
                   {
-                      "path":  "../../images/performance/allocations.svg",
+                      "path":  "charts/allocations.svg",
                       "sha256":  "237d7d0e18553e137185e9a63458f9190d6259791dce372adcba4cb901aaa960"
                   },
                   {
-                      "path":  "../../images/performance/compression.svg",
+                      "path":  "charts/compression.svg",
                       "sha256":  "7855825196caf39a2705325094d4eb14cc752a1ff68ba697e44239f4d23f0f3c"
                   },
                   {
-                      "path":  "../../images/performance/wall-time.svg",
+                      "path":  "charts/wall-time.svg",
                       "sha256":  "86c637b1c7b58fe0f7d272fc90ad3af5328d0adf7d004c5a645f221424d674f6"
                   },
                   {
