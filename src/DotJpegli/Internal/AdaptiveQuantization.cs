@@ -278,19 +278,26 @@ internal sealed class AdaptiveQuantization
             ComputeFuzzyErosionScalar(row, output, x++);
             for (; x < preStride - Vector<float>.Count; x += Vector<float>.Count)
             {
-                Vector<float> min0 = new(float.PositiveInfinity), min1 = min0, min2 = min0, min3 = min0;
-                for (int dy = -1; dy <= 1; dy++)
-                    for (int dx = -1; dx <= 1; dx++)
-                    {
-                        Vector<float> value = new(preErosion, (row + dy) * preStride + x + dx);
-                        Vector<float> next0 = Vector.Max(min0, value);
-                        Vector<float> next1 = Vector.Max(min1, next0);
-                        Vector<float> next2 = Vector.Max(min2, next1);
-                        min0 = Vector.Min(min0, value);
-                        min1 = Vector.Min(min1, next0);
-                        min2 = Vector.Min(min2, next1);
-                        min3 = Vector.Min(min3, next2);
-                    }
+                int upper = (row - 1) * preStride + x;
+                int middle = row * preStride + x;
+                int lower = (row + 1) * preStride + x;
+                Vector<float> min0 = new(preErosion, upper - 1);
+                Vector<float> min1 = new(preErosion, upper);
+                Vector<float> min2 = new(preErosion, upper + 1);
+                Vector<float> min3 = new(preErosion, middle - 1);
+                // Initialize with the sorted first four cells instead of
+                // inserting them into four infinite slots. The remaining
+                // five cells use the original four-minimum insertion order.
+                SortPair(ref min0, ref min1);
+                SortPair(ref min2, ref min3);
+                SortPair(ref min0, ref min2);
+                SortPair(ref min1, ref min3);
+                SortPair(ref min1, ref min2);
+                InsertMinimum(new(preErosion, middle), ref min0, ref min1, ref min2, ref min3);
+                InsertMinimum(new(preErosion, middle + 1), ref min0, ref min1, ref min2, ref min3);
+                InsertMinimum(new(preErosion, lower - 1), ref min0, ref min1, ref min2, ref min3);
+                InsertMinimum(new(preErosion, lower), ref min0, ref min1, ref min2, ref min3);
+                InsertMinimum(new(preErosion, lower + 1), ref min0, ref min1, ref min2, ref min3);
                 Vector<float> valueSum = (new Vector<float>(0.125f) * min0 + new Vector<float>(0.075f) * min1)
                     + (new Vector<float>(0.06f) * min2 + new Vector<float>(0.05f) * min3);
                 valueSum.CopyTo(fuzzy, output + x);
@@ -303,20 +310,62 @@ internal sealed class AdaptiveQuantization
     private void ComputeFuzzyErosionScalar(int row, int output, int x)
     {
         // Keep the four lowest values from the replicated 3x3 neighborhood.
-        float min0 = float.PositiveInfinity, min1 = min0, min2 = min0, min3 = min0;
-        for (int dy = -1; dy <= 1; dy++)
-            for (int dx = -1; dx <= 1; dx++)
-            {
-                float value = preErosion[(row + dy) * preStride + Math.Clamp(x + dx, 0, preStride - 1)];
-                float next0 = MathF.Max(min0, value);
-                float next1 = MathF.Max(min1, next0);
-                float next2 = MathF.Max(min2, next1);
-                min0 = MathF.Min(min0, value);
-                min1 = MathF.Min(min1, next0);
-                min2 = MathF.Min(min2, next1);
-                min3 = MathF.Min(min3, next2);
-            }
+        int left = Math.Max(x - 1, 0), right = Math.Min(x + 1, preStride - 1);
+        int upper = (row - 1) * preStride, middle = row * preStride, lower = (row + 1) * preStride;
+        float min0 = preErosion[upper + left], min1 = preErosion[upper + x];
+        float min2 = preErosion[upper + right], min3 = preErosion[middle + left];
+        SortPair(ref min0, ref min1);
+        SortPair(ref min2, ref min3);
+        SortPair(ref min0, ref min2);
+        SortPair(ref min1, ref min3);
+        SortPair(ref min1, ref min2);
+        InsertMinimum(preErosion[middle + x], ref min0, ref min1, ref min2, ref min3);
+        InsertMinimum(preErosion[middle + right], ref min0, ref min1, ref min2, ref min3);
+        InsertMinimum(preErosion[lower + left], ref min0, ref min1, ref min2, ref min3);
+        InsertMinimum(preErosion[lower + x], ref min0, ref min1, ref min2, ref min3);
+        InsertMinimum(preErosion[lower + right], ref min0, ref min1, ref min2, ref min3);
         fuzzy[output + x] = (0.125f * min0 + 0.075f * min1) + (0.06f * min2 + 0.05f * min3);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void SortPair(ref float first, ref float second)
+    {
+        float maximum = MathF.Max(first, second);
+        first = MathF.Min(first, second);
+        second = maximum;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void SortPair(ref Vector<float> first, ref Vector<float> second)
+    {
+        Vector<float> maximum = Vector.Max(first, second);
+        first = Vector.Min(first, second);
+        second = maximum;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void InsertMinimum(float value, ref float min0, ref float min1, ref float min2, ref float min3)
+    {
+        float next0 = MathF.Max(min0, value);
+        float next1 = MathF.Max(min1, next0);
+        float next2 = MathF.Max(min2, next1);
+        min0 = MathF.Min(min0, value);
+        min1 = MathF.Min(min1, next0);
+        min2 = MathF.Min(min2, next1);
+        min3 = MathF.Min(min3, next2);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void InsertMinimum(Vector<float> value, ref Vector<float> min0, ref Vector<float> min1,
+        ref Vector<float> min2, ref Vector<float> min3)
+    {
+        Vector<float> next0 = Vector.Max(min0, value);
+        Vector<float> next1 = Vector.Max(min1, next0);
+        Vector<float> next2 = Vector.Max(min2, next1);
+        min0 = Vector.Min(min0, value);
+        min1 = Vector.Min(min1, next0);
+        min2 = Vector.Min(min2, next1);
+        min3 = Vector.Min(min3, next2);
     }
 
     private static float ComputeMask(float value)
