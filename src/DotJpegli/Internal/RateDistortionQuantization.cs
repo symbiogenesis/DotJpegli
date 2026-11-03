@@ -50,6 +50,7 @@ internal static class RateDistortionQuantization
         Span<byte> previousRuns = stackalloc byte[64 * 64];
         Span<short> selected = stackalloc short[64 * 64];
         Span<short> candidates = stackalloc short[3];
+        Span<double> distortions = stackalloc double[3];
         costs.Fill(double.PositiveInfinity);
         changes.Fill(int.MaxValue);
         costs[0] = 0;
@@ -75,6 +76,11 @@ internal static class RateDistortionQuantization
                 }
             }
             int natural = order[position];
+            for (int candidate = 0; candidate < candidateCount; candidate++)
+            {
+                double error = naturalCoefficients[natural] - ((double)candidates[candidate] * table[natural]);
+                distortions[candidate] = error * error * distortionScale;
+            }
             for (int run = 0; run < position; run++)
             {
                 if (double.IsPositiveInfinity(costs[run]))
@@ -85,10 +91,8 @@ internal static class RateDistortionQuantization
                 {
                     short value = candidates[candidate];
                     int nextRun = value == 0 ? run + 1 : 0;
-                    double error = naturalCoefficients[natural] - ((double)value * table[natural]);
-                    double distortion = error * error * distortionScale;
                     int bits = value == 0 ? 0 : NonzeroBits(value, run, lengths);
-                    double cost = costs[run] + distortion + (bits * rateScale);
+                    double cost = costs[run] + distortions[candidate] + (bits * rateScale);
                     int changed = changes[run] + (value == original ? 0 : 1);
                     evaluations++;
                     if (cost < nextCosts[nextRun] || (cost == nextCosts[nextRun] && changed < nextChanges[nextRun]))
