@@ -1,0 +1,11 @@
+[
+  {
+    "id": "kodim01",
+    "category": "natural",
+    "sourcePath": "kodim01.ppm",
+    "ppmSha256": "998ccf0be59a31ed12dfc2296a957f5363e35043e47ee232932ca5f1039e8628",
+    "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273",
+    "width": 768,
+    "height": 512
+  }
+]

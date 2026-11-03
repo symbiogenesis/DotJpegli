@@ -1,0 +1,106 @@
+[
+  {
+    "lane": "ARM64-net10.0-default",
+    "verdict": "no-regressions-detected",
+    "comparisons": 256,
+    "preferences": {
+      "current": 225,
+      "inconclusive": 31
+    },
+    "initiallyInvalidComparisons": 2,
+    "invalidTrials": 2,
+    "totalAttempts": 258,
+    "geometricMeanSelectedMedianRatio": 0.9412040470618398,
+    "maximumSelectedMedianRatio": 0.9964978780627545,
+    "maximumCase": "kodim04/444/p0/d1",
+    "cpu": "CPU implementer\t: 0x41; CPU architecture: 8; CPU variant\t: 0x0; CPU part\t: 0xd49; CPU revision\t: 0",
+    "vector512": false
+  },
+  {
+    "lane": "ARM64-net11.0-default",
+    "verdict": "no-regressions-detected",
+    "comparisons": 256,
+    "preferences": {
+      "inconclusive": 11,
+      "current": 245
+    },
+    "initiallyInvalidComparisons": 4,
+    "invalidTrials": 4,
+    "totalAttempts": 260,
+    "geometricMeanSelectedMedianRatio": 0.9327894015557002,
+    "maximumSelectedMedianRatio": 0.9933721981198553,
+    "maximumCase": "kodim13/420/p2/d1",
+    "cpu": "CPU implementer\t: 0x41; CPU architecture: 8; CPU variant\t: 0x0; CPU part\t: 0xd49; CPU revision\t: 0",
+    "vector512": false
+  },
+  {
+    "lane": "X64-net10.0-avx2",
+    "verdict": "no-regressions-detected",
+    "comparisons": 256,
+    "preferences": {
+      "current": 242,
+      "inconclusive": 14
+    },
+    "initiallyInvalidComparisons": 40,
+    "invalidTrials": 44,
+    "totalAttempts": 300,
+    "geometricMeanSelectedMedianRatio": 0.8915635067700138,
+    "maximumSelectedMedianRatio": 0.9927717155397621,
+    "maximumCase": "kodim13/420/p2/d1",
+    "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+    "vector512": false
+  },
+  {
+    "lane": "X64-net10.0-default",
+    "verdict": "regressions-detected",
+    "comparisons": 256,
+    "preferences": {
+      "baseline": 99,
+      "current": 124,
+      "inconclusive": 33
+    },
+    "initiallyInvalidComparisons": 34,
+    "invalidTrials": 43,
+    "totalAttempts": 299,
+    "geometricMeanSelectedMedianRatio": 0.9618493516644745,
+    "maximumSelectedMedianRatio": 1.146380029374312,
+    "maximumCase": "kodim20/444/p0/d4",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "vector512": true
+  },
+  {
+    "lane": "X64-net11.0-avx2",
+    "verdict": "no-regressions-detected",
+    "comparisons": 256,
+    "preferences": {
+      "current": 250,
+      "inconclusive": 6
+    },
+    "initiallyInvalidComparisons": 18,
+    "invalidTrials": 23,
+    "totalAttempts": 279,
+    "geometricMeanSelectedMedianRatio": 0.8919087618365805,
+    "maximumSelectedMedianRatio": 0.9883834784721353,
+    "maximumCase": "kodim01/420/p2/d1",
+    "cpu": "AMD EPYC 7763 64-Core Processor",
+    "vector512": false
+  },
+  {
+    "lane": "X64-net11.0-default",
+    "verdict": "regressions-detected",
+    "comparisons": 256,
+    "preferences": {
+      "inconclusive": 21,
+      "current": 224,
+      "baseline": 11
+    },
+    "initiallyInvalidComparisons": 14,
+    "invalidTrials": 14,
+    "totalAttempts": 270,
+    "geometricMeanSelectedMedianRatio": 0.9005872078550141,
+    "maximumSelectedMedianRatio": 1.0893291003464256,
+    "maximumCase": "full-noise/420/p0/d1",
+    "cpu": "AMD EPYC 7763 64-Core Processor",
+    "vector512": false
+  }
+]

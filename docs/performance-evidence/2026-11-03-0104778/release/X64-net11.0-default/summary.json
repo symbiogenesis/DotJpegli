@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 2,
+  "mode": "interleaved-revision-comparison",
+  "status": "completed",
+  "valid": true,
+  "parityVerdict": "not-evaluated",
+  "fullCoverageComplete": false,
+  "releaseCoverageComplete": true,
+  "releaseRegressionVerdict": "regressions-detected",
+  "baselineRevision": "a40868bfdace7d737413085522a88d351aa16782",
+  "currentRevision": "0104778b2691cf3e61d7dbac280457f383d9bc0c",
+  "regressions": [
+    "kodim01/420/p0/d1",
+    "kodim05/420/p0/d1",
+    "kodim08/420/p0/d1",
+    "kodim13/420/p0/d1",
+    "kodim14/420/p0/d1",
+    "kodim22/420/p0/d1",
+    "kodim24/420/p0/d1",
+    "structured-texture/444/p0/d1",
+    "structured-texture/420/p0/d1",
+    "full-noise/444/p0/d1",
+    "full-noise/420/p0/d1"
+  ],
+  "comparisons": 256,
+  "expectedComparisons": 256,
+  "initiallyInvalidComparisons": 14,
+  "retriedComparisons": 14,
+  "totalAttempts": 270,
+  "maximumAttempts": 8,
+  "inconclusiveComparisons": 21,
+  "invalidReasons": []
+}

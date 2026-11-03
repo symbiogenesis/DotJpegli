@@ -10,16 +10,22 @@ before the first measurement.
 
 ## Released-version regression checks
 
-The latest retained comparison at `b07eb5d` **fails three of six release
-regression gates**. Of 1,536 valid selected comparisons against published 1.0.0
-source, 73 consistently favor 1.0.0: 59 on .NET 10 x64 default (EPYC 7763,
-Vector512 false), nine on .NET 11 x64 default (EPYC 9V74, Vector512 true), and
-five on .NET 10 ARM64. The other three lanes pass. All paired JPEG hashes match.
-The largest selected median ratio is 1.050793. The
-[complete release snapshot](performance-evidence/2026-11-03-b07eb5d/release/README.md)
-retains the 254 earlier invalid trials as well as every selected case and
-failure. These measurements precede subsequent cache and hot-path changes and
-do not establish the performance of those later changes.
+The latest retained comparison at `0104778`, after the segmented/partial
+converted-plane changes, **fails two of six release regression gates**. All
+1,536 selected comparisons against published 1.0.0 source pass the timing guards
+and produce matching JPEG hashes. Of these, 1,310 consistently favor the current
+encoder, 116 are inconclusive and 110 consistently favor 1.0.0: 99 on .NET 10 x64
+default (EPYC 9V74, Vector512 true) and 11 on .NET 11 x64 default (EPYC 7763,
+Vector512 false). The other four lanes pass. The largest selected median ratio
+is 1.146380, or 14.64% more time. The
+[complete release snapshot](performance-evidence/2026-11-03-0104778/release/README.md)
+retains all selected cases and 130 earlier invalid trials. For each case, the
+first valid complete trial is final, including regressions and inconclusive results;
+conditioning on timing stability does not characterize all attempts' latency.
+
+The [earlier `b07eb5d` release snapshot](performance-evidence/2026-11-03-b07eb5d/release/README.md)
+retains its three failed gates, 73 regressions and 254 earlier invalid trials
+before the segmented/partial converted-plane changes.
 
 Historically, the repaired encoder at `74ae25d` passes the complete 256-case comparison
 against released 1.0.0 source in all six measured .NET 10/11 x64 and ARM64 lanes.
@@ -46,6 +52,11 @@ reference below or establish native performance parity. Version regression
 checks and native performance parity answer different questions.
 
 ## Native comparison reference
+
+The [later complete native run at `0104778`](performance-evidence/2026-11-03-0104778/README.md)
+has an invalid timing verdict: one of 256 cases, `kodim13/420/p0/d1`, fails the
+managed relative-MAD guard. Its aggregate timings cannot replace the complete
+valid `b07eb5d` reference below or establish native performance parity.
 
 The fixed acceptance matrix is complemented by an opt-in workload diagnostic.
 Include `[performance-workloads]` alongside `[full-parity]` in the settled main

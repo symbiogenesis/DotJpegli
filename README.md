@@ -129,36 +129,53 @@ for coverage.
 
 ## Performance
 
-The latest retained same-host comparison against released **1.0.0** tests
-revision `b07eb5d` and **fails three of six release regression gates**:
-73 of 1,536 selected cases consistently favor 1.0.0, with the largest selected
-median using 5.08% more time. All paired JPEG bytes match. These results precede
-the subsequent cache and hot-path changes; they do not validate those changes.
-The [complete release evidence](docs/performance-evidence/2026-11-03-b07eb5d/release/README.md)
-retains every selected case, earlier invalid trial, host identity and failure.
+The latest complete same-host comparison against released **1.0.0** tests
+revision `0104778`, after the cache and hot-path changes, on **November 3, 2026**
+in [CI run 41695349570](https://github.com/symbiogenesis/DotJpegli/actions/runs/41695349570).
+It **fails two of six release regression gates** across .NET 10/11 x64 and
+ARM64: 110 of 1,536 selected cases consistently favor 1.0.0, 1,310 favor the
+current encoder and 116 are inconclusive. The largest selected median uses
+**14.64% more time**. All selected cases pass the timing guards and all paired
+JPEG bytes match.
 
-Earlier same-host comparisons against the source published as **1.0.0** found no
-confirmed latency regressions in the repaired encoder at `74ae25d`/`a045052`
-across the measured .NET 10/11 x64 and ARM64 configurations, including .NET 11 AVX-512. Across
-1,792 selected case comparisons, 1,640 consistently favored the repaired
-encoder and 152 were inconclusive. Geometric means of the selected latency
-ratios show **5.9–11.7% less encoding time** across the seven configurations.
-The [six-lane release evidence](docs/performance-evidence/2026-11-03-release-regression-74ae25d/README.md)
-and [AVX-512 evidence](docs/performance-evidence/2026-11-03-release-regression-a045052/README.md)
-retain every case and retry, including four slightly slower but inconclusive
-medians, plus the measured tradeoffs between alternative algorithms. These
-results describe the tested configurations and trials that passed the timing
-stability checks.
+The [complete release evidence](docs/performance-evidence/2026-11-03-0104778/release/README.md)
+retains every selected case, host identity and all 130 earlier invalid trials.
+The first stable trial is selected for each case; these results do not describe
+the latency distribution of all attempts or establish speed on untested hosts.
+
+### Latest full native comparison
+
+The same run completes all 256 comparisons against **native Google Jpegli**,
+but one sequential 4:2:0 photograph case fails the timing-noise guard. The full
+native verdict is therefore **invalid**. Valid photograph groups have these
+geometric mean encoding-time differences on the measured AMD EPYC 7763 host:
+
+| Encoding mode | Time relative to native |
+| --- | ---: |
+| Sequential, 4:4:4 | 16.7% more |
+| Sequential, 4:2:0 | Invalid timing evidence |
+| Progressive level 2, 4:4:4 | 10.3% less |
+| Progressive level 2, 4:2:0 | 11.1% less |
+
+Both progressive photograph groups pass the fixed timing bounds; sequential
+4:4:4 photographs and all control groups fail. The
+[latest full measurements](docs/performance-evidence/2026-11-03-0104778/README.md)
+retain every valid and invalid case. These group results do not establish full
+performance parity or isolate revision speedups across separate runs.
+The later [four-case diagnostic at `b379282`](docs/performance-evidence/2026-11-03-b379282/README.md)
+also fails timing validity and does not replace the full matrix.
+
+### Complete valid chart reference
 
 The native comparison charts below retain the last complete valid snapshot.
 Compare DotJpegli with **native Google Jpegli** on all 24 Kodak photographs.
-The charts use fresh measurements from **November 3, 2026**,
+The charts use measurements from **November 3, 2026**,
 [CI run 41690962313](https://github.com/symbiogenesis/DotJpegli/actions/runs/41690962313),
 testing revision `b07eb5d`, before the later partial converted-plane change.
 Compression and time differences are relative to native; zero means equal
 file size or encoding time.
 
-### Compression efficiency
+#### Compression efficiency
 
 JPEG sizes are nearly identical at the same measured quality. Photograph group
 means differ from native by **at most 0.002%** across all four encoding modes at
@@ -167,7 +184,7 @@ the next 0.001%; exact group values are linked below.
 
 ![Photograph group mean JPEG file-size differences from native Google Jpegli are at most 0.002% across all four encoding modes at matched PSNR and SSIM.](docs/images/performance/compression.svg)
 
-### Encoding wall time
+#### Encoding wall time
 
 On the measured AMD EPYC 7763 host, progressive photograph encoding used
 **7.0–9.8% less time** than native; sequential encoding used **18.0–24.1% more**.
@@ -179,7 +196,7 @@ when their reported CPU models match.
 
 ![Percentage encoding-time differences from native Google Jpegli, pairing Kodak photographs and deterministic controls for each encoding mode.](docs/images/performance/wall-time.svg)
 
-### Managed allocations
+#### Managed allocations
 
 Each bar shows average managed allocations per complete encode, including the
 returned JPEG. Native allocations were not measured. Retained pool capacity
@@ -196,6 +213,17 @@ sequential photographs and the control groups fail. See the
 [chart values](docs/images/performance/metrics.json) and
 [reproducible protocol](docs/performance-parity.md) for the host, runtime,
 raw samples and individual regressions.
+
+### Large-image cache boundaries
+
+The later [workload snapshot at `0104778`](docs/performance-evidence/2026-11-03-0104778-workloads/README.md)
+completes 26 scenarios on both x64 and ARM64 after segmented/partial
+converted-plane caching. Above-to-below median encoding-time ratios across the
+converted-plane cache boundaries are **1.098/1.068 for 4:4:4** and
+**1.021/1.027 for 4:2:0**, in x64/ARM64 order. All these boundary rows pass the
+workload dispersion checks. These instrumented observations do not establish
+before/after speedups across separate hosts and runs, native parity or service
+latency bounds.
 
 ## Documentation
 

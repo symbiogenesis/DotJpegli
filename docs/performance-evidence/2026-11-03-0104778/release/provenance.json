@@ -1,0 +1,1510 @@
+{
+  "schemaVersion": 1,
+  "sourceRevision": "0104778b2691cf3e61d7dbac280457f383d9bc0c",
+  "baselineRevision": "a40868bfdace7d737413085522a88d351aa16782",
+  "runId": "41695349570",
+  "runAttempt": 1,
+  "runUrl": "https://github.com/symbiogenesis/DotJpegli/actions/runs/41695349570/attempts/1",
+  "archiveDigestSource": "GitHub API; archive digests not independently recomputed",
+  "artifacts": [
+    {
+      "artifactId": 13261692604,
+      "artifactName": "release-regression-ARM64-net10.0-default-0104778b2691cf3e61d7dbac280457f383d9bc0c-attempt1",
+      "githubReportedArchiveDigest": "sha256:937e6035f80ea2a5845a5b75e0145d9313eaa1fd7bf1a2f82b731cc68bfb820e",
+      "archiveBytes": 19630548,
+      "retainedFiles": [
+        {
+          "path": "ARM64-net10.0-default/cases.json",
+          "artifactPath": "release-regression/cases.json",
+          "sha256": "0c4e0d43720a84d03298dafd16478094aad468aec0540fce4a2d5b73d8861582"
+        },
+        {
+          "path": "ARM64-net10.0-default/report.md",
+          "artifactPath": "release-regression/report.md",
+          "sha256": "ac2afc4a145a9405e2cb2c6efe55417c5f22e7051152a7834a1a6c4600b91ea8"
+        },
+        {
+          "path": "ARM64-net10.0-default/run.json",
+          "artifactPath": "release-regression/run.json",
+          "sha256": "89c4f22e70f06d496f86239d50344ba6199a4d203d9a30b29e49eac472358312"
+        },
+        {
+          "path": "ARM64-net10.0-default/sources.json",
+          "artifactPath": "release-regression/sources.json",
+          "sha256": "f7bda0ffbb89f0db3c2a2db604ef7cd557d5d63d41aa6ea2d3a71c881ee80dcb"
+        },
+        {
+          "path": "ARM64-net10.0-default/summary.json",
+          "artifactPath": "release-regression/summary.json",
+          "sha256": "a07b74d204dd2193f454fd56a9b107d398b100e723d2e0c2cbde248120119218"
+        },
+        {
+          "path": "ARM64-net10.0-default/build-provenance/build.txt",
+          "artifactPath": "release-build-provenance/build.txt",
+          "sha256": "3e4de56ddaca602d0d216819d1df7f8fa150a28c8784fbd12a18b4cd1c822d39"
+        },
+        {
+          "path": "ARM64-net10.0-default/build-provenance/rebuilt-packages.lock.json",
+          "artifactPath": "release-build-provenance/rebuilt-packages.lock.json",
+          "sha256": "16108ff48559cf439bbfa908b0050a163e36e1a2a49144e412392ac613152e7c"
+        },
+        {
+          "path": "ARM64-net10.0-default/build-provenance/released-packages.lock.json",
+          "artifactPath": "release-build-provenance/released-packages.lock.json",
+          "sha256": "95d5fbc6978dafea463391f0a77a3567b84a2c5805c8e55404d4a8ab4ed31296"
+        },
+        {
+          "path": "ARM64-net10.0-default/raw-comparisons/kodim01_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_420_p0_d1.json",
+          "sha256": "f65deedd9c02392421283595030827eb20a3b51e3290d80eb123d365c65b67e0"
+        },
+        {
+          "path": "ARM64-net10.0-default/raw-comparisons/kodim01_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_420_p0_d1_attempt02.json",
+          "sha256": "27458016baa97d6bcbd58993a512ea38f334f77baf9240db74fdb8013a8c4453"
+        },
+        {
+          "path": "ARM64-net10.0-default/raw-comparisons/low-noise_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_444_p0_d1.json",
+          "sha256": "e0d095343d9acfbff2abbb9c79c611e5d191d7d7ce5df18dfae7a1020b7fca5e"
+        },
+        {
+          "path": "ARM64-net10.0-default/raw-comparisons/low-noise_444_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_444_p0_d1_attempt02.json",
+          "sha256": "d0696cc1bb6f53b3038db3992c0d6662a9f06bef328b3c3b550e3dca375eb1ba"
+        }
+      ]
+    },
+    {
+      "artifactId": 13262077443,
+      "artifactName": "release-regression-ARM64-net11.0-default-0104778b2691cf3e61d7dbac280457f383d9bc0c-attempt1",
+      "githubReportedArchiveDigest": "sha256:da060b368f9750be3d23744808cf46439fa04b67484dddf20b226ead44e87205",
+      "archiveBytes": 19634474,
+      "retainedFiles": [
+        {
+          "path": "ARM64-net11.0-default/cases.json",
+          "artifactPath": "release-regression/cases.json",
+          "sha256": "3762bda55c66e26a6d90763c79b3451f9b0c260ef5b5105b04495bee8be4b9a1"
+        },
+        {
+          "path": "ARM64-net11.0-default/report.md",
+          "artifactPath": "release-regression/report.md",
+          "sha256": "4a95e76e7cb8dd58814edb0e04c10fcf4fda517dd9ebc93802444bdeea99e3d2"
+        },
+        {
+          "path": "ARM64-net11.0-default/run.json",
+          "artifactPath": "release-regression/run.json",
+          "sha256": "aad5369d54864d6c7be2ceb4632a7b59f2251f8dcc75aa7beebc0738aafd3cb4"
+        },
+        {
+          "path": "ARM64-net11.0-default/sources.json",
+          "artifactPath": "release-regression/sources.json",
+          "sha256": "f7bda0ffbb89f0db3c2a2db604ef7cd557d5d63d41aa6ea2d3a71c881ee80dcb"
+        },
+        {
+          "path": "ARM64-net11.0-default/summary.json",
+          "artifactPath": "release-regression/summary.json",
+          "sha256": "b9611373050ca4a81cdf9759fe62af96e88aac0c262bfadcec33085defa91b34"
+        },
+        {
+          "path": "ARM64-net11.0-default/build-provenance/build.txt",
+          "artifactPath": "release-build-provenance/build.txt",
+          "sha256": "6ee8454c63d78e580edf58c1c30223158463acc334360fdd82e5aa553eb56846"
+        },
+        {
+          "path": "ARM64-net11.0-default/build-provenance/rebuilt-packages.lock.json",
+          "artifactPath": "release-build-provenance/rebuilt-packages.lock.json",
+          "sha256": "16108ff48559cf439bbfa908b0050a163e36e1a2a49144e412392ac613152e7c"
+        },
+        {
+          "path": "ARM64-net11.0-default/build-provenance/released-packages.lock.json",
+          "artifactPath": "release-build-provenance/released-packages.lock.json",
+          "sha256": "95d5fbc6978dafea463391f0a77a3567b84a2c5805c8e55404d4a8ab4ed31296"
+        },
+        {
+          "path": "ARM64-net11.0-default/raw-comparisons/kodim01_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_420_p0_d4.json",
+          "sha256": "21e5ab7feacd1fd08917c5ce0e4109e95b2bf916e5697d51acf6b44b68ded847"
+        },
+        {
+          "path": "ARM64-net11.0-default/raw-comparisons/kodim01_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_420_p0_d4_attempt02.json",
+          "sha256": "bd45f229c71f97a5638ea5731308e9764cb2cb29c7f383ba2fddf84c8c934c7a"
+        },
+        {
+          "path": "ARM64-net11.0-default/raw-comparisons/kodim16_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim16_420_p2_d4.json",
+          "sha256": "0df9a7e9f748698ce625e0ad797169cefd2cf2d9f46264f7df371b5f2002d58e"
+        },
+        {
+          "path": "ARM64-net11.0-default/raw-comparisons/kodim16_420_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim16_420_p2_d4_attempt02.json",
+          "sha256": "ca3cbb35b583c26069d2c35ba8539520319de0e8d47cd31069a16bd64b91c45b"
+        },
+        {
+          "path": "ARM64-net11.0-default/raw-comparisons/kodim24_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim24_420_p2_d4.json",
+          "sha256": "489457c0cd11cdc5e5ecf29af4891795c8da9ac2141d201d46077e94913ad570"
+        },
+        {
+          "path": "ARM64-net11.0-default/raw-comparisons/kodim24_420_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim24_420_p2_d4_attempt02.json",
+          "sha256": "61458d2b2eddbaf5bf8dadd2e16ce23ee66ddd8ead2d8fc9743c0090fd3038f2"
+        },
+        {
+          "path": "ARM64-net11.0-default/raw-comparisons/tiny-odd-edges_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p0_d1.json",
+          "sha256": "5419e4c453fac03411e092e73a9093970156a71455c03b7d64a2c8f496a3a6cc"
+        },
+        {
+          "path": "ARM64-net11.0-default/raw-comparisons/tiny-odd-edges_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p0_d1_attempt02.json",
+          "sha256": "b1faca2908bd3386e75b89aaab464964351661e0ea55215d806d0b2d60c8a2a7"
+        }
+      ]
+    },
+    {
+      "artifactId": 13261932193,
+      "artifactName": "release-regression-X64-net10.0-avx2-0104778b2691cf3e61d7dbac280457f383d9bc0c-attempt1",
+      "githubReportedArchiveDigest": "sha256:d6433214143b8c540e161735ca0edb08a7f749e0fbfd28c0c1474be7ad4aa3dc",
+      "archiveBytes": 19703188,
+      "retainedFiles": [
+        {
+          "path": "X64-net10.0-avx2/cases.json",
+          "artifactPath": "release-regression/cases.json",
+          "sha256": "92532d38cf42505b1b9895954a3072806df97c67d82fb879338e929ee8f1511f"
+        },
+        {
+          "path": "X64-net10.0-avx2/report.md",
+          "artifactPath": "release-regression/report.md",
+          "sha256": "be10826232efdcf4920b4305221b28f596fe6db2587ced90a23a5156e6272b86"
+        },
+        {
+          "path": "X64-net10.0-avx2/run.json",
+          "artifactPath": "release-regression/run.json",
+          "sha256": "99571b4ba3f024ed7394bd708a62b935c1359e24757ce1f406a989f36217c5ec"
+        },
+        {
+          "path": "X64-net10.0-avx2/sources.json",
+          "artifactPath": "release-regression/sources.json",
+          "sha256": "f7bda0ffbb89f0db3c2a2db604ef7cd557d5d63d41aa6ea2d3a71c881ee80dcb"
+        },
+        {
+          "path": "X64-net10.0-avx2/summary.json",
+          "artifactPath": "release-regression/summary.json",
+          "sha256": "eb3bdc70c1cd2ae3200a15005561a4c24ef564dbb0bf189b01ec233e6cde41cc"
+        },
+        {
+          "path": "X64-net10.0-avx2/build-provenance/build.txt",
+          "artifactPath": "release-build-provenance/build.txt",
+          "sha256": "65efa64d57e6ee20eeb26bce4e26260271fae29e96f6643d8600aa9990e847f9"
+        },
+        {
+          "path": "X64-net10.0-avx2/build-provenance/rebuilt-packages.lock.json",
+          "artifactPath": "release-build-provenance/rebuilt-packages.lock.json",
+          "sha256": "16108ff48559cf439bbfa908b0050a163e36e1a2a49144e412392ac613152e7c"
+        },
+        {
+          "path": "X64-net10.0-avx2/build-provenance/released-packages.lock.json",
+          "artifactPath": "release-build-provenance/released-packages.lock.json",
+          "sha256": "95d5fbc6978dafea463391f0a77a3567b84a2c5805c8e55404d4a8ab4ed31296"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim01_444_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_444_p0_d4.json",
+          "sha256": "ab001fcd0b8957ae28997cc5812b84f6ec54ad1686b47bdb85fa1df444b81cfd"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim01_444_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_444_p0_d4_attempt02.json",
+          "sha256": "782d04a474abe0657eb4f2ae4c9f7c51bd835bed9ae42fbb3d233fb37e21bd88"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim01_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_420_p2_d1.json",
+          "sha256": "763d52c743abf15c014468e6c15acb39e36d9e7efff87b7d87e005cb9f53387b"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim01_420_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_420_p2_d1_attempt02.json",
+          "sha256": "97616a2ce722f75b30d96538cb427e128b33ec431ce480721598672cdda3a060"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim02_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim02_444_p2_d1.json",
+          "sha256": "12608d4915015a662183ee4fe70cb543cfd1c39737cb9977c3e4aa405033daf5"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim02_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim02_444_p2_d1_attempt02.json",
+          "sha256": "877479e51dd6b8d709f63ff74fc0e9dcad44b5370f0c963053f52b788ae8cc3b"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim02_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim02_420_p0_d1.json",
+          "sha256": "f299467b25c88523f583597898b8d1e4837bfb28ee8972a76e53a6c82c9906ff"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim02_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim02_420_p0_d1_attempt02.json",
+          "sha256": "25eefd5a71670f30c613876355ba1f6bf11ed0fd1634ebbbacdc7e0f915e995f"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim05_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim05_444_p0_d1.json",
+          "sha256": "d4feb21adfba5d115815f1e0b670ca7b9046e53dfa621184f7a66edd359cc0c1"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim05_444_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim05_444_p0_d1_attempt02.json",
+          "sha256": "6162f9717c060eb51d9fd4b523efa262f49391f460d05723a8ee4368c8c22cf2"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim05_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim05_444_p2_d4.json",
+          "sha256": "57b031a7c72efaa9cfd6767c632b223d027ab76bf9cba8163480e5be932700c9"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim05_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim05_444_p2_d4_attempt02.json",
+          "sha256": "bd114ec7b04460e0b6de64a38d062fd0a0640bee3dc1897968ad5583e0e40058"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim06_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim06_420_p0_d1.json",
+          "sha256": "50b58a4a430ff70f7d579d4f572a9a1c690ff18e85603d84c089602c27da5163"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim06_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim06_420_p0_d1_attempt02.json",
+          "sha256": "f7910c9a6919866dce0f9eb728d1dfc7a7224b6be25f50d8f43ae028f08c5ff5"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim06_420_p0_d1_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim06_420_p0_d1_attempt03.json",
+          "sha256": "17976d44167582bf062dc397a665d48dfac73223a5ec9149da5b73cfb69f70ae"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim07_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim07_444_p2_d4.json",
+          "sha256": "7dda9610ba6ebd25ab455204420fb3c3ed8d001c49180a46cc659d7d089d82ce"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim07_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim07_444_p2_d4_attempt02.json",
+          "sha256": "f21af6f55419e36971d04b2e3fdc833fac1f2c47a9af5dcd400ded905dee330a"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim07_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim07_420_p0_d4.json",
+          "sha256": "f41209be832882215282f498ec3ff3ca4fe601ab7ca4053f4f2ac0213d181af1"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim07_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim07_420_p0_d4_attempt02.json",
+          "sha256": "4b0d3765f3d2efbaaa1fdce1622e4db17bef87c90a97dc3dea5a262722f957be"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim08_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim08_444_p0_d1.json",
+          "sha256": "92073b3edbcebed03a51ec7896138a16982862df39de0aef309f46f2ce189fd1"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim08_444_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim08_444_p0_d1_attempt02.json",
+          "sha256": "37ba15f990612afb64f2a805ac4350c4b668fe95728e73c6bff10ae3e353ee29"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim08_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim08_444_p2_d1.json",
+          "sha256": "9f2e745dc84cbdefcdc3383d0999933d07695390d2bc538ef888b7e9b3977c23"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim08_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim08_444_p2_d1_attempt02.json",
+          "sha256": "471dfbbfb279f974a3c60619fe5d5af3ed8c9183c4e11c1d9fbc4ee50d314edf"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim09_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim09_444_p0_d1.json",
+          "sha256": "5263fa31d1bbb7080446f567cedda4171c13efb49d6fea02cb91f1fc939dd001"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim09_444_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim09_444_p0_d1_attempt02.json",
+          "sha256": "07280e0dfbfc3a4c60a3f05f3354d11d01321f78c5bd29039a11d1f258bdaba4"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim09_444_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim09_444_p0_d4.json",
+          "sha256": "c9728558dfff95134e28ff103ac0500e4cbd180d0dacfbbeffb8d1f6f6542e8e"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim09_444_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim09_444_p0_d4_attempt02.json",
+          "sha256": "0b212c48b6f926a15e7859f0ea250faeaa4c80972fbf74b3c44ab373a5dbd45a"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim09_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim09_420_p2_d4.json",
+          "sha256": "0088469e6fe9b462bccb0443179ae1496d4352b9f735b3d176ec99d66e87ccb5"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim09_420_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim09_420_p2_d4_attempt02.json",
+          "sha256": "28ce5aedde43fc926852d6d00d74be61ff4b27d62afd80d3e401bf4b1fcf90db"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim10_444_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim10_444_p0_d4.json",
+          "sha256": "4ea2595b436d864ee3f1d17caedc206b3526f263281f0869f8ff674c1ce2d741"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim10_444_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim10_444_p0_d4_attempt02.json",
+          "sha256": "b92c74a6ba1d93761b6cbf76bb821e0b6041fde3ee05cd04c6588f38399b094b"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim10_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim10_444_p2_d1.json",
+          "sha256": "cc3fc017f34b8ff3a9dc112e4da5d87cd2b20702ac64cd9b67a2dc83aa4b506d"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim10_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim10_444_p2_d1_attempt02.json",
+          "sha256": "184ab595846fff097ea3427c2350d3de949e2e17b9d5eb6b571cbef2eff861b3"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim11_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_444_p0_d1.json",
+          "sha256": "19b663f9503de0f8e908fbe441741cff6c41c68db4d271560317092cf4923bcb"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim11_444_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_444_p0_d1_attempt02.json",
+          "sha256": "118d5a4a43f14df3896cb06938e5c68eb0fa606721c8a70e235f3f867b4632c7"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim11_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_444_p2_d4.json",
+          "sha256": "e59597da2ef1c52878206102a1a44c49c4a9a98d660d6629706ac9d9398b5192"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim11_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_444_p2_d4_attempt02.json",
+          "sha256": "6b9278bb338a98c20bdb5615a139259b2157369a700c14a36cace3222522cbf5"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim11_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_420_p0_d1.json",
+          "sha256": "34481657617f4d7cfea0d0787e80a66dc9515e9edacafac783730914231cd67c"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim11_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_420_p0_d1_attempt02.json",
+          "sha256": "e60d99a511b0518f2e04c2adf61328af808e2c1c43061fc481d2a46d75b9e1ac"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim11_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_420_p0_d4.json",
+          "sha256": "6f6ca884327e6c551fdc7e390d62956782bb22bf70b84f3e7ab596984981ec77"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim11_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_420_p0_d4_attempt02.json",
+          "sha256": "19de674d197edb0541933c1f81837b33fa11fc0e254b97782ddec01f0a9f4ddb"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim12_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_444_p2_d4.json",
+          "sha256": "4f8868e93dcf12d9f52bbb7d79d7b311b2de48a0956f116300c90fabbd0af849"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim12_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_444_p2_d4_attempt02.json",
+          "sha256": "7ef51185b08aae1d7b5811f35430a35d99e3248e5b696e176ec7236f62424757"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim12_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_420_p0_d4.json",
+          "sha256": "ad1b601ab6d2af289b0dcb07493611b1e534aee3b56d0e01de8e944730141c6a"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim12_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_420_p0_d4_attempt02.json",
+          "sha256": "d0f050e35522de0ebb7b5e02da50ac15defef9db34f7aaacc981ad4c047cf8bf"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim13_444_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim13_444_p0_d4.json",
+          "sha256": "b9c50fe39919253358a83e7ece0cd2c9d43987f2ab746e9965cd6e5b70d8e9aa"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim13_444_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim13_444_p0_d4_attempt02.json",
+          "sha256": "efcb9119c8280151c0769f828701e445423bbe4b49c1bf6831e1da9458c67604"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim15_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim15_420_p0_d4.json",
+          "sha256": "e4eb887499860f5d655fff6a501e77cae60a632044615bb5ee7e1cdcf2488978"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim15_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim15_420_p0_d4_attempt02.json",
+          "sha256": "9670ec95e04251d3304126520090bb15bec0095135bbdb2ff69d0642e15b7be6"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim15_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim15_420_p2_d1.json",
+          "sha256": "f5c0837bf0f882179c1aaf5c4b9a33d14382365efa84f34c9b93b3f21bdc042d"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim15_420_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim15_420_p2_d1_attempt02.json",
+          "sha256": "3398f85d5e7b577513bc73857b1eb3a051ed42923da8e5a4d2d909002e45055a"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim17_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim17_420_p2_d4.json",
+          "sha256": "3e62606e41c049011fcc9bd9686d741eb9454e1a5aac025ba150039c6188fc3a"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim17_420_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim17_420_p2_d4_attempt02.json",
+          "sha256": "f306823a1630ad0a0b59db0f9a4b6d9ad7bbc470f90f67ead7684ffe59b6550d"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim18_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim18_420_p2_d1.json",
+          "sha256": "e43b97fe5bb3f18e426310f307432f159bc9073188dfe675c3d276abe0ea7f63"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim18_420_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim18_420_p2_d1_attempt02.json",
+          "sha256": "bba80c30a09df608de406cfeeed82f68bf8d7c01b17539ea53ed6a4c616d907d"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim20_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim20_420_p2_d1.json",
+          "sha256": "0ff4b95b04556f10a5ce126b16e60633091c02269559d664cf117ecc677b8d41"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim20_420_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim20_420_p2_d1_attempt02.json",
+          "sha256": "1e6bc6dbc6a52071abb33195361f2263fea752e98451969aa95feda743e7572a"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim22_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim22_420_p0_d1.json",
+          "sha256": "b0898e20d726baaf610cb3ef7929d0f0ed9c444ac2a4c6a3f9cca1e74d6b51cc"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim22_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim22_420_p0_d1_attempt02.json",
+          "sha256": "67741c4a3c258d95bccd14a42c65e54cd0f5fd62afbb9b6523a184ce31a4d865"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim22_420_p0_d1_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim22_420_p0_d1_attempt03.json",
+          "sha256": "77101f1eae1d057c95edcd8c386e2057b9c973e034b1c66c3948b8a2b3a46211"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim22_420_p0_d1_attempt04.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim22_420_p0_d1_attempt04.json",
+          "sha256": "fb9c347c07143ecc2fa58271718b692430339e5dcb8a0f4c2a560765c23fcb55"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim23_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim23_444_p2_d1.json",
+          "sha256": "83845aafa8e5cdcab3fb7adfaf03e1467b11cde54bce220e9b1a3732e3556d78"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim23_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim23_444_p2_d1_attempt02.json",
+          "sha256": "a7eb06af966c106d176b88d7e3c07d608f9b5979c79fd7e05b3115a320caab5b"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim23_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim23_444_p2_d4.json",
+          "sha256": "4d49599b9fa6de1365ffc9712b7739bc63edde05d131db8672aead43486f4acd"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim23_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim23_444_p2_d4_attempt02.json",
+          "sha256": "7c3d47fb793061052a10fd7232bf9f7491c64cf365fa9eac8e7ce23b2b3a2b39"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim23_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim23_420_p0_d1.json",
+          "sha256": "273be10869688fdbc26ab3b9521c2d86d181b08b8da808461007a14dae06b167"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim23_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim23_420_p0_d1_attempt02.json",
+          "sha256": "a6170a9fbbf58d9e951bd7bad7d8732f576a97601b914fa996f09d0c5f7fe569"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim24_444_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim24_444_p0_d4.json",
+          "sha256": "749f39f41eb8d658a461e34f14c6c114babf81aeb512430915f6995472156857"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim24_444_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim24_444_p0_d4_attempt02.json",
+          "sha256": "3b2a6e7cdfbd85db73eeafc6d9ea6a9c19ec3c0d12c09e7057a770ec70edc891"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim24_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim24_420_p0_d1.json",
+          "sha256": "2e157c628afbe13f808a15eede54b29a2f441c0d33eb4b4087dd50873ad295ec"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/kodim24_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim24_420_p0_d1_attempt02.json",
+          "sha256": "587339537a196cb1f2373f31a3eed1557e7edc26c776f614d727cb663f419350"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/line-art_444_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/line-art_444_p0_d4.json",
+          "sha256": "43275b650e6ae63dd07bc60e74791f905e5d9de33f078a3c9c749d6a05ddf75c"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/line-art_444_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/line-art_444_p0_d4_attempt02.json",
+          "sha256": "d40c51b99bf67c7515f146355a948b9c5f1de959273fb116f235997fae0128af"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/line-art_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/line-art_444_p2_d1.json",
+          "sha256": "a893eb1c0691f48d42a67cace13f905553226c3cfd4d8e923a4e54b2329abc41"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/line-art_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/line-art_444_p2_d1_attempt02.json",
+          "sha256": "7e55428752f9ec9216f7782d4dc251081492e091b8a11fcb26dfa0c838a955f5"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/line-art_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/line-art_444_p2_d4.json",
+          "sha256": "21a871f4aa6d8ffb18a5763edea467ad15101631d86f3349e6a5f51608a87881"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/line-art_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/line-art_444_p2_d4_attempt02.json",
+          "sha256": "31715c0843a17add4f15ab01c0120bf78708dd83db8941d0f920d1ca548bdadc"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/low-noise_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_444_p2_d1.json",
+          "sha256": "78e6ae14400c68672f1cf309294d330752a040830037075f2174c2178d0082a0"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/low-noise_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_444_p2_d1_attempt02.json",
+          "sha256": "7aa0c622ddaa22d9bd96b590c0b3229c5f93d84869ba179433906b5976a77af8"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/low-noise_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_420_p2_d4.json",
+          "sha256": "2256cbbb2d4c1228d49a87276e218c79f2bb61184ae2243accd8867a635a5367"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/low-noise_420_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_420_p2_d4_attempt02.json",
+          "sha256": "ddab1cc3b2937977d56856a6e96f46a74cd0e8d3e99ba09771cff5c514e24bc9"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/low-noise_420_p2_d4_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_420_p2_d4_attempt03.json",
+          "sha256": "5a0f2e66695e77f22ff969943806ea6a8c090f5e3ff161cb9641c4b63a0e431b"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/tiny-odd-edges_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_444_p2_d4.json",
+          "sha256": "0c4ed5a73e11de9979719cfbfd151d5cccd1742db8b875210b82a5e0f91114cf"
+        },
+        {
+          "path": "X64-net10.0-avx2/raw-comparisons/tiny-odd-edges_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_444_p2_d4_attempt02.json",
+          "sha256": "ace546b568260d045a672a4007da1f2a4c73cc71c0401ad380a3ad268f3d70b5"
+        }
+      ]
+    },
+    {
+      "artifactId": 13261682388,
+      "artifactName": "release-regression-X64-net10.0-default-0104778b2691cf3e61d7dbac280457f383d9bc0c-attempt1",
+      "githubReportedArchiveDigest": "sha256:33636b537a2884493d55fe29179a7b89e28ffaafc4c947dc9aec1cb3520565cb",
+      "archiveBytes": 19708882,
+      "retainedFiles": [
+        {
+          "path": "X64-net10.0-default/cases.json",
+          "artifactPath": "release-regression/cases.json",
+          "sha256": "9140591f3e98265bb73980267b1c1f3f78394de0cbad2499601b74749a227e75"
+        },
+        {
+          "path": "X64-net10.0-default/report.md",
+          "artifactPath": "release-regression/report.md",
+          "sha256": "895cd50e646a766366c7d530c83354a3ac99a4c2af3d7ef146ff32cb9b9c0153"
+        },
+        {
+          "path": "X64-net10.0-default/run.json",
+          "artifactPath": "release-regression/run.json",
+          "sha256": "dab67b433ba1d561ce69ce97e9432408d9cb0f3df036443d3b4922fce11d2f9e"
+        },
+        {
+          "path": "X64-net10.0-default/sources.json",
+          "artifactPath": "release-regression/sources.json",
+          "sha256": "f7bda0ffbb89f0db3c2a2db604ef7cd557d5d63d41aa6ea2d3a71c881ee80dcb"
+        },
+        {
+          "path": "X64-net10.0-default/summary.json",
+          "artifactPath": "release-regression/summary.json",
+          "sha256": "d9513ca7c0e1a7f90e6a38f9684b5f6430cc6135bdc1964554f92b007195b6dd"
+        },
+        {
+          "path": "X64-net10.0-default/build-provenance/build.txt",
+          "artifactPath": "release-build-provenance/build.txt",
+          "sha256": "57d3fdfdcea42afb2ba23ec64622bd0a8f556c79fbff729464631c7adff3d25e"
+        },
+        {
+          "path": "X64-net10.0-default/build-provenance/rebuilt-packages.lock.json",
+          "artifactPath": "release-build-provenance/rebuilt-packages.lock.json",
+          "sha256": "16108ff48559cf439bbfa908b0050a163e36e1a2a49144e412392ac613152e7c"
+        },
+        {
+          "path": "X64-net10.0-default/build-provenance/released-packages.lock.json",
+          "artifactPath": "release-build-provenance/released-packages.lock.json",
+          "sha256": "95d5fbc6978dafea463391f0a77a3567b84a2c5805c8e55404d4a8ab4ed31296"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim01_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_444_p2_d1.json",
+          "sha256": "22729af2efecab5dd6433e137c45fa21b5a5695df2f2edceaa653aac8c1d7fc0"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim01_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_444_p2_d1_attempt02.json",
+          "sha256": "740bee8511e9670bfa0c57b95ead1c27c4e048d46e9a4b504b4332e56a49d01d"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim01_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_420_p2_d4.json",
+          "sha256": "028dd0e3f24260a1811c8dbb490f59b217366c915b535dde69ce4b364bce1422"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim01_420_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_420_p2_d4_attempt02.json",
+          "sha256": "ea2419a3813dd17bde57913c4179a45a9fd1944bd4387a513b57f790c7b87f20"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim02_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim02_444_p0_d1.json",
+          "sha256": "2c99d48dc37b3d74d934a965e71701c3ecc49ea53b91b0f0e5856a740a74d8a4"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim02_444_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim02_444_p0_d1_attempt02.json",
+          "sha256": "df5e3f96648d023077e12a0d1b7b1bd1f2228b6de9060a87e927d52c8fc03162"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim02_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim02_420_p0_d4.json",
+          "sha256": "86c5187d66dbd6e63b625f7afb8753836ac59020e43ca97a92f5821560ea8cfb"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim02_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim02_420_p0_d4_attempt02.json",
+          "sha256": "a7a9eab19a993c75c9c814aa4c2a9879417211fcf88631cd8bdcf2dedbdafd7e"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim03_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim03_444_p2_d4.json",
+          "sha256": "b5529f7d09077674c928539ba0e48d08ffdf144a2fafaba6cc594ed3621146a4"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim03_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim03_444_p2_d4_attempt02.json",
+          "sha256": "0677d1f05ad5ed66238bce925c26a3ee04b18402cef17d03b2d6aa103dc3b059"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim03_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim03_420_p2_d1.json",
+          "sha256": "2312e099df154106c27676ad9eb90d79edbec8cda40d0876769eaa36aba22e57"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim03_420_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim03_420_p2_d1_attempt02.json",
+          "sha256": "ac308d9314c4ea0e73e7b574721003f8a56ab227ad3995868e52864a5dfaf5b5"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim04_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim04_444_p2_d4.json",
+          "sha256": "83c88bfc1a6abe215937d43bb28f6bab862f1100d31159f57f9f256b31bfd9d8"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim04_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim04_444_p2_d4_attempt02.json",
+          "sha256": "7643d6b991d94be1de6cc6284a532c4d63aedf8c073663de9e62d94a6f74d5ad"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim06_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim06_420_p0_d1.json",
+          "sha256": "07f202f49673dfdd19fd286c3d6e0c81ed3c45bb81a5272ecd75b0274ed2e076"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim06_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim06_420_p0_d1_attempt02.json",
+          "sha256": "97cd2231bc32a5d1899eadf01b9bd4c14ad1a2806f33b31f4faad9a1823df564"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim06_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim06_420_p2_d1.json",
+          "sha256": "d56c1e1740c8edd056634b66c30dc46eaa68b67a458b4eb6bc543ddf2c8963f6"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim06_420_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim06_420_p2_d1_attempt02.json",
+          "sha256": "773f80d5f8dd2522c4f3d4d6fcb6a23260d68eec74b2779ccdd8d342b842207d"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim06_420_p2_d1_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim06_420_p2_d1_attempt03.json",
+          "sha256": "3e1f743327d92c525abc42e68e98c8e1dd4fbd3ce703d6844db6aeb5bc121128"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim07_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim07_420_p2_d4.json",
+          "sha256": "d0e2e6ee2f5cb24ec487542975ef23a672f2aab709930c30eb0b9ac6d3340300"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim07_420_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim07_420_p2_d4_attempt02.json",
+          "sha256": "76eb96fdd986d5ffa3a10ae03ff74ad38200527bbc5609cf431487db0019153f"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim07_420_p2_d4_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim07_420_p2_d4_attempt03.json",
+          "sha256": "c6ddc58a0e5fad6ff8b5525c55c56990fe601a95637577e5a9938e44e82bfc32"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim08_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim08_420_p0_d1.json",
+          "sha256": "47839a2999f9c23e688c753c75ecab7c4cf958c6501fa409ab30543e490222b6"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim08_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim08_420_p0_d1_attempt02.json",
+          "sha256": "f1b3ffdee57f386e043891abdb1b3bafcd2425c6d6d8aeb54bfe2102609df721"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim09_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim09_444_p0_d1.json",
+          "sha256": "09ec59b716cf262cfa31e694a220b3580ab24b167aea44110beeb6107ec092f9"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim09_444_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim09_444_p0_d1_attempt02.json",
+          "sha256": "896f05472b7f3789f48d650aad43e7d40b227660e2134d548f6952f860d61113"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim10_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim10_420_p2_d4.json",
+          "sha256": "47cdb60b07ce24c2994ef5c4a6d70a5c49777e0c10254a8ec85d9c9efee8112f"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim10_420_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim10_420_p2_d4_attempt02.json",
+          "sha256": "1e6a31236ea58514ed06508ee97f25e0455e39dc35614e744900b50e4e08dcc9"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim10_420_p2_d4_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim10_420_p2_d4_attempt03.json",
+          "sha256": "916b848703c79f266b2995aebde989f5b1957ae58c60b5a27b7ab3e4e7efaae1"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim10_420_p2_d4_attempt04.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim10_420_p2_d4_attempt04.json",
+          "sha256": "2a6206cbd356bb101a7558c6aef9398ca5a085ca0de4c10b85d4b7fdb6acdefb"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim11_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_444_p2_d4.json",
+          "sha256": "0af0feed427201c316aa1a045cc4ab601076c4fdb15bd753e445c67757f9ab59"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim11_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_444_p2_d4_attempt02.json",
+          "sha256": "838f7d64e499391eb053cd34ae737d2ef957143c14be64ae98405364811ca7bc"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim11_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_420_p0_d1.json",
+          "sha256": "74fe91ea0777268f8c1f59d6d1c9f01c7331aadeb408e2cf316ff358c38b8fab"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim11_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_420_p0_d1_attempt02.json",
+          "sha256": "18caf06995721bb460c23f32004b0e4ef72e47b6b89bb7dcf21f6d7fbde0342a"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim11_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_420_p2_d4.json",
+          "sha256": "c2599222d8d80f95a433624f0f7da7d54bf9f3d0f87576c87a3aceef780f857c"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim11_420_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim11_420_p2_d4_attempt02.json",
+          "sha256": "b01e9c581d0173ca1f6937e5500ef58cd11e4c9fd1c3113df4e79422ddce1fac"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim12_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_420_p0_d4.json",
+          "sha256": "da8b204ba039092b19d20d433694d66adc29e1b4d7b1fcb90038a9084a98ea1a"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim12_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_420_p0_d4_attempt02.json",
+          "sha256": "da8f3dadffcfd9551e2777cd67c5daec7297096531c02573130c03cf95df48bb"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim12_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_420_p2_d4.json",
+          "sha256": "ca85dbb0e2c733982e2aae242dd2d4c3517bafc7374ec668befc94fc48372553"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim12_420_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_420_p2_d4_attempt02.json",
+          "sha256": "e7f0f3a86b1a854576f02630e780dc93c85e2656d7eaec187568a1859238c0f4"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim12_420_p2_d4_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_420_p2_d4_attempt03.json",
+          "sha256": "4aee2af9b9cb62d054660673e6e459cc023931757fb5ac09c8332f5a662e89c6"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim12_420_p2_d4_attempt04.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_420_p2_d4_attempt04.json",
+          "sha256": "eb1e93fbc35bbe3286e309256f111cd03464adf1cd39e23ef5414d084e23eea8"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim13_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim13_420_p0_d1.json",
+          "sha256": "a126b01c75b3d9b2d2baa7816ed2d46c234436b5bef7fb06f2bb15d18f3caea6"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim13_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim13_420_p0_d1_attempt02.json",
+          "sha256": "24c24cd3e8bcb1f838e677df0e9483414486ffa1f373ed39bc993b0e8ba0db5e"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim17_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim17_420_p2_d4.json",
+          "sha256": "0f62ad135d4e87a66f3674ce67fc32cba1f5c3fffb880a3dc99c1d645d814353"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim17_420_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim17_420_p2_d4_attempt02.json",
+          "sha256": "b3d7ac0efc5ad6e294b81f2b554aeabead10382a2ba5a9f24a70b438f351e771"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim19_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim19_444_p0_d1.json",
+          "sha256": "46b7d43eb80a2f24b6196e534e8b443975197eacc4d7d24edf1a0e77805ab3d8"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim19_444_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim19_444_p0_d1_attempt02.json",
+          "sha256": "63b43134071e9cc5095c1682866747ddfb8a92475846ba9c6c4cd383b7efe73c"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim19_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim19_420_p0_d4.json",
+          "sha256": "041bbec022f9e052b5acacc3e64f85de56934b212331883ec02cd8ee662c004c"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim19_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim19_420_p0_d4_attempt02.json",
+          "sha256": "0dd676627b7e5376c71a19513e7f2044d8de753c8cd646ba2833b5e79c13de9a"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim21_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim21_420_p0_d4.json",
+          "sha256": "a8515370029aa10fd839138e9eeb799ef924df346b1beb52d9e9d10af8a345e4"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/kodim21_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim21_420_p0_d4_attempt02.json",
+          "sha256": "de04fa95eb667b2f4799642df0f6bf76a344c9b50e2e703cd014815f9d416d20"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/low-contrast_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/low-contrast_420_p2_d4.json",
+          "sha256": "5212a65d15da0549c0488b2a6498079d0dc9a971f542fdc83030bec22756afa1"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/low-contrast_420_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/low-contrast_420_p2_d4_attempt02.json",
+          "sha256": "91945c4fb06f2a0bf92ced24fe43ca77124abecf1f27c76a388fe9ca38e29138"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/color-edges_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/color-edges_444_p2_d4.json",
+          "sha256": "f6e0621b929441a3833c0a11077f2d2042c5bb2744b25d6f54798b53ee388645"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/color-edges_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/color-edges_444_p2_d4_attempt02.json",
+          "sha256": "c80326585f14393cb4f51513b69e0150786f01ca47bd3d26aaf80b3dd793fd90"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/color-edges_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/color-edges_420_p0_d4.json",
+          "sha256": "2353cd203a4a4b2ad24abb9139e5d2b16aea59e63815d7cb25db940a05dbdb10"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/color-edges_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/color-edges_420_p0_d4_attempt02.json",
+          "sha256": "0234479af3ba2da67132ef718c92cf57ba63b7a700479512c99caa55e9a2fd8c"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/line-art_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/line-art_444_p2_d1.json",
+          "sha256": "270837d32f41073498a0f83674ca001f679612e6ba56ef8e51b265c61714b3c9"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/line-art_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/line-art_444_p2_d1_attempt02.json",
+          "sha256": "a36f10ffc858b27c9f1c33614d3e2d6f4bbc2252370f5907e187d5a49799337a"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/line-art_444_p2_d1_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/line-art_444_p2_d1_attempt03.json",
+          "sha256": "5cae09f567661936f528d26ecd166b407e2feea64f4528b87ec9fdd69710ac87"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/line-art_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/line-art_420_p2_d1.json",
+          "sha256": "b0fc9b0bf9b5bfc987814667165c2e0b4ee80ca6c5525e3fc985901eea9aa922"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/line-art_420_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/line-art_420_p2_d1_attempt02.json",
+          "sha256": "898b484346d1c2dfd9d0ae526ad58e6ba23f068b803af37c8c2ed2592951a0aa"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/low-noise_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_444_p0_d1.json",
+          "sha256": "647bf4a5d322c64c29c9c7cc1e76d3553832f4098ebb0ae0ce4f1db4a5c06ead"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/low-noise_444_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_444_p0_d1_attempt02.json",
+          "sha256": "3c415a9918fd3993d1c4aeaf1ab0fb9ee1ac86ebce11c955badef8a5dd9e5842"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/low-noise_444_p0_d1_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_444_p0_d1_attempt03.json",
+          "sha256": "0f4beb25b0ecce6a707a559878b5835a685671a6f9e075d79e1623dd86bc9ac3"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/low-noise_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_420_p2_d4.json",
+          "sha256": "24aea879c37b78ab965a56a70643da672463104e37929d27111084e1bf744aa7"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/low-noise_420_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_420_p2_d4_attempt02.json",
+          "sha256": "aa550619b417691414703c1548de660684dec3f8adb0b936107e9b239904df6f"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/full-noise_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/full-noise_444_p2_d4.json",
+          "sha256": "60ad528154e42822a28100a9a3a19c9513a10c7f5cb9a966cee82d16f50ed54b"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/full-noise_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/full-noise_444_p2_d4_attempt02.json",
+          "sha256": "45107bf5b3d008d39b53fd4bce8a8d4818de5f0bed674477b1c21b1a392a8acb"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/tiny-odd-edges_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p0_d1.json",
+          "sha256": "d104bca81c18b6261e4ae4e82d2f7311a8e27b4b8d589ab7e4925033a47372bd"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/tiny-odd-edges_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p0_d1_attempt02.json",
+          "sha256": "7536d4358038bb5af89c6c0f55d41718cf59714dc87f33e8b29a1d09a12d1f0f"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/tiny-odd-edges_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p0_d4.json",
+          "sha256": "bcc209b59afdb2b7a06aa54da7ebe96925a141ee111200705ece7232612f9a5a"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/tiny-odd-edges_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p0_d4_attempt02.json",
+          "sha256": "d7a2203e7f8ed7431a2d5b1a2afc97ceb0e5f171fb73050da79025bc6b7d227e"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/tiny-odd-edges_420_p0_d4_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p0_d4_attempt03.json",
+          "sha256": "f847f70ccfcc1dfa28ba9a78843a709c654f3cf306b0fbd077d2f825afd07958"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/tiny-odd-edges_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p2_d1.json",
+          "sha256": "2c866bb7a96265c83ec1ab30f3778bfaddabbaf9cc85dac3ff0aa6115ba4eef8"
+        },
+        {
+          "path": "X64-net10.0-default/raw-comparisons/tiny-odd-edges_420_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p2_d1_attempt02.json",
+          "sha256": "238ad2caf7a9ac361353203c6b3213bc1d6920c95fc900a463d30ef2185c0fad"
+        }
+      ]
+    },
+    {
+      "artifactId": 13261108085,
+      "artifactName": "release-regression-X64-net11.0-avx2-0104778b2691cf3e61d7dbac280457f383d9bc0c-attempt1",
+      "githubReportedArchiveDigest": "sha256:2ea62077825ffc6d269a796b98dfb0f1035502cd2fe48fb7e5fb6ec72cec7eb4",
+      "archiveBytes": 19675106,
+      "retainedFiles": [
+        {
+          "path": "X64-net11.0-avx2/cases.json",
+          "artifactPath": "release-regression/cases.json",
+          "sha256": "67e1412869c6f8048327ffd68c83a8239a38d6c249fc19fab107d3b00373adb0"
+        },
+        {
+          "path": "X64-net11.0-avx2/report.md",
+          "artifactPath": "release-regression/report.md",
+          "sha256": "25ad46cf0188e787a4cb6c092d9b6549b7d6b85f35c4e2d9e30308e67119af09"
+        },
+        {
+          "path": "X64-net11.0-avx2/run.json",
+          "artifactPath": "release-regression/run.json",
+          "sha256": "43e5915534e602f9b99a356b16f99866254c3339e633b72b9ac0df9c7b773647"
+        },
+        {
+          "path": "X64-net11.0-avx2/sources.json",
+          "artifactPath": "release-regression/sources.json",
+          "sha256": "f7bda0ffbb89f0db3c2a2db604ef7cd557d5d63d41aa6ea2d3a71c881ee80dcb"
+        },
+        {
+          "path": "X64-net11.0-avx2/summary.json",
+          "artifactPath": "release-regression/summary.json",
+          "sha256": "47a70f26d49fa557b5befa4c7cb715fd1bf052829557bf7dc600cd303380cd96"
+        },
+        {
+          "path": "X64-net11.0-avx2/build-provenance/build.txt",
+          "artifactPath": "release-build-provenance/build.txt",
+          "sha256": "8126cba68bd42568b58f99e544d75e0c858fc3a9db6258bddf546b330a4c46f9"
+        },
+        {
+          "path": "X64-net11.0-avx2/build-provenance/rebuilt-packages.lock.json",
+          "artifactPath": "release-build-provenance/rebuilt-packages.lock.json",
+          "sha256": "16108ff48559cf439bbfa908b0050a163e36e1a2a49144e412392ac613152e7c"
+        },
+        {
+          "path": "X64-net11.0-avx2/build-provenance/released-packages.lock.json",
+          "artifactPath": "release-build-provenance/released-packages.lock.json",
+          "sha256": "95d5fbc6978dafea463391f0a77a3567b84a2c5805c8e55404d4a8ab4ed31296"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim01_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_420_p0_d1.json",
+          "sha256": "a5ca6c21ff0624af686b9c9ef6af7c8653b62ff7cda510896a5cfaa48920675d"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim01_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_420_p0_d1_attempt02.json",
+          "sha256": "433e5e077361641c24f75abecbfdad7c42eb42918298b05d0184e30dda34379f"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim01_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_420_p2_d1.json",
+          "sha256": "3c5e23cf9cfac13625eaf01d85acd2f8d971981e913d979d5815a4b9c351a447"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim01_420_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim01_420_p2_d1_attempt02.json",
+          "sha256": "0cdec287974576fa9de0db12d383f47f0018623cf82747bdc3fd32cc34c393c0"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim02_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim02_444_p0_d1.json",
+          "sha256": "471406ff9b64176838fc45cd832f6a94a42cc21def1553b5db58402d68310fed"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim02_444_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim02_444_p0_d1_attempt02.json",
+          "sha256": "3dd8b4732787ac1146ce8267fa4046c00d7d1735bdb2a12309360d1f27061dd0"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim06_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim06_444_p2_d1.json",
+          "sha256": "6b76b4e2e10c075721f94ab6aff075c47c52db6d77694b9391ce444914ed2a6d"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim06_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim06_444_p2_d1_attempt02.json",
+          "sha256": "280c22e3b252bc8b859cdb25bf7299ad072b0f65504b5651e3c14a63fc7dea15"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim08_444_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim08_444_p0_d4.json",
+          "sha256": "144ab957d06260d61109b180b7f5388ed800620e210281628efb959257b0cd0e"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim08_444_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim08_444_p0_d4_attempt02.json",
+          "sha256": "f88e5b323f04b09e6746caeba73bc440b396791c46aa4e27eef91fc36856c405"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim08_444_p0_d4_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim08_444_p0_d4_attempt03.json",
+          "sha256": "74e55099d065aa5a944849e8a914aac1877a205384bafa68d2c763c99139db0f"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim10_444_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim10_444_p0_d4.json",
+          "sha256": "d95b204f25d7aeb278820f19be1b9b7c5953abc4656440a4d13095a7f0d473d0"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim10_444_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim10_444_p0_d4_attempt02.json",
+          "sha256": "2959dcd8865dad74e76dc227632117367b746978b7389ea0a025303f671e5def"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim10_420_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim10_420_p2_d4.json",
+          "sha256": "ebe82fccbe26f0496fad39a968a78f34c54e628f60c6f745db18aa818e4cf14f"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim10_420_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim10_420_p2_d4_attempt02.json",
+          "sha256": "4e6c9674f9a55641f8042ab8632ac119376d88fb5d031500854e56a033d49f9c"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim12_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_444_p0_d1.json",
+          "sha256": "e50eb3c51289fc4be2976ca82c1877b949161e1621408ebead998215c7818f19"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim12_444_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_444_p0_d1_attempt02.json",
+          "sha256": "06b6eae7600b5c01cbad2bbd39e8fa41d64009b66615536bd4946d45d497d931"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim12_444_p0_d1_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_444_p0_d1_attempt03.json",
+          "sha256": "63563b56ed53785e92a005b58668aa600aac3dd46069c6a251d07d465ae38aa8"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim12_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_420_p0_d1.json",
+          "sha256": "85cd467fe77183887e302bffed083dc3a1a8e65a099e4198fd357daa377deb3b"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim12_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_420_p0_d1_attempt02.json",
+          "sha256": "8c6e635fdb752996eecd5d0cf9824c16674e2c3f388b58f8ddba4ecdd3e69638"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim13_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim13_420_p2_d1.json",
+          "sha256": "dad9986dfa0cd385794cfcd08f433f53747fd762b5d7195de325fec9855d1b2e"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim13_420_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim13_420_p2_d1_attempt02.json",
+          "sha256": "9b8ec5c5e030e7ef7bf54388670aa4a5869d3e6a0e5b1d42d18e871fe3351c8e"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim15_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim15_420_p0_d4.json",
+          "sha256": "030afd3b89aa6930d77f73527a3555f995d8c777720c201c092ae81893fcc629"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim15_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim15_420_p0_d4_attempt02.json",
+          "sha256": "35182f2a8feaa97b8657f01805cbe91e0771ac5459fd09cb7776d3a9f083da55"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim15_420_p0_d4_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim15_420_p0_d4_attempt03.json",
+          "sha256": "25f9fe3b2f88d5c7ed44947a2632ea26fed5439f7203ec1c97ba508e53016f53"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim17_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim17_420_p2_d1.json",
+          "sha256": "d8dbf826936c22fafb0b57619ae8b968d71eb7c3c48a4f64fddb5640a2d52379"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim17_420_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim17_420_p2_d1_attempt02.json",
+          "sha256": "cfa5481035d695579db465384fe46c196407e7a954a031957d3ab8db8d90124c"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim19_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim19_420_p2_d1.json",
+          "sha256": "ec703f555d09286427cdfdb30f7ec586d43041f1036ca0bfdfa7329e16f439cb"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim19_420_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim19_420_p2_d1_attempt02.json",
+          "sha256": "676fa86c5f9f8ead73f9026c68824aab8e41070ea3e34657bbcdc9375becce00"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim20_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim20_444_p2_d1.json",
+          "sha256": "07bf6da932d23759fe3ef605b5c0dce768b63f4cb03f32a39f77460e59ad3fb0"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/kodim20_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim20_444_p2_d1_attempt02.json",
+          "sha256": "169d51b9fd60c359aab07e16154dc0b889dcf808b0dccd9ec2dc64d9c3993861"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/low-noise_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_420_p0_d1.json",
+          "sha256": "3720b6f278fca96e8832eb4a50687c1eb8861c8324b66afde8cbc945e1528e2f"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/low-noise_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_420_p0_d1_attempt02.json",
+          "sha256": "264e0f51ee4a3c1b090313ce727d1980958aed098367599676e7ef4a3db9da36"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/low-noise_420_p0_d1_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_420_p0_d1_attempt03.json",
+          "sha256": "136f763d56b06bd5a758872696df6f15e4d7a6200f9a4ab3bff6f7ed4bdf3eff"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/low-noise_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_420_p0_d4.json",
+          "sha256": "bc3fd29fe9241d044d42188a51b9a1c94a75af5724db590dcb139f73809b9740"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/low-noise_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/low-noise_420_p0_d4_attempt02.json",
+          "sha256": "f1f351fa1ebc41568bf71453303dbbbc26307959e4bf697d7ae3ac39d4116878"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/tiny-odd-edges_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p0_d1.json",
+          "sha256": "dd6da4e4c646368e9f2fbe0906369709ebab7ded7cd88db5c9af4ffdb74ddfe3"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/tiny-odd-edges_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p0_d1_attempt02.json",
+          "sha256": "8a4d3c98c31250baa87f860cf8f9d010a3369e97c1479041ffc09947d29069c6"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/tiny-odd-edges_420_p0_d1_attempt03.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p0_d1_attempt03.json",
+          "sha256": "cd1b6e29edc4dcd4e0a3b9bdfd26c1e93ac5d6a0d1190acb1ac408e1e323478d"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/tiny-odd-edges_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p0_d4.json",
+          "sha256": "a824fe369f35b0059069b68dd58e17035bfa68c735775d7d72f7809a94d263be"
+        },
+        {
+          "path": "X64-net11.0-avx2/raw-comparisons/tiny-odd-edges_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_420_p0_d4_attempt02.json",
+          "sha256": "52cbe2a5d4f27c9dbbcbec67facf36879fcfc1e13fc5625f7f4753f515daef9b"
+        }
+      ]
+    },
+    {
+      "artifactId": 13260574733,
+      "artifactName": "release-regression-X64-net11.0-default-0104778b2691cf3e61d7dbac280457f383d9bc0c-attempt1",
+      "githubReportedArchiveDigest": "sha256:93d81e945a5f42fb89b6e0d394b2b2a818ee113e5202ce8be461006f02c50921",
+      "archiveBytes": 19662132,
+      "retainedFiles": [
+        {
+          "path": "X64-net11.0-default/cases.json",
+          "artifactPath": "release-regression/cases.json",
+          "sha256": "e89546738c66451fdcf626011ddb5506d327fb6a7d02f05a9572a228dde3594b"
+        },
+        {
+          "path": "X64-net11.0-default/report.md",
+          "artifactPath": "release-regression/report.md",
+          "sha256": "0a2fe777251f7aa51ea6c4ae696938f18ea405f49bbcfc728f7857e1427b9dae"
+        },
+        {
+          "path": "X64-net11.0-default/run.json",
+          "artifactPath": "release-regression/run.json",
+          "sha256": "0b69f2b610ada0f98f2f55ecd485c8f55ad3242434dd72280bfb5fd6b8bb943f"
+        },
+        {
+          "path": "X64-net11.0-default/sources.json",
+          "artifactPath": "release-regression/sources.json",
+          "sha256": "f7bda0ffbb89f0db3c2a2db604ef7cd557d5d63d41aa6ea2d3a71c881ee80dcb"
+        },
+        {
+          "path": "X64-net11.0-default/summary.json",
+          "artifactPath": "release-regression/summary.json",
+          "sha256": "fe73e3a61cb0e14a163555117fe0393f10ba8b3b06048a61da7fbadba1770002"
+        },
+        {
+          "path": "X64-net11.0-default/build-provenance/build.txt",
+          "artifactPath": "release-build-provenance/build.txt",
+          "sha256": "b360ba69b38c52f8b069b34213715892e0ab05d6b18dd75fc882586ebb5b6abc"
+        },
+        {
+          "path": "X64-net11.0-default/build-provenance/rebuilt-packages.lock.json",
+          "artifactPath": "release-build-provenance/rebuilt-packages.lock.json",
+          "sha256": "16108ff48559cf439bbfa908b0050a163e36e1a2a49144e412392ac613152e7c"
+        },
+        {
+          "path": "X64-net11.0-default/build-provenance/released-packages.lock.json",
+          "artifactPath": "release-build-provenance/released-packages.lock.json",
+          "sha256": "95d5fbc6978dafea463391f0a77a3567b84a2c5805c8e55404d4a8ab4ed31296"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim09_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim09_444_p2_d1.json",
+          "sha256": "926d907d94517589dd1808e3a6561dc27b386835f3aaa33453a8c3154af3f2a4"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim09_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim09_444_p2_d1_attempt02.json",
+          "sha256": "d1ea862ff5cae6c7ea2394cba3b87d9d91cd37cb46d0f494babf80707b846657"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim12_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_420_p0_d1.json",
+          "sha256": "c227975839ebf14d0b448fa3df4fef10446d9267ba8927a0b0d015c8dbcbbf2c"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim12_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim12_420_p0_d1_attempt02.json",
+          "sha256": "fa38e8181ad8d823ecdcd3baeecb28614e684151d93938b1d8775a4d1972852d"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim14_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim14_444_p2_d4.json",
+          "sha256": "ee40bafb8f16d506c89590b7f80b74bfe500cd7cce19d678e1b20728e322cede"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim14_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim14_444_p2_d4_attempt02.json",
+          "sha256": "c30add5c4265c20db13ef305b16863fa77ed9af88e6e5e0b47d1d16ca07c886f"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim16_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim16_444_p2_d4.json",
+          "sha256": "0d1ac84d25e085ea9a5b5108889d7fc58a667cf380a0ab3bd130ccc058d4650b"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim16_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim16_444_p2_d4_attempt02.json",
+          "sha256": "b9a0114736c59ad0eaf2a3dda8b70e3bc8671306d98abbfb9de72d5616085c08"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim18_444_p2_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim18_444_p2_d4.json",
+          "sha256": "c6f52d6cd4eb847dbdd2fbd0a8c8267b2b6e3ef8b2994ab6c60fc311620130e0"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim18_444_p2_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim18_444_p2_d4_attempt02.json",
+          "sha256": "070dd112d6e6d6746efe67f011410ea8f5df0f19c7491ca6be77819924d674b7"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim19_444_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim19_444_p0_d4.json",
+          "sha256": "909c569dfb8cd72c04b01e013432d23a4d9835b6b86a27d1ca3aa9980fffcd20"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim19_444_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim19_444_p0_d4_attempt02.json",
+          "sha256": "00715031ab3e3ecfb2c79e3e6a51f07c8ee358c916b01a56a6d2f13b64aa1b90"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim20_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim20_444_p2_d1.json",
+          "sha256": "4d39e4289212515fc9cab5e40eb5a6c654ee15563e4092df8841bb9d3e91cb6b"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim20_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim20_444_p2_d1_attempt02.json",
+          "sha256": "28e9d0746468c99a42beb266e6fe8a6d1a0c9d6b36b40b50541e1934dbb5e925"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim22_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim22_444_p2_d1.json",
+          "sha256": "bf4bfa4addc06d28e576a6b78c3b0f6cdb824b8eb57cff85d45714f9dbe7e3d5"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim22_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim22_444_p2_d1_attempt02.json",
+          "sha256": "d6c08dda0f257affc2d9b2c8308ccd68b27b4fd766501409241cce7e87222b9c"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim24_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim24_444_p2_d1.json",
+          "sha256": "96d28b0ba83d908a35560134a66a93d3f7c8b7692091e4705821406ed6a26db2"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/kodim24_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/kodim24_444_p2_d1_attempt02.json",
+          "sha256": "07c7f2943db6a707f2b069fe50161f81cf5a9b1bc2a51140005ed6b0bbf5a316"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/smooth-gradient_420_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/smooth-gradient_420_p0_d1.json",
+          "sha256": "20aad6e4e2427a4829112822ff2c7c0fac81d06047609d27bf33b33ed0e1557f"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/smooth-gradient_420_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/smooth-gradient_420_p0_d1_attempt02.json",
+          "sha256": "5878d2af5fdb209c670c6ee18562f4ab16dddce2c7ac0a89506e93e406934274"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/smooth-gradient_420_p0_d4.json",
+          "artifactPath": "release-regression/raw-comparisons/smooth-gradient_420_p0_d4.json",
+          "sha256": "17f5f4ee11983eb356051b3b0129b7005fb879f63b9e945b0c8c924090644142"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/smooth-gradient_420_p0_d4_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/smooth-gradient_420_p0_d4_attempt02.json",
+          "sha256": "f923f5b450db2b4b27dfaaed9ab2255619bf513cc10d5ff730b278b54311a73f"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/color-edges_420_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/color-edges_420_p2_d1.json",
+          "sha256": "a8280467d77b15943648a2823a0feb0370b87505a9abe4dc5c3490bcebeb83d1"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/color-edges_420_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/color-edges_420_p2_d1_attempt02.json",
+          "sha256": "5930cdc107a7a3c6172826fcdc5419e46d56f9d2f5cda86c7fc0e125a00a7542"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/full-noise_444_p2_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/full-noise_444_p2_d1.json",
+          "sha256": "c61fa53750c724f651eecf95202fe891a4e7d44afd18d9b1b81eb6d3bc552f74"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/full-noise_444_p2_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/full-noise_444_p2_d1_attempt02.json",
+          "sha256": "1f57eeae016bc019d977b2e69fab97af29c6848283be389cc4c36a4d3f1cac8b"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/tiny-odd-edges_444_p0_d1.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_444_p0_d1.json",
+          "sha256": "0e386e164291c6f79d3acf55d7027a369a1fe82ee2d3f606ca9ad95fa6da0fb2"
+        },
+        {
+          "path": "X64-net11.0-default/raw-comparisons/tiny-odd-edges_444_p0_d1_attempt02.json",
+          "artifactPath": "release-regression/raw-comparisons/tiny-odd-edges_444_p0_d1_attempt02.json",
+          "sha256": "12e2f363f9b6863b8644d87c20177932d87ea8f18893b01185f26d76bb76efd1"
+        }
+      ]
+    }
+  ],
+  "checkedSelectedRawLegHashes": 36864
+}
