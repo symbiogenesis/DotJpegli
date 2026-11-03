@@ -236,7 +236,7 @@ jobs:
           if-no-files-found: error
 
   performance-targeted:
-    if: github.event_name == 'push' || inputs.mode != 'full'
+    if: (github.event_name == 'push' && !contains(github.event.head_commit.message, '[full-parity]')) || (github.event_name == 'workflow_dispatch' && inputs.mode != 'full')
     needs: native-reference
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -522,7 +522,7 @@ jobs:
           if-no-files-found: error
 
   quality-compression-parity:
-    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'full'
+    if: (github.event_name == 'push' && contains(github.event.head_commit.message, '[full-parity]')) || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full')
     needs: native-reference
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -582,3 +582,12 @@ jobs:
             ${{ runner.temp }}/parity-corpus/corpus.json
           retention-days: 30
           if-no-files-found: error
+      - name: Publish full quality and performance reports in job summary
+        if: always()
+        run: |
+          for report in "${{ runner.temp }}/parity-evidence/report.md" "${{ runner.temp }}/performance-evidence/report.md"; do
+            if [[ -f "$report" ]]; then
+              cat "$report" >> "$GITHUB_STEP_SUMMARY"
+              echo >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done

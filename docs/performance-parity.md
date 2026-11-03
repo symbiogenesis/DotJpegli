@@ -5,29 +5,33 @@
 Performance parity requires a passing hosted comparison against unchanged Google
 Jpegli at `031a0077f5799a6041004267fc12b956c1f52a20`. The presence of the runner
 does not establish parity. Results must name the tested revision, hosted run,
-machine and measured bounds. This protocol was fixed before its first measurement.
+machine and measured bounds. The timing method and acceptance bounds were fixed
+before the first measurement.
 
 ## Current measurement scope
 
 Full performance parity is not established. The retained reference measurement
-tests revision `5604d601ceda2b9600aeff153a1ee65a4e9774cf` in
-[hosted run 38688881338](https://github.com/symbiogenesis/DotJpegli/actions/runs/38688881338).
+tests revision `9f350f9d7f1d8ed3d527d7efad08364a1645f420` in
+[hosted run 41567970649](https://github.com/symbiogenesis/DotJpegli/actions/runs/41567970649).
 All four selected cases pass timing stability, matched JPEG settings and the
 fixed 1.10 individual latency bound:
 
 | Sampling | Sequential | Progressive level 2 |
 | --- | ---: | ---: |
-| 4:4:4 | 0.848× | 0.838× |
-| 4:2:0 | 0.811× | 0.757× |
+| 4:4:4 | 1.054× | 0.926× |
+| 4:2:0 | 1.022× | 0.832× |
 
 Ratios are managed/native median latency; lower is better. The comparison uses
 Kodak01 RGB8 to YCbCr at distance 1, adaptive quantization, optimized Huffman
-coding and one worker, on an AMD EPYC 9V74 x64 host with
-.NET `11.0.0-rc.2.26504.105` and tiered compilation disabled. The
-[reference evidence](performance-evidence/2026-10-15-5604d60/README.md) retains
+coding and one worker, on an AMD EPYC 7763 x64 host with
+.NET `11.0.0-rc.3.26522.148` and tiered compilation disabled. Progressive
+latency is 7–17% lower; sequential latency is 2–5% higher. The
+[reference evidence](performance-evidence/2026-11-02-9f350f9/README.md) retains
 raw samples, host identity, settings, hashes and native build provenance.
 These selected cases do not establish the 256-case acceptance protocol or
 predict performance for other images, runtimes, architectures or options.
+The [older reference](performance-evidence/2026-10-15-5604d60/README.md) used a
+different CPU and runtime; its 15–24% reduction cannot be applied to this host.
 
 ## Targeted development comparisons
 
@@ -38,6 +42,12 @@ matrix. The default measurement counts remain seven blocks, five warmups and
 native-calibrated shared iteration counts. The native executable and corpus are
 cached by their source/toolchain and manifest identities; native provenance,
 executable identity and input hashes are checked when reused.
+
+Include `[full-parity]` in the final commit message of a push to `main` to run
+the complete quality/compression and performance acceptance protocols in that
+automatic CI run. This replaces the targeted comparison for that revision,
+including its optional baseline comparison. Reuse the automatic run instead of
+dispatching another workflow for the same revision.
 
 For a smaller development question, workflow dispatch accepts comma-separated
 `images`, `distances`, `samplings` and `progressions`, plus bounded `blocks`,
@@ -119,9 +129,10 @@ They are never relaxed after measurements. An aggregate speedup cannot conceal
 a slower individual case or a failed group. Each image and distance has equal
 weight within its group. A failed or unstable measurement cannot support a parity
 claim. Raw timings expose variation so reviewers can assess the evidence.
-One stable matched case above the individual bound permits an early failed
-verdict. Such a report records incomplete coverage, the counterexample and no
-whole-matrix aggregate; early termination can never produce a passing verdict.
+Full runs measure all 256 cases even after a stable matched case exceeds an
+individual bound, retaining the complete set of optimization targets. Such a
+case still fails acceptance; faster later cases cannot reverse that failure.
+A passing verdict always requires complete coverage.
 Every block must contain at least 1 ms of summed timed work. The relative median
 absolute deviation must be at most 10% separately for each encoder in every case;
 exceeding this fixed variability limit makes the evidence invalid.
@@ -160,18 +171,22 @@ measurement. This measured runtime configuration must accompany any speed claim.
 
 All benchmarks run only on CI under [agent instructions](../AGENTS.md). Publishing
 `main` starts the targeted comparison described above; reuse its automatic run.
-The full acceptance protocol is opt-in through workflow dispatch with `mode=full`.
+The full acceptance protocol is opt-in through `[full-parity]` in the pushed
+final commit message, or workflow dispatch with `mode=full` when no automatic
+run covers the intended comparison. Inspect existing runs before dispatching;
+reuse a queued, running or successful run, and prefer rerunning a failed run.
 It follows the complete quality/compression measurement on the same Ubuntu runner,
 using the shared pinned native build and prepared corpus, and uploads
 `performance-parity-<revision>`, including unsuccessful comparisons. Diagnostic
-selection/count overrides cannot alter this fixed acceptance protocol.
+selection/count overrides cannot alter this fixed acceptance protocol. Both full
+reports appear in the CI job summary, including failures and incomplete evidence.
 
 Evidence includes a versioned summary, group verdicts and failures, raw repeated
 timings, per-case output and input hashes, native build provenance, runtime and
 machine details and a readable report. Run identity is written before measurement,
 and each completed case is saved with progress; an interrupted run retains an
-explicit incomplete summary and cannot pass. A valid counterexample produces an explicit failed summary
-with `coverageComplete=false`; a positive result requires the full matrix.
+explicit incomplete summary and cannot pass. Completed full runs retain every
+case, group bounds and individual failures; a positive result requires the full matrix.
 For the full acceptance protocol, exit 0 means every bound passed; exit 1
 means valid measurements exceeded the latency bounds; exit 2 means invalid
 input, settings, coverage or timing evidence, or a runner error.

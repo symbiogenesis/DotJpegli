@@ -114,6 +114,16 @@ for both .NET targets. Linker and AOT analyzer warnings fail validation. See
 [deployment validation](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/development.md#trimming-and-nativeaot)
 for coverage.
 
+## Performance
+
+In the latest retained CI comparison, DotJpegli's progressive encodes used
+**7–17% less time than native Google Jpegli**. Sequential encodes took 2–5% more
+time. This compares Kodak01 at distance 1, 4:4:4 and 4:2:0, with one worker,
+on an AMD EPYC 7763 running .NET `11.0.0-rc.3.26522.148`, with tiered compilation
+disabled. See the [measurements and reproducible comparison protocol](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md)
+for exact revisions, raw samples and scope. Broader parity requires the complete
+256-case acceptance matrix.
+
 ## Documentation
 
 | Guide | Topics |

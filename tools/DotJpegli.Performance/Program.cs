@@ -46,7 +46,6 @@ internal static class Program
             var cases = new List<CaseResult>();
             Policy policy = options.Diagnostic?.Policy ?? new Policy();
             int expectedCases = options.Diagnostic?.ExpectedCases ?? 256;
-            bool stoppedAfterCounterexample = false;
             var configurations = from sampling in options.Diagnostic?.Samplings ?? Evidence.Samplings
                                  from progression in options.Diagnostic?.Progressions ?? Evidence.Progressions
                                  from distance in options.Diagnostic?.Distances ?? Evidence.Distances
@@ -127,25 +126,17 @@ internal static class Program
                     await WriteJson(output, "cases.json", cases);
                     await WriteJson(output, "progress.json", new { completedCases = cases.Count, expectedCases, updatedAtUtc = DateTimeOffset.UtcNow });
                     Console.WriteLine(FormattableString.Invariant($"{Evidence.Label(cases[^1])}: managed/native={cases[^1].MedianRatio:F3}; {cases.Count}/{expectedCases} cases retained."));
-                    if (options.Diagnostic is null && Evidence.IsDecisiveCaseFailure(cases[^1], policy))
-                    {
-                        stoppedAfterCounterexample = true;
-                        break;
-                    }
                 }
                 Console.WriteLine($"Measured {id} ({category}); {cases.Count}/{expectedCases} cases retained.");
-                if (stoppedAfterCounterexample) break;
             }
             if (options.Diagnostic is not null)
                 return await CompleteDiagnostic(options, cases, policy, expectedCases);
-            Evaluation evaluation = stoppedAfterCounterexample
-                ? Evidence.EvaluateCounterexample(cases, policy)
-                : Evidence.Evaluate(cases, policy);
+            Evaluation evaluation = Evidence.Evaluate(cases, policy);
             string status = !evaluation.Valid ? "invalid" : evaluation.Passed ? "passed" : "failed";
             var summary = new
             {
                 schemaVersion = 1, status, evaluation.Valid, evaluation.Passed,
-                coverageComplete = cases.Count == 256, stoppedAfterCounterexample,
+                coverageComplete = cases.Count == 256, stoppedAfterCounterexample = false,
                 scope = "Encode latency noninferiority for RGB8 to YCbCr, Kodak24 and eight fixed controls, distances1/4, 444/420, progression0/2, one managed/native worker on this CI CPU; no universal speed claim",
                 upstreamPin = UpstreamPin, nativeVersion, testedRevision = Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA"),
                 githubRevision = Environment.GetEnvironmentVariable("GITHUB_SHA"), githubRunId = Environment.GetEnvironmentVariable("GITHUB_RUN_ID"),
@@ -168,7 +159,7 @@ internal static class Program
                 environment, groups = evaluation.Groups, invalidReasons = evaluation.InvalidReasons, failures = evaluation.Failures
             };
             await WriteJson(output, "summary.json", summary);
-            await File.WriteAllTextAsync(Path.Combine(output, "report.md"), Report(status, cases.Count, evaluation, stoppedAfterCounterexample));
+            await File.WriteAllTextAsync(Path.Combine(output, "report.md"), Report(status, cases, evaluation));
             Console.WriteLine($"Performance parity {status.ToUpperInvariant()}; evidence: {output}");
             return !evaluation.Valid ? 2 : evaluation.Passed ? 0 : 1;
         }
@@ -334,19 +325,16 @@ internal static class Program
     // Preserve the complete prerelease suffix; only remove the source-hash metadata.
     internal static string? RuntimeProductVersion(string? informationalVersion) => informationalVersion?.Split('+', 2)[0];
 
-    private static string Report(string status, int count, Evaluation evaluation, bool stoppedAfterCounterexample)
+    private static string Report(string status, IReadOnlyList<CaseResult> cases, Evaluation evaluation)
     {
         var text = new StringBuilder();
         text.AppendLine($"# Performance parity: {status.ToUpperInvariant()}");
         text.AppendLine();
-        text.AppendLine($"{count}/256 cases: RGB8 YCbCr, Kodak24 plus eight fixed controls, distances1/4, 444/420 and progression0/2, one worker on this CI host. Pinned upstream `{UpstreamPin}`.");
+        text.AppendLine($"{cases.Count}/256 cases: RGB8 YCbCr, Kodak24 plus eight fixed controls, distances1/4, 444/420 and progression0/2, one worker on this CI host. Pinned upstream `{UpstreamPin}`.");
         text.AppendLine($"Tested revision: `{Environment.GetEnvironmentVariable("DOTJPEGLI_PERFORMANCE_REVISION") ?? Environment.GetEnvironmentVariable("GITHUB_SHA")}`.");
         text.AppendLine();
-        if (stoppedAfterCounterexample)
-        {
-            text.AppendLine("Stopped after a stable, matched case exceeded the fixed individual latency bound. This valid counterexample establishes failure; the rest of the matrix is unmeasured. A passing verdict always requires complete coverage of all 256 cases. No whole-matrix aggregate is inferred.");
-            text.AppendLine();
-        }
+        text.AppendLine("All cases are measured even when a latency bound fails, so the report identifies every measured regression. A passing verdict requires complete, valid coverage and all fixed bounds.");
+        text.AppendLine();
         text.AppendLine("Fixed latency noninferiority limits: geometric mean managed/native median latency ratio <=1.05 in each corpus/sampling/progression group; every case <=1.10. A faster case cannot excuse a slower case. No universal performance claim is made.");
         text.AppendLine();
         text.AppendLine("Seven alternating order blocks, five untimed warmups before each block. The native-only three-iteration calibration targets50ms and selects a shared count clamped3..100. Medians use all seven blocks; no outliers are discarded. Complete in-memory encode calls are timed individually and their elapsed times summed; subprocess startup, file I/O, verification and native buffer free are excluded. Managed collections inside encode are included. Tiered compilation is disabled.");
@@ -357,6 +345,11 @@ internal static class Program
         text.AppendLine("| --- | --- | --- | ---: | ---: | ---: | --- |");
         foreach (GroupResult group in evaluation.Groups)
             text.AppendLine(FormattableString.Invariant($"| {group.Category} | {group.Sampling} | {group.ProgressiveLevel} | {group.Cases} | {group.GeometricMeanRatio:F6} | {group.WorstRatio:F6} | {(!group.Valid ? "INVALID" : group.Passed ? "PASS" : "FAIL")} |"));
+        text.AppendLine();
+        text.AppendLine("| Case | Managed median (ms) | Native median (ms) | Ratio | Managed MAD | Native MAD |");
+        text.AppendLine("| --- | ---: | ---: | ---: | ---: | ---: |");
+        foreach (CaseResult item in cases)
+            text.AppendLine(FormattableString.Invariant($"| {Evidence.Label(item)} | {item.Managed.Median / 1_000_000:F3} | {item.Native.Median / 1_000_000:F3} | {item.MedianRatio:F3} | {item.Managed.RelativeMad:P1} | {item.Native.RelativeMad:P1} |"));
         text.AppendLine();
         text.AppendLine("Exact input/JPEG files, SHA256 identities, per-block raw samples, p10/p50/p90, relative MAD, allocations/collections, calibration counts and native command outputs are retained alongside this report. summary.json records CPU, affinity, OS, runtime, vector widths, policy, revision and group verdicts.");
         foreach (var (label, reasons) in new[] { ("Invalid evidence", evaluation.InvalidReasons), ("Failed bounds", evaluation.Failures) })

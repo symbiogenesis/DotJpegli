@@ -60,9 +60,18 @@ single planned automatic run and requires no additional workflow dispatch.
 
 ## Full acceptance protocol
 
-Use workflow dispatch with `mode=full` only when the full quality/compression and
-performance evidence is needed. The fixed protocols and thresholds remain
-unchanged. This opt-in path runs the complete quality matrix before performance.
+Include `[full-parity]` in the final commit message of a push to `main` when
+full quality/compression and performance evidence is needed. Its automatic run
+replaces the targeted comparison (and optional baseline comparison) with the
+complete quality matrix followed by the fixed performance acceptance protocol.
+Both reports appear in the job summary and their existing evidence artifacts.
+The thresholds and per-case timing method remain unchanged.
+
+Inspect existing runs for the intended commit and reuse its automatic run.
+Workflow dispatch with `mode=full` remains available when no automatic run
+covers the intended comparison; reuse queued, running or successful runs and
+prefer rerunning an existing failed run. Do not dispatch another workflow for
+the same revision unless an additional measurement was requested.
 
 This CI-only tool compares complete in-memory encode latency with the pinned
 native jpegli encoder. It uses the shared Kodak24 hash manifest, eight shared
@@ -74,10 +83,10 @@ that corpus, configuration and CI host; they do not prove universal speed parity
 The checked-in policy requires each corpus/sampling/progression group to have
 geometric mean managed/native median latency ratio <=1.05, and every case <=1.10.
 Parallel managed results cannot satisfy this single-worker gate.
-One stable matched case above the individual limit stops measurement with a
-failed verdict and explicit incomplete coverage. Such a counterexample cannot
-be reversed by later cases. A passing verdict always requires all 256 cases;
-unmatched or unstable measurements cannot trigger this early failure.
+Full runs measure all 256 cases even after a stable matched case exceeds an
+individual limit, so failed evidence still identifies every optimization target.
+Such a counterexample cannot be reversed by later cases. A passing verdict
+always requires all 256 cases, valid measurements and both fixed latency bounds.
 
 Seven independent blocks alternate native/managed measurement order. Each block
 warms both encoders with five untimed encodes. Tiered JIT compilation is disabled
