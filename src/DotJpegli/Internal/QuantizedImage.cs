@@ -60,7 +60,7 @@ internal sealed class QuantizedImage : IDisposable
             Span<short> naturalOrder = stackalloc short[64];
             int horizontal = sampling.MaxHorizontal;
             int vertical = sampling.MaxVertical;
-            float[]? strengths = adaptive is null ? null : new float[adaptive.BlocksWide * vertical];
+            Span<float> strengths = adaptive is null ? default : adaptive.Strengths;
             for (int top = 0; top < height; top += vertical * 8)
             {
                 cancellationToken.ThrowIfCancellationRequested();

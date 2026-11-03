@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in LICENSE.jpegli or at https://developers.google.com/open-source/licenses/bsd.
 
+using System.Buffers;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 #if !NETSTANDARD2_1
@@ -11,7 +12,7 @@ using System.Runtime.Intrinsics;
 namespace DotJpegli.Internal;
 
 /// <summary>Spatial adaptive quantization, with storage bounded to one MCU neighborhood.</summary>
-internal sealed class AdaptiveQuantization
+internal sealed class AdaptiveQuantization : IDisposable
 {
     // Derived from google/jpegli lib/jpegli/adaptive_quantization.cc at
     // 031a0077f5799a6041004267fc12b956c1f52a20. Unlike upstream's rolling
@@ -26,6 +27,7 @@ internal sealed class AdaptiveQuantization
     private const float NumMul = SgRetMul * 3 * SgMul;
     private const float VOffset = (7.14672470003f * InvLog2E + Epsilon) / InputScaling;
     private const float DenMul = InvLog2E * SgMul * InputScaling * InputScaling;
+    private const int MaximumPooledSamples = 1024 * 1024 / sizeof(float);
 
     private readonly int width;
     private readonly int height;
@@ -34,16 +36,19 @@ internal sealed class AdaptiveQuantization
     private readonly int paddedHeight;
     private readonly int lumaStride;
     private readonly int preStride;
-    private readonly float[] luma;
-    private readonly float[] preErosion;
-    private readonly float[] difference;
-    private readonly float[] fuzzy;
+    private readonly ArrayPool<float>? scratchPool;
+    private float[] luma = [];
+    private float[] preErosion = [];
+    private float[] difference = [];
+    private float[] fuzzy = [];
+    private float[] strengths = [];
+    private bool disposed;
     private IDisposable? previousStorage;
     private int previousTop;
     private int previousStride;
     private bool previousUseVector;
 
-    internal AdaptiveQuantization(int width, int height, int verticalSampling)
+    internal AdaptiveQuantization(int width, int height, int verticalSampling, ArrayPool<float>? scratchPool = null)
     {
         Guard.ThrowIfNegativeOrZero(width);
         Guard.ThrowIfNegativeOrZero(height);
@@ -58,13 +63,64 @@ internal sealed class AdaptiveQuantization
         paddedHeight = checked(((height + mcuHeight - 1) / mcuHeight) * mcuHeight);
         lumaStride = checked(paddedWidth + 2);
         preStride = checked(BlocksWide * 2);
-        luma = new float[checked(lumaStride * (mcuHeight + 10))];
-        preErosion = new float[checked(preStride * (verticalSampling * 2 + 2))];
-        difference = new float[paddedWidth];
-        fuzzy = new float[checked(preStride * 2)];
+        int lumaLength = checked(lumaStride * (mcuHeight + 10));
+        int preErosionLength = checked(preStride * (verticalSampling * 2 + 2));
+        int fuzzyLength = checked(preStride * 2);
+        // Typical widths reuse bounded shared-pool buckets. Exceptionally wide
+        // images retain the original ordinary arrays instead of growing the pool.
+        this.scratchPool = lumaLength <= MaximumPooledSamples ? scratchPool : null;
+        try
+        {
+            luma = Allocate(lumaLength);
+            preErosion = Allocate(preErosionLength);
+            difference = Allocate(paddedWidth);
+            fuzzy = Allocate(fuzzyLength);
+        }
+        catch
+        {
+            Dispose();
+            throw;
+        }
     }
 
     internal int BlocksWide { get; }
+
+    // Analysis and its ordered consumers run synchronously within one encode.
+    // Reuse the same MCU output storage across histogram and emission passes.
+    internal Span<float> Strengths
+    {
+        get
+        {
+            Guard.ThrowIfDisposed(disposed, this);
+            int length = BlocksWide * verticalSampling;
+            if (strengths.Length == 0)
+                strengths = Allocate(length);
+            return strengths.AsSpan(0, length);
+        }
+    }
+
+    private float[] Allocate(int length) => scratchPool?.Rent(length) ?? new float[length];
+
+    public void Dispose()
+    {
+        if (disposed)
+            return;
+        disposed = true;
+        previousStorage = null;
+        Return(ref luma);
+        Return(ref preErosion);
+        Return(ref difference);
+        Return(ref fuzzy);
+        Return(ref strengths);
+    }
+
+    private void Return(ref float[] storage)
+    {
+        float[] owned = storage;
+        storage = [];
+        if (owned.Length != 0)
+            scratchPool?.Return(owned);
+    }
 
     /// <summary>Writes strengths in raster order for the luma blocks in this MCU row.</summary>
     internal void ComputeRow(ReadOnlySpan<byte> pixels, int stride, int bytesPerPixel,
@@ -96,6 +152,7 @@ internal sealed class AdaptiveQuantization
         Span<float> strengths, CancellationToken cancellationToken, bool useVector,
         bool forceBatchedModulation = false)
     {
+        Guard.ThrowIfDisposed(disposed, this);
         int mcuHeight = verticalSampling * 8;
         IDisposable? storage = pixels.ConvertedStorage;
         bool reuseNeighborhood = storage is not null && ReferenceEquals(storage, previousStorage)

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Numerics;
 #if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
@@ -235,7 +236,8 @@ public static class JpegliEncoder
         JpegComponentSampling analysisFactor = sampling[pixels.AnalysisComponent];
         bool useAdaptiveQuantization = options.AdaptiveQuantization
             && analysisFactor.Horizontal == sampling.MaxHorizontal && analysisFactor.Vertical == sampling.MaxVertical;
-        var adaptive = useAdaptiveQuantization ? new AdaptiveQuantization(width, height, sampling.MaxVertical) : null;
+        using var adaptive = useAdaptiveQuantization
+            ? new AdaptiveQuantization(width, height, sampling.MaxVertical, ArrayPool<float>.Shared) : null;
         float[][]? adaptiveMultipliers = useAdaptiveQuantization
             ? Quantization.CreateAdaptiveZeroBiasMultipliers(tables, quantizationSampling, quantizationSampling, grayscale,
                 cicpTransferFunction: transferFunction, rgb: rgb, quantizationSelectors: quantizationSelectors,
@@ -712,7 +714,7 @@ public static class JpegliEncoder
         Span<short> quantized = shortScratch[..64], ordered = shortScratch.Slice(64, 64);
         Span<int> previousDc = stackalloc int[3];
         previousDc.Clear();
-        float[]? strengths = adaptive is null ? null : new float[adaptive.BlocksWide * vertical];
+        Span<float> strengths = adaptive is null ? default : adaptive.Strengths;
         int mcusRemaining = restartInterval, restartIndex = 0;
         for (int mcuY = 0; mcuY < mcusHigh; mcuY++)
         {
@@ -829,8 +831,8 @@ public static class JpegliEncoder
         int mcuHeight = vertical * 8;
         int mcusRemaining = restartInterval;
         int restartIndex = 0;
-        float[]? strengths = adaptive is null || quantizedImage is not null
-            ? null : new float[adaptive.BlocksWide * vertical];
+        Span<float> strengths = adaptive is null || quantizedImage is not null
+            ? default : adaptive.Strengths;
         for (int top = 0; top < height; top += mcuHeight)
         {
             if (quantizedImage is null)
@@ -964,7 +966,8 @@ public static class JpegliEncoder
         int blocksWide = (width * factor.Horizontal + 8 * horizontal - 1) / (8 * horizontal);
         int blocksHigh = (height * factor.Vertical + 8 * vertical - 1) / (8 * vertical);
         int tableIndex = contextByComponent ? component : pixels.IsRgb || component == 0 ? 0 : 1;
-        float[]? strengths = adaptive is null ? null : new float[adaptive.BlocksWide * vertical];
+        Span<float> strengths = adaptive is null || quantizedImage is not null
+            ? default : adaptive.Strengths;
         int lastAnalysisTop = -1;
         int mcusRemaining = restartInterval;
         int restartIndex = 0;
