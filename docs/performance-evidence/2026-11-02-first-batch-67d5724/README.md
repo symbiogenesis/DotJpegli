@@ -4,8 +4,8 @@ Baseline: `2ef3d5fcc12a804c7cd707446091eb74fa9c6476`. Implementation:
 `2fa9afe53325be785bd638c7c4448598d308cb9f`. Corrected validation:
 `67d5724b11de0c249577f5d7c11ed861a37eee38`.
 
-The [plan](../../../PLAN.md) describes the three changes, pending research and
-correctness checks. This is selected-case evidence for the combined batch.
+See the [development documentation](../../development.md) for kernel and workspace
+implementation details. This is selected-case evidence for the combined batch.
 It does not isolate individual kernel gains or establish full performance parity.
 
 ## Verified narrow SIMD comparison

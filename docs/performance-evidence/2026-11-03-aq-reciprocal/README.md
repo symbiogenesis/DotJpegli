@@ -167,7 +167,7 @@ No source images or binary outputs are duplicated in this evidence snapshot.
 
 Keep Automatic on Original. The bounded investigation supplies the requested
 rounding-aware certificate, exact fallback, regression coverage and actual AQ
-fallback evidence, completing that PLAN item. It does not settle every possible
+fallback evidence. It does not settle every possible
 AQ approximation or supply a deployment guard. Deploying this scalarized
 prototype would require separate CI performance evidence on a defined workload;
 low fallback frequency alone gives no such justification.
