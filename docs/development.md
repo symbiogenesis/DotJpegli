@@ -130,7 +130,7 @@ revision comparator locally with synthetic fixtures, without running benchmarks:
 ./tools/parity/prepare-corpus.ps1 -SelfTest
 ./tools/compare-performance-revisions.ps1 -SelfTest
 ./tools/ci/test-helpers.ps1
-./tools/tests/test-infersharp.ps1
+./tools/assert-infersharp.ps1 -SelfTest
 ```
 
 ## Banned APIs
@@ -355,7 +355,7 @@ the baseline and those arguments to the workflow only after that review.
 Run the focused report-validator regressions with PowerShell 7.6 or newer:
 
 ```powershell
-./tools/tests/test-infersharp.ps1
+./tools/assert-infersharp.ps1 -SelfTest
 ```
 
 Before dispatching, check for a queued, running or successful InferSharp run

@@ -46,7 +46,7 @@ jobs:
           -p:RunAnalyzers=false -p:DebugType=portable -p:DebugSymbols=true
       - name: Test report validation
         shell: pwsh
-        run: ./tools/tests/test-infersharp.ps1
+        run: ./tools/assert-infersharp.ps1 -SelfTest
       - name: Stage analysis input
         shell: bash
         env:
