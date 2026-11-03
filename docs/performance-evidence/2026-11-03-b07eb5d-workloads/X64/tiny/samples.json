@@ -1,0 +1,1934 @@
+[
+  {
+    "index": 0,
+    "batchMilliseconds": 1.6864,
+    "encodeMilliseconds": [
+      0.0705,
+      0.0483,
+      0.0601,
+      0.045,
+      0.0541,
+      0.043,
+      0.0471,
+      0.0485,
+      0.0498,
+      0.0534,
+      0.0447,
+      0.0529,
+      0.0476,
+      0.0913,
+      0.0468,
+      0.0469,
+      0.0526,
+      0.0496,
+      0.0535,
+      0.0509,
+      0.0536,
+      0.0449,
+      0.0527,
+      0.0466,
+      0.0461,
+      0.0481,
+      0.053,
+      0.0497,
+      0.0444,
+      0.0527,
+      0.048,
+      0.0528
+    ],
+    "allocatedBytes": 1161384,
+    "gen0Collections": 0,
+    "gen1Collections": 0,
+    "gen2Collections": 0,
+    "memory": {
+      "workingSetBytes": 73306112,
+      "processPeakWorkingSetBytes": 73306112,
+      "managedBytesWithoutCollection": 4124680,
+      "lastGcHeapBytes": 0,
+      "lastGcFragmentedBytes": 0,
+      "lastGcCommittedBytes": 0
+    },
+    "caches": [
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      }
+    ]
+  },
+  {
+    "index": 1,
+    "batchMilliseconds": 1.8351,
+    "encodeMilliseconds": [
+      0.162,
+      0.0641,
+      0.0514,
+      0.0552,
+      0.0483,
+      0.056,
+      0.0482,
+      0.056,
+      0.0872,
+      0.0552,
+      0.0507,
+      0.0451,
+      0.0529,
+      0.0481,
+      0.0531,
+      0.0437,
+      0.0578,
+      0.0478,
+      0.0498,
+      0.0501,
+      0.0484,
+      0.0532,
+      0.0448,
+      0.0558,
+      0.0431,
+      0.0545,
+      0.0475,
+      0.0878,
+      0.0529,
+      0.0456,
+      0.057,
+      0.0445
+    ],
+    "allocatedBytes": 1204368,
+    "gen0Collections": 0,
+    "gen1Collections": 0,
+    "gen2Collections": 0,
+    "memory": {
+      "workingSetBytes": 75751424,
+      "processPeakWorkingSetBytes": 75751424,
+      "managedBytesWithoutCollection": 5675672,
+      "lastGcHeapBytes": 0,
+      "lastGcFragmentedBytes": 0,
+      "lastGcCommittedBytes": 0
+    },
+    "caches": [
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      }
+    ]
+  },
+  {
+    "index": 2,
+    "batchMilliseconds": 1.7814,
+    "encodeMilliseconds": [
+      0.071,
+      0.0594,
+      0.0463,
+      0.0575,
+      0.0448,
+      0.0532,
+      0.0468,
+      0.0545,
+      0.0476,
+      0.0496,
+      0.0533,
+      0.0448,
+      0.0526,
+      0.0477,
+      0.0523,
+      0.0865,
+      0.0637,
+      0.052,
+      0.0494,
+      0.0492,
+      0.0482,
+      0.0524,
+      0.0447,
+      0.1511,
+      0.0456,
+      0.0561,
+      0.0481,
+      0.0526,
+      0.0487,
+      0.0444,
+      0.056,
+      0.0442
+    ],
+    "allocatedBytes": 1161384,
+    "gen0Collections": 0,
+    "gen1Collections": 0,
+    "gen2Collections": 0,
+    "memory": {
+      "workingSetBytes": 77021184,
+      "processPeakWorkingSetBytes": 77021184,
+      "managedBytesWithoutCollection": 6901072,
+      "lastGcHeapBytes": 0,
+      "lastGcFragmentedBytes": 0,
+      "lastGcCommittedBytes": 0
+    },
+    "caches": [
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      }
+    ]
+  },
+  {
+    "index": 3,
+    "batchMilliseconds": 1.7235,
+    "encodeMilliseconds": [
+      0.0879,
+      0.0492,
+      0.0528,
+      0.0581,
+      0.047,
+      0.0527,
+      0.0851,
+      0.0572,
+      0.0444,
+      0.0496,
+      0.0559,
+      0.0515,
+      0.051,
+      0.0502,
+      0.0526,
+      0.0445,
+      0.0487,
+      0.0513,
+      0.0487,
+      0.0458,
+      0.0542,
+      0.0504,
+      0.0462,
+      0.0524,
+      0.0578,
+      0.0713,
+      0.0497,
+      0.053,
+      0.0461,
+      0.0508,
+      0.0502,
+      0.0503
+    ],
+    "allocatedBytes": 1161384,
+    "gen0Collections": 0,
+    "gen1Collections": 0,
+    "gen2Collections": 0,
+    "memory": {
+      "workingSetBytes": 78262272,
+      "processPeakWorkingSetBytes": 78262272,
+      "managedBytesWithoutCollection": 8131680,
+      "lastGcHeapBytes": 0,
+      "lastGcFragmentedBytes": 0,
+      "lastGcCommittedBytes": 0
+    },
+    "caches": [
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      }
+    ]
+  },
+  {
+    "index": 4,
+    "batchMilliseconds": 1.7179,
+    "encodeMilliseconds": [
+      0.118,
+      0.0527,
+      0.0508,
+      0.0502,
+      0.0513,
+      0.0503,
+      0.0501,
+      0.0525,
+      0.0452,
+      0.0486,
+      0.0509,
+      0.0533,
+      0.047,
+      0.0548,
+      0.0504,
+      0.0462,
+      0.0516,
+      0.0475,
+      0.0491,
+      0.078,
+      0.0561,
+      0.0459,
+      0.0511,
+      0.0535,
+      0.0498,
+      0.059,
+      0.0441,
+      0.0521,
+      0.052,
+      0.05,
+      0.0458,
+      0.0532
+    ],
+    "allocatedBytes": 1161384,
+    "gen0Collections": 0,
+    "gen1Collections": 0,
+    "gen2Collections": 0,
+    "memory": {
+      "workingSetBytes": 79515648,
+      "processPeakWorkingSetBytes": 79515648,
+      "managedBytesWithoutCollection": 9366632,
+      "lastGcHeapBytes": 0,
+      "lastGcFragmentedBytes": 0,
+      "lastGcCommittedBytes": 0
+    },
+    "caches": [
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      }
+    ]
+  },
+  {
+    "index": 5,
+    "batchMilliseconds": 1.7255,
+    "encodeMilliseconds": [
+      0.0858,
+      0.0507,
+      0.0557,
+      0.0515,
+      0.0491,
+      0.0491,
+      0.0475,
+      0.0526,
+      0.044,
+      0.0515,
+      0.0459,
+      0.0858,
+      0.054,
+      0.0532,
+      0.0491,
+      0.0453,
+      0.0525,
+      0.0477,
+      0.0582,
+      0.0425,
+      0.0568,
+      0.0475,
+      0.0491,
+      0.0486,
+      0.0477,
+      0.0577,
+      0.0445,
+      0.0549,
+      0.0428,
+      0.054,
+      0.0847,
+      0.059
+    ],
+    "allocatedBytes": 1161384,
+    "gen0Collections": 0,
+    "gen1Collections": 0,
+    "gen2Collections": 0,
+    "memory": {
+      "workingSetBytes": 80818176,
+      "processPeakWorkingSetBytes": 80818176,
+      "managedBytesWithoutCollection": 10693544,
+      "lastGcHeapBytes": 0,
+      "lastGcFragmentedBytes": 0,
+      "lastGcCommittedBytes": 0
+    },
+    "caches": [
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      }
+    ]
+  },
+  {
+    "index": 6,
+    "batchMilliseconds": 1.7404,
+    "encodeMilliseconds": [
+      0.086,
+      0.0638,
+      0.0746,
+      0.075,
+      0.0489,
+      0.053,
+      0.048,
+      0.0519,
+      0.0426,
+      0.0531,
+      0.0505,
+      0.0506,
+      0.0524,
+      0.0481,
+      0.0519,
+      0.0447,
+      0.0526,
+      0.0463,
+      0.0535,
+      0.047,
+      0.0497,
+      0.0819,
+      0.0501,
+      0.0546,
+      0.0478,
+      0.0624,
+      0.0426,
+      0.0571,
+      0.0474,
+      0.046,
+      0.0516,
+      0.0475
+    ],
+    "allocatedBytes": 1161384,
+    "gen0Collections": 0,
+    "gen1Collections": 0,
+    "gen2Collections": 0,
+    "memory": {
+      "workingSetBytes": 82100224,
+      "processPeakWorkingSetBytes": 82100224,
+      "managedBytesWithoutCollection": 11959664,
+      "lastGcHeapBytes": 0,
+      "lastGcFragmentedBytes": 0,
+      "lastGcCommittedBytes": 0
+    },
+    "caches": [
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      },
+      {
+        "peakBytes": 43008,
+        "convertedSamplePeakBytes": 4096,
+        "coefficientPeakBytes": 6144,
+        "entropyTokenPeakBytes": 32768,
+        "currentBytesAfterEncode": 0
+      }
+    ]
+  }
+]

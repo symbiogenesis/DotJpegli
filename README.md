@@ -129,7 +129,15 @@ for coverage.
 
 ## Performance
 
-Same-host comparisons against the source published as **1.0.0** found no
+The latest retained same-host comparison against released **1.0.0** tests
+revision `b07eb5d` and **fails three of six release regression gates**:
+73 of 1,536 selected cases consistently favor 1.0.0, with the largest selected
+median using 5.08% more time. All paired JPEG bytes match. These results precede
+the subsequent cache and hot-path changes; they do not validate those changes.
+The [complete release evidence](docs/performance-evidence/2026-11-03-b07eb5d/release/README.md)
+retains every selected case, earlier invalid trial, host identity and failure.
+
+Earlier same-host comparisons against the source published as **1.0.0** found no
 confirmed latency regressions in the repaired encoder at `74ae25d`/`a045052`
 across the measured .NET 10/11 x64 and ARM64 configurations, including .NET 11 AVX-512. Across
 1,792 selected case comparisons, 1,640 consistently favored the repaired
@@ -145,9 +153,10 @@ stability checks.
 The native comparison charts below retain the last complete valid snapshot.
 Compare DotJpegli with **native Google Jpegli** on all 24 Kodak photographs.
 The charts use fresh measurements from **November 3, 2026**,
-[CI run 41619016995](https://github.com/symbiogenesis/DotJpegli/actions/runs/41619016995),
-testing revision `d5f3226`. Compression and time differences are relative to
-native; zero means equal file size or encoding time.
+[CI run 41690962313](https://github.com/symbiogenesis/DotJpegli/actions/runs/41690962313),
+testing revision `b07eb5d`, before the later partial converted-plane change.
+Compression and time differences are relative to native; zero means equal
+file size or encoding time.
 
 ### Compression efficiency
 
@@ -161,12 +170,12 @@ the next 0.001%; exact group values are linked below.
 ### Encoding wall time
 
 On the measured AMD EPYC 7763 host, progressive photograph encoding used
-**3.7–4.3% less time** than native; sequential encoding used **25.0–25.5% more**.
+**7.0–9.8% less time** than native; sequential encoding used **18.0–24.1% more**.
 Bars show the percentage change in encoding time, with photographs and controls
 paired under each encoding mode. Left of zero means less time; right means more.
 
-The earlier snapshot used a different CPU, so these runs do not isolate the
-effect of encoder changes.
+Separately collected runs do not isolate the effect of encoder changes, even
+when their reported CPU models match.
 
 ![Percentage encoding-time differences from native Google Jpegli, pairing Kodak photographs and deterministic controls for each encoding mode.](docs/images/performance/wall-time.svg)
 
@@ -181,7 +190,9 @@ and peak memory are outside this measurement.
 The time and allocation comparison uses distances 1/4, both sampling modes,
 one worker and tiered compilation disabled. The complete 256-case comparison
 includes eight deterministic controls; full performance parity remains
-unestablished. See the [retained measurements](docs/performance-evidence/2026-11-03-d5f3226/README.md),
+unestablished. Both progressive photograph groups pass the fixed bounds, but
+sequential photographs and the control groups fail. See the
+[retained measurements](docs/performance-evidence/2026-11-03-b07eb5d/README.md),
 [chart values](docs/images/performance/metrics.json) and
 [reproducible protocol](docs/performance-parity.md) for the host, runtime,
 raw samples and individual regressions.

@@ -1,0 +1,367 @@
+{
+  "schemaVersion": 2,
+  "id": "kodim03",
+  "category": "natural",
+  "width": 768,
+  "height": 512,
+  "sampling": 420,
+  "progressiveLevel": 2,
+  "distance": 1,
+  "comparisonIndex": 22,
+  "attempt": 2,
+  "iterations": 20,
+  "warmups": 5,
+  "completedQuartets": 6,
+  "expectedQuartets": 6,
+  "updatedAtUtc": "2026-11-03T18:12:52.2912297+00:00",
+  "quartets": [
+    {
+      "block": 0,
+      "order": "ABBA",
+      "legs": [
+        {
+          "position": 0,
+          "variant": "baseline",
+          "measurement": {
+            "nsPerEncode": 4589620.45,
+            "allocatedBytes": 6632640,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 1,
+          "variant": "current",
+          "measurement": {
+            "nsPerEncode": 4424840.85,
+            "allocatedBytes": 3102880,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 2,
+          "variant": "current",
+          "measurement": {
+            "nsPerEncode": 4479345.7,
+            "allocatedBytes": 3102880,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 3,
+          "variant": "baseline",
+          "measurement": {
+            "nsPerEncode": 4739242.3,
+            "allocatedBytes": 6632640,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        }
+      ]
+    },
+    {
+      "block": 1,
+      "order": "BAAB",
+      "legs": [
+        {
+          "position": 0,
+          "variant": "current",
+          "measurement": {
+            "nsPerEncode": 4449250.4,
+            "allocatedBytes": 3102880,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 1,
+          "variant": "baseline",
+          "measurement": {
+            "nsPerEncode": 4598962.95,
+            "allocatedBytes": 6632640,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 2,
+          "variant": "baseline",
+          "measurement": {
+            "nsPerEncode": 4578448.15,
+            "allocatedBytes": 6632640,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 3,
+          "variant": "current",
+          "measurement": {
+            "nsPerEncode": 4651031,
+            "allocatedBytes": 3103912,
+            "gen0Collections": 1,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        }
+      ]
+    },
+    {
+      "block": 2,
+      "order": "ABBA",
+      "legs": [
+        {
+          "position": 0,
+          "variant": "baseline",
+          "measurement": {
+            "nsPerEncode": 4609913.8,
+            "allocatedBytes": 6632640,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 1,
+          "variant": "current",
+          "measurement": {
+            "nsPerEncode": 4463743.7,
+            "allocatedBytes": 3102880,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 2,
+          "variant": "current",
+          "measurement": {
+            "nsPerEncode": 4487761.1,
+            "allocatedBytes": 3102880,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 3,
+          "variant": "baseline",
+          "measurement": {
+            "nsPerEncode": 4624954.9,
+            "allocatedBytes": 6632640,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        }
+      ]
+    },
+    {
+      "block": 3,
+      "order": "BAAB",
+      "legs": [
+        {
+          "position": 0,
+          "variant": "current",
+          "measurement": {
+            "nsPerEncode": 4706534.65,
+            "allocatedBytes": 3102880,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 1,
+          "variant": "baseline",
+          "measurement": {
+            "nsPerEncode": 5326184.3,
+            "allocatedBytes": 6633672,
+            "gen0Collections": 1,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 2,
+          "variant": "baseline",
+          "measurement": {
+            "nsPerEncode": 5317679,
+            "allocatedBytes": 6632640,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 3,
+          "variant": "current",
+          "measurement": {
+            "nsPerEncode": 5097433.6,
+            "allocatedBytes": 3102880,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        }
+      ]
+    },
+    {
+      "block": 4,
+      "order": "ABBA",
+      "legs": [
+        {
+          "position": 0,
+          "variant": "baseline",
+          "measurement": {
+            "nsPerEncode": 5268184.15,
+            "allocatedBytes": 6632640,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 1,
+          "variant": "current",
+          "measurement": {
+            "nsPerEncode": 4427458.5,
+            "allocatedBytes": 3102880,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 2,
+          "variant": "current",
+          "measurement": {
+            "nsPerEncode": 4427367.8,
+            "allocatedBytes": 3102880,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 3,
+          "variant": "baseline",
+          "measurement": {
+            "nsPerEncode": 4593799.1,
+            "allocatedBytes": 6632640,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        }
+      ]
+    },
+    {
+      "block": 5,
+      "order": "BAAB",
+      "legs": [
+        {
+          "position": 0,
+          "variant": "current",
+          "measurement": {
+            "nsPerEncode": 4430583.9,
+            "allocatedBytes": 3102880,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 1,
+          "variant": "baseline",
+          "measurement": {
+            "nsPerEncode": 4594787.5,
+            "allocatedBytes": 6632640,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 2,
+          "variant": "baseline",
+          "measurement": {
+            "nsPerEncode": 4561837.7,
+            "allocatedBytes": 6632640,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        },
+        {
+          "position": 3,
+          "variant": "current",
+          "measurement": {
+            "nsPerEncode": 4435691.45,
+            "allocatedBytes": 3102880,
+            "gen0Collections": 0,
+            "gen1Collections": 0,
+            "gen2Collections": 0,
+            "jpegSha256": "c0c19e0f2067870cdda76cbee7afb063e7e6f243fef7d6e2e96dd610e11e080a",
+            "jpegBytes": 59980
+          }
+        }
+      ]
+    }
+  ]
+}

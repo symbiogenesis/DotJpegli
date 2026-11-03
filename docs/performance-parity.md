@@ -10,7 +10,18 @@ before the first measurement.
 
 ## Released-version regression checks
 
-The repaired encoder at `74ae25d` passes the complete 256-case comparison
+The latest retained comparison at `b07eb5d` **fails three of six release
+regression gates**. Of 1,536 valid selected comparisons against published 1.0.0
+source, 73 consistently favor 1.0.0: 59 on .NET 10 x64 default (EPYC 7763,
+Vector512 false), nine on .NET 11 x64 default (EPYC 9V74, Vector512 true), and
+five on .NET 10 ARM64. The other three lanes pass. All paired JPEG hashes match.
+The largest selected median ratio is 1.050793. The
+[complete release snapshot](performance-evidence/2026-11-03-b07eb5d/release/README.md)
+retains the 254 earlier invalid trials as well as every selected case and
+failure. These measurements precede subsequent cache and hot-path changes and
+do not establish the performance of those later changes.
+
+Historically, the repaired encoder at `74ae25d` passes the complete 256-case comparison
 against released 1.0.0 source in all six measured .NET 10/11 x64 and ARM64 lanes.
 The encoder is unchanged at `a045052`, which adds a passing .NET 11 x64 lane
 requiring actual Vector512 support. Across all seven lanes, all 1,792 selected
@@ -44,8 +55,10 @@ large encodes around converted-plane and coefficient-cache boundaries, whole
 photograph enlargements to 9.8 megapixels, bounded
 cache settings, RGB/XYB/source-ICC conversion, stream and array output, one/two/four
 workers, and two/four concurrent calls with separate caller input buffers.
-Their fresh-process first encode and subsequent warmed measurements include a
-separate default-tiering case. No local benchmark or additional workflow is needed.
+Their fresh-process first encode and subsequent warmed measurements include
+separate default-tiering cases with three and 256 fixed warmup batches. These
+counts do not prove mature tiered execution. No local benchmark or additional
+workflow is needed.
 
 These observations preserve the fixed native corpus, settings and acceptance
 bounds. They retain raw per-encode samples, throughput, allocation counts, actual
@@ -56,39 +69,49 @@ rows, rather than a regression or service-tail-latency verdict. See the
 [workload method](../tools/DotJpegli.Performance/README.md#bounded-workload-diagnostics)
 for input generation, output checks, runtime settings and measurement limits.
 
+The [first retained workload run](performance-evidence/2026-11-03-b07eb5d-workloads/README.md)
+completed 25 scenarios on both architectures at `b07eb5d`. It exposed converted
+sample-cache discontinuities of 2.65–3.64 times across small height changes,
+while the coefficient-boundary samples had no similarly large jump. Those
+observations precede the subsequent segmented/partial converted-plane policy;
+they are its motivation, not evidence of that later policy's performance.
+The retained interpretation also covers concurrency, memory and minority timing
+states that the original MAD-only noise flag did not detect.
+
 The complete 256-case comparison of revision
-`d5f3226d9501a1b636f13eb15ff9b7113a767920` in
-[hosted run 41619016995](https://github.com/symbiogenesis/DotJpegli/actions/runs/41619016995)
-has valid, stable measurements and matched settings, but **fails full performance
+`b07eb5d240c2be1f6b9aebac13d081fb50d740cd` in
+[hosted run 41690962313](https://github.com/symbiogenesis/DotJpegli/actions/runs/41690962313)
+has valid measurements under the fixed protocol and matched settings, but **fails full performance
 parity**. Measurements were collected on November 3, 2026. The same run passes
-the complete quality/compression matrix.
+the complete quality/compression matrix. This reference precedes the later
+segmented/partial converted-plane change.
 
 | Corpus | Sampling | Sequential mean / worst | Progressive level 2 mean / worst |
 | --- | --- | ---: | ---: |
-| Kodak photographs | 4:4:4 | 1.255 / 1.859 | 0.963 / 1.137 |
-| Kodak photographs | 4:2:0 | 1.250 / 1.679 | 0.957 / 1.104 |
-| Deterministic controls | 4:4:4 | 1.252 / 1.623 | 1.137 / 1.382 |
-| Deterministic controls | 4:2:0 | 1.179 / 1.558 | 1.136 / 1.428 |
+| Kodak photographs | 4:4:4 | 1.241 / 1.582 | 0.930 / 1.018 |
+| Kodak photographs | 4:2:0 | 1.180 / 1.425 | 0.902 / 1.027 |
+| Deterministic controls | 4:4:4 | 1.256 / 1.612 | 1.118 / 1.389 |
+| Deterministic controls | 4:2:0 | 1.130 / 1.523 | 1.104 / 1.387 |
 
 Each mean is the geometric mean of managed/native median latency ratios across
 the group's images and both distances; worst is the largest case ratio.
-Lower is better. Photograph groups use 25.0–25.5% more time for sequential
-encoding and 3.7–4.3% less for progressive encoding. Both progressive photograph
-groups meet the mean bound but each has a case above the individual 1.10 bound.
-All eight groups fail the fixed bounds; the worst individual case is a 1.859315
-ratio for sequential 4:4:4 Kodak02 at distance 4. Group averages cannot override
-individual failures.
+Lower is better. Photograph groups use 18.0–24.1% more time for sequential
+encoding and 7.0–9.8% less for progressive encoding. Both progressive photograph
+groups pass the group and individual bounds. The other six groups fail;
+the worst individual case is a 1.612267 ratio for sequential 4:4:4
+smooth-gradient at distance 1. Group averages cannot override individual failures.
 
 This RGB8 to YCbCr comparison uses distances 1/4, adaptive quantization, optimized
 Huffman coding and one worker, on AMD EPYC 7763 x64 with .NET
 `11.0.0-rc.3.26522.148` and tiered compilation disabled.
-The [complete reference evidence](performance-evidence/2026-11-03-d5f3226/README.md)
+The [complete reference evidence](performance-evidence/2026-11-03-b07eb5d/README.md)
 retains every case, failure, raw sample, host identity, setting, hash and native
 provenance. These measurements support lower group mean
 progressive photograph latency within this scope; full parity remains
 unestablished.
 
-The [previous README reference on EPYC 9V74](performance-evidence/2026-11-03-f52961b/README.md)
+The [previous README reference on EPYC 7763](performance-evidence/2026-11-03-d5f3226/README.md),
+the [earlier EPYC 9V74 reference](performance-evidence/2026-11-03-f52961b/README.md)
 and earlier complete references on
 [EPYC 9V45](performance-evidence/2026-11-02-eb86172/README.md),
 [EPYC 7763](performance-evidence/2026-11-02-6738b09/README.md) and
@@ -96,8 +119,8 @@ and earlier complete references on
 and different revisions. Four-case references remain available for
 [.NET 11 RC3 on EPYC 7763](performance-evidence/2026-11-02-9f350f9/README.md) and
 [RC2 on EPYC 9V74](performance-evidence/2026-10-15-5604d60/README.md).
-Their different hosts, revisions and runtimes cannot establish before/after
-optimization gains or be substituted for this complete matrix.
+These separate runs cannot establish before/after optimization gains, even
+when CPU models match, or be substituted for this complete matrix.
 
 ## Untimed compact coefficient storage study
 

@@ -12,9 +12,10 @@ equivalence, performance parity or parity for untested options.
 ## Established result
 
 The complete quality/compression comparison in
-[hosted run 41603913358](https://github.com/symbiogenesis/DotJpegli/actions/runs/41603913358)
+[hosted run 41690962313](https://github.com/symbiogenesis/DotJpegli/actions/runs/41690962313)
 passed on November 3, 2026, testing revision
-`f52961be35384adfe99b078a47ec0f16b21633e4`.
+`b07eb5d240c2be1f6b9aebac13d081fb50d740cd`, before the later partial converted-plane
+change. This result establishes quality/compression parity for that measured revision.
 
 All **1,280 encoding pairs** passed: 24 photographs plus eight controls,
 two sampling modes, two scan modes and ten distances. Coverage was complete,
@@ -36,17 +37,17 @@ were identical in 496. Remaining cases met every measured quality and size
 bound. Optimized grayscale/YCbCr output uses upstream cost-based
 [Huffman histogram clustering](compression.md#huffman-optimization).
 
-The [full result table](parity-evidence/2026-11-03-f52961b/report.md),
-[summary](parity-evidence/2026-11-03-f52961b/summary.json),
-[raw cases](parity-evidence/2026-11-03-f52961b/cases.json),
-[matched-rate points](parity-evidence/2026-11-03-f52961b/matched-rates.json),
-[matched-quality points](parity-evidence/2026-11-03-f52961b/matched-quality.json),
-[source hashes](parity-evidence/2026-11-03-f52961b/sources.json) and
-[native provenance](parity-evidence/2026-11-03-f52961b/provenance.json)
+The [full result table](parity-evidence/2026-11-03-b07eb5d/report.md),
+[summary](parity-evidence/2026-11-03-b07eb5d/summary.json),
+[raw cases](parity-evidence/2026-11-03-b07eb5d/cases.json),
+[matched-rate points](parity-evidence/2026-11-03-b07eb5d/matched-rates.json),
+[matched-quality points](parity-evidence/2026-11-03-b07eb5d/matched-quality.json),
+[source hashes](parity-evidence/2026-11-03-b07eb5d/sources.json) and
+[native provenance](parity-evidence/2026-11-03-b07eb5d/provenance.json)
 are committed for durable review. JPEGs and exact RGB inputs remain in the
 hosted artifact; their JSON paths refer to that artifact layout.
-[Artifact identity](parity-evidence/2026-11-03-f52961b/snapshot.json) and
-[file hashes](parity-evidence/2026-11-03-f52961b/hashes.json) identify the retained
+[Artifact identity](parity-evidence/2026-11-03-b07eb5d/snapshot.json) and
+[file hashes](parity-evidence/2026-11-03-b07eb5d/hashes.json) identify the retained
 evidence. The [original October 14 result](parity-evidence/2026-10-14-b30697e/report.md)
 established parity for revision `b30697e` in
 [run 38517910693](https://github.com/symbiogenesis/DotJpegli/actions/runs/38517910693).

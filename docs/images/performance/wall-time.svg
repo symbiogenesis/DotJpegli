@@ -30,39 +30,39 @@
     <text x="32.00" y="173" font-size="18" fill="var(--ink)" font-weight="600" text-anchor="start">Sequential</text>
     <text x="32.00" y="198" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">4:4:4</text>
     <text x="244.00" y="171" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Photos</text>
-    <rect x="516.00" y="158" width="127.62" height="16" rx="3" fill="var(--amber)"/>
-    <text x="848.00" y="171" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">25.5% more</text>
+    <rect x="516.00" y="158" width="120.37" height="16" rx="3" fill="var(--amber)"/>
+    <text x="848.00" y="171" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">24.1% more</text>
     <text x="244.00" y="205" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Controls</text>
-    <rect x="516.00" y="192" width="125.77" height="16" rx="3" fill="var(--amber)"/>
-    <text x="848.00" y="205" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">25.2% more</text>
+    <rect x="516.00" y="192" width="127.89" height="16" rx="3" fill="var(--amber)"/>
+    <text x="848.00" y="205" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">25.6% more</text>
     <line x1="32.00" y1="226" x2="848.00" y2="226" stroke="var(--grid)"/>
     <text x="32.00" y="265" font-size="18" fill="var(--ink)" font-weight="600" text-anchor="start">Sequential</text>
     <text x="32.00" y="290" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">4:2:0</text>
     <text x="244.00" y="263" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Photos</text>
-    <rect x="516.00" y="250" width="124.90" height="16" rx="3" fill="var(--amber)"/>
-    <text x="848.00" y="263" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">25.0% more</text>
+    <rect x="516.00" y="250" width="90.07" height="16" rx="3" fill="var(--amber)"/>
+    <text x="848.00" y="263" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">18.0% more</text>
     <text x="244.00" y="297" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Controls</text>
-    <rect x="516.00" y="284" width="89.51" height="16" rx="3" fill="var(--amber)"/>
-    <text x="848.00" y="297" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">17.9% more</text>
+    <rect x="516.00" y="284" width="64.76" height="16" rx="3" fill="var(--amber)"/>
+    <text x="848.00" y="297" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">13.0% more</text>
     <line x1="32.00" y1="318" x2="848.00" y2="318" stroke="var(--grid)"/>
     <text x="32.00" y="357" font-size="18" fill="var(--ink)" font-weight="600" text-anchor="start">Progressive</text>
     <text x="32.00" y="382" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">4:4:4</text>
     <text x="244.00" y="355" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Photos</text>
-    <rect x="497.53" y="342" width="18.47" height="16" rx="3" fill="var(--teal)"/>
-    <text x="848.00" y="355" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">3.7% less</text>
+    <rect x="480.99" y="342" width="35.01" height="16" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="355" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">7.0% less</text>
     <text x="244.00" y="389" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Controls</text>
-    <rect x="516.00" y="376" width="68.59" height="16" rx="3" fill="var(--amber)"/>
-    <text x="848.00" y="389" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">13.7% more</text>
+    <rect x="516.00" y="376" width="59.08" height="16" rx="3" fill="var(--amber)"/>
+    <text x="848.00" y="389" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">11.8% more</text>
     <line x1="32.00" y1="410" x2="848.00" y2="410" stroke="var(--grid)"/>
     <text x="32.00" y="449" font-size="18" fill="var(--ink)" font-weight="600" text-anchor="start">Progressive</text>
     <text x="32.00" y="474" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">4:2:0</text>
     <text x="244.00" y="447" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Photos</text>
-    <rect x="494.39" y="434" width="21.61" height="16" rx="3" fill="var(--teal)"/>
-    <text x="848.00" y="447" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">4.3% less</text>
+    <rect x="467.10" y="434" width="48.90" height="16" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="447" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">9.8% less</text>
     <text x="244.00" y="481" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Controls</text>
-    <rect x="516.00" y="468" width="67.78" height="16" rx="3" fill="var(--amber)"/>
-    <text x="848.00" y="481" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">13.6% more</text>
-    <text x="32.00" y="546" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">Full performance parity: not established · worst case: 85.9% more</text>
-    <text x="32.00" y="568" font-size="12" fill="var(--muted)" font-weight="400" text-anchor="start">2026-11-03 UTC · revision d5f3226 · run 41619016995</text>
+    <rect x="516.00" y="468" width="51.90" height="16" rx="3" fill="var(--amber)"/>
+    <text x="848.00" y="481" font-size="18" fill="var(--amber)" font-weight="600" text-anchor="end">10.4% more</text>
+    <text x="32.00" y="546" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">Full performance parity: not established · worst case: 61.2% more</text>
+    <text x="32.00" y="568" font-size="12" fill="var(--muted)" font-weight="400" text-anchor="start">2026-11-03 UTC · revision b07eb5d · run 41690962313</text>
   </g>
 </svg>
