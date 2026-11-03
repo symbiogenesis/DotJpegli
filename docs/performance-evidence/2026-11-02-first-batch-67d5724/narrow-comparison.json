@@ -1,0 +1,495 @@
+{
+  "baselineRevision": "2ef3d5fcc12a804c7cd707446091eb74fa9c6476",
+  "currentRevision": "67d5724b11de0c249577f5d7c11ed861a37eee38",
+  "githubRunId": "41579107572",
+  "environment": {
+    "cpu": "AMD EPYC 7763 64-Core Processor",
+    "affinity": "0",
+    "os": "Ubuntu 26.04.1 LTS",
+    "osArchitecture": 1,
+    "processArchitecture": 1,
+    "runtime": ".NET 11.0.0-rc.3.26522.148",
+    "runtimeVersion": "11.0.0",
+    "corelibInformationalVersion": "11.0.0-rc.3.26522.148+5254d8bcf59917edc1e1abc33bdf2442b77b1c70",
+    "runtimeProductVersion": "11.0.0-rc.3.26522.148",
+    "encoderTargetFramework": ".NETCoreApp,Version=v11.0",
+    "explicitNet11Simd": true,
+    "logicalProcessors": 1,
+    "frequency": 1000000000,
+    "isHighResolution": true,
+    "isHardwareAccelerated": true,
+    "vectorFloatWidth": 8,
+    "vector128": true,
+    "vector256": true,
+    "vector512": false,
+    "serverGc": false,
+    "gcLatencyMode": "Interactive",
+    "dotnetTieredCompilation": "0",
+    "complusTieredCompilation": null,
+    "instrumentation": null,
+    "githubRunnerOs": "Linux",
+    "githubRunnerArchitecture": "X64"
+  },
+  "policy": {
+    "warmups": 5,
+    "blocks": 7,
+    "minimumIterations": 3,
+    "maximumIterations": 100,
+    "targetBlockMilliseconds": 50,
+    "minimumBlockMilliseconds": 1,
+    "maximumRelativeMad": 0.1,
+    "maximumGroupGeometricMeanRatio": 1.05,
+    "maximumCaseRatio": 1.1,
+    "managedWorkers": 1
+  },
+  "comparisons": [
+    {
+      "case": [
+        "kodim01",
+        420,
+        0,
+        1
+      ],
+      "baselineManagedNs": 4301007.692307692,
+      "currentManagedNs": 4074122.5833333335,
+      "managedRatio": 0.9472483833544078,
+      "nativeRatio": 0.9963141026453528,
+      "baselineAllocatedBytesPerEncode": 268240.0,
+      "currentAllocatedBytesPerEncode": 178072.0
+    },
+    {
+      "case": [
+        "kodim01",
+        420,
+        0,
+        4
+      ],
+      "baselineManagedNs": 3413723.1578947366,
+      "currentManagedNs": 3360214.15,
+      "managedRatio": 0.9843253229919979,
+      "nativeRatio": 0.9986211481641506,
+      "baselineAllocatedBytesPerEncode": 189015.75939849624,
+      "currentAllocatedBytesPerEncode": 98840.0
+    },
+    {
+      "case": [
+        "kodim01",
+        420,
+        2,
+        1
+      ],
+      "baselineManagedNs": 8308166.4,
+      "currentManagedNs": 8189455.666666667,
+      "managedRatio": 0.985711560455345,
+      "nativeRatio": 0.9926736440183501,
+      "baselineAllocatedBytesPerEncode": 329581.4857142857,
+      "currentAllocatedBytesPerEncode": 227504.0
+    },
+    {
+      "case": [
+        "kodim01",
+        420,
+        2,
+        4
+      ],
+      "baselineManagedNs": 5702879.444444444,
+      "currentManagedNs": 5810988,
+      "managedRatio": 1.018956836911724,
+      "nativeRatio": 1.029448305974216,
+      "baselineAllocatedBytesPerEncode": 252576.38095238095,
+      "currentAllocatedBytesPerEncode": 150528.38095238095
+    },
+    {
+      "case": [
+        "kodim01",
+        444,
+        0,
+        1
+      ],
+      "baselineManagedNs": 5503610.1,
+      "currentManagedNs": 5360284.5,
+      "managedRatio": 0.973957893565171,
+      "nativeRatio": 1.0016755865396128,
+      "baselineAllocatedBytesPerEncode": 259328.0,
+      "currentAllocatedBytesPerEncode": 195720.0
+    },
+    {
+      "case": [
+        "kodim01",
+        444,
+        0,
+        4
+      ],
+      "baselineManagedNs": 4619967.571428572,
+      "currentManagedNs": 4637540.214285715,
+      "managedRatio": 1.0038036290483547,
+      "nativeRatio": 1.001574542539416,
+      "baselineAllocatedBytesPerEncode": 173835.42857142858,
+      "currentAllocatedBytesPerEncode": 110168.0
+    },
+    {
+      "case": [
+        "kodim01",
+        444,
+        2,
+        1
+      ],
+      "baselineManagedNs": 11005094.25,
+      "currentManagedNs": 10994681,
+      "managedRatio": 0.9990537791168849,
+      "nativeRatio": 1.0005543528135352,
+      "baselineAllocatedBytesPerEncode": 323004.85714285716,
+      "currentAllocatedBytesPerEncode": 254464.0
+    },
+    {
+      "case": [
+        "kodim01",
+        444,
+        2,
+        4
+      ],
+      "baselineManagedNs": 8343886,
+      "currentManagedNs": 8276327.6,
+      "managedRatio": 0.9919032450826869,
+      "nativeRatio": 0.9864077463703848,
+      "baselineAllocatedBytesPerEncode": 233976.57142857142,
+      "currentAllocatedBytesPerEncode": 165552.91428571427
+    },
+    {
+      "case": [
+        "low-contrast",
+        420,
+        0,
+        1
+      ],
+      "baselineManagedNs": 557150.88,
+      "currentManagedNs": 539267.91,
+      "managedRatio": 0.9679028237377998,
+      "nativeRatio": 0.9960566797942664,
+      "baselineAllocatedBytesPerEncode": 89621.89714285715,
+      "currentAllocatedBytesPerEncode": 58424.98285714286
+    },
+    {
+      "case": [
+        "low-contrast",
+        420,
+        0,
+        4
+      ],
+      "baselineManagedNs": 470782.65,
+      "currentManagedNs": 462751.17,
+      "managedRatio": 0.9829401529559341,
+      "nativeRatio": 0.9908653108123693,
+      "baselineAllocatedBytesPerEncode": 81836.42285714285,
+      "currentAllocatedBytesPerEncode": 50636.422857142854
+    },
+    {
+      "case": [
+        "low-contrast",
+        420,
+        2,
+        1
+      ],
+      "baselineManagedNs": 955451.5,
+      "currentManagedNs": 948914.6333333333,
+      "managedRatio": 0.9931583479991746,
+      "nativeRatio": 0.994066204142057,
+      "baselineAllocatedBytesPerEncode": 146815.37142857144,
+      "currentAllocatedBytesPerEncode": 111292.91428571429
+    },
+    {
+      "case": [
+        "low-contrast",
+        420,
+        2,
+        4
+      ],
+      "baselineManagedNs": 714312.3666666667,
+      "currentManagedNs": 706347.4105263158,
+      "managedRatio": 0.9888494774666728,
+      "nativeRatio": 1.0040919607409207,
+      "baselineAllocatedBytesPerEncode": 127752.19047619047,
+      "currentAllocatedBytesPerEncode": 92228.65563909775
+    },
+    {
+      "case": [
+        "low-contrast",
+        444,
+        0,
+        1
+      ],
+      "baselineManagedNs": 783030.1020408163,
+      "currentManagedNs": 768994.806122449,
+      "managedRatio": 0.9820756623764693,
+      "nativeRatio": 1.0075380985621574,
+      "baselineAllocatedBytesPerEncode": 83758.01749271137,
+      "currentAllocatedBytesPerEncode": 61724.51311953353
+    },
+    {
+      "case": [
+        "low-contrast",
+        444,
+        0,
+        4
+      ],
+      "baselineManagedNs": 654334.71,
+      "currentManagedNs": 652806.87,
+      "managedRatio": 0.9976650482136276,
+      "nativeRatio": 1.002003786595909,
+      "baselineAllocatedBytesPerEncode": 73740.42285714285,
+      "currentAllocatedBytesPerEncode": 51704.0
+    },
+    {
+      "case": [
+        "low-contrast",
+        444,
+        2,
+        1
+      ],
+      "baselineManagedNs": 1396056.8372093022,
+      "currentManagedNs": 1400383,
+      "managedRatio": 1.0030988443130622,
+      "nativeRatio": 1.0018658965403875,
+      "baselineAllocatedBytesPerEncode": 154407.36212624583,
+      "currentAllocatedBytesPerEncode": 130442.28571428571
+    },
+    {
+      "case": [
+        "low-contrast",
+        444,
+        2,
+        4
+      ],
+      "baselineManagedNs": 1086844.435483871,
+      "currentManagedNs": 1085520.349206349,
+      "managedRatio": 0.9987817149959162,
+      "nativeRatio": 1.00467335502514,
+      "baselineAllocatedBytesPerEncode": 127729.51152073733,
+      "currentAllocatedBytesPerEncode": 103775.02040816327
+    },
+    {
+      "case": [
+        "low-noise",
+        420,
+        0,
+        1
+      ],
+      "baselineManagedNs": 571149.1910112359,
+      "currentManagedNs": 545530.595505618,
+      "managedRatio": 0.9551455278081381,
+      "nativeRatio": 0.9976800849400694,
+      "baselineAllocatedBytesPerEncode": 85180.96950240771,
+      "currentAllocatedBytesPerEncode": 53979.31300160514
+    },
+    {
+      "case": [
+        "low-noise",
+        420,
+        0,
+        4
+      ],
+      "baselineManagedNs": 441998.15,
+      "currentManagedNs": 434859.58,
+      "managedRatio": 0.9838493215412779,
+      "nativeRatio": 1.0027045334275781,
+      "baselineAllocatedBytesPerEncode": 74565.89714285715,
+      "currentAllocatedBytesPerEncode": 43362.94857142857
+    },
+    {
+      "case": [
+        "low-noise",
+        420,
+        2,
+        1
+      ],
+      "baselineManagedNs": 944270.8913043478,
+      "currentManagedNs": 938987.7446808511,
+      "managedRatio": 0.9944050519060278,
+      "nativeRatio": 1.0006307407645183,
+      "baselineAllocatedBytesPerEncode": 136569.6149068323,
+      "currentAllocatedBytesPerEncode": 101049.4103343465
+    },
+    {
+      "case": [
+        "low-noise",
+        420,
+        2,
+        4
+      ],
+      "baselineManagedNs": 627417.69,
+      "currentManagedNs": 625215.73,
+      "managedRatio": 0.9964904400448129,
+      "nativeRatio": 1.0010089849846366,
+      "baselineAllocatedBytesPerEncode": 114879.37142857144,
+      "currentAllocatedBytesPerEncode": 79356.42285714285
+    },
+    {
+      "case": [
+        "low-noise",
+        444,
+        0,
+        1
+      ],
+      "baselineManagedNs": 799636.5285714286,
+      "currentManagedNs": 780099.0714285715,
+      "managedRatio": 0.9755670777349787,
+      "nativeRatio": 0.995747330297098,
+      "baselineAllocatedBytesPerEncode": 86494.31836734695,
+      "currentAllocatedBytesPerEncode": 64458.10612244898
+    },
+    {
+      "case": [
+        "low-noise",
+        444,
+        0,
+        4
+      ],
+      "baselineManagedNs": 593394.9,
+      "currentManagedNs": 596817.57,
+      "managedRatio": 1.0057679464383666,
+      "nativeRatio": 1.0037380031622063,
+      "baselineAllocatedBytesPerEncode": 71844.42285714285,
+      "currentAllocatedBytesPerEncode": 49810.94857142857
+    },
+    {
+      "case": [
+        "low-noise",
+        444,
+        2,
+        1
+      ],
+      "baselineManagedNs": 1442348.8387096773,
+      "currentManagedNs": 1439143.7419354839,
+      "managedRatio": 0.9977778629634002,
+      "nativeRatio": 1.0000013231353695,
+      "baselineAllocatedBytesPerEncode": 134545.51152073732,
+      "currentAllocatedBytesPerEncode": 110584.0
+    },
+    {
+      "case": [
+        "low-noise",
+        444,
+        2,
+        4
+      ],
+      "baselineManagedNs": 964079.0144927537,
+      "currentManagedNs": 960016.8405797102,
+      "managedRatio": 0.9957864720090596,
+      "nativeRatio": 0.9964717287641437,
+      "baselineAllocatedBytesPerEncode": 102718.4099378882,
+      "currentAllocatedBytesPerEncode": 78762.13664596273
+    },
+    {
+      "case": [
+        "tiny-odd-edges",
+        420,
+        0,
+        1
+      ],
+      "baselineManagedNs": 36377.3,
+      "currentManagedNs": 36166.21,
+      "managedRatio": 0.9941972054000708,
+      "nativeRatio": 1.000843912592343,
+      "baselineAllocatedBytesPerEncode": 39906.94857142857,
+      "currentAllocatedBytesPerEncode": 36786.94857142857
+    },
+    {
+      "case": [
+        "tiny-odd-edges",
+        420,
+        0,
+        4
+      ],
+      "baselineManagedNs": 38297.91,
+      "currentManagedNs": 36218.54,
+      "managedRatio": 0.9457053922785864,
+      "nativeRatio": 1.0039783667070084,
+      "baselineAllocatedBytesPerEncode": 39730.94857142857,
+      "currentAllocatedBytesPerEncode": 36609.474285714285
+    },
+    {
+      "case": [
+        "tiny-odd-edges",
+        420,
+        2,
+        1
+      ],
+      "baselineManagedNs": 67913.37,
+      "currentManagedNs": 68235.59,
+      "managedRatio": 1.0047445738593153,
+      "nativeRatio": 1.001191005920292,
+      "baselineAllocatedBytesPerEncode": 68844.42285714285,
+      "currentAllocatedBytesPerEncode": 65004.422857142854
+    },
+    {
+      "case": [
+        "tiny-odd-edges",
+        420,
+        2,
+        4
+      ],
+      "baselineManagedNs": 64225.37,
+      "currentManagedNs": 64436.2,
+      "managedRatio": 1.0032826591734698,
+      "nativeRatio": 0.9947052944853438,
+      "baselineAllocatedBytesPerEncode": 68612.42285714285,
+      "currentAllocatedBytesPerEncode": 64772.422857142854
+    },
+    {
+      "case": [
+        "tiny-odd-edges",
+        444,
+        0,
+        1
+      ],
+      "baselineManagedNs": 38845.71,
+      "currentManagedNs": 38309.04,
+      "managedRatio": 0.9861845748217757,
+      "nativeRatio": 0.9995174273059889,
+      "baselineAllocatedBytesPerEncode": 39210.94857142857,
+      "currentAllocatedBytesPerEncode": 36978.94857142857
+    },
+    {
+      "case": [
+        "tiny-odd-edges",
+        444,
+        0,
+        4
+      ],
+      "baselineManagedNs": 38645.2,
+      "currentManagedNs": 38238.19,
+      "managedRatio": 0.9894680322523886,
+      "nativeRatio": 0.99508232790767,
+      "baselineAllocatedBytesPerEncode": 38913.474285714285,
+      "currentAllocatedBytesPerEncode": 36681.474285714285
+    },
+    {
+      "case": [
+        "tiny-odd-edges",
+        444,
+        2,
+        1
+      ],
+      "baselineManagedNs": 73702.58,
+      "currentManagedNs": 76383.5,
+      "managedRatio": 1.0363748460365974,
+      "nativeRatio": 0.9977480628887072,
+      "baselineAllocatedBytesPerEncode": 66692.42285714285,
+      "currentAllocatedBytesPerEncode": 63980.422857142854
+    },
+    {
+      "case": [
+        "tiny-odd-edges",
+        444,
+        2,
+        4
+      ],
+      "baselineManagedNs": 69490.57,
+      "currentManagedNs": 69639.9,
+      "managedRatio": 1.0021489246670445,
+      "nativeRatio": 0.9939906103626845,
+      "baselineAllocatedBytesPerEncode": 66364.42285714285,
+      "currentAllocatedBytesPerEncode": 63650.94857142857
+    }
+  ]
+}

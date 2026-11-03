@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "startedAtUtc": "2026-11-03T04:38:44.679833+00:00",
+  "expectedCases": 32,
+  "diagnostic": {
+    "images": [
+      "kodim01",
+      "low-noise",
+      "low-contrast",
+      "tiny-odd-edges"
+    ],
+    "distances": [
+      1,
+      4
+    ],
+    "samplings": [
+      444,
+      420
+    ],
+    "progressions": [
+      0,
+      2
+    ],
+    "policy": {
+      "warmups": 5,
+      "blocks": 7,
+      "minimumIterations": 3,
+      "maximumIterations": 100,
+      "targetBlockMilliseconds": 50,
+      "minimumBlockMilliseconds": 1,
+      "maximumRelativeMad": 0.1,
+      "maximumGroupGeometricMeanRatio": 1.05,
+      "maximumCaseRatio": 1.1,
+      "managedWorkers": 1
+    },
+    "expectedCases": 32
+  },
+  "upstreamPin": "031a0077f5799a6041004267fc12b956c1f52a20",
+  "testedRevision": "2ef3d5fcc12a804c7cd707446091eb74fa9c6476",
+  "githubRunId": "41579107572",
+  "nativeExecutableSha256": "875059ce1cee1a0a25d5b144c6684748d284823e962011ca4147372f025bc029",
+  "managedEncoderSha256": "dc19b0b4a73d3705c9eb617864220b7dd8874cc79ded1d9a42498fd807fc6241",
+  "managedRunnerSha256": "58dcf57b37b59139eb4259c222c5c719daff436147ea0716d7ec85b9d1c844a7",
+  "corpusManifestSha256": "6a529b1ae279c7f89998eb1f89f58237a5c1507ef53f502d71ea429d188dd8a5",
+  "policy": {
+    "warmups": 5,
+    "blocks": 7,
+    "minimumIterations": 3,
+    "maximumIterations": 100,
+    "targetBlockMilliseconds": 50,
+    "minimumBlockMilliseconds": 1,
+    "maximumRelativeMad": 0.1,
+    "maximumGroupGeometricMeanRatio": 1.05,
+    "maximumCaseRatio": 1.1,
+    "managedWorkers": 1
+  },
+  "environment": {
+    "cpu": "AMD EPYC 7763 64-Core Processor",
+    "affinity": "0",
+    "os": "Ubuntu 26.04.1 LTS",
+    "osArchitecture": 1,
+    "processArchitecture": 1,
+    "runtime": ".NET 11.0.0-rc.3.26522.148",
+    "runtimeVersion": "11.0.0",
+    "corelibInformationalVersion": "11.0.0-rc.3.26522.148\u002B5254d8bcf59917edc1e1abc33bdf2442b77b1c70",
+    "runtimeProductVersion": "11.0.0-rc.3.26522.148",
+    "encoderTargetFramework": ".NETCoreApp,Version=v11.0",
+    "explicitNet11Simd": true,
+    "logicalProcessors": 1,
+    "frequency": 1000000000,
+    "isHighResolution": true,
+    "isHardwareAccelerated": true,
+    "vectorFloatWidth": 8,
+    "vector128": true,
+    "vector256": true,
+    "vector512": false,
+    "serverGc": false,
+    "gcLatencyMode": "Interactive",
+    "dotnetTieredCompilation": "0",
+    "complusTieredCompilation": null,
+    "instrumentation": null,
+    "githubRunnerOs": "Linux",
+    "githubRunnerArchitecture": "X64"
+  }
+}

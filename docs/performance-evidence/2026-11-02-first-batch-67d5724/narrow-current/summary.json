@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "mode": "diagnostic",
+  "status": "selected-case-bound-exceeded",
+  "valid": true,
+  "passed": null,
+  "parityVerdict": "not-evaluated",
+  "selectedCoverageComplete": true,
+  "fullCoverageComplete": false,
+  "scope": "Selected cases only; no full parity verdict or aggregate acceptance claim",
+  "instrumentation": null,
+  "expectedCases": 32,
+  "cases": 32,
+  "testedRevision": "67d5724b11de0c249577f5d7c11ed861a37eee38",
+  "policy": {
+    "warmups": 5,
+    "blocks": 7,
+    "minimumIterations": 3,
+    "maximumIterations": 100,
+    "targetBlockMilliseconds": 50,
+    "minimumBlockMilliseconds": 1,
+    "maximumRelativeMad": 0.1,
+    "maximumGroupGeometricMeanRatio": 1.05,
+    "maximumCaseRatio": 1.1,
+    "managedWorkers": 1
+  },
+  "selection": {
+    "images": [
+      "kodim01",
+      "low-noise",
+      "low-contrast",
+      "tiny-odd-edges"
+    ],
+    "distances": [
+      1,
+      4
+    ],
+    "samplings": [
+      444,
+      420
+    ],
+    "progressions": [
+      0,
+      2
+    ],
+    "policy": {
+      "warmups": 5,
+      "blocks": 7,
+      "minimumIterations": 3,
+      "maximumIterations": 100,
+      "targetBlockMilliseconds": 50,
+      "minimumBlockMilliseconds": 1,
+      "maximumRelativeMad": 0.1,
+      "maximumGroupGeometricMeanRatio": 1.05,
+      "maximumCaseRatio": 1.1,
+      "managedWorkers": 1
+    },
+    "expectedCases": 32
+  },
+  "invalidReasons": [],
+  "failures": [
+    "kodim01/444/p0/d4: selected-case median latency ratio 1.297312 exceeds 1.10.",
+    "kodim01/420/p0/d4: selected-case median latency ratio 1.282944 exceeds 1.10.",
+    "low-contrast/444/p0/d1: selected-case median latency ratio 1.513456 exceeds 1.10.",
+    "low-contrast/444/p0/d4: selected-case median latency ratio 1.666671 exceeds 1.10.",
+    "low-contrast/444/p2/d1: selected-case median latency ratio 1.193234 exceeds 1.10.",
+    "low-contrast/444/p2/d4: selected-case median latency ratio 1.353730 exceeds 1.10.",
+    "low-contrast/420/p0/d1: selected-case median latency ratio 1.234760 exceeds 1.10.",
+    "low-contrast/420/p0/d4: selected-case median latency ratio 1.459229 exceeds 1.10.",
+    "low-contrast/420/p2/d1: selected-case median latency ratio 1.131068 exceeds 1.10.",
+    "low-contrast/420/p2/d4: selected-case median latency ratio 1.332876 exceeds 1.10.",
+    "low-noise/444/p0/d4: selected-case median latency ratio 1.589000 exceeds 1.10.",
+    "low-noise/444/p2/d4: selected-case median latency ratio 1.320023 exceeds 1.10.",
+    "low-noise/420/p0/d4: selected-case median latency ratio 1.457243 exceeds 1.10.",
+    "low-noise/420/p2/d4: selected-case median latency ratio 1.353342 exceeds 1.10.",
+    "tiny-odd-edges/444/p0/d1: selected-case median latency ratio 1.476123 exceeds 1.10.",
+    "tiny-odd-edges/444/p0/d4: selected-case median latency ratio 1.220041 exceeds 1.10.",
+    "tiny-odd-edges/444/p2/d1: selected-case median latency ratio 1.420676 exceeds 1.10.",
+    "tiny-odd-edges/444/p2/d4: selected-case median latency ratio 1.270170 exceeds 1.10.",
+    "tiny-odd-edges/420/p0/d1: selected-case median latency ratio 1.495605 exceeds 1.10.",
+    "tiny-odd-edges/420/p0/d4: selected-case median latency ratio 1.240339 exceeds 1.10.",
+    "tiny-odd-edges/420/p2/d1: selected-case median latency ratio 1.409242 exceeds 1.10.",
+    "tiny-odd-edges/420/p2/d4: selected-case median latency ratio 1.296589 exceeds 1.10."
+  ],
+  "runMetadata": "run.json",
+  "rawMeasurements": "cases.json"
+}

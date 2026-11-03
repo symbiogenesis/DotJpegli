@@ -20,9 +20,10 @@ dependency-free runtime contract. It covers three bounded changes:
 3. Reuse bounded adaptive-quantization workspace and row strengths, with clear
    ownership and cleanup on success, cancellation and exceptions.
 
-These three implementation tasks are complete. Focused local checks and the
-first automatic run's full tests pass. Normal-dispatch measurements are recorded
-below; corrected narrow-SIMD validation is pending its automatic push run.
+These three implementation tasks and their validation are complete. Focused local
+checks and both automatic runs' full tests pass. Selected-case measurements show
+lower allocations and a modest overall latency improvement, with individual
+regressions and timing limitations recorded below. Further research stays pending.
 Larger architectural changes and quality-changing experiments remain pending.
 
 ## Evidence and constraints
@@ -268,6 +269,10 @@ replacements require format/decoder changes and are outside this JPEG scope.
   native acceptance bounds; distinguish baseline improvement from native parity.
 - Report regressions and invalid/noisy measurements explicitly. No universal
   speed or quality claim follows from selected-case success.
+- Future measurement work: compare revisions in interleaved blocks and detect
+  timing-state transitions. A tight majority cluster can pass the MAD check
+  despite slow/fast regimes in the remaining blocks; native drift alone cannot
+  reliably correct such data.
 
 ## First-batch results
 
@@ -327,9 +332,38 @@ The run's intended narrow-SIMD pair actually retained AVX-512. The guard rejecte
 that report correctly: `DOTNET_EnableAVX512F` is an obsolete switch name for
 this runtime. The correction uses .NET 11's documented `DOTNET_EnableAVX512=0`
 and still requires actual accelerated 256-bit SIMD, disabled 512-bit SIMD, and
-eight float lanes in both evidence sets. Its next automatic `[compare-baseline]`
-push run is required before claiming measured narrow-ordering improvement; no
-manual duplicate workflow is dispatched.
+eight float lanes in both evidence sets before a narrow-path claim. The corrected
+automatic `[compare-baseline]` push run supplies that validation; no manual
+duplicate workflow is dispatched.
+
+That correction is validated in
+[automatic run 41579107572](https://github.com/symbiogenesis/DotJpegli/actions/runs/41579107572)
+at `67d5724`. Actual vector capabilities confirm accelerated 256-bit SIMD,
+disabled 512-bit SIMD and eight float lanes for both compared revisions.
+All 32 narrow-path cases have valid measurements and identical JPEG hashes.
+On AMD EPYC 7763 / .NET 11 RC3, one worker, affinity 0 and tiered compilation
+disabled, the managed latency geometric-mean ratio is **0.99003** (about 1% less
+time), and native drift is **0.99977**. Twenty-four cases are faster; eight are
+slower, with the largest slowdown about 3.64%. Allocated bytes fall by
+**4.07-47.71%**. This measures the combined batch, not isolated kernel gains.
+
+The first run's second pair, which also had AVX-512 enabled, is useful repeat
+evidence for normal dispatch. Its two Kodak01 anomalies do not recur: managed
+ratios are 0.99594 and 0.99922. Across its 32 cases the geometric-mean managed
+ratio is 0.98664, with native drift 1.00030. Raw blocks in the original pair
+show mixed slow/fast timing states without corresponding managed GC, so the
+initial large slowdowns do not establish a reproducible code regression.
+
+The corrected run's normal-dispatch report is deliberately rejected because
+Kodak01/444/p0/d1 exceeds the fixed 10% managed relative-MAD limit. All full test,
+fallback, deployment, reproducibility and package checks pass; the overall run
+still fails because of that noisy normal measurement and the existing native
+latency bounds. No thresholds were relaxed and no additional retry was launched.
+
+[Retained first-batch evidence](docs/performance-evidence/2026-11-02-first-batch-67d5724/README.md)
+includes the verified narrow raw samples and the earlier normal/repeat comparison
+reports. All remaining candidates above stay pending. The first batch makes no
+compression-size change: its compared JPEG outputs are byte-identical.
 
 The `performance-baseline-2fa9afe53325be785bd638c7c4448598d308cb9f` artifact
 retains raw baseline evidence, both attempted narrow evidence sets and the normal
