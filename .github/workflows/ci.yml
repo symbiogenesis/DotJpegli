@@ -89,6 +89,7 @@ jobs:
           ./tools/parity/prepare-corpus.ps1 -SelfTest
           ./tools/compare-performance-revisions.ps1 -SelfTest
           ./tools/ci/performance-evidence.ps1 -SelfTest
+          ./tools/update-performance-charts.ps1 -SelfTest
           ./tools/assert-infersharp.ps1 -SelfTest
           ./tools/verify-release.ps1 -SelfTest
           ./tools/Invoke-Automation.ps1 -CommandArguments @('native-reference', '--self-test')
@@ -635,6 +636,18 @@ jobs:
         run: |
           cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
           taskset -c "$cpu" dotnet run --project tools/DotJpegli.Performance -c Release -f net11.0 --no-build -- --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/performance-evidence"
+      - name: Generate README charts from complete measurements
+        if: ${{ !cancelled() && steps.performance.outcome != 'skipped' }}
+        shell: pwsh
+        run: ./tools/update-performance-charts.ps1 -Performance "${{ runner.temp }}/performance-evidence" -Quality "${{ runner.temp }}/parity-evidence" -Output "${{ runner.temp }}/performance-charts"
+      - name: Retain generated performance charts
+        if: ${{ !cancelled() && steps.performance.outcome != 'skipped' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: performance-charts-${{ github.sha }}
+          path: ${{ runner.temp }}/performance-charts/
+          retention-days: 30
+          if-no-files-found: warn
       - name: Retain performance evidence and native build provenance
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

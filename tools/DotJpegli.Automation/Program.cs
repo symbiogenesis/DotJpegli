@@ -40,6 +40,10 @@ internal static class Program
                         ["self-test", "assert-simd", "select-profiles", "compare-runtimes", "narrow", "full"], "evidence");
                     PerformanceEvidenceCommand.Run(options);
                     break;
+                case "performance-charts":
+                    options.Validate(["performance", "quality", "output"], ["self-test"]);
+                    PerformanceChartsCommand.Run(options);
+                    break;
                 default:
                     throw new ArgumentException($"Unknown command: {args[0]}");
             }
