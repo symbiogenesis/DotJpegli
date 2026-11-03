@@ -47,17 +47,7 @@ internal static class RateDistortion
 
     public static double[] Targets(params IReadOnlyList<CurvePoint>[] curves)
     {
-        if (curves.Length == 0 || curves.Any(curve => curve.Count < 2))
-        {
-            throw new InvalidDataException("At least two nondominated points are required in every metric curve.");
-        }
-
-        double minimum = curves.Max(curve => (double)curve[0].Bytes), maximum = curves.Min(curve => (double)curve[^1].Bytes);
-        if (minimum >= maximum)
-        {
-            throw new InvalidDataException("No common rate-distortion range.");
-        }
-
+        (double minimum, double maximum) = RateRange(curves);
         double logMinimum = Math.Log(minimum), logRange = Math.Log(maximum) - logMinimum;
         return TargetFractions.Select(fraction => Math.Exp(logMinimum + (fraction * logRange))).ToArray();
     }
@@ -84,6 +74,42 @@ internal static class RateDistortion
 
     public static double[] QualityTargets(IReadOnlyList<CurvePoint> managed, IReadOnlyList<CurvePoint> native)
     {
+        (double minimum, double maximum) = QualityRange(managed, native);
+        return TargetFractions.Select(fraction => minimum + (fraction * (maximum - minimum))).ToArray();
+    }
+
+    public static double[] WorstRateTargets(params IReadOnlyList<CurvePoint>[] curves)
+    {
+        (double minimum, double maximum) = RateRange(curves);
+        return curves.SelectMany(curve => curve.Select(point => (double)point.Bytes)).Where(bytes => bytes >= minimum && bytes <= maximum)
+            .Append(minimum).Append(maximum).Distinct().Order().ToArray();
+    }
+
+    public static double[] WorstQualityTargets(IReadOnlyList<CurvePoint> managed, IReadOnlyList<CurvePoint> native)
+    {
+        (double minimum, double maximum) = QualityRange(managed, native);
+        return managed.Concat(native).Select(point => point.Quality).Where(quality => quality >= minimum && quality <= maximum)
+            .Append(minimum).Append(maximum).Distinct().Order().ToArray();
+    }
+
+    private static (double Minimum, double Maximum) RateRange(IReadOnlyList<CurvePoint>[] curves)
+    {
+        if (curves.Length == 0 || curves.Any(curve => curve.Count < 2))
+        {
+            throw new InvalidDataException("At least two nondominated points are required in every metric curve.");
+        }
+
+        double minimum = curves.Max(curve => (double)curve[0].Bytes), maximum = curves.Min(curve => (double)curve[^1].Bytes);
+        if (minimum >= maximum)
+        {
+            throw new InvalidDataException("No common rate-distortion range.");
+        }
+
+        return (minimum, maximum);
+    }
+
+    private static (double Minimum, double Maximum) QualityRange(IReadOnlyList<CurvePoint> managed, IReadOnlyList<CurvePoint> native)
+    {
         if (managed.Count < 2 || native.Count < 2)
         {
             throw new InvalidDataException("Constant or insufficient quality curve.");
@@ -95,22 +121,6 @@ internal static class RateDistortion
             throw new InvalidDataException("No common quality range.");
         }
 
-        return TargetFractions.Select(fraction => minimum + (fraction * (maximum - minimum))).ToArray();
-    }
-
-    public static double[] WorstRateTargets(params IReadOnlyList<CurvePoint>[] curves)
-    {
-        _ = Targets(curves);
-        double minimum = curves.Max(curve => (double)curve[0].Bytes), maximum = curves.Min(curve => (double)curve[^1].Bytes);
-        return curves.SelectMany(curve => curve.Select(point => (double)point.Bytes)).Where(bytes => bytes >= minimum && bytes <= maximum)
-            .Append(minimum).Append(maximum).Distinct().Order().ToArray();
-    }
-
-    public static double[] WorstQualityTargets(IReadOnlyList<CurvePoint> managed, IReadOnlyList<CurvePoint> native)
-    {
-        _ = QualityTargets(managed, native);
-        double minimum = Math.Max(managed[0].Quality, native[0].Quality), maximum = Math.Min(managed[^1].Quality, native[^1].Quality);
-        return managed.Concat(native).Select(point => point.Quality).Where(quality => quality >= minimum && quality <= maximum)
-            .Append(minimum).Append(maximum).Distinct().Order().ToArray();
+        return (minimum, maximum);
     }
 }
