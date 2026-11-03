@@ -314,19 +314,9 @@ internal sealed class AdaptiveQuantization
                 Vector<float> min1 = new(preErosion, upper);
                 Vector<float> min2 = new(preErosion, upper + 1);
                 Vector<float> min3 = new(preErosion, middle - 1);
-                // Initialize with the sorted first four cells instead of
-                // inserting them into four infinite slots. The remaining
-                // five cells use the original four-minimum insertion order.
-                SortPair(ref min0, ref min1);
-                SortPair(ref min2, ref min3);
-                SortPair(ref min0, ref min2);
-                SortPair(ref min1, ref min3);
-                SortPair(ref min1, ref min2);
-                InsertMinimum(new(preErosion, middle), ref min0, ref min1, ref min2, ref min3);
-                InsertMinimum(new(preErosion, middle + 1), ref min0, ref min1, ref min2, ref min3);
-                InsertMinimum(new(preErosion, lower - 1), ref min0, ref min1, ref min2, ref min3);
-                InsertMinimum(new(preErosion, lower), ref min0, ref min1, ref min2, ref min3);
-                InsertMinimum(new(preErosion, lower + 1), ref min0, ref min1, ref min2, ref min3);
+                SelectFourMinima(ref min0, ref min1, ref min2, ref min3,
+                    new(preErosion, middle), new(preErosion, middle + 1),
+                    new(preErosion, lower - 1), new(preErosion, lower), new(preErosion, lower + 1));
                 Vector<float> valueSum = (new Vector<float>(0.125f) * min0 + new Vector<float>(0.075f) * min1)
                     + (new Vector<float>(0.06f) * min2 + new Vector<float>(0.05f) * min3);
                 valueSum.CopyTo(fuzzy, output + x);
@@ -343,17 +333,66 @@ internal sealed class AdaptiveQuantization
         int upper = (row - 1) * preStride, middle = row * preStride, lower = (row + 1) * preStride;
         float min0 = preErosion[upper + left], min1 = preErosion[upper + x];
         float min2 = preErosion[upper + right], min3 = preErosion[middle + left];
-        SortPair(ref min0, ref min1);
-        SortPair(ref min2, ref min3);
-        SortPair(ref min0, ref min2);
-        SortPair(ref min1, ref min3);
-        SortPair(ref min1, ref min2);
-        InsertMinimum(preErosion[middle + x], ref min0, ref min1, ref min2, ref min3);
-        InsertMinimum(preErosion[middle + right], ref min0, ref min1, ref min2, ref min3);
-        InsertMinimum(preErosion[lower + left], ref min0, ref min1, ref min2, ref min3);
-        InsertMinimum(preErosion[lower + x], ref min0, ref min1, ref min2, ref min3);
-        InsertMinimum(preErosion[lower + right], ref min0, ref min1, ref min2, ref min3);
+        SelectFourMinima(ref min0, ref min1, ref min2, ref min3,
+            preErosion[middle + x], preErosion[middle + right],
+            preErosion[lower + left], preErosion[lower + x], preErosion[lower + right]);
         fuzzy[output + x] = (0.125f * min0 + 0.075f * min1) + (0.06f * min2 + 0.05f * min3);
+    }
+
+    // Seven-layer nine-input network, pruned backwards from its first four
+    // sorted outputs: 17 compare/exchanges and five minimum-only operations.
+    // This uses 39 min/max operations instead of 45 for four-value insertion.
+    // Topology from Bert Dobbelaere's SorterHunter network catalog:
+    // https://bertdobbelaere.github.io/sorting_networks.html#N9L25D7
+    // Pre-erosion values are finite and positive, so equal inputs have identical
+    // bits and reordering comparisons preserves the weighted erosion exactly.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void SelectFourMinima(ref float v0, ref float v1, ref float v2, ref float v3,
+        float v4, float v5, float v6, float v7, float v8)
+    {
+        SortPair(ref v0, ref v3); SortPair(ref v1, ref v7);
+        SortPair(ref v2, ref v5); SortPair(ref v4, ref v8);
+
+        SortPair(ref v0, ref v7); SortPair(ref v2, ref v4);
+        SortPair(ref v3, ref v8); SortPair(ref v5, ref v6);
+
+        SortPair(ref v0, ref v2); SortPair(ref v1, ref v3);
+        SortPair(ref v4, ref v5); v7 = MathF.Min(v7, v8);
+
+        SortPair(ref v1, ref v4); v3 = MathF.Min(v3, v6);
+        v5 = MathF.Min(v5, v7);
+
+        SortPair(ref v0, ref v1); SortPair(ref v2, ref v4);
+        SortPair(ref v3, ref v5);
+
+        SortPair(ref v2, ref v3); v4 = MathF.Min(v4, v5);
+
+        SortPair(ref v1, ref v2); v3 = MathF.Min(v3, v4);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void SelectFourMinima(ref Vector<float> v0, ref Vector<float> v1,
+        ref Vector<float> v2, ref Vector<float> v3, Vector<float> v4, Vector<float> v5,
+        Vector<float> v6, Vector<float> v7, Vector<float> v8)
+    {
+        SortPair(ref v0, ref v3); SortPair(ref v1, ref v7);
+        SortPair(ref v2, ref v5); SortPair(ref v4, ref v8);
+
+        SortPair(ref v0, ref v7); SortPair(ref v2, ref v4);
+        SortPair(ref v3, ref v8); SortPair(ref v5, ref v6);
+
+        SortPair(ref v0, ref v2); SortPair(ref v1, ref v3);
+        SortPair(ref v4, ref v5); v7 = Vector.Min(v7, v8);
+
+        SortPair(ref v1, ref v4); v3 = Vector.Min(v3, v6);
+        v5 = Vector.Min(v5, v7);
+
+        SortPair(ref v0, ref v1); SortPair(ref v2, ref v4);
+        SortPair(ref v3, ref v5);
+
+        SortPair(ref v2, ref v3); v4 = Vector.Min(v4, v5);
+
+        SortPair(ref v1, ref v2); v3 = Vector.Min(v3, v4);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -370,31 +409,6 @@ internal sealed class AdaptiveQuantization
         Vector<float> maximum = Vector.Max(first, second);
         first = Vector.Min(first, second);
         second = maximum;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void InsertMinimum(float value, ref float min0, ref float min1, ref float min2, ref float min3)
-    {
-        float next0 = MathF.Max(min0, value);
-        float next1 = MathF.Max(min1, next0);
-        float next2 = MathF.Max(min2, next1);
-        min0 = MathF.Min(min0, value);
-        min1 = MathF.Min(min1, next0);
-        min2 = MathF.Min(min2, next1);
-        min3 = MathF.Min(min3, next2);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void InsertMinimum(Vector<float> value, ref Vector<float> min0, ref Vector<float> min1,
-        ref Vector<float> min2, ref Vector<float> min3)
-    {
-        Vector<float> next0 = Vector.Max(min0, value);
-        Vector<float> next1 = Vector.Max(min1, next0);
-        Vector<float> next2 = Vector.Max(min2, next1);
-        min0 = Vector.Min(min0, value);
-        min1 = Vector.Min(min1, next0);
-        min2 = Vector.Min(min2, next1);
-        min3 = Vector.Min(min3, next2);
     }
 
     private static float ComputeMask(float value)

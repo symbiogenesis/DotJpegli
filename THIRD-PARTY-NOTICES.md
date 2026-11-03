@@ -58,6 +58,40 @@ revision retains "the JPEG XL Project Authors"; we preserve that supplied notice
 The public managed API, image traversal and marker writer
 are implemented for this port. No upstream C++ binary is linked.
 
+## SorterHunter selection-network topology
+
+The nine-input selection network in `AdaptiveQuantization.SelectFourMinima`
+prunes Bert Dobbelaere's seven-layer sorting-network topology to its first four
+outputs. The C# implementation and pruning are maintained in this repository.
+
+- Topology: https://bertdobbelaere.github.io/sorting_networks.html#N9L25D7
+- Repository: https://github.com/bertdobbelaere/SorterHunter
+- License: https://github.com/bertdobbelaere/SorterHunter/blob/master/LICENSE
+
+> MIT License
+>
+> Copyright (c) 2017 bertdobbelaere
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files (the "Software"), to deal
+> in the Software without restriction, including without limitation the rights
+> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+> copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all
+> copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+> SOFTWARE.
+
+## Test-only dependencies
+
 Test-only dependencies have their own licenses: xUnit (Apache-2.0) and
 StbImageSharp (MIT or Unlicense). They are not dependencies of the DotJpegli
 library or NuGet package.
