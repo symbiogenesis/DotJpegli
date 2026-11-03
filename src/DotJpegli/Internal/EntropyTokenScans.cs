@@ -10,10 +10,11 @@ internal sealed class EntropyTokenScans : IDisposable
     // later scans. The budget has one encode owner and needs no synchronization.
     private readonly EntropyTokens[] scans;
 
-    internal EntropyTokenScans(int count, long maximumBytes = EntropyTokenBudget.DefaultMaximumBytes, ArrayPool<uint>? pool = null)
+    internal EntropyTokenScans(int count, long maximumBytes = EntropyTokenBudget.DefaultMaximumBytes, ArrayPool<uint>? pool = null,
+        EncoderCacheBudget? cacheBudget = null)
     {
         Guard.ThrowIfNegativeOrZero(count);
-        var budget = new EntropyTokenBudget(maximumBytes);
+        var budget = new EntropyTokenBudget(maximumBytes, cacheBudget);
         this.scans = new EntropyTokens[count];
         for (int index = 0; index < count; index++)
         {
@@ -22,11 +23,12 @@ internal sealed class EntropyTokenScans : IDisposable
     }
 
     internal EntropyTokenScans(IReadOnlyList<JpegScan> script, bool progressive,
-        long maximumBytes = EntropyTokenBudget.DefaultMaximumBytes, ArrayPool<uint>? pool = null)
+        long maximumBytes = EntropyTokenBudget.DefaultMaximumBytes, ArrayPool<uint>? pool = null,
+        EncoderCacheBudget? cacheBudget = null)
     {
         Guard.ThrowIfNull(script);
         Guard.ThrowIfNegativeOrZero(script.Count);
-        var budget = new EntropyTokenBudget(maximumBytes);
+        var budget = new EntropyTokenBudget(maximumBytes, cacheBudget);
         this.scans = new EntropyTokens[script.Count];
         for (int index = 0; index < this.scans.Length; index++)
         {

@@ -150,6 +150,7 @@ public static class JpegliEncoder
 
         options ??= new JpegliEncoderOptions();
         options.Validate();
+        var cacheBudget = new EncoderCacheBudget(options.MaxCacheBytes, options.CacheDiagnostics);
         pixels = pixels.WithColorSpace(options.ColorSpace);
         if (pixels.IsXyb && options.IccProfile.IsEmpty && options.SourceIccProfile.IsEmpty)
         {
@@ -357,8 +358,8 @@ public static class JpegliEncoder
         int workerLimit = options.MaxDegreeOfParallelism == -1
             ? Environment.ProcessorCount : options.MaxDegreeOfParallelism;
         pixels = workerLimit == 1 && sampling.Is420 && options.SmoothingFactor == 0 && options.OptimizeHuffmanTables
-            ? pixels.WithConverted420Planes(width, height, stride, cancellationToken)
-            : pixels.WithConvertedPlanes(width, height, stride, cancellationToken);
+            ? pixels.WithConverted420Planes(width, height, stride, cancellationToken, cacheBudget)
+            : pixels.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget);
         using IDisposable? convertedStorage = pixels.ConvertedStorage;
         if (workerLimit > 1)
         {
@@ -371,7 +372,7 @@ public static class JpegliEncoder
             JpegScan[] scans = scanScript ?? scanSettings.CreateDefaultScript(componentCount);
             EncodeOptimizedScans(pixels, width, height, stride, sampling, tables, quantizationSelectors,
                 distance, options, extendedXmp, adaptive, adaptiveMultipliers, scans,
-                interleavedRestartInterval, componentRestartIntervals, output, cancellationToken);
+                interleavedRestartInterval, componentRestartIntervals, output, cacheBudget, cancellationToken);
             return;
         }
         if (options.OptimizeHuffmanTables)
@@ -616,7 +617,7 @@ public static class JpegliEncoder
         JpegliEncoderOptions options, ExtendedXmpMetadata? extendedXmp,
         AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, JpegScan[] scans,
         int interleavedRestartInterval, int[] componentRestartIntervals, Stream output,
-        CancellationToken cancellationToken)
+        EncoderCacheBudget cacheBudget, CancellationToken cancellationToken)
     {
         int componentCount = tables.Length;
         // A single sequential scan can retain entropy decisions without storing
@@ -633,15 +634,15 @@ public static class JpegliEncoder
         using QuantizedImage? quantizedImage = streamSequential && !cacheSequential && options.RateDistortionLambda == 0 ? null : QuantizedImage.Create(pixels, width, height, stride,
             sampling, tables, distance, options.SmoothingFactor, adaptive, adaptiveMultipliers, cancellationToken,
             zigZagOrdered: true, narrowZigZagKernel: options.NarrowZigZagKernel,
-            rateDistortionLambda: options.RateDistortionLambda, rateDistortionDiagnostics: options.RateDistortionDiagnostics);
+            rateDistortionLambda: options.RateDistortionLambda, rateDistortionDiagnostics: options.RateDistortionDiagnostics,
+            allowPartial: options.RateDistortionLambda == 0, cacheBudget: cacheBudget);
         if (options.RateDistortionLambda > 0 && quantizedImage is null)
         {
             throw new ArgumentException("The offline rate-distortion experiment requires a coefficient cache within its unchanged 64 MiB limit.",
                 nameof(options));
         }
         streamSequential &= quantizedImage is null;
-        using EntropyTokenScans? tokenScans = streamSequential || quantizedImage is not null
-            ? new(scans, options.Progressive, options.EntropyTokenBudgetBytes) : null;
+        using EntropyTokenScans tokenScans = new(scans, options.Progressive, options.EntropyTokenBudgetBytes, cacheBudget: cacheBudget);
         long[][] dcFrequencies = new long[componentCount][];
         for (int component = 0; component < componentCount; component++)
         {
@@ -672,7 +673,7 @@ public static class JpegliEncoder
 
             EntropyTokens? scanTokens = tokenScans?[scanIndex];
             // DC refinement has no histogram, but its raw bits can be replayed.
-            if (scan.SpectralEnd == 0 && scan.SuccessiveHigh != 0 && scanTokens is not { IsComplete: true })
+            if (scan.SpectralEnd == 0 && scan.SuccessiveHigh != 0 && scanTokens?.TryBeginRecording() != true)
             {
                 continue;
             }
@@ -984,16 +985,31 @@ public static class JpegliEncoder
         int mcuHeight = vertical * 8;
         int mcusRemaining = restartInterval;
         int restartIndex = 0;
-        Span<float> strengths = adaptive is null || quantizedImage is not null
+        bool cacheComplete = quantizedImage?.IsComplete == true;
+        Quantization.PreparedTable[]? quantizers = null;
+        if (!cacheComplete)
+        {
+            quantizers = new Quantization.PreparedTable[tables.Length];
+            for (int component = 0; component < tables.Length; component++)
+            {
+                quantizers[component] = Quantization.PreparedTable.Create(tables[component], component, distance,
+                    grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
+                    adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
+                    rgb: pixels.IsRgb);
+            }
+        }
+        Span<short> ordered = quantizedImage?.IsZigZagOrdered == true && !cacheComplete ? stackalloc short[64] : default;
+        Span<float> strengths = adaptive is null || cacheComplete
             ? default : adaptive.Strengths;
         for (int top = 0; top < height; top += mcuHeight)
         {
-            if (quantizedImage is null)
+            bool cachedRow = cacheComplete || quantizedImage?.ContainsMcuRow(top) == true;
+            if (!cachedRow)
             {
                 pixels.ParallelRows?.PrepareRow(top, cancellationToken);
             }
 
-            if (adaptive is not null && quantizedImage is null)
+            if (adaptive is not null && !cachedRow)
             {
                 adaptive.ComputeRow(pixels, stride, top, tables[pixels.AnalysisComponent][1], strengths!, cancellationToken);
             }
@@ -1041,9 +1057,9 @@ public static class JpegliEncoder
                                 quantized[0] = checked((short)previousDc[component]);
                                 encoded = quantized;
                             }
-                            else if (quantizedImage is not null)
+                            else if (cacheComplete || quantizedImage?.ContainsRow(component, componentY) == true)
                             {
-                                encoded = quantizedImage.GetBlock(component, componentX, componentY);
+                                encoded = quantizedImage!.GetBlock(component, componentX, componentY);
                             }
                             else
                             {
@@ -1062,13 +1078,22 @@ public static class JpegliEncoder
                                 // component-local block row and full-resolution column.
                                 float strength = adaptive is null ? 0f : strengths![
                                     (blockY * adaptive.BlocksWide) + (componentX * horizontal / blocksWide)];
-                                Quantization.Quantize(coefficients, tables[component], quantized, component, distance,
-                                    grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
-                                    adaptiveStrength: strength,
-                                    adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                                    previousDc: previousDc[component], requireEightBitCoefficients: requireEightBitCoefficients,
-                                    rgb: pixels.IsRgb);
-                                encoded = quantized;
+                                Quantization.QuantizePrepared(coefficients, quantizers![component], quantized,
+                                    adaptiveStrength: strength, previousDc: previousDc[component],
+                                    requireEightBitCoefficients: requireEightBitCoefficients);
+                                if (quantizedImage is not null)
+                                {
+                                    EntropyEncoder.ValidateAc(quantized);
+                                }
+                                if (!ordered.IsEmpty)
+                                {
+                                    ZigZagOrdering.Reorder(quantized, ordered);
+                                    encoded = ordered;
+                                }
+                                else
+                                {
+                                    encoded = quantized;
+                                }
                             }
                             int tableIndex = contextByComponent ? component : pixels.IsRgb || component == 0 ? 0 : 1;
                             if (dcOnly)
@@ -1146,7 +1171,14 @@ public static class JpegliEncoder
         int blocksWide = ((width * factor.Horizontal) + (8 * horizontal) - 1) / (8 * horizontal);
         int blocksHigh = ((height * factor.Vertical) + (8 * vertical) - 1) / (8 * vertical);
         int tableIndex = contextByComponent ? component : pixels.IsRgb || component == 0 ? 0 : 1;
-        Span<float> strengths = adaptive is null || quantizedImage is not null
+        bool cacheComplete = quantizedImage?.IsComplete == true;
+        Quantization.PreparedTable? quantizer = cacheComplete ? null
+            : Quantization.PreparedTable.Create(tables[component], component, distance,
+                grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
+                adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
+                rgb: pixels.IsRgb);
+        Span<short> ordered = quantizedImage?.IsZigZagOrdered == true && !cacheComplete ? stackalloc short[64] : default;
+        Span<float> strengths = adaptive is null || cacheComplete
             ? default : adaptive.Strengths;
         int lastAnalysisTop = -1;
         int mcusRemaining = restartInterval;
@@ -1188,12 +1220,13 @@ public static class JpegliEncoder
         for (int blockY = 0; blockY < blocksHigh; blockY++)
         {
             int analysisTop = blockY / factor.Vertical * 8 * vertical;
-            if (quantizedImage is null)
+            bool cachedRow = cacheComplete || quantizedImage?.ContainsRow(component, blockY) == true;
+            if (!cachedRow)
             {
                 pixels.ParallelRows?.PrepareRow(analysisTop, cancellationToken, component);
             }
 
-            if (adaptive is not null && quantizedImage is null && analysisTop != lastAnalysisTop)
+            if (adaptive is not null && !cachedRow && analysisTop != lastAnalysisTop)
             {
                 adaptive.ComputeRow(pixels, stride, analysisTop,
                     tables[pixels.AnalysisComponent][1], strengths!, cancellationToken);
@@ -1218,9 +1251,9 @@ public static class JpegliEncoder
                     mcusRemaining = restartInterval;
                 }
                 scoped ReadOnlySpan<short> encoded;
-                if (quantizedImage is not null)
+                if (cachedRow)
                 {
-                    encoded = quantizedImage.GetBlock(component, blockX, blockY);
+                    encoded = quantizedImage!.GetBlock(component, blockX, blockY);
                 }
                 else
                 {
@@ -1242,12 +1275,20 @@ public static class JpegliEncoder
                         + (blockX * horizontal / factor.Horizontal)];
                     // AC thresholds and the zero DC threshold are independent of
                     // scan ordering. Each scan uses the same full coefficients.
-                    Quantization.Quantize(coefficients, tables[component], quantized, component, distance,
-                        grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
-                        adaptiveStrength: strength,
-                        adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                        rgb: pixels.IsRgb);
-                    encoded = quantized;
+                    Quantization.QuantizePrepared(coefficients, quantizer!, quantized, adaptiveStrength: strength);
+                    if (quantizedImage is not null)
+                    {
+                        EntropyEncoder.ValidateAc(quantized);
+                    }
+                    if (!ordered.IsEmpty)
+                    {
+                        ZigZagOrdering.Reorder(quantized, ordered);
+                        encoded = ordered;
+                    }
+                    else
+                    {
+                        encoded = quantized;
+                    }
                 }
                 if (sequential)
                 {

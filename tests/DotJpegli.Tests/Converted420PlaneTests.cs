@@ -191,13 +191,98 @@ public sealed class Converted420PlaneTests
         PixelSource empty = new([], PixelLayout.Rgb24);
         PixelSource oversized = empty.WithConverted420Planes(65535, 65535, 65535 * 3, TestContext.Current.CancellationToken);
         Assert.Null(oversized.ConvertedStorage);
-        // The compact plane alone would occupy the full 64 MiB bucket;
-        // including its transient row scratch must reject that allocation.
-        PixelSource scratchExceedsBudget = empty.WithConverted420Planes(4096, 2048, 4096 * 3, TestContext.Current.CancellationToken);
+        // Even separate component buckets cannot retain these samples within
+        // the unchanged per-cache limit.
+        PixelSource scratchExceedsBudget = empty.WithConverted420Planes(4096, 3072, 4096 * 3, TestContext.Current.CancellationToken);
         Assert.Null(scratchExceedsBudget.ConvertedStorage);
         var cancellation = new CancellationToken(true);
         OperationCanceledException error = Assert.Throws<OperationCanceledException>(() => ConvertCanceled(cancellation));
         Assert.Equal(cancellation, error.CancellationToken);
+    }
+
+    [Fact]
+    public void SeparateComponentBucketsAdmitCompactPlanesWithinTheSharedBudget()
+    {
+        const int width = 64, height = 48, stride = width * 3;
+        PixelSource original = new(TestImages.Gradient(width, height), PixelLayout.Rgb24);
+        var diagnostics = new EncoderCacheDiagnostics();
+        var budget = new EncoderCacheBudget(32768, diagnostics);
+        PixelSource converted = original.WithConverted420Planes(width, height, stride,
+            TestContext.Current.CancellationToken, budget);
+        using (converted.ConvertedStorage)
+        {
+            Assert.NotNull(converted.ConvertedStorage);
+            // A combined 32 KiB rental plus row scratch would exceed the budget;
+            // the separate 16+4+4 KiB component buckets leave room for scratch.
+            Assert.Equal(24576, diagnostics.CurrentBytes);
+            Assert.Equal(25600, diagnostics.PeakBytes);
+            Span<float> block = stackalloc float[64];
+            for (int component = 1; component < 3; component++)
+            {
+                ReadOnlySpan<float> plane = converted.GetConverted420ChromaPlane(component, out int planeWidth, out int planeHeight);
+                for (int top = 0; top < planeHeight; top += 8)
+                {
+                    for (int left = 0; left < planeWidth; left += 8)
+                    {
+                        Downsampling.FillBlock(original, width, height, stride, component, left / 8, top / 8,
+                            2, 2, 1, 1, block);
+                        for (int y = 0; y < 8; y++)
+                        {
+                            for (int x = 0; x < 8; x++)
+                            {
+                                SimdSampleFixtures.AssertBits(block[(y * 8) + x], plane[((top + y) * planeWidth) + left + x] - 128f);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Assert.Equal(0, diagnostics.CurrentBytes);
+        Assert.Equal(budget.MaximumBytes, budget.AvailableBytes);
+    }
+
+    [Fact]
+    public void SeparateFullResolutionBucketsPreserveEveryChannelSample()
+    {
+        const int width = 64, height = 48, stride = width * 3;
+        PixelSource original = new(TestImages.Gradient(width, height), PixelLayout.Rgb24);
+        var diagnostics = new EncoderCacheDiagnostics();
+        var budget = new EncoderCacheBudget(49152, diagnostics);
+        PixelSource converted = original.WithConvertedPlanes(width, height, stride,
+            TestContext.Current.CancellationToken, budget);
+        using (converted.ConvertedStorage)
+        {
+            Assert.NotNull(converted.ConvertedStorage);
+            Assert.Equal(49152, diagnostics.CurrentBytes);
+            for (int component = 0; component < 3; component++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        SimdSampleFixtures.AssertBits(original.ReadSampleAt(x, y, stride, component),
+                            converted.ReadSampleAt(x, y, stride, component));
+                    }
+                }
+            }
+        }
+        Assert.Equal(0, diagnostics.CurrentBytes);
+    }
+
+    [Fact]
+    public void DctOnlySnapshotBorrowsCompactPlanesWithoutCopyingTheRawSource()
+    {
+        const int width = 19, height = 17, stride = width * 3;
+        PixelSource compact = new PixelSource(TestImages.Gradient(width, height), PixelLayout.Rgb24)
+            .WithConverted420Planes(width, height, stride, TestContext.Current.CancellationToken);
+        using IDisposable? storage = compact.ConvertedStorage;
+        // A raw-source copy of this length cannot succeed. Plane-only workers
+        // can borrow the immutable lease regardless of that unused length.
+        PixelSource borrowed = new PixelSource.Snapshot(compact, int.MaxValue,
+            TestContext.Current.CancellationToken, borrowCompactPlanes: true).GetPixels();
+        Assert.True(compact.GetConvertedPlane(0).SequenceEqual(borrowed.GetConvertedPlane(0)));
+        Assert.True(compact.GetConverted420ChromaPlane(1, out _, out _)
+            .SequenceEqual(borrowed.GetConverted420ChromaPlane(1, out _, out _)));
     }
 
     private static void ConvertCanceled(CancellationToken token)

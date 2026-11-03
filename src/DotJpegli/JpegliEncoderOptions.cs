@@ -18,6 +18,7 @@ public sealed record JpegliEncoderOptions
 
     // Focused regressions can force complete, mixed and uncached scan emission.
     internal long EntropyTokenBudgetBytes { get; init; } = EntropyTokenBudget.DefaultMaximumBytes;
+    internal EncoderCacheDiagnostics? CacheDiagnostics { get; init; }
 
     // Offline scan search can constrain histogram clustering independently for
     // DC and AC tables. Zero retains the normal cost/slot-redefinition policy.
@@ -516,6 +517,18 @@ public sealed record JpegliEncoderOptions
     /// <summary>Maximum accepted pixel count. Override deliberately for larger images.</summary>
     public long MaxPixels { get; init; } = 100_000_000;
 
+    /// <summary>
+    /// Maximum combined array payload retained for converted samples, quantized coefficients
+    /// and entropy tokens during one encode. Defaults to 192 MiB, with a separate
+    /// 64 MiB ceiling for each cache. Zero disables these image caches. Actual array
+    /// capacities count toward this limit. Caller input, output, metadata, cache bookkeeping, array headers,
+    /// adaptive-analysis/worker scratch and parallel source copies are outside this limit;
+    /// compact chroma conversion scratch counts toward it. Returned shared-pool
+    /// arrays can remain retained by the process. Lower limits trade memory for recomputation
+    /// without changing JPEG bytes.
+    /// </summary>
+    public long MaxCacheBytes { get; init; } = EncoderCacheBudget.DefaultMaximumBytes;
+
     internal int ResolveRestartInterval(int mcusPerRow) => this.RestartRows == 0
         ? this.RestartInterval : (int)Math.Min((long)this.RestartRows * mcusPerRow, 65535);
 
@@ -588,6 +601,11 @@ public sealed record JpegliEncoderOptions
 
     internal void Validate()
     {
+        if (this.MaxCacheBytes < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.MaxCacheBytes));
+        }
+
         if (!double.IsFinite(this.RateDistortionLambda) || this.RateDistortionLambda < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(this.RateDistortionLambda));

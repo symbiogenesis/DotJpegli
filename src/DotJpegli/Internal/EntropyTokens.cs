@@ -55,6 +55,22 @@ internal sealed partial class EntropyTokens : IDisposable
 
     internal bool IsComplete { get; private set; } = true;
 
+    // Raw-only refinement scans have no histogram work. If even the minimum
+    // rental cannot fit, skip their collection pass and emit from coefficients.
+    internal bool TryBeginRecording()
+    {
+        if (!this.IsComplete)
+        {
+            return false;
+        }
+        if (this.current is not null || this.budget.AvailableBytes >= 16 * sizeof(uint))
+        {
+            return true;
+        }
+        this.Dispose();
+        return false;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal void AddHuffman(int component, bool isAc, int symbol, uint suffix, int count)
     {

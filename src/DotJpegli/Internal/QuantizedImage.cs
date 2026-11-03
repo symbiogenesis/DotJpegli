@@ -12,24 +12,48 @@ internal sealed class QuantizedImage : IDisposable
     // Keep the streaming path for very large images rather than requiring an
     // unbounded image-sized allocation. The rented arrays are returned on every exit.
     internal const long MaximumBytes = 64L * 1024 * 1024;
+    private const int SegmentLength = 65536;
     private readonly short[][] components;
+    private readonly short[][][]? segments;
     private readonly int[] widths;
+    private readonly int[] cachedHeights;
+    private readonly int cachedMcuRows;
+    private readonly int mcuHeight;
+    private readonly ArrayPool<short> pool;
+    private readonly EncoderCacheBudget? cacheBudget;
 
-    private QuantizedImage(short[][] components, int[] widths, bool zigZagOrdered)
+    private QuantizedImage(int[] widths, int[] cachedHeights, int cachedMcuRows, int mcuHeight,
+        bool complete, bool segmented, bool zigZagOrdered, ArrayPool<short> pool, EncoderCacheBudget? cacheBudget)
     {
-        this.components = components;
+        this.components = new short[widths.Length][];
+        this.segments = segmented ? new short[widths.Length][][] : null;
         this.widths = widths;
+        this.cachedHeights = cachedHeights;
+        this.cachedMcuRows = cachedMcuRows;
+        this.mcuHeight = mcuHeight;
+        this.pool = pool;
+        this.cacheBudget = cacheBudget;
+        this.IsComplete = complete;
         this.IsZigZagOrdered = zigZagOrdered;
     }
 
     internal bool IsZigZagOrdered { get; }
+    internal bool IsComplete { get; }
+    internal long RentedBytes { get; private set; }
+
+    internal bool ContainsRow(int component, int y) => (uint)y < (uint)this.cachedHeights[component];
+    internal bool ContainsMcuRow(int top) => top >= 0 && top / this.mcuHeight < this.cachedMcuRows;
 
     internal static QuantizedImage? Create(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor,
         AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, CancellationToken cancellationToken,
         bool zigZagOrdered = false, KernelPreference narrowZigZagKernel = KernelPreference.Automatic,
-        double rateDistortionLambda = 0, RateDistortionDiagnostics? rateDistortionDiagnostics = null)
+        double rateDistortionLambda = 0, RateDistortionDiagnostics? rateDistortionDiagnostics = null,
+        long maximumBytes = MaximumBytes, bool allowPartial = false, EncoderCacheBudget? cacheBudget = null,
+        ArrayPool<short>? pool = null)
     {
+        Guard.ThrowIfNegative(maximumBytes);
+        cancellationToken.ThrowIfCancellationRequested();
         if (!double.IsFinite(rateDistortionLambda) || rateDistortionLambda < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(rateDistortionLambda));
@@ -40,7 +64,6 @@ internal sealed class QuantizedImage : IDisposable
         }
         int[] widths = new int[tables.Length];
         int[] heights = new int[tables.Length];
-        long rentedBytes = 0;
         for (int component = 0; component < tables.Length; component++)
         {
             JpegComponentSampling factor = sampling[component];
@@ -48,23 +71,62 @@ internal sealed class QuantizedImage : IDisposable
                 / (8 * sampling.MaxHorizontal);
             heights[component] = ((height * factor.Vertical) + (8 * sampling.MaxVertical) - 1)
                 / (8 * sampling.MaxVertical);
-            long length = (long)widths[component] * heights[component] * 64;
-            // Account for the shared pool's power-of-two buckets as well as
-            // useful coefficients when enforcing the working-storage budget.
-            rentedBytes += (long)BitOperations.RoundUpToPowerOf2((ulong)length) * sizeof(short);
-        }
-        if (rentedBytes > MaximumBytes)
-        {
-            return null;
         }
 
-        var image = new QuantizedImage(new short[tables.Length][], widths, zigZagOrdered);
+        long available = Math.Min(Math.Min(maximumBytes, MaximumBytes), cacheBudget?.AvailableBytes ?? long.MaxValue);
+        int mcuHeight = sampling.MaxVertical * 8;
+        int totalMcuRows = (height + mcuHeight - 1) / mcuHeight;
+        int cachedMcuRows = totalMcuRows;
+        bool segmented = PlannedBytes(widths, heights, totalMcuRows, sampling, segmented: false) > available;
+        if (segmented)
+        {
+            if (!allowPartial || rateDistortionLambda > 0)
+            {
+                return null;
+            }
+
+            // Fixed-size coefficient segments avoid whole-component pool bucket
+            // jumps. Above the cap, retain a complete prefix of MCU rows across
+            // every component so the remaining scans can still reuse that work.
+            int lower = 0, upper = totalMcuRows;
+            while (lower < upper)
+            {
+                int middle = lower + ((upper - lower + 1) / 2);
+                if (PlannedBytes(widths, heights, middle, sampling, segmented: true) <= available)
+                {
+                    lower = middle;
+                }
+                else
+                {
+                    upper = middle - 1;
+                }
+            }
+            cachedMcuRows = lower;
+            if (cachedMcuRows == 0)
+            {
+                return null;
+            }
+        }
+
+        int[] cachedHeights = new int[heights.Length];
+        for (int component = 0; component < heights.Length; component++)
+        {
+            cachedHeights[component] = Math.Min(heights[component], cachedMcuRows * sampling[component].Vertical);
+        }
+
+        var image = new QuantizedImage(widths, cachedHeights, cachedMcuRows, mcuHeight,
+            cachedMcuRows == totalMcuRows, segmented, zigZagOrdered, pool ?? ArrayPool<short>.Shared, cacheBudget);
         try
         {
             var quantizers = new Quantization.PreparedTable[tables.Length];
             for (int component = 0; component < tables.Length; component++)
             {
-                image.components[component] = ArrayPool<short>.Shared.Rent(widths[component] * heights[component] * 64);
+                int length = checked(widths[component] * cachedHeights[component] * 64);
+                if (!image.AllocateComponent(component, length, available, cancellationToken))
+                {
+                    image.Dispose();
+                    return null;
+                }
                 quantizers[component] = Quantization.PreparedTable.Create(tables[component], component, distance,
                     grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
                     adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
@@ -76,7 +138,7 @@ internal sealed class QuantizedImage : IDisposable
             int horizontal = sampling.MaxHorizontal;
             int vertical = sampling.MaxVertical;
             Span<float> strengths = adaptive is null ? default : adaptive.Strengths;
-            for (int top = 0; top < height; top += vertical * 8)
+            for (int top = 0; top < Math.Min(height, cachedMcuRows * mcuHeight); top += vertical * 8)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 pixels.ParallelRows?.PrepareRow(top, cancellationToken);
@@ -94,7 +156,7 @@ internal sealed class QuantizedImage : IDisposable
                     }
 
                     int firstRow = top / (vertical * 8) * factor.Vertical;
-                    for (int row = 0; row < factor.Vertical && firstRow + row < heights[component]; row++)
+                    for (int row = 0; row < factor.Vertical && firstRow + row < cachedHeights[component]; row++)
                     {
                         for (int x = 0; x < widths[component]; x++)
                         {
@@ -189,8 +251,77 @@ internal sealed class QuantizedImage : IDisposable
         diagnostics?.RecordBlock(evaluations, changes);
     }
 
+    // Plans only capacity; no pixels, coefficients or image-sized arrays are read.
+    internal static long PlannedBytes(int[] widths, int[] heights, int mcuRows,
+        JpegSamplingFactors sampling, bool segmented)
+    {
+        long bytes = 0;
+        for (int component = 0; component < widths.Length; component++)
+        {
+            long rows = Math.Min(heights[component], (long)mcuRows * sampling[component].Vertical);
+            ulong length = (ulong)(widths[component] * rows * 64);
+            if (segmented)
+            {
+                bytes += (long)(length / SegmentLength) * SegmentLength * sizeof(short);
+                length %= SegmentLength;
+            }
+            if (length != 0)
+            {
+                bytes += (long)Math.Max(16UL, BitOperations.RoundUpToPowerOf2(length)) * sizeof(short);
+            }
+        }
+        return bytes;
+    }
+
+    private bool AllocateComponent(int component, int length, long maximumBytes, CancellationToken cancellationToken)
+    {
+        if (this.segments is null)
+        {
+            short[]? rental = this.Rent(length, maximumBytes);
+            if (rental is null)
+            {
+                return false;
+            }
+            this.components[component] = rental;
+            return true;
+        }
+
+        int count = ((length - 1) / SegmentLength) + 1;
+        short[][] chunks = new short[count][];
+        this.segments[component] = chunks;
+        for (int index = 0; index < count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            short[]? rental = this.Rent(Math.Min(SegmentLength, length - (index * SegmentLength)), maximumBytes);
+            if (rental is null)
+            {
+                return false;
+            }
+            chunks[index] = rental;
+        }
+        return true;
+    }
+
+    private short[]? Rent(int length, long maximumBytes)
+    {
+        short[] rental = this.pool.Rent(length);
+        long bytes = (long)rental.Length * sizeof(short);
+        if (bytes > maximumBytes - this.RentedBytes
+            || (this.cacheBudget is not null && !this.cacheBudget.TryReserve(bytes, EncoderCacheKind.QuantizedCoefficients)))
+        {
+            this.pool.Return(rental);
+            return null;
+        }
+        this.RentedBytes += bytes;
+        return rental;
+    }
+
     private Span<short> Block(int component, int x, int y)
-        => this.components[component].AsSpan(((y * this.widths[component]) + x) * 64, 64);
+    {
+        int offset = checked(((y * this.widths[component]) + x) * 64);
+        return this.segments is null ? this.components[component].AsSpan(offset, 64)
+            : this.segments[component][offset / SegmentLength].AsSpan(offset % SegmentLength, 64);
+    }
 
     internal ReadOnlySpan<short> GetBlock(int component, int x, int y)
         => this.Block(component, x, y);
@@ -202,8 +333,21 @@ internal sealed class QuantizedImage : IDisposable
             if (this.components[component] is { } buffer)
             {
                 this.components[component] = null!;
-                ArrayPool<short>.Shared.Return(buffer);
+                this.pool.Return(buffer);
+            }
+            if (this.segments?[component] is { } chunks)
+            {
+                this.segments[component] = null!;
+                foreach (short[]? chunk in chunks)
+                {
+                    if (chunk is not null)
+                    {
+                        this.pool.Return(chunk);
+                    }
+                }
             }
         }
+        this.cacheBudget?.Release(this.RentedBytes, EncoderCacheKind.QuantizedCoefficients);
+        this.RentedBytes = 0;
     }
 }
