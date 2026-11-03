@@ -23,6 +23,7 @@
   <ItemGroup>
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../../tools/DotJpegli.Performance/AcReciprocalExperiment.cs" Link="Performance/AcReciprocalExperiment.cs" />
+    <Compile Include="../../tools/DotJpegli.Performance/CoefficientCacheRepresentations.cs" Link="Performance/CoefficientCacheRepresentations.cs" />
     <Compile Include="../../tools/DotJpegli.Parity/ProgressiveScanSearch.cs" Link="Parity/ProgressiveScanSearch.cs" />
     <Compile Include="../../tools/DotJpegli.Parity/ProgressiveScanSearchCommand.cs" Link="Parity/ProgressiveScanSearchCommand.cs" />
     <Compile Include="../../tools/DotJpegli.Parity/JpegStructure.cs" Link="Parity/JpegStructure.cs" />
