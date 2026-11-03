@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "mode": "interleaved-revision-comparison",
+  "status": "invalid",
+  "valid": false,
+  "parityVerdict": "not-evaluated",
+  "fullCoverageComplete": false,
+  "releaseCoverageComplete": false,
+  "releaseRegressionVerdict": "invalid",
+  "baselineRevision": "a40868bfdace7d737413085522a88d351aa16782",
+  "currentRevision": "123c8a963364484cca1b565f623aafc89fe7cbe0",
+  "regressions": [],
+  "comparisons": 256,
+  "expectedComparisons": 256,
+  "inconclusiveComparisons": 48,
+  "invalidReasons": [
+    "kodim01/420/p0/d4: baseline: repeated legs within a quartet differ by over10%.",
+    "tiny-odd-edges/420/p0/d4: current: repeated legs within a quartet differ by over10%."
+  ]
+}
