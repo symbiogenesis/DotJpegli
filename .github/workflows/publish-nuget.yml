@@ -77,11 +77,14 @@ jobs:
           EXPECTED_VERSION: ${{ inputs.version }}
           EXPECTED_REVISION: ${{ github.sha }}
         run: |
-          $packages = @(Get-ChildItem -LiteralPath "$env:RUNNER_TEMP/nuget" -File)
+          #requires -Version 7.6
+          Set-StrictMode -Version 3.0
+          $packages = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'nuget') -File)
           if ($packages.Count -ne 1) { throw 'Expected exactly one package artifact file.' }
           ./tools/verify-nuget-package.ps1 -PackagePath $packages[0].FullName -ExpectedVersion $env:EXPECTED_VERSION -ExpectedRevision $env:EXPECTED_REVISION
           $hash = (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash
-          "Package: $($packages[0].Name)`n`nSHA-256: $hash`n`nPublish requested: ${{ inputs.publish }}" >> $env:GITHUB_STEP_SUMMARY
+          "Package: $($packages[0].Name)`n`nSHA-256: $hash`n`nPublish requested: ${{ inputs.publish }}" |
+            Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8NoBOM
 
   publish:
     name: Publish verified package to nuget.org

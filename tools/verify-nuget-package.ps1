@@ -1,15 +1,38 @@
+#requires -Version 7.6
+<#
+.SYNOPSIS
+Verify a release package's contents and source provenance.
+.PARAMETER PackagePath
+Literal path to the DotJpegli NuGet package to inspect.
+.PARAMETER ExpectedVersion
+Exact package version to require in the filename and manifest.
+.PARAMETER ExpectedRevision
+Full lowercase Git commit ID of the tested main revision.
+.EXAMPLE
+./tools/verify-nuget-package.ps1 -PackagePath ./DotJpegli.1.0.0.nupkg -ExpectedVersion 1.0.0 -ExpectedRevision ('a' * 40)
+#>
+[CmdletBinding()]
 param(
-    [Parameter(Mandatory)][string] $PackagePath,
-    [Parameter(Mandatory)][string] $ExpectedVersion,
-    [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{40}$')][string] $ExpectedRevision
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrWhiteSpace()]
+    [string] $PackagePath,
+
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrWhiteSpace()]
+    [string] $ExpectedVersion,
+
+    [Parameter(Mandatory)]
+    [ValidatePattern('\A[0-9a-f]{40}\z', Options = 'None')]
+    [string] $ExpectedRevision
 )
 
+Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 if ([System.IO.Path]::GetFileName($PackagePath) -cne "DotJpegli.$ExpectedVersion.nupkg") {
     throw 'Package filename must match the requested DotJpegli version exactly.'
 }
 
-$package = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $PackagePath).Path)
+$package = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $PackagePath).ProviderPath)
 try {
     $required = @(
         'DotJpegli.nuspec', 'README.md', 'LICENSE', 'LICENSE.jpegli', 'THIRD-PARTY-NOTICES.md',
