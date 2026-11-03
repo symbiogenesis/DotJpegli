@@ -70,6 +70,30 @@ public sealed class FusedPlaneQuantizationTests
     }
 
     [Fact]
+    public void FullySuppressedFrequencyRowsPreserveDcAndMixedRowRounding()
+    {
+        foreach (bool adaptive in new[] { false, true })
+            foreach (int component in new[] { 0, 1, 2 })
+            {
+                var table = Quantization.PreparedTable.Create(Enumerable.Repeat((ushort)3, 64).ToArray(),
+                    component, 4f, adaptiveQuantization: adaptive,
+                    adaptiveMultipliers: Enumerable.Repeat(0.5f, 64).ToArray());
+                float[] coefficients = new float[64];
+                coefficients[0] = 7.5f;
+                // Every AC vector is suppressed; DC must retain its different
+                // ties-away rounding. Then make one lane in each AC vector
+                // significant while its other seven lanes remain suppressed.
+                AssertTransposed(coefficients, table, 0.625f);
+                for (int horizontalFrequency = 1; horizontalFrequency < 8; horizontalFrequency++)
+                {
+                    coefficients[horizontalFrequency] = horizontalFrequency % 2 == 0 ? 7.5f : -7.5f;
+                    AssertTransposed(coefficients, table, 0.625f);
+                    coefficients[horizontalFrequency] = 0f;
+                }
+            }
+    }
+
+    [Fact]
     public void BothPortableOrderingNetworksPreserveEverySignedShortBitPattern()
     {
         for (int shift = 0; shift < 1024; shift++)

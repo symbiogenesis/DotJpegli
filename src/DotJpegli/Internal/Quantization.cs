@@ -572,7 +572,13 @@ internal static class Quantization
         Vector256<float> threshold = Vector256.Create(acOffset);
         if (adaptive)
             threshold += Vector256.Create(adaptiveStrength) * Vector256.Create(multipliers);
-        values = Vector256.ConditionalSelect(Vector256.LessThan(Vector256.Abs(values), threshold),
+        Vector256<float> suppressed = Vector256.LessThan(Vector256.Abs(values), threshold);
+        // Low-detail blocks often suppress a complete AC frequency row. Keep
+        // the original division and strict bias comparison, then avoid rounding,
+        // range checks and demotion when all eight results are known to be zero.
+        if (!dc && suppressed.ExtractMostSignificantBits() == 0xff)
+            return Vector128<short>.Zero;
+        values = Vector256.ConditionalSelect(suppressed,
             Vector256<float>.Zero, Vector256.Round(values));
         if (dc)
         {
