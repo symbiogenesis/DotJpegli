@@ -39,6 +39,9 @@ completed work.
 - Prepared ICC destination transforms retain the exact curve endpoints already
   computed during inverse validation. Pixel conversion reuses those values;
   shared curves remain immutable and inverse arithmetic is unchanged.
+- Parametric ICC curves prepare the exact reciprocal exponent and type 1/2
+  branch threshold once. Per-pixel evaluation reuses these immutable values
+  without changing power evaluation, clipping or rounding.
 - Entropy-token scans share one encode-owned 64 MiB budget, accounting actual
   accepted rental lengths. Earlier scans acquire capacity first. Abandoning a
   scan refunds its rentals without invalidating siblings; successful replay

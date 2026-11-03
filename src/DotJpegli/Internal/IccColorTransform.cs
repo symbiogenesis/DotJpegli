@@ -684,12 +684,18 @@ internal sealed class IccColorTransform
         private readonly double[] values;
         private readonly bool table;
         private readonly string parameter;
+        private readonly double inverseExponent;
+        private readonly double powerStart;
 
         internal Curve(int function, double[] values, string parameter = "SourceIccProfile")
         {
             this.function = function;
             this.values = values;
             this.parameter = parameter;
+            // Preserve the exact divisions used by evaluation, while preparing
+            // immutable curve parameters once instead of for every sample.
+            this.inverseExponent = 1 / values[0];
+            this.powerStart = function is 1 or 2 ? -values[2] / values[1] : 0;
         }
 
         internal Curve(double[] values)
@@ -716,7 +722,7 @@ internal sealed class IccColorTransform
             else if (this.function <= 2)
             {
                 double c = this.function == 2 ? this.values[3] : 0;
-                result = x >= -this.values[2] / this.values[1]
+                result = x >= this.powerStart
                     ? Math.Pow(Math.Max(0, (this.values[1] * x) + this.values[2]), this.values[0]) + c : c;
             }
             else
@@ -818,13 +824,13 @@ internal sealed class IccColorTransform
             }
             if (this.function == 0)
             {
-                return Math.Pow(y, 1 / this.values[0]);
+                return Math.Pow(y, this.inverseExponent);
             }
 
             if (this.function <= 2)
             {
                 double c = this.function == 2 ? this.values[3] : 0;
-                return Clamp((Math.Pow(Math.Max(0, y - c), 1 / this.values[0]) - this.values[2]) / this.values[1]);
+                return Clamp((Math.Pow(Math.Max(0, y - c), this.inverseExponent) - this.values[2]) / this.values[1]);
             }
             double d = this.values[4], e = this.function == 4 ? this.values[5] : 0, f = this.function == 4 ? this.values[6] : 0;
             if (d > 1)
@@ -857,7 +863,7 @@ internal sealed class IccColorTransform
                     return this.values[3] > 0 ? Clamp(Math.Min(preceding, (y - f) / this.values[3])) : preceding;
                 }
             }
-            return Clamp(Math.Max(d, (Math.Pow(Math.Max(0, y - e), 1 / this.values[0]) - this.values[2]) / this.values[1]));
+            return Clamp(Math.Max(d, (Math.Pow(Math.Max(0, y - e), this.inverseExponent) - this.values[2]) / this.values[1]));
         }
     }
 

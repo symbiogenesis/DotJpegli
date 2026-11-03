@@ -56,6 +56,14 @@ are unchanged. Focused regressions check output bits at clipping boundaries and
 sampled-curve plateaus. Source-ICC workload measurements are still needed to
 establish the latency effect.
 
+Parametric ICC curves also retain the exact reciprocal gamma and, for types 1
+and 2, the power-branch threshold computed from their stored coefficients.
+These immutable values replace the same divisions in per-pixel evaluation;
+power calls, clipping, validation and all other arithmetic retain their order.
+Independent bit regressions cover nonintegral gamma across all five types,
+clipped endpoints and adjacent floats at a nonrepresentable branch threshold.
+Source-ICC latency remains unmeasured.
+
 The scalar DCT specializes the same fixed eight- and four-point stages as the
 vector path. It keeps the recursive port's arithmetic and fused multiply-adds
 while avoiding recursive calls and per-stage scratch spans. A retained recursive

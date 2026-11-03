@@ -106,6 +106,61 @@ public sealed class SourceIccColorManagementTests
         }
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void ParametricPowerThresholdPreservesBitsAroundNonrepresentableJoin(int function)
+    {
+        double offset = function == 2 ? 0.125 : 0;
+        byte[] profile = function == 2 ? ParametricGrayProfile(2, 1.75, 0.75, -0.125, offset) :
+            ParametricGrayProfile(1, 1.75, 0.75, -0.125);
+        IccColorTransform transform = Transform(profile, JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), true, true);
+        float join = (float)(0.125 / 0.75);
+        foreach (float input in new[] { 0f, float.BitDecrement(join), join, float.BitIncrement(join), 0.25f, 0.75f, 1f })
+        {
+            double expected = input >= 0.125 / 0.75
+                ? Math.Pow(Math.Max(0, (0.75 * input) - 0.125), 1.75) + offset : offset;
+            transform.Convert(input, input, input, out float r, out float g, out float b);
+            Assert.Equal(BitConverter.SingleToInt32Bits((float)expected), BitConverter.SingleToInt32Bits(r));
+            Assert.Equal(BitConverter.SingleToInt32Bits(r), BitConverter.SingleToInt32Bits(g));
+            Assert.Equal(BitConverter.SingleToInt32Bits(r), BitConverter.SingleToInt32Bits(b));
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void ParametricInverseExponentPreservesBitsForNonintegralGamma(int function)
+    {
+        double[] parameters = function switch
+        {
+            0 => [1.75],
+            1 => [1.75, 0.75, -0.125],
+            2 => [1.75, 0.75, -0.125, 0.125],
+            3 => [1.75, 0.75, 0.125, 0.25, 0.25],
+            _ => [1.75, 0.75, 0.125, 0.25, 0.25, 0.0625, 0.03125]
+        };
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(),
+            ParametricGrayProfile(function, parameters), true, true);
+        double offset = function == 2 ? 0.125 : function == 4 ? 0.0625 : 0;
+        double shift = function <= 2 ? -0.125 : 0.125;
+        double maximum = function == 0 ? 1 : Math.Pow(0.75 + shift, 1.75) + offset;
+        foreach (float input in new[] { 0.25f, 0.4f, 0.6f, 0.8f, float.BitDecrement((float)maximum),
+            (float)maximum, float.BitIncrement((float)maximum), 1f })
+        {
+            double y = Math.Min(input, maximum);
+            float expected = (float)(function == 0 ? Math.Pow(y, 1 / 1.75) :
+                Math.Clamp((Math.Pow(y - offset, 1 / 1.75) - shift) / 0.75, 0, 1));
+            transform.Convert(input, input, input, out float r, out float g, out float b);
+            Assert.Equal(BitConverter.SingleToInt32Bits(expected), BitConverter.SingleToInt32Bits(r));
+            Assert.Equal(BitConverter.SingleToInt32Bits(expected), BitConverter.SingleToInt32Bits(g));
+            Assert.Equal(BitConverter.SingleToInt32Bits(expected), BitConverter.SingleToInt32Bits(b));
+        }
+    }
+
     [Fact]
     public void SampledCurvesInterpolateAndInvertTheirStoredIntervals()
     {
