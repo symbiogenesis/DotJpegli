@@ -24,32 +24,15 @@ Validate comparison and reporting with synthetic data without running benchmarks
 #>
 [CmdletBinding(DefaultParameterSetName = 'Compare')]
 param(
+    [Parameter(Mandatory, ParameterSetName = 'Compare')][ValidateNotNullOrWhiteSpace()][string] $Baseline,
+    [Parameter(Mandatory, ParameterSetName = 'Compare')][ValidateNotNullOrWhiteSpace()][string] $Current,
     [Parameter(Mandatory, ParameterSetName = 'Compare')]
-    [ValidateNotNullOrWhiteSpace()]
-    [string] $Baseline,
-
+    [ValidatePattern('\A[0-9a-f]{40}\z', Options = 'None')][string] $BaselineRevision,
     [Parameter(Mandatory, ParameterSetName = 'Compare')]
-    [ValidateNotNullOrWhiteSpace()]
-    [string] $Current,
-
-    [Parameter(Mandatory, ParameterSetName = 'Compare')]
-    [ValidatePattern('\A[0-9a-f]{40}\z', Options = 'None')]
-    [string] $BaselineRevision,
-
-    [Parameter(Mandatory, ParameterSetName = 'Compare')]
-    [ValidatePattern('\A[0-9a-f]{40}\z', Options = 'None')]
-    [string] $CurrentRevision,
-
-    [Parameter(Mandatory, ParameterSetName = 'Compare')]
-    [ValidateNotNullOrWhiteSpace()]
-    [string] $Output,
-
-    [Parameter(ParameterSetName = 'Compare')]
-    [ValidateNotNullOrWhiteSpace()]
-    [string] $Summary,
-
-    [Parameter(Mandatory, ParameterSetName = 'SelfTest')]
-    [switch] $SelfTest
+    [ValidatePattern('\A[0-9a-f]{40}\z', Options = 'None')][string] $CurrentRevision,
+    [Parameter(Mandatory, ParameterSetName = 'Compare')][ValidateNotNullOrWhiteSpace()][string] $Output,
+    [Parameter(ParameterSetName = 'Compare')][ValidateNotNullOrWhiteSpace()][string] $Summary,
+    [Parameter(Mandatory, ParameterSetName = 'SelfTest')][switch] $SelfTest
 )
 
 $ErrorActionPreference = 'Stop'
@@ -226,14 +209,14 @@ function Compare-Evidence($Before, $After, [string] $BeforeRevision, [string] $A
     foreach ($a in $ordered) {
         $key = Get-CaseKey $a
         $b = $old[$key]
-        foreach ($case in $b, $a) { Assert-FieldPresence $case @('managedJpegSha256', 'nativeJpegSha256', 'managed', 'native') }
+        foreach ($case in $b, $a) {
+            Assert-FieldPresence $case @('managedJpegSha256', 'nativeJpegSha256', 'managed', 'native')
+            Assert-FieldPresence $case.managed @('median')
+            Assert-FieldPresence $case.native @('median')
+        }
         foreach ($field in 'managedJpegSha256', 'nativeJpegSha256') {
             Assert-Sha256 $b[$field] $field
             Assert-Valid (Test-JsonEqual $b[$field] $a[$field]) "JPEG bytes changed: $key/$field"
-        }
-        foreach ($case in $b, $a) {
-            Assert-FieldPresence $case.managed @('median')
-            Assert-FieldPresence $case.native @('median')
         }
         $bm, $am, $bn, $an = $b.managed.median, $a.managed.median, $b.native.median, $a.native.median
         Assert-PositiveNumber $bm 'Baseline managed median'

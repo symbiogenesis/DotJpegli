@@ -18,6 +18,9 @@ $build = @{
 ./tools/parity/build-upstream.ps1 @build
 ```
 
+Verify a cached build's pinned source identity and executable hash with
+`./tools/parity/build-upstream.ps1 -VerifyOnly -BuildDirectory /absolute/temp/path/native-build`.
+
 The resulting `/absolute/temp/path/native-build/jpegli-parity-native` supports:
 
 ```text

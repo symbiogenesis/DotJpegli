@@ -84,7 +84,7 @@ jobs:
         run: |
           ./tools/parity/prepare-corpus.ps1 -SelfTest
           ./tools/compare-performance-revisions.ps1 -SelfTest
-          ./tools/ci/test-helpers.ps1
+          ./tools/ci/performance-evidence.ps1 -SelfTest
           ./tools/assert-infersharp.ps1 -SelfTest
 
   test:
@@ -257,7 +257,7 @@ jobs:
         run: |
           chmod +x "${{ runner.temp }}/parity-native/jpegli-parity-native"
           test "$("${{ runner.temp }}/parity-native/jpegli-parity-native" version)" = 031a0077f5799a6041004267fc12b956c1f52a20
-          pwsh -NoProfile -File tools/ci/verify-native.ps1 -Directory "${{ runner.temp }}/parity-native"
+          pwsh -NoProfile -File tools/parity/build-upstream.ps1 -VerifyOnly -BuildDirectory "${{ runner.temp }}/parity-native"
       - name: Restore pinned lossless photographic corpus
         id: corpus-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -332,7 +332,7 @@ jobs:
         shell: pwsh
         env:
           EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
-        run: ./tools/ci/assert-simd.ps1 -Evidence "${{ runner.temp }}/kernel-evidence" -Architecture $env:EXPECTED_ARCHITECTURE
+        run: ./tools/ci/performance-evidence.ps1 -AssertSimd -Evidence "${{ runner.temp }}/kernel-evidence" -Architecture $env:EXPECTED_ARCHITECTURE
       - name: Retain interleaved kernel evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -440,7 +440,7 @@ jobs:
         if: always() && steps.avx2_measure.outcome == 'success'
         shell: pwsh
         run: |
-          ./tools/ci/assert-simd.ps1 -Evidence "${{ runner.temp }}/avx2-baseline-evidence", "${{ runner.temp }}/avx2-current-evidence" -Narrow
+          ./tools/ci/performance-evidence.ps1 -AssertSimd -Evidence "${{ runner.temp }}/avx2-baseline-evidence", "${{ runner.temp }}/avx2-current-evidence" -Narrow
           ./tools/compare-performance-revisions.ps1 -Baseline "${{ runner.temp }}/avx2-baseline-evidence" -Current "${{ runner.temp }}/avx2-current-evidence" -BaselineRevision $env:BASELINE_REVISION -CurrentRevision "${{ github.sha }}" -Output "${{ runner.temp }}/baseline-avx2-comparison" -Summary $env:GITHUB_STEP_SUMMARY
       - name: Retain the optional same-host baseline diagnostic
         if: always() && steps.baseline_build.outcome == 'success'
@@ -474,7 +474,7 @@ jobs:
           DOTJPEGLI_PERFORMANCE_INSTRUMENTATION: 'dotnet-trace 10.0.750501; dotnet-sampled-thread-time; profiling timings are not acceptance evidence'
         run: |
           cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
-          read -r image sampling progression distance < <(pwsh -NoProfile -File "${{ github.workspace }}/tools/ci/select-profile-cases.ps1" -Evidence "${{ runner.temp }}/performance-evidence")
+          read -r image sampling progression distance < <(pwsh -NoProfile -File "${{ github.workspace }}/tools/ci/performance-evidence.ps1" -SelectProfiles -Evidence "${{ runner.temp }}/performance-evidence")
           taskset -c "$cpu" "${{ runner.temp }}/diagnostic-tools/dotnet-trace" collect --profile dotnet-sampled-thread-time --format Speedscope --show-child-io --output "${{ runner.temp }}/performance-profile.nettrace" -- dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ inputs.framework || 'net11.0' }}/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/profile-evidence" --diagnostic --images "$image" --distances "$distance" --samplings "$sampling" --progressions "$progression" --blocks 3 --iterations 20 --warmups 5 2>&1 | tee "${{ runner.temp }}/performance-profile.log"
       - name: Retain separate instrumented CPU diagnostics
         if: always() && steps.profiler.outcome != 'skipped'
@@ -562,7 +562,7 @@ jobs:
           done
       - name: Report runtime and explicit SIMD comparisons
         shell: pwsh
-        run: ./tools/ci/report-runtime-comparison.ps1 -Directory "${{ runner.temp }}"
+        run: ./tools/ci/performance-evidence.ps1 -CompareRuntimes -Directory "${{ runner.temp }}"
       - name: Retain runtime comparison evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -666,7 +666,7 @@ jobs:
           DOTJPEGLI_PERFORMANCE_INSTRUMENTATION: 'dotnet-trace 10.0.750501; dotnet-sampled-thread-time; profiling timings are not acceptance evidence'
         run: |
           cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
-          pwsh -NoProfile -File "${{ github.workspace }}/tools/ci/select-profile-cases.ps1" -Evidence "${{ runner.temp }}/performance-evidence" -Full > "${{ runner.temp }}/full-performance-profile-selection.txt"
+          pwsh -NoProfile -File "${{ github.workspace }}/tools/ci/performance-evidence.ps1" -SelectProfiles -Evidence "${{ runner.temp }}/performance-evidence" -Full > "${{ runner.temp }}/full-performance-profile-selection.txt"
           while read -r image sampling progression distance; do
             if ! taskset -c "$cpu" "${{ runner.temp }}/diagnostic-tools/dotnet-trace" collect --profile dotnet-sampled-thread-time --format Speedscope --show-child-io --output "${{ runner.temp }}/full-performance-profile-$image.nettrace" -- dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/net11.0/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/full-performance-profile-evidence-$image" --diagnostic --images "$image" --distances "$distance" --samplings "$sampling" --progressions "$progression" --blocks 7 --iterations 100 --warmups 5 2>&1 | tee "${{ runner.temp }}/full-performance-profile-$image.log"; then
               echo "Profiler or instrumented comparison returned nonzero; diagnostic evidence retained."

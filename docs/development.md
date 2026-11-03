@@ -129,9 +129,13 @@ revision comparator locally with synthetic fixtures, without running benchmarks:
 ```powershell
 ./tools/parity/prepare-corpus.ps1 -SelfTest
 ./tools/compare-performance-revisions.ps1 -SelfTest
-./tools/ci/test-helpers.ps1
+./tools/ci/performance-evidence.ps1 -SelfTest
 ./tools/assert-infersharp.ps1 -SelfTest
 ```
+
+`tools/ci/performance-evidence.ps1` groups SIMD validation (`-AssertSimd`),
+profile selection (`-SelectProfiles`) and runtime reports (`-CompareRuntimes`).
+Its fixtures also verify the native reference's cached provenance checks.
 
 ## Banned APIs
 

@@ -1,7 +1,7 @@
 #requires -Version 7.6
 <#
 .SYNOPSIS
-Builds and records provenance for the pinned, unmodified native jpegli reference.
+Builds or verifies the pinned, unmodified native jpegli reference.
 .PARAMETER SourceDirectory
 Absolute path to a new checkout or an existing checkout at the pinned revision.
 .PARAMETER BuildDirectory
@@ -10,15 +10,19 @@ Absolute build directory outside the reference source checkout.
 Optional CMake generator, such as Ninja.
 .PARAMETER Parallelism
 Maximum number of parallel native build jobs.
+.PARAMETER VerifyOnly
+Checks a cached build's source provenance and executable hash without rebuilding.
 .EXAMPLE
 ./tools/parity/build-upstream.ps1 -SourceDirectory /tmp/jpegli -BuildDirectory /tmp/jpegli-build -Generator Ninja
 #>
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName = 'Build')]
 param(
-    [Parameter(Mandatory)][ValidateNotNullOrWhiteSpace()][string] $SourceDirectory,
-    [Parameter(Mandatory)][ValidateNotNullOrWhiteSpace()][string] $BuildDirectory,
-    [ValidateNotNullOrWhiteSpace()][string] $Generator,
-    [ValidateRange(1, 64)][int] $Parallelism = 2
+    [Parameter(Mandatory, ParameterSetName = 'Build')][ValidateNotNullOrWhiteSpace()][string] $SourceDirectory,
+    [Parameter(Mandatory, ParameterSetName = 'Build')]
+    [Parameter(Mandatory, ParameterSetName = 'Verify')][ValidateNotNullOrWhiteSpace()][string] $BuildDirectory,
+    [Parameter(ParameterSetName = 'Build')][ValidateNotNullOrWhiteSpace()][string] $Generator,
+    [Parameter(ParameterSetName = 'Build')][ValidateRange(1, 64)][int] $Parallelism = 2,
+    [Parameter(Mandatory, ParameterSetName = 'Verify')][switch] $VerifyOnly
 )
 
 Set-StrictMode -Version 3.0
@@ -27,6 +31,24 @@ $PSNativeCommandUseErrorActionPreference = $true
 $pin = '031a0077f5799a6041004267fc12b956c1f52a20'
 $repository = 'https://github.com/google/jpegli.git'
 $dependencies = @('third_party/highway', 'third_party/skcms', 'third_party/libjpeg-turbo')
+
+function Get-NativeExecutable([string] $Directory) {
+    $name = $IsWindows ? 'jpegli-parity-native.exe' : 'jpegli-parity-native'
+    $path = Join-Path $Directory $name
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { $path = Join-Path $Directory "Release/$name" }
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw 'Native reference executable is missing.' }
+    return $path
+}
+
+if ($VerifyOnly) {
+    $metadata = Get-Content -LiteralPath (Join-Path $BuildDirectory 'provenance.json') -Raw | ConvertFrom-Json
+    if ($metadata.sourceUnmodified -isnot [bool] -or -not $metadata.sourceUnmodified -or $metadata.revision -cne $pin) {
+        throw 'Native reference provenance does not match the unmodified pinned source.'
+    }
+    $hash = (Get-FileHash -LiteralPath (Get-NativeExecutable $BuildDirectory) -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($hash -cne $metadata.executableSha256) { throw 'Native reference executable hash mismatch.' }
+    return
+}
 
 foreach ($value in @($SourceDirectory, $BuildDirectory)) {
     if (-not [System.IO.Path]::IsPathFullyQualified($value) -or $value -match '%[^%]+%') {
@@ -78,10 +100,7 @@ try {
     & $cmake --build $BuildDirectory --config Release --target jpegli-parity-native --parallel $Parallelism
     & $git -C $SourceDirectory diff --quiet --ignore-submodules=none HEAD --
 
-    $executableName = $IsWindows ? 'jpegli-parity-native.exe' : 'jpegli-parity-native'
-    $executable = Join-Path $BuildDirectory $executableName
-    if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { $executable = Join-Path $BuildDirectory "Release/$executableName" }
-    if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw 'Native reference executable is missing.' }
+    $executable = Get-NativeExecutable $BuildDirectory
     $reportedPin = (& $executable version).Trim()
     if ($reportedPin -cne $pin) { throw 'Built reference reported an unexpected revision.' }
     $compilerCache = Get-Content -LiteralPath (Join-Path $BuildDirectory 'CMakeCache.txt') |
