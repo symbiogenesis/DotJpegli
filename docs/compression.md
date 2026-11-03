@@ -418,8 +418,12 @@ samples, optimized grayscale/YCbCr quantized coefficients and entropy tokens
 within three independent 64 MiB budgets. Pooled allocation sizes count toward
 the limits; token storage shares its budget across scans. Larger images and
 exhausted token budgets use coefficient replay or row/block recomputation.
-These budgets exclude caller pixels, output, metadata, histograms and ordinary
-row/block scratch.
+These budgets exclude caller pixels, output, metadata, histograms and
+row/block scratch. Adaptive analysis owns reusable scratch and one strengths
+row for the duration of the encode. Scratch is rented when its largest requested
+array fits 1 MiB; wider neighborhoods use ordinary arrays. Rentals are returned
+on success, cancellation and failure. Pool retention is separate from the three
+image-cache budgets.
 
 A single-worker optimized interleaved sequential YCbCr scan usually records
 entropy tokens while transforming and quantizing blocks, avoiding the image-wide

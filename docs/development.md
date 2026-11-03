@@ -30,6 +30,12 @@ assembly. No CPU-specific intrinsics are used. Smoothing and nonlinear
 RGB-to-XYB conversion use scalar paths. These implementation choices do not
 establish speed parity; see the [performance measurements and protocol](performance-parity.md).
 
+Fuzzy erosion selects its four smallest neighbors with a pruned seven-layer
+network (39 min/max operations). Narrow transposed zigzag ordering packs
+adjacent columns into 2x4 tiles before byte shuffles; .NET 11 uses portable
+64-bit Zip operations and .NET 10 uses compatible shuffle/select operations.
+The selection and permutation changes preserve the existing arithmetic results.
+
 ## Build
 
 The library targets `netstandard2.1`, `net10.0` and `net11.0`; tests and tools run

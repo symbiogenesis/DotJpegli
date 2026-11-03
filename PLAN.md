@@ -20,9 +20,9 @@ dependency-free runtime contract. It covers three bounded changes:
 3. Reuse bounded adaptive-quantization workspace and row strengths, with clear
    ownership and cleanup on success, cancellation and exceptions.
 
-These tasks are in progress. Implementation and validation results will be
-recorded below before the batch is published. Larger architectural changes and
-quality-changing experiments remain pending.
+These three implementation tasks are complete locally. The focused checks below
+pass; measured performance remains pending the single planned automatic CI run.
+Larger architectural changes and quality-changing experiments remain pending.
 
 ## Evidence and constraints
 
@@ -259,6 +259,9 @@ replacements require format/decoder changes and are outside this JPEG scope.
   comparison against the implementation baseline, using identical input cases,
   CPU affinity, runtime, policy and JPEG hashes. Include allocated bytes per
   encode. Record noninterleaved revision ordering as a limitation.
+- Repeat the baseline/current selections serially with managed AVX-512 disabled
+  so the narrow zigzag path is measured even on an AVX-512-capable runner. Keep
+  this diagnostic separate from normal hardware-dispatch acceptance.
 - Include a photograph, low-noise and low-contrast controls, tiny odd edges,
   both distances, sampling modes and baseline/progressive output. Keep fixed
   native acceptance bounds; distinguish baseline improvement from native parity.
@@ -267,4 +270,48 @@ replacements require format/decoder changes and are outside this JPEG scope.
 
 ## First-batch results
 
-Pending implementation, focused validation and the single planned CI run.
+### Implemented
+
+- `d577986`: selection network reduced from 45 to 39 min/max operations, with
+  nominal output dependency depth reduced from 10 to 7. This prunes Bert
+  Dobbelaere's published nine-input topology; it is not a claim of a newly
+  discovered optimum. Scalar and vector implementations retain weighted-sum
+  ordering. The packaged third-party notices include the source's MIT notice.
+- `63022a8`: adjacent-column tiles reduce narrow ordering from 40 byte shuffles
+  and 32 ORs to 26 shuffles and 18 ORs, plus eight half-vector packs. .NET 11 uses
+  Zip operations; compatible targets use shuffle/select packing. Wide ordering
+  and the DC-only shortcut are unchanged. Counts are not measured speedups.
+- `cfb0723`: production AQ scratch uses an encode-owned `ArrayPool<float>` lease
+  when its largest request is at most 1 MiB, with ordinary-array fallback above
+  that threshold. One lazy strengths row is reused across passes. Tests retain
+  an injectable pool to verify dirty rentals, rollback and return ownership.
+
+### Local validation
+
+The pinned SDK `11.0.100-rc.3.26522.148` was temporarily installed under ignored
+`artifacts/tooling`, after checking its SHA512 against official release metadata.
+Local Release builds passed without warnings for all three library targets.
+Focused regressions passed on Windows ARM64:
+
+- 84 selected kernel/workspace/encoder-parity tests on .NET 10 and on .NET 11.
+- 108 parallel/cancellation/destination-failure tests on each runtime.
+- 26 changed-kernel/workspace tests on .NET 11 with hardware intrinsics disabled.
+- 16 permutation/quantization tests with `DotJpegliNet11Simd=false`.
+- 10 selection/workspace tests against the .NET Standard library on .NET 10.
+
+The selection regressions cover all 362,880 distinct permutations and all 512
+binary order patterns, ties, positive float extremes and independent vector
+lanes. Narrow ordering checks all 1,024 independent input bits and output guards.
+Workspace regressions use oversized NaN-poisoned rentals and injected allocation
+failures. Existing parallel tests cover independent concurrent encodes,
+cancellation and I/O errors. No local benchmark or full suite was run.
+
+### CI measurement
+
+Pending: the final `[compare-baseline]` commit requests the expanded 32-case
+comparison in its normal automatic push workflow. Both normal dispatch and the
+AVX2-limited pair use baseline `2ef3d5f`, matching JPEG hashes and allocation
+normalization. Full suites, fallback checks, deployment and reproducibility stay
+in their existing CI jobs. Results must distinguish fewer operations and lower
+allocations from measured wall-time improvement, and distinguish baseline gains
+from existing native-performance acceptance failures.
