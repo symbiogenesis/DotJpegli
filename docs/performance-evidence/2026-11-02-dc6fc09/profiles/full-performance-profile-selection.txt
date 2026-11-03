@@ -1,0 +1,3 @@
+smooth-gradient 444 0 1
+low-contrast 444 0 4
+low-noise 444 0 4

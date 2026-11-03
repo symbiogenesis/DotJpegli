@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "mode": "diagnostic",
+  "status": "selected-case-bound-exceeded",
+  "valid": true,
+  "passed": null,
+  "parityVerdict": "not-evaluated",
+  "selectedCoverageComplete": true,
+  "fullCoverageComplete": false,
+  "scope": "Selected cases only; no full parity verdict or aggregate acceptance claim",
+  "instrumentation": "dotnet-trace 10.0.750501; dotnet-sampled-thread-time; profiling timings are not acceptance evidence",
+  "expectedCases": 1,
+  "cases": 1,
+  "testedRevision": "dc6fc09595dc3a6296abe99575b38e8fae449d82",
+  "policy": {
+    "warmups": 5,
+    "blocks": 7,
+    "minimumIterations": 100,
+    "maximumIterations": 100,
+    "targetBlockMilliseconds": 50,
+    "minimumBlockMilliseconds": 1,
+    "maximumRelativeMad": 0.1,
+    "maximumGroupGeometricMeanRatio": 1.05,
+    "maximumCaseRatio": 1.1,
+    "managedWorkers": 1
+  },
+  "selection": {
+    "images": [
+      "low-contrast"
+    ],
+    "distances": [
+      4
+    ],
+    "samplings": [
+      444
+    ],
+    "progressions": [
+      0
+    ],
+    "policy": {
+      "warmups": 5,
+      "blocks": 7,
+      "minimumIterations": 100,
+      "maximumIterations": 100,
+      "targetBlockMilliseconds": 50,
+      "minimumBlockMilliseconds": 1,
+      "maximumRelativeMad": 0.1,
+      "maximumGroupGeometricMeanRatio": 1.05,
+      "maximumCaseRatio": 1.1,
+      "managedWorkers": 1
+    },
+    "expectedCases": 1
+  },
+  "invalidReasons": [],
+  "failures": [
+    "low-contrast/444/p0/d4: selected-case median latency ratio 2.036479 exceeds 1.10."
+  ],
+  "runMetadata": "run.json",
+  "rawMeasurements": "cases.json"
+}

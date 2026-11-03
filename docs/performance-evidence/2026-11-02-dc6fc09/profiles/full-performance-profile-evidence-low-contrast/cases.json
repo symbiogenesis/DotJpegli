@@ -1,0 +1,113 @@
+[
+  {
+    "id": "low-contrast",
+    "category": "controlled",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "iterations": 100,
+    "calibrationNativeNsPerEncode": 413477.89,
+    "blocks": [
+      {
+        "block": 0,
+        "order": "native-managed",
+        "managedNsPerEncode": 874282.15,
+        "nativeNsPerEncode": 407785.88,
+        "gen0Collections": 0,
+        "gen1Collections": 0,
+        "gen2Collections": 0,
+        "allocatedManagedBytes": 7374400,
+        "pairedRatio": 2.1439735726013858
+      },
+      {
+        "block": 1,
+        "order": "managed-native",
+        "managedNsPerEncode": 900782.64,
+        "nativeNsPerEncode": 403197.95,
+        "gen0Collections": 1,
+        "gen1Collections": 0,
+        "gen2Collections": 0,
+        "allocatedManagedBytes": 7376104,
+        "pairedRatio": 2.2340952874388376
+      },
+      {
+        "block": 2,
+        "order": "native-managed",
+        "managedNsPerEncode": 831607.55,
+        "nativeNsPerEncode": 414100.93,
+        "gen0Collections": 0,
+        "gen1Collections": 0,
+        "gen2Collections": 0,
+        "allocatedManagedBytes": 7374400,
+        "pairedRatio": 2.0082242993272197
+      },
+      {
+        "block": 3,
+        "order": "managed-native",
+        "managedNsPerEncode": 827594.07,
+        "nativeNsPerEncode": 407134.7,
+        "gen0Collections": 0,
+        "gen1Collections": 0,
+        "gen2Collections": 0,
+        "allocatedManagedBytes": 7374400,
+        "pairedRatio": 2.032727915355778
+      },
+      {
+        "block": 4,
+        "order": "native-managed",
+        "managedNsPerEncode": 846546.99,
+        "nativeNsPerEncode": 408355.6,
+        "gen0Collections": 1,
+        "gen1Collections": 1,
+        "gen2Collections": 0,
+        "allocatedManagedBytes": 7377792,
+        "pairedRatio": 2.07306325663221
+      },
+      {
+        "block": 5,
+        "order": "managed-native",
+        "managedNsPerEncode": 822679.13,
+        "nativeNsPerEncode": 411212.44,
+        "gen0Collections": 0,
+        "gen1Collections": 0,
+        "gen2Collections": 0,
+        "allocatedManagedBytes": 7374400,
+        "pairedRatio": 2.000618293551625
+      },
+      {
+        "block": 6,
+        "order": "native-managed",
+        "managedNsPerEncode": 812468.36,
+        "nativeNsPerEncode": 412780.42,
+        "gen0Collections": 1,
+        "gen1Collections": 0,
+        "gen2Collections": 0,
+        "allocatedManagedBytes": 7375432,
+        "pairedRatio": 1.9682822164869158
+      }
+    ],
+    "managed": {
+      "minimum": 812468.36,
+      "p10": 818594.822,
+      "median": 831607.55,
+      "p90": 884882.346,
+      "maximum": 900782.64,
+      "relativeMad": 0.017964531466795778
+    },
+    "native": {
+      "minimum": 403197.95,
+      "p10": 405560,
+      "median": 408355.6,
+      "p90": 413308.624,
+      "maximum": 414100.93,
+      "relativeMad": 0.00699596136308655
+    },
+    "medianRatio": 2.036478867927855,
+    "managedBytes": 4356,
+    "nativeBytes": 4356,
+    "managedJpegSha256": "e9336a8c394ded4b6b6626fa32643a9db6eb092b9d5bfe215ca99007f7244c67",
+    "nativeJpegSha256": "e9336a8c394ded4b6b6626fa32643a9db6eb092b9d5bfe215ca99007f7244c67",
+    "structureDifference": null,
+    "invalidReasons": []
+  }
+]
