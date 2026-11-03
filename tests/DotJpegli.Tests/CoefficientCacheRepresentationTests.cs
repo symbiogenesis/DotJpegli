@@ -186,20 +186,20 @@ public sealed class CoefficientCacheRepresentationTests
         var indices = new DirtyPool<int>(-31);
         CoefficientCacheRepresentation cache = CoefficientCacheRepresentation.Create(MixedBlocks(2), layout,
             pool: bytes, indexPool: indices, cancellationToken: TestContext.Current.CancellationToken)!;
-        Assert.Throws<ArgumentOutOfRangeException>(() => cache.GetDc(-1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => cache.GetDc(2));
-        Assert.Throws<ArgumentOutOfRangeException>(() => cache.GetCoefficient(0, -1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => cache.GetCoefficient(0, 64));
-        Assert.Throws<ArgumentException>(() => cache.CopyBlock(0, new short[63]));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => cache.GetDc(-1));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => cache.GetDc(2));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => cache.GetCoefficient(0, -1));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => cache.GetCoefficient(0, 64));
+        _ = Assert.Throws<ArgumentException>(() => cache.CopyBlock(0, new short[63]));
         cache.Dispose();
         cache.Dispose();
         Assert.Empty(bytes.Outstanding);
         Assert.Empty(indices.Outstanding);
         Assert.Equal(bytes.Rents, bytes.Returns);
         Assert.Equal(indices.Rents, indices.Returns);
-        Assert.Throws<ObjectDisposedException>(() => cache.GetDc(0));
-        Assert.Throws<ObjectDisposedException>(() => cache.GetCoefficient(0, 1));
-        Assert.Throws<ObjectDisposedException>(() => cache.CopyBlock(0, new short[64]));
+        _ = Assert.Throws<ObjectDisposedException>(() => cache.GetDc(0));
+        _ = Assert.Throws<ObjectDisposedException>(() => cache.GetCoefficient(0, 1));
+        _ = Assert.Throws<ObjectDisposedException>(() => cache.CopyBlock(0, new short[64]));
     }
 
     [Fact]
@@ -207,18 +207,18 @@ public sealed class CoefficientCacheRepresentationTests
     {
         var bytes = new DirtyPool<byte>(0xBE);
         var indices = new DirtyPool<int>(-37);
-        Assert.Throws<ArgumentException>(() => CoefficientCacheRepresentation.Create(new short[65],
+        _ = Assert.Throws<ArgumentException>(() => CoefficientCacheRepresentation.Create(new short[65],
             CoefficientCacheLayout.Bitmap, pool: bytes, indexPool: indices,
             cancellationToken: TestContext.Current.CancellationToken));
-        Assert.Throws<ArgumentOutOfRangeException>(() => CoefficientCacheRepresentation.Create(new short[64],
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => CoefficientCacheRepresentation.Create(new short[64],
             (CoefficientCacheLayout)17, pool: bytes, indexPool: indices,
             cancellationToken: TestContext.Current.CancellationToken));
-        Assert.Throws<ArgumentOutOfRangeException>(() => CoefficientCacheRepresentation.Create(new short[64],
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => CoefficientCacheRepresentation.Create(new short[64],
             CoefficientCacheLayout.Bitmap, maximumBytes: -1, pool: bytes, indexPool: indices,
             cancellationToken: TestContext.Current.CancellationToken));
         using var canceled = new CancellationTokenSource();
         canceled.Cancel();
-        Assert.ThrowsAny<OperationCanceledException>(() => CoefficientCacheRepresentation.Create(new short[64],
+        _ = Assert.ThrowsAny<OperationCanceledException>(() => CoefficientCacheRepresentation.Create(new short[64],
             CoefficientCacheLayout.Bitmap, pool: bytes, indexPool: indices, cancellationToken: canceled.Token));
         Assert.Equal(0, bytes.Rents + indices.Rents);
     }
@@ -240,7 +240,7 @@ public sealed class CoefficientCacheRepresentationTests
         Assert.Equal(0, cache.RentedBytes);
         Assert.Equal(0, cache.CompactTiles + cache.DenseTiles);
         Assert.Equal(0, bytes.Rents + indices.Rents);
-        Assert.Throws<ArgumentOutOfRangeException>(() => cache.GetDc(0));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => cache.GetDc(0));
     }
 
     [Theory]
