@@ -691,7 +691,8 @@ public static class JpegliEncoder
             sampling, tables, distance, options.SmoothingFactor, adaptive, adaptiveMultipliers, cancellationToken,
             zigZagOrdered: true, narrowZigZagKernel: options.NarrowZigZagKernel);
         streamSequential &= quantizedImage is null;
-        using EntropyTokenScans? tokenScans = streamSequential || quantizedImage is not null ? new(scans, options.Progressive) : null;
+        using EntropyTokenScans? tokenScans = streamSequential || quantizedImage is not null
+            ? new(scans, options.Progressive, options.EntropyTokenBudgetBytes) : null;
         long[][] dcFrequencies = new long[componentCount][];
         for (int component = 0; component < componentCount; component++)
         {
@@ -770,6 +771,7 @@ public static class JpegliEncoder
             if (tokenScans?[scanIndex] is { IsComplete: true } scanTokens)
             {
                 scanTokens.Replay(bits, coding, cancellationToken);
+                scanTokens.Dispose();
             }
             else if (streamSequential)
             {

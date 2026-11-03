@@ -12,6 +12,9 @@ public sealed record JpegliEncoderOptions
     internal KernelPreference FuzzyErosionKernel { get; init; }
     internal KernelPreference NarrowZigZagKernel { get; init; }
 
+    // Focused regressions can force complete, mixed and uncached scan emission.
+    internal long EntropyTokenBudgetBytes { get; init; } = EntropyTokenBudget.DefaultMaximumBytes;
+
     /// <summary>
     /// Color space stored in the JPEG. Automatic (the default) writes grayscale
     /// for grayscale input, XYB for scaled XYB input, and YCbCr for other color input,
