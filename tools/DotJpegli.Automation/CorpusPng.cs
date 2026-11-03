@@ -7,7 +7,7 @@ internal static class CorpusPng
 {
     internal static byte[] ToPpm(byte[] data)
     {
-        byte[] signature = [137, 80, 78, 71, 13, 10, 26, 10];
+        ReadOnlySpan<byte> signature = [137, 80, 78, 71, 13, 10, 26, 10];
         if (data.Length < signature.Length ||
             !MemoryExtensions.SequenceEqual(data.AsSpan(0, 8), signature))
         {
@@ -31,19 +31,19 @@ internal static class CorpusPng
             }
 
             int size = (int)length;
-            string kind = System.Text.Encoding.ASCII.GetString(data, position + 4, 4);
+            ReadOnlySpan<byte> kind = data.AsSpan(position + 4, 4);
             int payload = position + 8;
             if (Crc32(data, position + 4, size + 4) != ReadUInt32(data, payload + size))
             {
                 throw new InvalidDataException("PNG CRC mismatch");
             }
 
-            if (position == 8 && kind != "IHDR")
+            if (position == 8 && !kind.SequenceEqual("IHDR"u8))
             {
                 throw new InvalidDataException("Missing IHDR");
             }
 
-            if (kind == "IHDR")
+            if (kind.SequenceEqual("IHDR"u8))
             {
                 if (width != 0 || size != 13)
                 {
@@ -64,11 +64,11 @@ internal static class CorpusPng
                     throw new InvalidDataException("Expected noninterlaced RGB8 PNG");
                 }
             }
-            else if (kind == "IDAT")
+            else if (kind.SequenceEqual("IDAT"u8))
             {
                 compressed.Write(data, payload, size);
             }
-            else if (kind == "IEND")
+            else if (kind.SequenceEqual("IEND"u8))
             {
                 if (size != 0)
                 {
@@ -80,7 +80,7 @@ internal static class CorpusPng
             }
             else if (data[position + 4] is >= ((byte)'A') and <= ((byte)'Z'))
             {
-                throw new InvalidDataException("Unsupported critical chunk " + kind);
+                throw new InvalidDataException("Unsupported critical chunk " + System.Text.Encoding.ASCII.GetString(kind));
             }
 
             position += size + 12;
