@@ -6,17 +6,17 @@ namespace DotJpegli.Tests;
 
 public sealed class FuzzyErosionSelectionTests
 {
-    [Fact]
-    public void ScalarAndVectorSelectFirstFourForEveryDistinctPermutation()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ScalarAndVectorSelectFirstFourForEveryDistinctPermutation(bool useNetwork)
     {
         float[] values = [1, 2, 3, 4, 5, 6, 7, 8, 9];
         float[][] columns = CreateColumns();
         int lane = 0, permutations = 0;
         do
         {
-            float v0 = values[0], v1 = values[1], v2 = values[2], v3 = values[3];
-            AdaptiveQuantization.SelectFourMinima(ref v0, ref v1, ref v2, ref v3,
-                values[4], values[5], values[6], values[7], values[8]);
+            SelectScalar(values, useNetwork, out float v0, out float v1, out float v2, out float v3);
             Assert.Equal(1f, v0);
             Assert.Equal(2f, v1);
             Assert.Equal(3f, v2);
@@ -28,7 +28,7 @@ public sealed class FuzzyErosionSelectionTests
                 columns[input][lane] = values[input] + lane * 16f;
             if (++lane == Vector<float>.Count)
             {
-                var selected = SelectVector(columns);
+                var selected = SelectVector(columns, useNetwork);
                 for (int outputLane = 0; outputLane < Vector<float>.Count; outputLane++)
                 {
                     float offset = outputLane * 16f;
@@ -47,8 +47,10 @@ public sealed class FuzzyErosionSelectionTests
         Assert.Equal(0, lane);
     }
 
-    [Fact]
-    public void ScalarAndVectorSelectFirstFourForEveryBinaryNeighborhood()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ScalarAndVectorSelectFirstFourForEveryBinaryNeighborhood(bool useNetwork)
     {
         float[][] columns = CreateColumns();
         for (int mask = 0; mask < 512; mask += Vector<float>.Count)
@@ -56,12 +58,14 @@ public sealed class FuzzyErosionSelectionTests
             for (int lane = 0; lane < Vector<float>.Count; lane++)
                 for (int input = 0; input < 9; input++)
                     columns[input][lane] = (((mask + lane) & (1 << input)) == 0) ? 1.25f : 17.5f;
-            AssertMatchesSortedNeighborhoods(columns);
+            AssertMatchesSortedNeighborhoods(columns, useNetwork);
         }
     }
 
-    [Fact]
-    public void TiedAndExtremePositiveValuesPreserveSelectedFloatBits()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TiedAndExtremePositiveValuesPreserveSelectedFloatBits(bool useNetwork)
     {
         float[][] columns = CreateColumns();
         float[] boundaries =
@@ -83,23 +87,66 @@ public sealed class FuzzyErosionSelectionTests
                 columns[4][lane] = columns[1][lane];
                 columns[8][lane] = columns[1][lane];
             }
-            AssertMatchesSortedNeighborhoods(columns);
+            AssertMatchesSortedNeighborhoods(columns, useNetwork);
         }
     }
 
-    private static void AssertMatchesSortedNeighborhoods(float[][] columns)
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void ExplicitKernelsPreserveStrengthBitsAcrossEdgesAndReusedNeighborhoods(int sampling)
     {
-        var selected = SelectVector(columns);
+        int mcuHeight = sampling * 8, height = mcuHeight * 3 + 3;
+        foreach (int width in new[] { 1, 3, 9, 19, 67, 129 })
+        {
+            int stride = width + 7;
+            byte[] samples = new byte[stride * height];
+            new Random(7139 + width + sampling).NextBytes(samples);
+            PixelSource pixels = new PixelSource(samples, PixelLayout.Gray8)
+                .WithConvertedPlanes(width, height, stride, TestContext.Current.CancellationToken);
+            using IDisposable? storage = pixels.ConvertedStorage;
+            using var insertion = new AdaptiveQuantization(width, height, sampling,
+                fuzzyErosionKernel: KernelPreference.Original);
+            using var network = new AdaptiveQuantization(width, height, sampling,
+                fuzzyErosionKernel: KernelPreference.Optimized);
+            float[] expected = new float[insertion.BlocksWide * sampling];
+            float[] actual = new float[expected.Length];
+            foreach (bool vector in new[] { false, true })
+                foreach (int row in new[] { 0, 1, 2, 3, 3, 0, 2, 1, 2, 3 })
+                {
+                    if (vector)
+                    {
+                        insertion.ComputeRowVector(pixels, stride, row * mcuHeight, 4, expected,
+                            TestContext.Current.CancellationToken);
+                        network.ComputeRowVector(pixels, stride, row * mcuHeight, 4, actual,
+                            TestContext.Current.CancellationToken);
+                    }
+                    else
+                    {
+                        insertion.ComputeRowScalar(pixels, stride, row * mcuHeight, 4, expected,
+                            TestContext.Current.CancellationToken);
+                        network.ComputeRowScalar(pixels, stride, row * mcuHeight, 4, actual,
+                            TestContext.Current.CancellationToken);
+                    }
+                    for (int block = 0; block < expected.Length; block++)
+                        AssertSameBits(expected[block], actual[block]);
+                }
+        }
+    }
+
+    private static void AssertMatchesSortedNeighborhoods(float[][] columns, bool useNetwork)
+    {
+        var selected = SelectVector(columns, useNetwork);
         Span<float> expected = stackalloc float[9];
+        Span<float> inputs = stackalloc float[9];
         for (int lane = 0; lane < Vector<float>.Count; lane++)
         {
             for (int input = 0; input < 9; input++)
-                expected[input] = columns[input][lane];
+                inputs[input] = expected[input] = columns[input][lane];
             expected.Sort();
-            float v0 = columns[0][lane], v1 = columns[1][lane];
-            float v2 = columns[2][lane], v3 = columns[3][lane];
-            AdaptiveQuantization.SelectFourMinima(ref v0, ref v1, ref v2, ref v3,
-                columns[4][lane], columns[5][lane], columns[6][lane], columns[7][lane], columns[8][lane]);
+            SelectScalar(inputs, useNetwork, out float v0, out float v1, out float v2, out float v3);
             AssertSameBits(expected[0], v0);
             AssertSameBits(expected[1], v1);
             AssertSameBits(expected[2], v2);
@@ -112,13 +159,29 @@ public sealed class FuzzyErosionSelectionTests
     }
 
     private static (Vector<float> V0, Vector<float> V1, Vector<float> V2, Vector<float> V3)
-        SelectVector(float[][] columns)
+        SelectVector(float[][] columns, bool useNetwork)
     {
         Vector<float> v0 = new(columns[0]), v1 = new(columns[1]);
         Vector<float> v2 = new(columns[2]), v3 = new(columns[3]);
-        AdaptiveQuantization.SelectFourMinima(ref v0, ref v1, ref v2, ref v3,
-            new(columns[4]), new(columns[5]), new(columns[6]), new(columns[7]), new(columns[8]));
+        if (useNetwork)
+            AdaptiveQuantization.SelectFourMinimaNetwork(ref v0, ref v1, ref v2, ref v3,
+                new(columns[4]), new(columns[5]), new(columns[6]), new(columns[7]), new(columns[8]));
+        else
+            AdaptiveQuantization.SelectFourMinimaInsertion(ref v0, ref v1, ref v2, ref v3,
+                new(columns[4]), new(columns[5]), new(columns[6]), new(columns[7]), new(columns[8]));
         return (v0, v1, v2, v3);
+    }
+
+    private static void SelectScalar(ReadOnlySpan<float> values, bool useNetwork,
+        out float v0, out float v1, out float v2, out float v3)
+    {
+        v0 = values[0]; v1 = values[1]; v2 = values[2]; v3 = values[3];
+        if (useNetwork)
+            AdaptiveQuantization.SelectFourMinimaNetwork(ref v0, ref v1, ref v2, ref v3,
+                values[4], values[5], values[6], values[7], values[8]);
+        else
+            AdaptiveQuantization.SelectFourMinimaInsertion(ref v0, ref v1, ref v2, ref v3,
+                values[4], values[5], values[6], values[7], values[8]);
     }
 
     private static float[][] CreateColumns()
