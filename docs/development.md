@@ -239,6 +239,42 @@ checks remain part of the oracle.
 
 See the [GitHub Actions workflow](../.github/workflows/ci.yml) for the hosted checks.
 
+## InferSharp analysis
+
+The separate [InferSharp workflow](../.github/workflows/infersharp.yml) follows
+the [JetDatabaseWriter pipeline](https://github.com/symbiogenesis/JetDatabaseWriter/blob/main/.github/workflows/infersharp.yml).
+Run it manually from GitHub Actions against `main`. It builds and analyzes
+`netstandard2.1`, `net10.0` and `net11.0` independently, using the pinned SDK,
+locked dependencies and a digest-pinned InferSharp v1.5 container. Only the
+DotJpegli library and its portable PDB are staged for analysis. This build
+disables Roslyn analyzers; normal CI retains the strict compiler, analyzer,
+trimming and NativeAOT checks.
+
+Each target retains text and SARIF reports and `analysis.log` for seven days,
+including on analysis failure. The job summary records translation coverage
+and finding counts. InferSharp can exit successfully when it finds bugs or
+skips unsupported IL, so `tools/assert-infersharp.ps1` rejects findings, invalid
+reports, missing coverage and empty translations. Partial translation remains
+visible in the log and summary; a successful run covers only translated code.
+
+No findings are suppressed by default. If a finding requires an exception,
+review its trace and source first. The validator accepts an optional
+`-BaselinePath` and `-TargetFramework` for a reviewed v1 baseline in the same
+format as JetDatabaseWriter: analyzer version, reviewed commit, normalized
+source SHA-256 hashes and per-target rule/path/line/fingerprint identities with
+reasons. It rejects changed sources, new findings and stale exceptions. Add
+the baseline and those arguments to the workflow only after that review.
+
+Run the focused report-validator regressions with PowerShell 7:
+
+```powershell
+./tools/tests/test-infersharp.ps1
+```
+
+Before dispatching, check for a queued, running or successful InferSharp run
+for the intended commit and reuse it. This workflow does not start the regular
+test or benchmark workflow.
+
 ## Regression coverage
 
 Source-ICC regressions compare transformed samples with independent transfer,

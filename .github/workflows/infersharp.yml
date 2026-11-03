@@ -1,0 +1,82 @@
+name: InferSharp
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infersharp-${{ github.ref }}
+  cancel-in-progress: false
+  queue: max
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  infersharp:
+    name: InferSharp (${{ matrix.tf }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        tf: [netstandard2.1, net10.0, net11.0]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: src/DotJpegli/packages.lock.json
+      - name: Restore
+        run: dotnet restore src/DotJpegli/DotJpegli.csproj --locked-mode
+      # Packaging embeds symbols. Give InferSharp portable PDBs and stage only
+      # our library; the normal CI build retains strict Roslyn analysis.
+      - name: Build analysis input
+        run: >-
+          dotnet build src/DotJpegli/DotJpegli.csproj -c Release --no-restore -f ${{ matrix.tf }}
+          -p:RunAnalyzers=false -p:DebugType=portable -p:DebugSymbols=true
+      - name: Test report validation
+        shell: pwsh
+        run: ./tools/tests/test-infersharp.ps1
+      - name: Stage analysis input
+        shell: bash
+        env:
+          TARGET_FRAMEWORK: ${{ matrix.tf }}
+        run: |
+          mkdir -p .artifacts/infersharp-input
+          cp "src/DotJpegli/bin/Release/$TARGET_FRAMEWORK/DotJpegli.dll" .artifacts/infersharp-input/
+          cp "src/DotJpegli/bin/Release/$TARGET_FRAMEWORK/DotJpegli.pdb" .artifacts/infersharp-input/
+      # Run the v1.5 container directly to retain translation coverage alongside
+      # the reports. The GitHub action drops this diagnostic.
+      - name: Run InferSharp
+        shell: bash
+        run: |
+          mkdir -p .artifacts/infersharp
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/workspace" --workdir /infersharp \
+            --entrypoint /bin/bash \
+            mcr.microsoft.com/infersharp@sha256:030eb68fb99f86f6c6351672f444a7092dceb0fdf15ac5f24ddf9f9e198484cd \
+            -c 'set -euo pipefail; ./run_infersharp.sh /workspace/.artifacts/infersharp-input --output-folder /workspace/.artifacts/infersharp 2>&1 | tee /workspace/.artifacts/infersharp/analysis.log'
+      - name: Upload InferSharp reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: infersharp-${{ matrix.tf }}
+          path: .artifacts/infersharp/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+      - name: Require no unreviewed InferSharp findings
+        shell: pwsh
+        run: |
+          Get-Content -LiteralPath .artifacts/infersharp/report.txt
+          ./tools/assert-infersharp.ps1 -ReportPath .artifacts/infersharp/report.sarif -TranslationLogPath .artifacts/infersharp/analysis.log | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
