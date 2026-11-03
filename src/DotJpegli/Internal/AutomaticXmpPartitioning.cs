@@ -108,7 +108,7 @@ internal static class AutomaticXmpPartitioning
             XElement? rdf = root?.Name == Rdf + "RDF" ? root
                 : root?.Name == Meta + "xmpmeta" && root.Elements().Count() == 1
                     ? root.Element(Rdf + "RDF") : null;
-            if (rdf is null || HasNonWhitespaceText(root!) || HasNonWhitespaceText(rdf) || !rdf.Elements().Any() ||
+            if (rdf is null || HasNonWhitespaceText(root!) || HasNonWhitespaceText(rdf) || !rdf.HasElements ||
                 rdf.Elements().Any(element => element.Name != Rdf + "Description"))
             {
                 throw new ArgumentException(message, nameof(JpegliEncoderOptions.XmpPacket));

@@ -60,7 +60,7 @@ public sealed class XmpMetadata
             XElement? parsedRdf = root?.Name == Rdf + "RDF" ? root
                 : root?.Name == Meta + "xmpmeta" && root.Elements().Count() == 1
                     ? root.Element(Rdf + "RDF") : null;
-            if (parsedRdf is null || HasText(root!) || HasText(parsedRdf) || !parsedRdf.Elements().Any() ||
+            if (parsedRdf is null || HasText(root!) || HasText(parsedRdf) || !parsedRdf.HasElements ||
                 parsedRdf.Elements().Any(element => element.Name != Rdf + "Description"))
             {
                 throw new ArgumentException(message, nameof(packet));
@@ -128,9 +128,14 @@ public sealed class XmpMetadata
             throw new ArgumentException("The XML element name must match the property name.", nameof(value));
         }
 
-        XElement copy = CopyContext(value, new XElement(value));
-        if (HasExtendedLink(copy) ||
-            copy.DescendantNodes().OfType<XProcessingInstruction>().Any(instruction => instruction.Target == "xpacket"))
+        this.SetOwnedProperty(CopyContext(value, new XElement(value)));
+    }
+
+    // Callers supply detached, owned trees with already validated property names.
+    private void SetOwnedProperty(XElement value)
+    {
+        if (HasExtendedLink(value) ||
+            value.DescendantNodes().OfType<XProcessingInstruction>().Any(instruction => instruction.Target == "xpacket"))
         {
             throw new ArgumentException("Properties cannot introduce extended-XMP links or packet instructions.", nameof(value));
         }
@@ -139,15 +144,15 @@ public sealed class XmpMetadata
         {
             // XElement permits invalid character data until serialization. Check
             // before replacing existing forms so an invalid edit is atomic.
-            _ = copy.ToString(SaveOptions.DisableFormatting);
+            _ = value.ToString(SaveOptions.DisableFormatting);
         }
         catch (ArgumentException error)
         {
             throw new ArgumentException("The property must serialize as well-formed XML.", nameof(value), error);
         }
         this.EnsureEditable();
-        _ = this.RemoveForms(xmlName);
-        this.rdf.Elements().First().Add(copy);
+        _ = this.RemoveForms(value.Name);
+        this.rdf.Elements().First().Add(value);
     }
 
     /// <summary>Gets a literal simple property, or null if absent.</summary>
@@ -167,7 +172,7 @@ public sealed class XmpMetadata
     public void SetSimpleProperty(XmpPropertyName name, string value)
     {
         Guard.ThrowIfNull(value);
-        this.SetProperty(name, new XElement(PropertyName(name), value));
+        this.SetOwnedProperty(new XElement(PropertyName(name), value));
     }
 
     /// <summary>Gets the exact language entry of an RDF alternative, or null if absent. Language matching ignores case.</summary>
@@ -219,7 +224,7 @@ public sealed class XmpMetadata
             alternative.Add(item);
         }
 
-        this.SetProperty(name, property);
+        this.SetOwnedProperty(property);
     }
 
     /// <summary>Gets an RDF bag or sequence of literal strings, or an empty list if the property is absent.</summary>
@@ -252,7 +257,7 @@ public sealed class XmpMetadata
             Guard.ThrowIfNull(value);
             container.Add(new XElement(Rdf + "li", value));
         }
-        this.SetProperty(name, new XElement(PropertyName(name), container));
+        this.SetOwnedProperty(new XElement(PropertyName(name), container));
     }
 
     /// <summary>Removes all attribute and element forms of a property from every description.</summary>
@@ -351,14 +356,15 @@ public sealed class XmpMetadata
 
     private static XElement Alternative(XElement property)
     {
-        XElement[] children = property.Elements().ToArray();
-        if (children.Length != 1 || children[0].Name != Rdf + "Alt" || HasText(property) || HasText(children[0]) ||
-            children[0].Elements().Any(element => element.Name != Rdf + "li" || element.Attribute(XNamespace.Xml + "lang") is null))
+        using IEnumerator<XElement> children = property.Elements().GetEnumerator();
+        XElement? alternative = children.MoveNext() ? children.Current : null;
+        if (alternative is null || children.MoveNext() || alternative.Name != Rdf + "Alt" || HasText(property) || HasText(alternative) ||
+            alternative.Elements().Any(element => element.Name != Rdf + "li" || element.Attribute(XNamespace.Xml + "lang") is null))
         {
             throw new InvalidOperationException("The XMP property is not an RDF language alternative.");
         }
 
-        return children[0];
+        return alternative;
     }
 
     private static void ValidateLanguage(string language)
