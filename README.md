@@ -35,7 +35,7 @@ P/Invoke, unsafe code or runtime NuGet dependencies.
 
 ### Reference the project
 
-Building from source requires **.NET SDK `11.0.100-rc.2.26504.105`**, pinned in
+Building from source requires **.NET SDK `11.0.100-rc.3.26522.148`**, pinned in
 [`global.json`](https://github.com/symbiogenesis/DotJpegli/blob/main/global.json)
 with prerelease SDKs enabled.
 

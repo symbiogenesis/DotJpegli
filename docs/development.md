@@ -39,17 +39,22 @@ implementations for APIs introduced in newer runtimes. The .NET 11 build uses ne
 portable SIMD APIs, while the .NET 10 build retains compatible implementations.
 The .NET Standard target uses scalar DCT and quantization paths and preserves
 single-round fused multiply-add behavior in software.
-`global.json` pins .NET SDK `11.0.100-rc.2.26504.105` with
+`global.json` pins .NET SDK `11.0.100-rc.3.26522.148` with
 roll-forward disabled and `allowPrerelease: true`. Install that exact SDK;
 CI reads the same file. Running the .NET 10 test and tool targets also requires
 the .NET 10 runtime. Update the SDK pin deliberately to receive compiler,
 runtime and analyzer improvements, then validate all three library targets.
+All projects use C# 15 explicitly, including when compiling older framework
+targets, so the pinned compiler provides a consistent language version.
 
 Prefer framework span APIs for buffer searches, validation and counting, and
 span splitting when substrings do not need to be retained. Use collection
 expressions, records and primary constructors where they simplify the code.
 Keep numerical operation ordering and caller-owned buffer snapshots intact:
 modernization must preserve JPEG bytes, validation and the managed-only contract.
+Modern targets use bulk `BinaryPrimitives.ReverseEndianness` for Exif numeric
+arrays and span range/value searches for Huffman histogram validation. The
+.NET Standard target keeps compatible scalar implementations of these operations.
 
 The library project and its source are in `src/DotJpegli/`; tests are in
 `tests/DotJpegli.Tests/`. Build the library from the repository root with:

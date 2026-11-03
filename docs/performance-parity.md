@@ -74,14 +74,14 @@ follow-up with `profile=false`.
 ## Optional .NET 11 runtime and portable SIMD API comparison
 
 The workflow's `compare_net11=true` input runs one Kodak01 4:2:0 sequential case
-on .NET 10.0.13 and .NET 11.0.0-rc.2.26504.105, serially on the same CPU,
+on .NET 10.0.14 and .NET 11.0.0-rc.3.26522.148, serially on the same CPU,
 separately on x64 and ARM64 runners. A main
 commit containing `[compare-net11]` requests the same diagnostic in its automatic
 run. Its first pair uses the identical net10.0 assembly and checks matching JPEG
 hashes to isolate runtime/JIT changes. The library, tests and comparison tools
 target both net10.0 and net11.0, built with the pinned .NET 11 SDK.
 The same optional job also builds two isolated net11.0 variants with SDK
-`11.0.100-rc.2.26504.105`: portable `Shuffle`/`Create` lane assembly and portable
+`11.0.100-rc.3.26522.148`: portable `Shuffle`/`Create` lane assembly and portable
 `Zip`/`Unzip`/`Concat` equivalents in DCT transposes and 2x2 downsampling. Neither
 implementation uses CPU-specific intrinsics. The 4:2:0 case exercises both kernels.
 Both variants run on the identical .NET 11 runtime and CPU, with matching JPEG

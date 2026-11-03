@@ -5,6 +5,7 @@
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>15.0</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest</AnalysisLevel>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>

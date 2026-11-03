@@ -72,7 +72,7 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
-          dotnet-version: 10.0.402
+          dotnet-version: 10.0.403
       - name: Verify all solution dependency locks
         if: matrix.target.library == 'net11.0'
         run: dotnet restore DotJpegli.slnx --locked-mode
@@ -97,7 +97,7 @@ jobs:
         if: matrix.target.library != 'netstandard2.1'
         env:
           DOTNET_EnableHWIntrinsic: '0'
-        run: dotnet run --project tests/DotJpegli.Tests -c Release -f ${{ matrix.target.framework }} --no-build -p:DotJpegliLibraryTargetFramework=${{ matrix.target.library }} -- -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.PlaneDctTests -class DotJpegli.Tests.Net11DctTransposeTests -class DotJpegli.Tests.Net11DownsamplingTests -class DotJpegli.Tests.AdaptiveQuantizationReuseTests -class DotJpegli.Tests.SimdColorConversionTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.SimdQuantizationTests -class DotJpegli.Tests.PreparedQuantizationTests -class DotJpegli.Tests.OrderedEntropyTests -class DotJpegli.Tests.OrderedProgressiveEntropyTests -class DotJpegli.Tests.SimdAdaptiveQuantizationTests -class DotJpegli.Tests.PlanarPixelSourceTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.EncoderParallelTests -class DotJpegli.Tests.SourceIccColorManagementTests -class DotJpegli.Tests.NumericalTests -class DotJpegli.Tests.EncoderSmokeTests
+        run: dotnet run --project tests/DotJpegli.Tests -c Release -f ${{ matrix.target.framework }} --no-build -p:DotJpegliLibraryTargetFramework=${{ matrix.target.library }} -- -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.PlaneDctTests -class DotJpegli.Tests.Net11DctTransposeTests -class DotJpegli.Tests.Net11DownsamplingTests -class DotJpegli.Tests.AdaptiveQuantizationReuseTests -class DotJpegli.Tests.SimdColorConversionTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.SimdQuantizationTests -class DotJpegli.Tests.PreparedQuantizationTests -class DotJpegli.Tests.OrderedEntropyTests -class DotJpegli.Tests.OrderedProgressiveEntropyTests -class DotJpegli.Tests.SimdAdaptiveQuantizationTests -class DotJpegli.Tests.PlanarPixelSourceTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.EncoderParallelTests -class DotJpegli.Tests.SourceIccColorManagementTests -class DotJpegli.Tests.NumericalTests -class DotJpegli.Tests.EncoderSmokeTests -class DotJpegli.Tests.ExifMetadataTests -class DotJpegli.Tests.HuffmanCodingPlanTests
       - name: Verify reproducible Release assembly and package
         if: matrix.target.library == 'net11.0'
         shell: pwsh
@@ -122,7 +122,7 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
-          dotnet-version: 10.0.402
+          dotnet-version: 10.0.403
       - name: Restore locked library dependencies
         run: dotnet restore src/DotJpegli/DotJpegli.csproj --locked-mode
       # Publish restores SDK-selected runtime/compiler packs for this RID and mode.
@@ -245,7 +245,7 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
-          dotnet-version: 10.0.402
+          dotnet-version: 10.0.403
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: parity-reference-X64-${{ github.sha }}
@@ -417,9 +417,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: |
-            10.0.402
-            11.0.100-rc.2.26504.105
+          global-json-file: global.json
+          dotnet-version: 10.0.403
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: parity-reference-${{ runner.arch }}-${{ github.sha }}
@@ -449,7 +448,7 @@ jobs:
           DOTNET_ROLL_FORWARD_TO_PRERELEASE: '1'
         run: |
           cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
-          for runtime in 10.0.13 11.0.0-rc.2.26504.105; do
+          for runtime in 10.0.14 11.0.0-rc.3.26522.148; do
             set +e
             taskset -c "$cpu" dotnet --fx-version "$runtime" --roll-forward Disable "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/net10.0/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/runtime-$runtime" --diagnostic --images kodim01 --distances 1 --samplings 420 --progressions 0 --blocks 7 --iterations 20 --warmups 5
             verdict=$?
@@ -458,7 +457,7 @@ jobs:
           done
           for variant in net11-baseline net11-simd; do
             set +e
-            taskset -c "$cpu" dotnet --fx-version 11.0.0-rc.2.26504.105 --roll-forward Disable "${{ runner.temp }}/$variant/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/runtime-$variant" --diagnostic --images kodim01 --distances 1 --samplings 420 --progressions 0 --blocks 7 --iterations 20 --warmups 5
+            taskset -c "$cpu" dotnet --fx-version 11.0.0-rc.3.26522.148 --roll-forward Disable "${{ runner.temp }}/$variant/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/runtime-$variant" --diagnostic --images kodim01 --distances 1 --samplings 420 --progressions 0 --blocks 7 --iterations 20 --warmups 5
             verdict=$?
             set -e
             if [[ "$verdict" -gt 1 ]]; then exit "$verdict"; fi
@@ -469,7 +468,7 @@ jobs:
           import json, os
           from pathlib import Path
           root = Path(os.environ['RUNNER_TEMP'])
-          versions = ['10.0.13', '11.0.0-rc.2.26504.105', 'net11-baseline', 'net11-simd']
+          versions = ['10.0.14', '11.0.0-rc.3.26522.148', 'net11-baseline', 'net11-simd']
           data = []
           for version in versions:
               path = root / ('runtime-' + version)
@@ -477,10 +476,10 @@ jobs:
               summary = json.loads((path / 'summary.json').read_text())
               cases = json.loads((path / 'cases.json').read_text())
               assert summary['valid'] and len(cases) == 1, 'Runtime comparison needs stable matched evidence'
-              expected = '10.0.13' if version == '10.0.13' else '11.0.0-rc.2.26504.105'
+              expected = '10.0.14' if version == '10.0.14' else '11.0.0-rc.3.26522.148'
               assert run['environment']['runtimeVersion'] == expected.split('-')[0], 'Unexpected runtime version'
               product = run['environment']['runtimeProductVersion']
-              assert product == expected or (expected == '10.0.13' and product.startswith(expected + '-servicing.')), 'Unexpected runtime build'
+              assert product == expected or (expected == '10.0.14' and product.startswith(expected + '-servicing.')), 'Unexpected runtime build'
               assert run['environment']['explicitNet11Simd'] == (version == 'net11-simd'), 'Unexpected SIMD experiment build'
               data.append((run, cases[0]))
           left, right, baseline, simd = data
@@ -514,8 +513,8 @@ jobs:
         with:
           name: runtime-comparison-${{ runner.arch }}-${{ github.sha }}
           path: |
-            ${{ runner.temp }}/runtime-10.0.13/
-            ${{ runner.temp }}/runtime-11.0.0-rc.2.26504.105/
+            ${{ runner.temp }}/runtime-10.0.14/
+            ${{ runner.temp }}/runtime-11.0.0-rc.3.26522.148/
             ${{ runner.temp }}/runtime-net11-baseline/
             ${{ runner.temp }}/runtime-net11-simd/
             ${{ runner.temp }}/runtime-comparison.*
