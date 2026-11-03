@@ -32,6 +32,18 @@ P/Invoke, unsafe code or runtime NuGet dependencies.
 | **Output and execution** | Byte arrays or streams, cancellation and optional parallel encoding. |
 | **Portable acceleration** | Managed SIMD on .NET 10 and .NET 11, with scalar fallbacks. |
 
+## Command-line encoder
+
+Download the self-contained NativeAOT `dotjpegli.exe` or Windows MSI from
+[Releases](https://github.com/symbiogenesis/DotJpegli/releases). Packages are
+available for x64 and ARM64 and do not require .NET to be installed.
+
+```powershell
+dotjpegli encode input.png output.jpg --quality 90 --progressive
+```
+
+See the [CLI guide](docs/cli.md) for installation, options and local publishing.
+
 ## Quick start
 
 ### Reference the project

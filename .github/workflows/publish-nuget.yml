@@ -1,4 +1,4 @@
-name: Publish NuGet
+name: Publish release
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       publish:
-        description: 'Publish to nuget.org after environment approval; false only previews the package'
+        description: 'Publish NuGet and a GitHub release with CLI downloads after environment approval; false previews artifacts'
         type: boolean
         default: false
 
@@ -22,12 +22,13 @@ permissions:
 
 jobs:
   verify:
-    name: Verify tested package
+    name: Verify tested release artifacts
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
       run-id: ${{ steps.ci.outputs.run-id }}
       artifact-id: ${{ steps.ci.outputs.artifact-id }}
+      release-artifact-id: ${{ steps.release.outputs.artifact-id }}
     steps:
       - name: Require main and a successful CI run for this exact revision
         id: ci
@@ -52,14 +53,45 @@ jobs:
               else error("The latest push CI run for this commit must finish successfully; reuse or rerun that CI run.") end
           ' <<< "$runs")
           artifacts=$(gh api --paginate "repos/$REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]')
-          artifact_id=$(jq -ser --arg name "nuget-$REVISION" '
-            [.[] | select(.name == $name and .expired == false)]
-            | sort_by(.id) | last
-            | .id // error("Expected an unexpired CI package artifact.")
+          artifact_id=$(jq -ser --arg sha "$REVISION" '
+            ["nuget-" + $sha, "cli-win-x64-" + $sha, "cli-win-arm64-" + $sha] as $names
+            | [ $names[] as $name
+              | ([.[] | select(.name == $name and .expired == false)]
+                | sort_by(.id) | last
+                | .id // error("Missing unexpired CI artifact: " + $name)) ]
+            | map(tostring) | join(",")
           ' <<< "$artifacts")
           echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
           echo "artifact-id=$artifact_id" >> "$GITHUB_OUTPUT"
           echo "Validated CI: https://github.com/$REPOSITORY/actions/runs/$run_id" >> "$GITHUB_STEP_SUMMARY"
+      - name: Check GitHub release state before publishing to NuGet
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REVISION: ${{ github.sha }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo '::error::The combined CLI/MSI release requires a stable three-part version.'; exit 1; }
+          tag="v$VERSION"
+          if gh api "repos/$GH_REPO/git/ref/tags/$tag" > "$RUNNER_TEMP/release-tag.json" 2> "$RUNNER_TEMP/release-tag-error.txt"; then
+            object_type=$(jq -r '.object.type' "$RUNNER_TEMP/release-tag.json")
+            object_sha=$(jq -r '.object.sha' "$RUNNER_TEMP/release-tag.json")
+            while [[ "$object_type" == tag ]]; do
+              object=$(gh api "repos/$GH_REPO/git/tags/$object_sha")
+              object_type=$(jq -r '.object.type' <<< "$object")
+              object_sha=$(jq -r '.object.sha' <<< "$object")
+            done
+            [[ "$object_type" == commit && "$object_sha" == "$REVISION" ]] || { echo '::error::Release tag points to another revision.'; exit 1; }
+          else
+            grep -q 'HTTP 404' "$RUNNER_TEMP/release-tag-error.txt" || { cat "$RUNNER_TEMP/release-tag-error.txt"; exit 1; }
+          fi
+          if gh release view "$tag" --json isDraft > "$RUNNER_TEMP/release-state.json" 2> "$RUNNER_TEMP/release-state-error.txt"; then
+            [[ $(jq -r '.isDraft' "$RUNNER_TEMP/release-state.json") == true ]] || { echo '::error::This release is already published.'; exit 1; }
+          else
+            grep -qi 'not found' "$RUNNER_TEMP/release-state-error.txt" || { cat "$RUNNER_TEMP/release-state-error.txt"; exit 1; }
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -67,15 +99,15 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
-      - name: Download the package built by CI
+      - name: Download the package and CLI artifacts built and tested by CI
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ steps.ci.outputs.artifact-id }}
           merge-multiple: true
-          path: ${{ runner.temp }}/nuget
+          path: ${{ runner.temp }}/release
           run-id: ${{ steps.ci.outputs.run-id }}
           github-token: ${{ github.token }}
-      - name: Check the requested version and record package hash
+      - name: Check the requested version, artifact set and SHA-256 manifest
         shell: pwsh
         env:
           EXPECTED_VERSION: ${{ inputs.version }}
@@ -83,12 +115,35 @@ jobs:
         run: |
           #requires -Version 7.6
           Set-StrictMode -Version 3.0
-          $packages = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'nuget') -File)
-          if ($packages.Count -ne 1) { throw 'Expected exactly one package artifact file.' }
+          $PSNativeCommandUseErrorActionPreference = $true
+          $releaseRoot = Join-Path $env:RUNNER_TEMP 'release'
+          $packages = @(Get-ChildItem -LiteralPath $releaseRoot -Filter '*.nupkg' -File)
+          if ($packages.Count -ne 1) { throw 'Expected exactly one NuGet package.' }
           ./tools/verify-release.ps1 -PackagePath $packages[0].FullName -ExpectedVersion $env:EXPECTED_VERSION -ExpectedRevision $env:EXPECTED_REVISION
-          $hash = (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash
-          "Package: $($packages[0].Name)`n`nSHA-256: $hash`n`nPublish requested: ${{ inputs.publish }}" |
+          $expectedNames = @($packages[0].Name)
+          foreach ($rid in @('win-x64', 'win-arm64')) {
+            $stem = "DotJpegli.Cli-$env:EXPECTED_VERSION-$rid"
+            $expectedNames += @("$stem.zip", "$stem.msi", "$stem-symbols.zip")
+          }
+          $files = @(Get-ChildItem -LiteralPath $releaseRoot -File | Sort-Object Name)
+          if (@(Compare-Object -ReferenceObject $expectedNames -DifferenceObject @($files.Name)).Count -ne 0) {
+            throw 'CI release files do not match the requested version and complete artifact set.'
+          }
+          $manifest = foreach ($file in $files) {
+            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($file.Name)"
+          }
+          $manifest | Set-Content -LiteralPath (Join-Path $releaseRoot 'SHA256SUMS') -Encoding utf8NoBOM
+          "Release version: $env:EXPECTED_VERSION`n`nRevision: $env:EXPECTED_REVISION`n`n$($manifest -join "`n")" |
             Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8NoBOM
+      - name: Retain the verified release and checksum manifest
+        id: release
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verified-release-${{ github.sha }}
+          path: ${{ runner.temp }}/release/*
+          retention-days: 30
+          if-no-files-found: error
 
   publish:
     name: Publish verified package to nuget.org
@@ -118,10 +173,9 @@ jobs:
       - name: Download the same verified CI artifact
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.verify.outputs.artifact-id }}
+          artifact-ids: ${{ needs.verify.outputs.release-artifact-id }}
           merge-multiple: true
           path: ${{ runner.temp }}/nuget
-          run-id: ${{ needs.verify.outputs.run-id }}
           github-token: ${{ github.token }}
       - name: Authenticate to nuget.org with OIDC
         id: login
@@ -141,3 +195,56 @@ jobs:
             exit 1
           fi
           dotnet nuget push "${packages[0]}" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
+
+  github-release:
+    name: Publish GitHub release downloads
+    if: inputs.publish
+    needs: [verify, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download the same verified release files
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.verify.outputs.release-artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/release
+          github-token: ${{ github.token }}
+      - name: Verify checksums and publish a release for the tested revision
+        shell: bash
+        working-directory: ${{ runner.temp }}/release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REVISION: ${{ github.sha }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          sha256sum --check SHA256SUMS
+          tag="v$VERSION"
+          # Refuse to attach this commit's files to a tag naming another commit.
+          if gh api "repos/$GH_REPO/git/ref/tags/$tag" > "$RUNNER_TEMP/release-tag.json" 2> "$RUNNER_TEMP/release-tag-error.txt"; then
+            object_type=$(jq -r '.object.type' "$RUNNER_TEMP/release-tag.json")
+            object_sha=$(jq -r '.object.sha' "$RUNNER_TEMP/release-tag.json")
+            while [[ "$object_type" == tag ]]; do
+              object=$(gh api "repos/$GH_REPO/git/tags/$object_sha")
+              object_type=$(jq -r '.object.type' <<< "$object")
+              object_sha=$(jq -r '.object.sha' <<< "$object")
+            done
+            [[ "$object_type" == commit && "$object_sha" == "$REVISION" ]] || { echo '::error::Release tag points to another revision.'; exit 1; }
+          else
+            grep -q 'HTTP 404' "$RUNNER_TEMP/release-tag-error.txt" || { cat "$RUNNER_TEMP/release-tag-error.txt"; exit 1; }
+          fi
+          if gh release view "$tag" --json isDraft > "$RUNNER_TEMP/release-state.json" 2> "$RUNNER_TEMP/release-state-error.txt"; then
+            [[ $(jq -r '.isDraft' "$RUNNER_TEMP/release-state.json") == true ]] || { echo '::error::This release is already published.'; exit 1; }
+          else
+            grep -qi 'not found' "$RUNNER_TEMP/release-state-error.txt" || { cat "$RUNNER_TEMP/release-state-error.txt"; exit 1; }
+            gh release create "$tag" --target "$REVISION" --title "DotJpegli $VERSION" --generate-notes --draft
+          fi
+          # Attach everything before publication, including on repositories with immutable releases.
+          gh release edit "$tag" --target "$REVISION"
+          gh release upload "$tag" ./*.nupkg ./*.zip ./*.msi SHA256SUMS --clobber
+          gh release edit "$tag" --draft=false --latest

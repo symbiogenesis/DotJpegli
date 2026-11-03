@@ -1,4 +1,4 @@
-# Publishing to NuGet
+# Publishing releases
 
 [Documentation](README.md)
 
@@ -41,30 +41,47 @@ The root `README.md` is the source for both GitHub and the package page. Packing
 generates the package's `README.md` under `obj`, removing the HTML wrapper used
 to center the header on GitHub. Edit the root README rather than the generated copy.
 
-1. Set `<Version>` in `src/DotJpegli/DotJpegli.csproj` to the intended version,
-   such as `1.0.0` or `1.1.0-rc.1`, and commit it with the release changes to
-   `main`. Publishing uses that version without rewriting it.
+1. Set `<Version>` in `src/DotJpegli/DotJpegli.csproj` to the intended stable
+   three-part version, such as `1.0.0` or `1.1.0`, and commit it with the release
+   changes to `main`. The CLI and MSI use the same version. Windows Installer
+   permits major/minor values through 255 and a patch value through 65535;
+   prerelease labels are not supported by this combined release process.
 2. Push the settled batch to `main` once. Reuse its automatic
    [CI](https://github.com/symbiogenesis/DotJpegli/actions/workflows/ci.yml)
    run; do not dispatch duplicate CI. The **Release NuGet package** job builds
    all three targets after tests and deployment checks, verifies package
    contents and repository provenance, and retains `nuget-<commit>` for 30 days.
+   The **NativeAOT CLI** jobs build and smoke-test Windows x64 and ARM64
+   executables, portable ZIPs, symbol ZIPs and MSI installers; they retain
+   `cli-win-x64-<commit>` and `cli-win-arm64-<commit>` for the same period.
 3. After the entire CI run succeeds, run
-   [Publish NuGet](https://github.com/symbiogenesis/DotJpegli/actions/workflows/publish-nuget.yml)
+   [Publish release](https://github.com/symbiogenesis/DotJpegli/actions/workflows/publish-nuget.yml)
    on **main**, entering the exact version. Leave **publish** unchecked for a
    preview. The run checks the latest push CI for the same commit, downloads
-   its package, verifies version/provenance/content, and reports its SHA-256.
+   its artifacts, verifies version/provenance/content and the complete download
+   set, and creates `SHA256SUMS`. Preview artifacts are available as
+   `verified-release-<commit>` on that workflow run. No files are rebuilt.
 4. To publish, run it again on the same `main` revision with **publish** checked,
    then review and approve the `nuget` environment deployment. The publishing
-   job downloads the same immutable CI artifact and pushes it without rebuilding.
+   job downloads the same verified artifact and pushes it without rebuilding.
+   After NuGet succeeds, the workflow creates or reuses a draft GitHub release
+   tagged `v<version>` at the tested commit, uploads all downloads and the checksum
+   manifest, then publishes it. Existing tags must point to that exact commit;
+   an already published GitHub release blocks publication.
 5. Confirm the version is listed at [nuget.org](https://www.nuget.org/packages/DotJpegli).
    NuGet validation and indexing can take time after upload succeeds.
 
-This flow publishes only from `main`, with no publication tags or work-branch
-pushes. Preview runs need no NuGet account configuration. Existing embedded PDBs
+This flow runs only from `main`; the workflow creates a release tag without a
+second CI dispatch or a work-branch push. Preview runs need no NuGet account
+configuration. The workflow filename remains `publish-nuget.yml` so existing
+NuGet trusted-publishing policies continue to match. Existing embedded PDBs
 and SDK Source Link support are retained, so a separate `.snupkg` is unnecessary.
 Actions are pinned to immutable commits, publication jobs run serially, and
 duplicate package versions fail instead of being silently skipped.
+
+Each GitHub release contains the NuGet package, two portable CLI ZIPs, two MSI
+installers, two symbol ZIPs and `SHA256SUMS`. See the [CLI guide](cli.md) for
+installation and signing status.
 
 ## Retries and failed checks
 
@@ -79,6 +96,10 @@ duplicate package versions fail instead of being silently skipped.
   No local rebuild is uploaded for publication.
 - NuGet versions are immutable. If an upload completed but a later step failed,
   check nuget.org before retrying. Change the version for a different package.
+- If only the GitHub release job failed after NuGet succeeded, use **Re-run
+  failed jobs** on that publication run. This retries uploading the same verified
+  files without republishing NuGet. Do not start another publication run for the
+  same version. A draft is completed only after every asset has been uploaded.
 - OIDC failures usually indicate a mismatch in workflow filename, environment,
   `NUGET_USER`, policy owner or allowed package scope. Check the trusted policy
   instead of creating a permanent API key.
