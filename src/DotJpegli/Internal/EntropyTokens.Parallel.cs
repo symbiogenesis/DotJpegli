@@ -168,20 +168,7 @@ internal sealed partial class EntropyTokens
         }
 
         ulong[] lookups = new ulong[(BitOperations.Log2((uint)this.huffmanContextMask) + 1) * 256];
-        for (int component = 0; component < coding.DcTables.Length; component++)
-        {
-            if ((this.huffmanContextMask & (1 << (component * 2))) != 0)
-            {
-                coding.DcTables[component].GetPrebiasedCodes().CopyTo(lookups.AsSpan(component * 512, 256));
-            }
-        }
-        for (int component = 0; component < coding.AcTables.Length; component++)
-        {
-            if ((this.huffmanContextMask & (2 << (component * 2))) != 0)
-            {
-                coding.AcTables[component].GetPrebiasedCodes().CopyTo(lookups.AsSpan((component * 512) + 256, 256));
-            }
-        }
+        this.CopyLookupContexts(coding, lookups);
         return lookups;
     }
 

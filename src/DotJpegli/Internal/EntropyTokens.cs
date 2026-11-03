@@ -208,6 +208,12 @@ internal sealed partial class EntropyTokens : IDisposable
         int contextCount = this.huffmanContextMask == 0 ? 0 : BitOperations.Log2((uint)this.huffmanContextMask) + 1;
         Span<ulong> lookups = stackalloc ulong[contextCount * 256];
         lookups.Clear();
+        this.CopyLookupContexts(coding, lookups);
+        this.ReplayWithLookups(writer, coding, lookups, 0, cancellationToken);
+    }
+
+    private void CopyLookupContexts(HuffmanCodingPlan.ScanCoding coding, Span<ulong> lookups)
+    {
         for (int component = 0; component < coding.DcTables.Length; component++)
         {
             if ((this.huffmanContextMask & (1 << (component * 2))) != 0)
@@ -223,8 +229,6 @@ internal sealed partial class EntropyTokens : IDisposable
                 coding.AcTables[component].GetPrebiasedCodes().CopyTo(lookups.Slice((component * 512) + 256, 256));
             }
         }
-
-        this.ReplayWithLookups(writer, coding, lookups, 0, cancellationToken);
     }
 
     private void ReplayWithLookups(BitWriter writer, HuffmanCodingPlan.ScanCoding coding,
