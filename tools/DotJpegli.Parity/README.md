@@ -61,3 +61,63 @@ dotnet DotJpegli.Parity.dll --self-test
 It verifies metric identities and analytic distortion, strict PPM parsing,
 frontiers/interpolation/inverse interpolation, missing coverage and failure bounds,
 and JPEG marker validation using four small encoding fixtures.
+
+## Bounded progressive scan search
+
+Use the opt-in offline search for a single binary P6 RGB8 image:
+
+```text
+dotnet DotJpegli.Parity.dll --search-progressive-scans --input /absolute/image.ppm --output /absolute/new-search-directory --distance 1 --sampling 420
+```
+
+Input distance must be greater than zero through 25; sampling is 444 or 420.
+The output directory must not exist. The command searches serially with AQ,
+baseline-range quantizers, YCbCr output and one encoder worker. The encoder's
+normal entry points retain their existing behavior; search is confined to this
+explicit tool command. Run corpus compression or performance experiments on CI.
+
+The finite family has 181 candidates, with the existing optimized level-2
+progressive encoding first as the control. The other 180 combine:
+
+- AC band ends `[63]`, `[2,63]`, `[5,63]` or `[15,63]`;
+- uniform AC refinement depth zero, one or two, with full-precision interleaved DC;
+- component AC orders Y/Cb/Cr, Cb/Cr/Y or Cr/Cb/Y within each band and refinement;
+- standard Huffman tables, the existing automatic optimized assignment, or
+  optimized histogram clustering constrained to one, two or four tables per class.
+
+Constrained clustering merges into its existing slots once the limit is reached,
+with the existing coding-plus-definition cost estimate choosing the merge.
+Each candidate builds its own histograms and assignments. Candidate order also
+affects automatic clustering and table redefinitions. Standard versus optimized
+coding changes EOB aggregation as well as table construction; it is a complete
+coding-policy comparison. The final choice uses the complete encoded byte length,
+including DHT/SOS headers, padding, EOB aggregation and stuffing. The first
+minimum wins ties, so the selected output is never larger than the included
+level-2 control. This is a bounded search, without a global optimum claim.
+
+All candidates keep source pixels, distance, sampling, AQ and quantizers fixed.
+Focused regressions independently decode every real quantized coefficient and
+pixel across the entire family, distances 1/4 and sampling 444/420 on an odd-edge
+fixture. The search does not change the quantization or distortion objective.
+The internal table limit is an offline experimental control and adds no public
+encoder API.
+
+`winner.jpg` contains the selected output. `search.json` (schema 1) retains the
+input, pixel, encoder and candidate JPEG SHA256 hashes; fixed settings; every
+script and table limit; actual per-scan Huffman selectors; complete candidate
+sizes, scan counts and DHT definition counts/bytes. DHT bytes include marker and
+length framing as well as each table's descriptor, counts and symbols. The
+human-readable `report.md` lists every size and DHT cost. Repeat the same command
+with matching source and encoder hashes to reproduce the result.
+
+Reports charge all 181 complete encodes, output scans and optimized histogram
+scans, including rejected candidates. Collection and emission/replay count as
+separate logical entropy passes; they are not counts of coefficient transforms,
+source traversals or measured CPU time. Pool-bucket capacity and peak working
+memory are not inferred from these counts. The search keeps candidate JPEGs
+serially, retaining only the winner and current output plus bounded trial metadata.
+
+Focused local validation is available through the `ProgressiveScanSearchTests`,
+`ProgressiveScanSearchCommandTests` and `HuffmanTableLimitTests` test classes.
+These use small correctness fixtures without timing measurements; full suites
+and corpus measurements remain CI-only.

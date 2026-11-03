@@ -7,6 +7,10 @@ internal sealed record ScanStructure(int[] Components, int SpectralStart, int Sp
 internal sealed record JpegStructure(int FrameMarker, int Precision, int Width, int Height, FrameComponent[] Components,
     SortedDictionary<int, int[]> QuantizationTables, ScanStructure[] Scans, string? Jfif, int[] OtherApplicationMarkers)
 {
+    public int[][] HuffmanSelectors { get; init; } = [];
+    public int HuffmanDefinitionBytes { get; init; }
+    public int HuffmanDefinitionCount { get; init; }
+
     public static JpegStructure Read(byte[] bytes)
     {
         if (bytes.Length < 4 || bytes[0] != 0xff || bytes[1] != 0xd8)
@@ -18,6 +22,8 @@ internal sealed record JpegStructure(int FrameMarker, int Precision, int Width, 
         FrameComponent[]? components = null;
         var tables = new SortedDictionary<int, int[]>();
         var scans = new List<ScanStructure>();
+        var huffmanSelectors = new List<int[]>();
+        int huffmanDefinitionBytes = 0, huffmanDefinitionCount = 0;
         var otherApplicationMarkers = new List<int>();
         string? jfif = null;
         bool ended = false;
@@ -105,6 +111,32 @@ internal sealed record JpegStructure(int FrameMarker, int Precision, int Width, 
                     tables[id] = values;
                 }
             }
+            else if (marker == 0xc4)
+            {
+                huffmanDefinitionBytes += length + 2;
+                int offset = 0;
+                while (offset < data.Length)
+                {
+                    if (data.Length - offset < 17 || (data[offset] & 0xec) != 0)
+                    {
+                        throw new InvalidDataException("Invalid JPEG DHT descriptor.");
+                    }
+
+                    int symbols = 0;
+                    for (int index = 1; index <= 16; index++)
+                    {
+                        symbols += data[offset + index];
+                    }
+
+                    if (symbols is < 1 or > 256 || data.Length - offset - 17 < symbols)
+                    {
+                        throw new InvalidDataException("Invalid JPEG DHT symbols.");
+                    }
+
+                    offset += 17 + symbols;
+                    huffmanDefinitionCount++;
+                }
+            }
             else if (marker == 0xda)
             {
                 if (data.Length < 1 || data.Length != 1 + (data[0] * 2) + 3)
@@ -113,13 +145,20 @@ internal sealed record JpegStructure(int FrameMarker, int Precision, int Width, 
                 }
 
                 int[] ids = new int[data[0]];
+                int[] selectors = new int[ids.Length];
                 for (int index = 0; index < ids.Length; index++)
                 {
                     ids[index] = data[1 + (index * 2)];
+                    selectors[index] = data[2 + (index * 2)];
+                    if ((selectors[index] & 0xcc) != 0)
+                    {
+                        throw new InvalidDataException("Invalid JPEG SOS Huffman selector.");
+                    }
                 }
 
                 int tail = 1 + (ids.Length * 2);
                 scans.Add(new(ids, data[tail], data[tail + 1], data[tail + 2] >> 4, data[tail + 2] & 15));
+                huffmanSelectors.Add(selectors);
                 // Stuffed FF00 and RST markers are entropy data; the next other marker ends the scan.
                 while (position < bytes.Length)
                 {
@@ -162,7 +201,12 @@ internal sealed record JpegStructure(int FrameMarker, int Precision, int Width, 
             throw new InvalidDataException("Incomplete JPEG structure or trailing bytes.");
         }
 
-        return new(frameMarker, precision, width, height, components, tables, scans.ToArray(), jfif, otherApplicationMarkers.ToArray());
+        return new(frameMarker, precision, width, height, components, tables, scans.ToArray(), jfif, otherApplicationMarkers.ToArray())
+        {
+            HuffmanSelectors = huffmanSelectors.ToArray(),
+            HuffmanDefinitionBytes = huffmanDefinitionBytes,
+            HuffmanDefinitionCount = huffmanDefinitionCount
+        };
     }
 
     public static string? Compare(byte[] managed, byte[] native, PpmImage source, int sampling, int progression)

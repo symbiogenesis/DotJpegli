@@ -21,6 +21,10 @@ internal static class Program
         {
             if (args.SequenceEqual(["--self-test"]))
             { SelfTest.Run(); Console.WriteLine("Parity harness self-test passed."); return 0; }
+            if (args.Length > 0 && args[0] == "--search-progressive-scans")
+            {
+                return ProgressiveScanSearchCommand.Run(args[1..]);
+            }
             var options = Options.Parse(args);
             string native = options.Native, corpus = options.Corpus, output = options.Output;
             string[] naturalFiles = ValidateCorpus(corpus);

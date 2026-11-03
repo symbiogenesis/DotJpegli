@@ -72,6 +72,12 @@ completed work.
 - Converted planes, fused DCT/quantization, prepared quantizers, coefficient and
   token caches, histogram planning and buffered entropy emission already have
   optimized paths. New proposals must be compared against the current encoder.
+- The opt-in [offline progressive scan search](tools/DotJpegli.Parity/README.md#bounded-progressive-scan-search)
+  compares 181 complete JPEG candidates across spectral boundaries, refinement
+  depths, component orders and standard/optimized Huffman assignments. It keeps
+  final real coefficients fixed, includes the existing level-2 control, retains
+  every candidate's size, script and table selectors, and charges all encode and
+  logical entropy passes. It makes no global optimum or latency claim.
 
 These mechanisms have focused numerical, byte-parity, ownership and failure-path
 regressions. They do not establish a latency or peak-working-memory benefit for
@@ -179,11 +185,6 @@ without source ICC do not establish a benefit.
   [RDOEA](https://www.sciencedirect.com/science/article/pii/S0950705122002143) and
   [RDOEA_FR](https://www.sciencedirect.com/science/article/pii/S1568494626001456)
   provide candidate search techniques.
-- **Content-dependent progressive scans and table assignment:** Use the custom
-  scan API to search spectral boundaries, refinement depths and Huffman table
-  assignments. Preserve final quantized coefficients when changing only the
-  schedule. Compare complete JPEG sizes, including definitions, padding, EOB
-  aggregation and stuffing, and charge the additional candidate passes.
 - **Faster offline perceptual objectives:** Screen candidates with reusable
   reference features or faster metrics, then validate finalists with the
   reference perceptual metric and existing PSNR/SSIM checks. Faster metric

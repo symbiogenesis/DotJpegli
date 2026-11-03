@@ -128,6 +128,20 @@ Focused tests cover every stuffing mask, one through seventeen bytes of free
 space, exact drains and partial destination failures. No staging buffer is added;
 the reduced checks still need CI latency measurements.
 
+The optional [offline progressive scan search](../tools/DotJpegli.Parity/README.md#bounded-progressive-scan-search)
+uses explicit scan scripts and exact complete-JPEG sizes to choose among a bounded
+family of spectral splits, refinement depths, component orders and Huffman table
+assignments. An internal per-encode table limit can constrain histogram clustering
+to one, two or four tables per class. Zero retains the existing clustering and
+slot-redefinition behavior; the normal public options and bytes are unchanged.
+Limits are experimental controls for the offline tool, not new public API.
+Focused tests reconstruct every real quantized coefficient using an independent
+JPEG entropy reader and compare decoded pixels for every candidate at both
+distances and sampling modes. Synthetic marker fixtures check reported DHT costs
+and selectors. All candidate encodes and logical histogram/emission/replay scan
+passes are counted, including discarded candidates. These counts exclude
+coefficient preparation and do not establish CPU time or peak working memory.
+
 ## Build
 
 The library targets `netstandard2.1`, `net10.0` and `net11.0`; tests and tools run
