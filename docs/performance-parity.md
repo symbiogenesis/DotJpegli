@@ -23,34 +23,6 @@ retains all selected cases and 130 earlier invalid trials. For each case, the
 first valid complete trial is final, including regressions and inconclusive results;
 conditioning on timing stability does not characterize all attempts' latency.
 
-The [earlier `b07eb5d` release snapshot](performance-evidence/2026-11-03-b07eb5d/release/README.md)
-retains its three failed gates, 73 regressions and 254 earlier invalid trials
-before the segmented/partial converted-plane changes.
-
-Historically, the repaired encoder at `74ae25d` passes the complete 256-case comparison
-against released 1.0.0 source in all six measured .NET 10/11 x64 and ARM64 lanes.
-The encoder is unchanged at `a045052`, which adds a passing .NET 11 x64 lane
-requiring actual Vector512 support. Across all seven lanes, all 1,792 selected
-comparisons pass the timing guards and produce identical JPEG bytes to 1.0.0.
-There are 1,640 consistent improvements, 152 inconclusive differences and no
-confirmed regressions under the fixed 0.5% preference margin. Four selected
-medians in the wide-SIMD lane are slightly slower (at most 0.57%); each is
-inconclusive across its paired measurements.
-
-The [six-lane release evidence](performance-evidence/2026-11-03-release-regression-74ae25d/README.md)
-and [wide-SIMD evidence](performance-evidence/2026-11-03-release-regression-a045052/README.md)
-include every selected trial, all 158 earlier invalid trials, actual CPU
-capabilities and the limits of selecting the first stable complete trial.
-Valid slower or inconclusive measurements are never retried. Selecting for
-stability can favor quieter intervals, so these results do not describe the
-unconditional latency distribution or prove performance on untested hardware.
-
-The six-lane run's native comparison matched every JPEG structure, but one of its
-256 cases failed the timing-noise guard and many valid cases still exceeded
-the native latency bounds. It does not replace the complete valid native
-reference below or establish native performance parity. Version regression
-checks and native performance parity answer different questions.
-
 ## Native comparison reference
 
 The [later complete native run at `0104778`](performance-evidence/2026-11-03-0104778/README.md)
@@ -79,15 +51,6 @@ memory or retained pool capacity. Results remain observations, including noisy
 rows, rather than a regression or service-tail-latency verdict. See the
 [workload method](../tools/DotJpegli.Performance/README.md#bounded-workload-diagnostics)
 for input generation, output checks, runtime settings and measurement limits.
-
-The [first retained workload run](performance-evidence/2026-11-03-b07eb5d-workloads/README.md)
-completed 25 scenarios on both architectures at `b07eb5d`. It exposed converted
-sample-cache discontinuities of 2.65–3.64 times across small height changes,
-while the coefficient-boundary samples had no similarly large jump. Those
-observations precede the subsequent segmented/partial converted-plane policy;
-they are its motivation, not evidence of that later policy's performance.
-The retained interpretation also covers concurrency, memory and minority timing
-states that the original MAD-only noise flag did not detect.
 
 The [later workload snapshot at `0104778`](performance-evidence/2026-11-03-0104778-workloads/README.md)
 retains all 26 scenarios on x64 and ARM64 after the segmented/partial
@@ -130,18 +93,6 @@ retains every case, failure, raw sample, host identity, setting, hash and native
 provenance. These measurements support lower group mean
 progressive photograph latency within this scope; full parity remains
 unestablished.
-
-The [previous README reference on EPYC 7763](performance-evidence/2026-11-03-d5f3226/README.md),
-the [earlier EPYC 9V74 reference](performance-evidence/2026-11-03-f52961b/README.md)
-and earlier complete references on
-[EPYC 9V45](performance-evidence/2026-11-02-eb86172/README.md),
-[EPYC 7763](performance-evidence/2026-11-02-6738b09/README.md) and
-[EPYC 9V74](performance-evidence/2026-11-02-ba9693f/README.md) retain their failures
-and different revisions. Four-case references remain available for
-[.NET 11 RC3 on EPYC 7763](performance-evidence/2026-11-02-9f350f9/README.md) and
-[RC2 on EPYC 9V74](performance-evidence/2026-10-15-5604d60/README.md).
-These separate runs cannot establish before/after optimization gains, even
-when CPU models match, or be substituted for this complete matrix.
 
 ## Untimed compact coefficient storage study
 

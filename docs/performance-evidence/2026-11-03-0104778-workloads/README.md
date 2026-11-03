@@ -24,10 +24,8 @@ Scenarios run sequentially rather than as balanced interleaved comparisons.
 
 ## Converted-plane boundaries
 
-The converted-plane admission discontinuities seen in the
-[preceding snapshot](../2026-11-03-b07eb5d-workloads/README.md) are much smaller
-within this run. The boundary cases use tiled Kodak01 content, distance 1,
-progressive level 2, one worker and a discard stream.
+The boundary cases use tiled Kodak01 content, distance 1, progressive level 2,
+one worker and a discard stream.
 
 | Boundary | Below / above dimensions | x64 below / above median ms | ARM64 below / above median ms | x64 / ARM64 above-to-below ratio |
 | --- | --- | ---: | ---: | ---: |
@@ -36,19 +34,10 @@ progressive level 2, one worker and a discard stream.
 | Former whole-component coefficient bucket | 2048x4096 / 2048x4104 | 303.609 / 311.617 | 418.801 / 424.517 | 1.026 / 1.014 |
 | Segmented coefficient 64 MiB capacity | 2048x5456 / 2048x5464 | 489.043 / 500.513 | 671.138 / 680.093 | 1.023 / 1.013 |
 
-The prior converted-plane ratios were 2.995/2.648 for 4:4:4 and 3.637/3.176
-for 4:2:0, in x64/ARM64 order. The new 4:4:4 above-boundary case retains
+The 4:4:4 above-boundary case retains
 2,720 of 2,736 converted rows; the 4:2:0 case retains all 2,064 rows. Every
-boundary row passes this diagnostic's dispersion checks. These observations
-support the intended reduction in the abrupt admission effect, but the runs
-are not a controlled revision comparison. The x64 host changed from EPYC 7763
-to EPYC 9V74; ARM64 host allocation and timing conditions are not controlled
-across workflow runs. Absolute times must not be used as revision speedups.
-
-For each architecture, all 25 scenarios shared with the prior snapshot have
-matching input and JPEG SHA-256 hashes. The 26th scenario is the added extended
-tiering case. Matching hashes check these specific outputs; they do not replace
-the independent native quality/compression or performance protocols.
+boundary row passes this diagnostic's dispersion checks. These within-run
+observations do not establish revision speedups across separate hosts and runs.
 
 ## Concurrency and tiering
 

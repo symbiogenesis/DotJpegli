@@ -48,9 +48,7 @@ are committed for durable review. JPEGs and exact RGB inputs remain in the
 hosted artifact; their JSON paths refer to that artifact layout.
 [Artifact identity](parity-evidence/2026-11-03-b07eb5d/snapshot.json) and
 [file hashes](parity-evidence/2026-11-03-b07eb5d/hashes.json) identify the retained
-evidence. The [original October 14 result](parity-evidence/2026-10-14-b30697e/report.md)
-established parity for revision `b30697e` in
-[run 38517910693](https://github.com/symbiogenesis/DotJpegli/actions/runs/38517910693).
+evidence.
 
 ## Corpus and matched settings
 

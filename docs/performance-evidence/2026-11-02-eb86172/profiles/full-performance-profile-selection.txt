@@ -1,3 +1,0 @@
-tiny-odd-edges 444 2 1
-low-noise 444 0 4
-low-contrast 444 0 4

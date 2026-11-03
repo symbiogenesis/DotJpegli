@@ -8,12 +8,11 @@ protocol, but full performance parity **fails**. The same run's complete
 
 These measurements precede the later segmented/partial converted-plane change.
 They do not establish the performance of that subsequent implementation.
-The same revision also **fails three of six released-version regression gates**,
-with 73 of 1,536 selected cases consistently favoring released 1.0.0. The
-[release snapshot](release/README.md) retains every selected case and all 254
-earlier invalid trials. The overall workflow also had a formatting failure;
-these are the retained measurement jobs' results, not a claim that the whole
-workflow passed.
+The overall workflow also had a formatting failure; these are the retained
+measurement jobs' results, not a claim that the whole workflow passed.
+The latest [released-version comparison](../2026-11-03-0104778/release/README.md)
+and [workload observations](../2026-11-03-0104778-workloads/README.md) cover the
+later cache policy.
 
 | Corpus | Sampling | Sequential mean / worst | Progressive level 2 mean / worst |
 | --- | --- | ---: | ---: |
@@ -37,19 +36,15 @@ YCbCr at distances 1/4, 444/420 and progression 0/2, using AQ and optimized
 Huffman tables. Every median includes all seven alternating-order blocks;
 natural GC remains included and no outliers are discarded.
 
-The [previous complete reference](../2026-11-03-d5f3226/README.md) also reports
-an EPYC 7763, but the runs were collected separately. These native-relative
-results do not isolate the effect of source changes or replace the same-host
-interleaved released-version regression protocol.
+These native-relative results do not isolate the effect of source changes or
+replace the same-host interleaved released-version regression protocol.
 
 ## Retained evidence
 
 - [Performance report](full/report.md), [summary](full/summary.json), [raw samples](full/cases.json), [run identity](full/run.json) and [source hashes](full/sources.json).
 - [Quality/compression report](../../parity-evidence/2026-11-03-b07eb5d/report.md), [summary](../../parity-evidence/2026-11-03-b07eb5d/summary.json), [matched-quality points](../../parity-evidence/2026-11-03-b07eb5d/matched-quality.json), [artifact identity](../../parity-evidence/2026-11-03-b07eb5d/snapshot.json) and [retained-file hashes](../../parity-evidence/2026-11-03-b07eb5d/hashes.json).
 - [Native provenance](native-provenance.json) and [artifact identities/file hashes](provenance.json).
-- [Six-lane released-version comparison](release/README.md), [derived case analysis](release/analysis.json) and [release artifact identities/file hashes](release/provenance.json).
 - Exact locally regenerated [chart values](charts/metrics.json), [compression](charts/compression.svg), [wall time](charts/wall-time.svg) and [allocations](charts/allocations.svg).
-- Separate [application workload observations](../2026-11-03-b07eb5d-workloads/README.md), which are instrumented and do not contribute to native acceptance.
 
 Charts were regenerated from this run's matching performance and quality data,
 and all four files match the hosted chart artifact byte for byte. The current

@@ -23,8 +23,8 @@
   "parityEstablished": false,
   "qualityCompressionParityEvidence": {
     "establishedWithinDocumentedScope": true,
-    "testedRevision": "b30697e833865d1e90af406d6206921e4884c624",
-    "run": "https://github.com/symbiogenesis/DotJpegli/actions/runs/38517910693",
+    "testedRevision": "b07eb5d240c2be1f6b9aebac13d081fb50d740cd",
+    "run": "https://github.com/symbiogenesis/DotJpegli/actions/runs/41690962313",
     "cases": 1280,
     "matchedRateAnchors": 640,
     "matchedQualityAnchors": 1280,
@@ -32,13 +32,13 @@
     "worstMatchedQualitySizeOverheadPercent": 0.08705105946347214,
     "worstMatchedRatePsnrLossDb": 0.013824606951523322,
     "worstMatchedRateSsimLoss": 0.00013633779760857667,
-    "evidence": "parity-evidence/2026-10-14-b30697e/summary.json",
+    "evidence": "parity-evidence/2026-11-03-b07eb5d/summary.json",
     "scope": "All24 Kodak RGB8 photographs plus8 controls; YCbCr444/420, baseline0/progressive2, AQ and optimized Huffman, force_baseline, direct distances0.25..8, no smoothing/restarts/ICC. Fixed size/PSNR/local-luma-SSIM noninferiority bounds. Full encoder, subjective visual, byteidentity and performance parity remain unclaimed."
   },
   "performanceValidation": {
     "fullParityEstablished": false,
     "protocol": "performance-parity.md",
-    "referenceEvidence": "performance-evidence/2026-10-15-5604d60/targeted/summary.json",
-    "scope": "Four selected RGB8 YCbCr cases meet the individual latency bound. No full-matrix, cross-runtime, cross-architecture or untested-option parity claim."
+    "referenceEvidence": "performance-evidence/2026-11-03-b07eb5d/full/summary.json",
+    "scope": "The complete 256-case RGB8 YCbCr comparison at b07eb5d has valid timing evidence but fails full performance parity. Both progressive Kodak photograph groups pass the fixed group and individual bounds; sequential photographs and all control groups fail. No cross-runtime, cross-architecture or untested-option parity claim."
   }
 }

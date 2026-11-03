@@ -17,11 +17,10 @@ measured binaries; a baseline commit alone does not identify those binaries.
 
 ## Profiling and implementation
 
-The earlier, separately instrumented CI profiles at revision `eb86172` attribute
-10.9% of encoder-associated sampled weight to `WriteEntropyTokens` for
-[low contrast](../2026-11-02-eb86172/profiles/full-performance-profile-low-contrast.speedscope.json)
-and 5.0% for
-[low noise](../2026-11-02-eb86172/profiles/full-performance-profile-low-noise.speedscope.json).
+Earlier, separately instrumented CI profiles at revision `eb86172` in
+[run 41573245587](https://github.com/symbiogenesis/DotJpegli/actions/runs/41573245587)
+attribute 10.9% of encoder-associated sampled weight to `WriteEntropyTokens`
+for low contrast and 5.0% for low noise.
 These are exclusive frame weights after selecting `BenchmarkManaged` stacks
 containing encoder frames and removing CPU/unmanaged bookkeeping frames. There
 is no isolated `WriteWord` frame; inlining can hide that attribution. These

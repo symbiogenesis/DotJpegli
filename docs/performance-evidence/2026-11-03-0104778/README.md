@@ -42,9 +42,7 @@ discarded. Separate workflow runs do not provide a controlled revision compariso
 The [released-version comparison](release/README.md) retains the six-lane
 same-host comparison against 1.0.0 from this run. Separate
 [workload observations](../2026-11-03-0104778-workloads/README.md) retain all
-26 scenarios on x64 and ARM64. The later
-[b379282 targeted diagnostic](../2026-11-03-b379282/README.md) is also invalid
-and covers only four cases; it cannot replace the complete native reference.
+26 scenarios on x64 and ARM64.
 
 ## Retained evidence
 

@@ -1,5 +1,0 @@
-smooth-gradient/444/p0/d1: managed/native=2.050; 1/1 cases retained.
-Measured smooth-gradient (controlled); 1/1 cases retained.
-Targeted diagnostic: selected-case-bound-exceeded; no full parity verdict; evidence: /home/runner/work/_temp/full-performance-profile-evidence-smooth-gradient
-Processing trace data file '/home/runner/work/_temp/full-performance-profile-smooth-gradient.nettrace' to create a new Speedscope file '/home/runner/work/_temp/full-performance-profile-smooth-gradient.speedscope.json'.
-Conversion complete

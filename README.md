@@ -162,8 +162,6 @@ Both progressive photograph groups pass the fixed timing bounds; sequential
 [latest full measurements](docs/performance-evidence/2026-11-03-0104778/README.md)
 retain every valid and invalid case. These group results do not establish full
 performance parity or isolate revision speedups across separate runs.
-The later [four-case diagnostic at `b379282`](docs/performance-evidence/2026-11-03-b379282/README.md)
-also fails timing validity and does not replace the full matrix.
 
 ### Complete valid chart reference
 

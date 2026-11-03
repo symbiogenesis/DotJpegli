@@ -1,5 +1,0 @@
-tiny-odd-edges/444/p2/d1: managed/native=2.636; 1/1 cases retained.
-Measured tiny-odd-edges (controlled); 1/1 cases retained.
-Targeted diagnostic: invalid; no full parity verdict; evidence: /home/runner/work/_temp/full-performance-profile-evidence-tiny-odd-edges
-Processing trace data file '/home/runner/work/_temp/full-performance-profile-tiny-odd-edges.nettrace' to create a new Speedscope file '/home/runner/work/_temp/full-performance-profile-tiny-odd-edges.speedscope.json'.
-Conversion complete
