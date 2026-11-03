@@ -280,8 +280,7 @@ public sealed class ExifMetadata
     /// <summary>Reads a single unsigned SHORT or LONG, or null if the tag is absent or has another representation.</summary>
     public uint? GetUnsignedInteger(ExifDirectory directory, ushort tag)
     {
-        ExifEntry? entry = this.GetEntry(directory, tag);
-        if (entry?.Count != 1)
+        if (!this.GetDirectory(directory).TryGetValue(tag, out ExifEntry? entry) || entry.Count != 1)
         {
             return null;
         }
@@ -322,8 +321,7 @@ public sealed class ExifMetadata
     /// <exception cref="InvalidDataException">An ASCII value is not terminated or contains non-ASCII bytes.</exception>
     public string? GetAscii(ExifDirectory directory, ushort tag)
     {
-        ExifEntry? entry = this.GetEntry(directory, tag);
-        if (entry?.FieldType != ExifFieldType.Ascii)
+        if (!this.GetDirectory(directory).TryGetValue(tag, out ExifEntry? entry) || entry.FieldType != ExifFieldType.Ascii)
         {
             return null;
         }
