@@ -162,6 +162,34 @@ argument or option names have local suppressions. Only test sources exempt
 `CA1861`, so expected vectors can stay beside their assertions and each test
 can own fresh input arrays. Production code still enforces that allocation rule.
 
+`CA5390` (hard-coded encryption keys) and `CA5403` (hard-coded certificates) are
+explicitly disabled. These two opt-in rules have
+[known performance defects](https://github.com/dotnet/roslyn-analyzers/issues/6737),
+including [quadratic work across helper call sites](https://github.com/dotnet/sdk/issues/56280).
+They consumed 96.34 seconds of a 97.21-second Release rebuild of
+`DotJpegli.Automation` on the local Windows ARM64 host with the pinned SDK.
+The matched rebuild with only those two rules disabled took 0.89 seconds;
+total reported analyzer time fell from 96.730 to 0.297 seconds. Both builds used
+`--no-restore --no-incremental -p:ReportAnalyzer=true -v:diag`, so the comparison
+includes compilation rather than an incremental no-op. This is build timing,
+not an encoder benchmark or an end-to-end CI speedup measurement.
+
+The cost repeats in CI's formatting passes and in jobs that compile automation
+for native provenance, release checks and synthetic fixtures. Before this change,
+[CI run 41592528894](https://github.com/symbiogenesis/DotJpegli/actions/runs/41592528894)
+spent 415 seconds verifying EditorConfig rules, 109 seconds verifying the cached
+native reference and 195 seconds verifying package contents/provenance; its Linux
+.NET 11 full test suite took 14 seconds. The fix removes the pathological rule
+execution at its source without adding jobs, sharding tests, caching compiled
+outputs or changing workflow coverage. End-to-end timings still need a CI run.
+
+The two hard-coded-key/certificate checks will no longer run if those APIs are
+introduced later. Current library, test and tool sources use neither API; the
+remaining security rules, banned API analyzer, trimming/AOT analysis and strict
+warning policy stay enabled. Reassess the two rules when updating the pinned SDK.
+Use EditorConfig severity `none`, rather than `NoWarn`, because suppressing the
+diagnostic alone still incurs the expensive analysis.
+
 Prefer framework span APIs for buffer searches, validation and counting, and
 span splitting when substrings do not need to be retained. Use collection
 expressions, records and primary constructors where they simplify the code.
