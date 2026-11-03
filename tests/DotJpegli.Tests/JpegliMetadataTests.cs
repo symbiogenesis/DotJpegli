@@ -164,6 +164,64 @@ public sealed class JpegliMetadataTests
         Assert.False(iim.ContainsKey((2, 120)));
     }
 
+    [Theory]
+    [InlineData(null, "", "New description")]
+    [InlineData("New artist", null, "")]
+    [InlineData("", "New copyright", null)]
+    public void MixedDescriptiveEditsPreserveRemoveAndSetFieldsIndependently(string? artist, string? copyright, string? description)
+    {
+        var sourceExif = new ExifMetadata();
+        var sourceXmp = new XmpMetadata();
+        var sourceIptc = new IptcMetadata();
+        (ushort Tag, string Property, byte Dataset, string? Edit)[] fields =
+        [
+            (0x013b, "creator", 80, artist),
+            (0x8298, "rights", 116, copyright),
+            (0x010e, "description", 120, description)
+        ];
+        foreach ((ushort tag, string property, byte dataset, _) in fields)
+        {
+            sourceExif.SetAscii(ExifDirectory.Image, tag, "Exif " + property);
+            var name = new XmpPropertyName(Dc.NamespaceName, property);
+            if (property == "creator")
+            {
+                sourceXmp.SetStringArray(name, ["XMP " + property], ordered: true);
+            }
+            else
+            {
+                sourceXmp.SetLocalizedText(name, "x-default", "XMP " + property);
+            }
+
+            sourceIptc.SetTextValues(dataset, ["IPTC " + property]);
+        }
+
+        JpegliEncoderOptions result = Reconcile(new()
+        {
+            ExifData = sourceExif.ToArray(),
+            XmpPacket = sourceXmp.ToPacket(),
+            IptcData = sourceIptc.ToArray()
+        }, 2, 3, new() { Artist = artist, Copyright = copyright, Description = description });
+        byte[] tiff = result.ExifData.ToArray();
+        int image = (int)U32(tiff, 4);
+        var xml = XElement.Parse(result.XmpPacket!);
+        Dictionary<(byte, byte), List<byte[]>> iim = ReadIim(result.IptcData.ToArray());
+        foreach ((ushort tag, string property, byte dataset, string? edit) in fields)
+        {
+            if (edit == "")
+            {
+                Assert.Null(Entry(tiff, image, tag));
+                Assert.Empty(xml.Descendants(Dc + property));
+                Assert.False(iim.ContainsKey((2, dataset)));
+            }
+            else
+            {
+                Assert.Equal(edit ?? ("Exif " + property), Ascii(tiff, image, tag));
+                Assert.Equal(edit ?? ("XMP " + property), Assert.Single(Property(xml, Dc + property).Descendants(Rdf + "li")).Value);
+                Assert.Equal(edit ?? ("IPTC " + property), Encoding.UTF8.GetString(Assert.Single(iim[(2, dataset)])));
+            }
+        }
+    }
+
     [Fact]
     public void DropsTheCompleteStaleThumbnailDirectory()
     {

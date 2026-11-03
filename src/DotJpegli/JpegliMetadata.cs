@@ -88,24 +88,9 @@ public static class JpegliMetadata
             exif.SetUnsignedShort(ExifDirectory.Photo, 0xa001, (ushort)chosenColorSpace);
             SetNumber(xmp, ExifNamespace, "ColorSpace", chosenColorSpace);
         }
-        if (edits.Artist is string artist)
-        {
-            SetExifText(exif, 0x013b, artist);
-            _ = xmp.Remove(new(TiffNamespace, "Artist"));
-            var name = new XmpPropertyName(DcNamespace, "creator");
-            if (artist.Length == 0)
-            {
-                _ = xmp.Remove(name);
-            }
-            else
-            {
-                xmp.SetStringArray(name, [artist], ordered: true);
-            }
-
-            iptc.SetTextValues(80, artist.Length == 0 ? [] : [artist]);
-        }
-        ReconcileLocalizedText(exif, xmp, iptc, edits.Copyright, 0x8298, "Copyright", "rights", 116);
-        ReconcileLocalizedText(exif, xmp, iptc, edits.Description, 0x010e, "ImageDescription", "description", 120);
+        ReconcileArtist(exif, xmp, iptc, MetadataTextEdit.FromNullable(edits.Artist));
+        ReconcileLocalizedText(exif, xmp, iptc, MetadataTextEdit.FromNullable(edits.Copyright), 0x8298, "Copyright", "rights", 116);
+        ReconcileLocalizedText(exif, xmp, iptc, MetadataTextEdit.FromNullable(edits.Description), 0x010e, "ImageDescription", "description", 120);
         cancellationToken.ThrowIfCancellationRequested();
 
         JpegliEncoderOptions result = options with
@@ -146,38 +131,62 @@ public static class JpegliMetadata
         SetNumber(xmp, TiffNamespace, "ResolutionUnit", resolutionUnit);
     }
 
-    private static void ReconcileLocalizedText(ExifMetadata exif, XmpMetadata xmp, IptcMetadata iptc,
-        string? text, ushort tag, string alias, string property, byte dataset)
+    private static void ReconcileArtist(ExifMetadata exif, XmpMetadata xmp, IptcMetadata iptc, MetadataTextEdit edit)
     {
-        if (text is null)
+        string[]? values = edit.ToValues();
+        if (values is null)
         {
             return;
         }
 
-        SetExifText(exif, tag, text);
-        _ = xmp.Remove(new(TiffNamespace, alias));
-        var name = new XmpPropertyName(DcNamespace, property);
-        if (text.Length == 0)
+        SetExifText(exif, 0x013b, values);
+        _ = xmp.Remove(new(TiffNamespace, "Artist"));
+        var name = new XmpPropertyName(DcNamespace, "creator");
+        if (values.Length == 0)
         {
             _ = xmp.Remove(name);
         }
         else
         {
-            xmp.SetLocalizedText(name, "x-default", text);
+            xmp.SetStringArray(name, values, ordered: true);
         }
 
-        iptc.SetTextValues(dataset, text.Length == 0 ? [] : [text]);
+        iptc.SetTextValues(80, values);
     }
 
-    private static void SetExifText(ExifMetadata exif, ushort tag, string text)
+    private static void ReconcileLocalizedText(ExifMetadata exif, XmpMetadata xmp, IptcMetadata iptc,
+        MetadataTextEdit edit, ushort tag, string alias, string property, byte dataset)
     {
-        if (text.Length == 0)
+        string[]? values = edit.ToValues();
+        if (values is null)
+        {
+            return;
+        }
+
+        SetExifText(exif, tag, values);
+        _ = xmp.Remove(new(TiffNamespace, alias));
+        var name = new XmpPropertyName(DcNamespace, property);
+        if (values.Length == 0)
+        {
+            _ = xmp.Remove(name);
+        }
+        else
+        {
+            xmp.SetLocalizedText(name, "x-default", values[0]);
+        }
+
+        iptc.SetTextValues(dataset, values);
+    }
+
+    private static void SetExifText(ExifMetadata exif, ushort tag, string[] values)
+    {
+        if (values.Length == 0)
         {
             _ = exif.Remove(ExifDirectory.Image, tag);
         }
         else
         {
-            exif.SetAscii(ExifDirectory.Image, tag, text);
+            exif.SetAscii(ExifDirectory.Image, tag, values[0]);
         }
     }
 
