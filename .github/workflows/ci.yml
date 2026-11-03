@@ -624,7 +624,8 @@ jobs:
           mkdir -p "$lane" "$worker" "$provenance"
           git archive "$BASELINE_REVISION" | tar -x -C "$lane"
           cp global.json "$lane/global.json"
-          assembly_version=$(dotnet msbuild src/DotJpegli/DotJpegli.csproj -nologo -p:TargetFramework=${{ matrix.framework }} -getProperty:AssemblyVersion)
+          assembly_version=$(dotnet msbuild src/DotJpegli/DotJpegli.csproj -nologo -p:TargetFramework=${{ matrix.framework }} -target:GetAssemblyVersion -getProperty:AssemblyVersion)
+          [[ "$assembly_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo '::error::Current assembly binding version is unavailable.'; exit 1; }
           {
             echo "Baseline source: $BASELINE_REVISION"
             echo "Current source: ${{ github.sha }}"
