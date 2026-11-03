@@ -150,6 +150,14 @@ internal sealed class EntropyTokens : IDisposable
         cancellationToken.ThrowIfCancellationRequested();
         if (segments.Count == 0)
             return;
+        // Tiny scans do not amortize preparing and copying 256 lookup entries
+        // per Huffman context. Their complete bounded stream can use the strict
+        // symbol writer directly, including noncanonical suffix widths.
+        if (segments.Count == 1 && currentCount <= 32)
+        {
+            ReplaySmall(writer, coding, cancellationToken);
+            return;
+        }
         // Progressive scans usually emit one Huffman context. Prepare only
         // their selected tables, without copying unused component/DC contexts
         // for every scan. Raw-only scans need no Huffman lookup storage.
@@ -199,6 +207,30 @@ internal sealed class EntropyTokens : IDisposable
                         writer.WriteRestartMarker((int)token & 7);
                 }
             }
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void ReplaySmall(BitWriter writer, HuffmanCodingPlan.ScanCoding coding, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        uint[] segment = segments[0];
+        int length = currentCount;
+        for (int index = 0; index < length; index++)
+        {
+            uint token = segment[index];
+            int context = (int)(token >> ContextShift) & 7;
+            int count = (int)(token >> CountShift);
+            if (context < 6)
+            {
+                HuffmanTable table = (context & 1) == 0 ? coding.DcTables[context >> 1] : coding.AcTables[context >> 1];
+                table.WriteSymbolWithBits(writer, (int)(token >> SymbolShift) & 255, token & 0xffffU, count);
+            }
+            else if (context == 6)
+                writer.WriteBitsPrevalidated(token & 0xffffffU, count);
+            else
+                writer.WriteRestartMarker((int)token & 7);
         }
         cancellationToken.ThrowIfCancellationRequested();
     }

@@ -6,6 +6,64 @@ namespace DotJpegli.Tests;
 public sealed class EntropyTokensTests
 {
     [Theory]
+    [InlineData(1, false)]
+    [InlineData(1, true)]
+    [InlineData(31, false)]
+    [InlineData(31, true)]
+    [InlineData(32, false)]
+    [InlineData(32, true)]
+    [InlineData(33, false)]
+    [InlineData(33, true)]
+    [InlineData(255, true)]
+    [InlineData(256, true)]
+    [InlineData(257, true)]
+    public void SmallStreamAndBulkBoundariesPreserveContextsRawBitsFallbacksAndRestarts(int count, bool buffered)
+    {
+        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        var coding = new HuffmanCodingPlan.ScanCoding([table, table, table], [table, table, table], [], []);
+        for (int prefix = 0; prefix < 64; prefix++)
+        {
+            using var tokens = new EntropyTokens();
+            using var expected = new MemoryStream();
+            var expectedWriter = new BitWriter(expected, buffered);
+            using var actual = new MemoryStream();
+            var actualWriter = new BitWriter(actual, buffered);
+            for (int index = 0; index < prefix; index++)
+            {
+                expectedWriter.WriteBits((uint)(index & 1), 1);
+                actualWriter.WriteBits((uint)(index & 1), 1);
+            }
+            for (int index = 0; index < count; index++)
+            {
+                if (index % 11 == 10)
+                {
+                    expectedWriter.WriteRestartMarker(index & 7);
+                    tokens.AddRestart(index & 7);
+                }
+                else if (index % 7 == 6)
+                {
+                    expectedWriter.WriteBits(0xabcdef, 24);
+                    tokens.AddBits(0xabcdef, 24);
+                }
+                else
+                {
+                    int context = index % 6, symbol = index & 255;
+                    int width = symbol == 0xf0 ? 0 : (symbol & 15) == 0 ? symbol >> 4 : symbol & 15;
+                    if (index % 5 == 4)
+                        width = (width + 3) % 17;
+                    uint suffix = unchecked((uint)index * 0x9e3779b9U) & ((1U << width) - 1);
+                    table.WriteSymbolWithBits(expectedWriter, symbol, suffix, width);
+                    tokens.AddHuffman(context >> 1, (context & 1) != 0, symbol, suffix, width);
+                }
+            }
+            expectedWriter.Flush();
+            tokens.Replay(actualWriter, coding, TestContext.Current.CancellationToken);
+            actualWriter.Flush();
+            Assert.Equal(expected.ToArray(), actual.ToArray());
+        }
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(2)]
@@ -134,8 +192,10 @@ public sealed class EntropyTokensTests
         }
     }
 
-    [Fact]
-    public void BufferedBatchStopsBeforeAMissingSymbolAndRetainsItsPendingPrefix()
+    [Theory]
+    [InlineData(27)]
+    [InlineData(67)]
+    public void SmallAndBulkReplayStopBeforeAMissingSymbolAndRetainTheirPendingPrefix(int validPrefix)
     {
         long[] frequencies = new long[256];
         frequencies[5] = 1;
@@ -144,7 +204,7 @@ public sealed class EntropyTokensTests
         using var tokens = new EntropyTokens();
         using var expected = new MemoryStream();
         var expectedWriter = new BitWriter(expected, buffered: true);
-        for (int index = 0; index < 27; index++)
+        for (int index = 0; index < validPrefix; index++)
         {
             table.WriteSymbolWithBits(expectedWriter, 5, (uint)index & 31, 5);
             tokens.AddHuffman(0, true, 5, (uint)index & 31, 5);
