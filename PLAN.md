@@ -51,6 +51,14 @@ completed work.
 - Eight-block SIMD AQ modulation carries each horizontal neighbor into the next
   column and handles the final column separately, preserving each lane's
   high-frequency and gamma accumulation order without additional scratch.
+- The bounded [AQ rounding-cell investigation](docs/performance-evidence/2026-11-03-aq-reciprocal/README.md)
+  certifies reciprocal candidates against the existing binary32 rational
+  intermediates with exact midpoint-product comparisons and original division
+  fallback. Independent integer proofs, scalar/vector field regressions and
+  96 untimed complete-JPEG comparisons preserve exact bits and bytes. Retained
+  evidence includes actual per-site and affected-vector-batch fallback counts.
+  Automatic retains original division; this completes the numerical proof and
+  fallback study without a latency, allocation or peak-memory claim.
 - Prepared ICC destination transforms retain the exact curve endpoints already
   computed during inverse validation. Pixel conversion reuses those values;
   shared curves remain immutable and inverse arithmetic is unchanged.
@@ -166,19 +174,6 @@ Do not infer speed from operation counts, reduced allocations from pool reuse,
 or lower peak memory from allocated-byte totals. Include photograph, low-noise,
 low-contrast and tiny odd-edge controls, both distances and sampling modes,
 baseline/progressive output and dedicated cache-pressure workloads as relevant.
-
-## Bounded speed and memory candidates
-
-### AQ rounding-aware numerical fast paths
-
-AQ rational functions, `FastLog2` and `FastPow2` require rounding-aware equivalence:
-correctly rounded mathematical functions need not match the existing
-approximations. Preserve numerical ordering, saturation, validation and output
-prefixes. The interval proof and fallback-rate evidence remain open.
-
-[RLIBM's fast evaluation work](https://people.cs.rutgers.edu/~sn349/papers/cgo-2023-rlibm.pdf)
-and [RLIBM-PROG](https://arxiv.org/abs/2111.12852) motivate rounding-aware search;
-they do not prove parity for these adaptations.
 
 ## Architectural candidates
 

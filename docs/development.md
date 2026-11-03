@@ -29,6 +29,27 @@ reject this prototype for deployment: its guard costs more than division on the
 measured host even when fallback is absent. Production quantization is unchanged;
 the research kernels live only in the performance tool and focused regressions.
 
+The [bounded AQ reciprocal investigation](performance-evidence/2026-11-03-aq-reciprocal/README.md)
+certifies the existing rational expressions' binary32 quotients, including those
+inside `FastLog2` and `FastPow2`. A 256-entry immutable binary64 reciprocal-seed
+table and two Newton steps propose a quotient. Exact binary64 midpoint products
+certify strict membership in its binary32 rounding cell; ambiguous, exceptional
+and unsupported cases use the original division. Polynomial coefficients,
+intermediate rounding, clamps, exponent reconstruction and reduction order stay
+unchanged. This certifies the existing approximations, rather than substituting
+mathematical logarithm or exponentiation functions.
+
+Only the internal per-encode `AqRationalKernel.Optimized` diagnostic choice uses
+this prototype. Automatic and Original retain division and do not access the
+reciprocal table. An optional exclusively owned sink
+records counts without clocks or global selection state. Research vector paths
+certify lanes individually, using the original vector division for fallback
+lanes whenever any lane is ambiguous. Their scalarized certification and bounded
+stack scratch are confined to the explicit research branch. Counts retain both
+ambiguous lanes and affected vector batches. Untimed analysis and focused
+regressions establish numerical parity and fallback distributions; latency and
+memory effects are unmeasured.
+
 Eight-lane SIMD batches adaptive modulation across neighboring blocks while
 preserving each block's addition order. Complete converted-plane blocks combine
 DCT, prepared quantization, AC validation and zigzag ordering without a final

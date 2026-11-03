@@ -1,5 +1,19 @@
 # Targeted performance development and full acceptance evidence
 
+The `--aq-reciprocal-analysis --photograph <PPM> --output <empty-directory>`
+command performs untimed numerical analysis and can run locally. It compares
+Original and forced certified-reciprocal AQ encodes on six images, distances
+1/4, 444/420 and baseline/progressive level 2, retaining all JPEG hashes and
+per-site fallback counts. Photographs are bounded to 1024 by 1024 pixels.
+Affected vector-batch counts distinguish lane certificates from batches that
+execute original division. A deterministic full-bit operand sample also checks
+exact division result bits. The command has no timers, benchmark invocation,
+warmup/calibration, allocation measurement or performance verdict. All benchmark
+commands keep their existing CI guard. The
+[retained numerical study](../../docs/performance-evidence/2026-11-03-aq-reciprocal/README.md)
+contains its rounding-cell proof, independent regressions, actual fallback
+counts and scope; Automatic remains on original AQ division.
+
 The bounded `--ac-reciprocal-experiment --photograph <absolute-PPM> --output
 <empty-directory>` command researches AC quantization with prepared reciprocal
 intervals. It runs after the normal CI guard, separately from native acceptance.

@@ -40,6 +40,12 @@ internal static class Program
                 Console.WriteLine("Revision comparison self-test passed (synthetic samples only; no benchmark executed).");
                 return 0;
             }
+            // This command counts numerical certificates and compares bytes;
+            // it never reads a timer or invokes any benchmark entry point.
+            if (args.Contains("--aq-reciprocal-analysis", StringComparer.Ordinal))
+            {
+                return await AqReciprocalAnalysis.Run(args);
+            }
             RequireCi();
             if (args.Contains("--ac-reciprocal-experiment", StringComparer.Ordinal))
             {

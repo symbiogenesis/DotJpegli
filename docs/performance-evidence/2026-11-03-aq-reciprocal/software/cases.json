@@ -1,0 +1,2018 @@
+[
+  {
+    "image": "photograph",
+    "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273",
+    "width": 768,
+    "height": 512,
+    "distance": 1,
+    "sampling": 444,
+    "progression": 0,
+    "jpegSha256": "5696e0da5b3cc78fc9f6e55e8f36050f86cafee6b6d2c08795bcd10adb5ed1f5",
+    "jpegBytes": 148186,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 18432,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 786426,
+        "fallback": 6
+      },
+      {
+        "site": "Log2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 6144,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "photograph",
+    "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273",
+    "width": 768,
+    "height": 512,
+    "distance": 1,
+    "sampling": 444,
+    "progression": 2,
+    "jpegSha256": "dea9c6f08e9cc412e82e1a3fd4e5cb3946efffc1a46aea1ed8e6a9aa2ab2f948",
+    "jpegBytes": 143713,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 18432,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 786426,
+        "fallback": 6
+      },
+      {
+        "site": "Log2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 6144,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "photograph",
+    "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273",
+    "width": 768,
+    "height": 512,
+    "distance": 1,
+    "sampling": 420,
+    "progression": 0,
+    "jpegSha256": "94f81b230159d1572bb67fed6604d5035d547f29c095f54e71824251b1545288",
+    "jpegBytes": 130524,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 18432,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 786426,
+        "fallback": 6
+      },
+      {
+        "site": "Log2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 6144,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "photograph",
+    "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273",
+    "width": 768,
+    "height": 512,
+    "distance": 1,
+    "sampling": 420,
+    "progression": 2,
+    "jpegSha256": "c3d5fa8cbd287d1a9905c6aafd91bb15fe97edcb8387fe0ac4a1ae5d96207f84",
+    "jpegBytes": 126953,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 18432,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 786426,
+        "fallback": 6
+      },
+      {
+        "site": "Log2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 6144,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "photograph",
+    "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273",
+    "width": 768,
+    "height": 512,
+    "distance": 4,
+    "sampling": 444,
+    "progression": 0,
+    "jpegSha256": "82a4d1eb187c3cba3cdd63b6c127929d09150ca21d5a3ee6387690020ce91def",
+    "jpegBytes": 62770,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 18432,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 786426,
+        "fallback": 6
+      },
+      {
+        "site": "Log2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 6144,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "photograph",
+    "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273",
+    "width": 768,
+    "height": 512,
+    "distance": 4,
+    "sampling": 444,
+    "progression": 2,
+    "jpegSha256": "0e6fbd7c8a5a0b718d8c07eaafcfe18b37215b3dbe3d78e203e4994731b59a44",
+    "jpegBytes": 60372,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 18432,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 786426,
+        "fallback": 6
+      },
+      {
+        "site": "Log2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 6144,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "photograph",
+    "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273",
+    "width": 768,
+    "height": 512,
+    "distance": 4,
+    "sampling": 420,
+    "progression": 0,
+    "jpegSha256": "d42ed6cfb43223df44aa45c47cfe305e734f693b10f88fae29e04252bfdcb65b",
+    "jpegBytes": 51440,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 18432,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 786426,
+        "fallback": 6
+      },
+      {
+        "site": "Log2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 6144,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "photograph",
+    "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273",
+    "width": 768,
+    "height": 512,
+    "distance": 4,
+    "sampling": 420,
+    "progression": 2,
+    "jpegSha256": "8f72170bb134dcfc83b7982be9b9ec963f534c332a8082cf40cc307eff69c6ad",
+    "jpegBytes": 50167,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 18432,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 786426,
+        "fallback": 6
+      },
+      {
+        "site": "Log2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 6144,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 6144,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "smooth-gradient",
+    "pixelsSha256": "460505161f6891eacdcac9f6529b039e34761cb3eedaff368bf465495f4233ec",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 444,
+    "progression": 0,
+    "jpegSha256": "2989e6bc76e0a4d1301ed93b34ad0899aac53d77d1d1c6a0b3a60156b4b72b62",
+    "jpegBytes": 3553,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2475,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105598,
+        "fallback": 2
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 825,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "smooth-gradient",
+    "pixelsSha256": "460505161f6891eacdcac9f6529b039e34761cb3eedaff368bf465495f4233ec",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 444,
+    "progression": 2,
+    "jpegSha256": "ce59afe0c43241791fee222b9c3f098dd913b8d94eb2db11d665fb14c56a9645",
+    "jpegBytes": 3023,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2475,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105598,
+        "fallback": 2
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 825,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "smooth-gradient",
+    "pixelsSha256": "460505161f6891eacdcac9f6529b039e34761cb3eedaff368bf465495f4233ec",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 420,
+    "progression": 0,
+    "jpegSha256": "ebbbd79d669a3ccb671fad78506b0d76165b822c6fa1f07a1b093fc40ae02dc4",
+    "jpegBytes": 2782,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2574,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109822,
+        "fallback": 2
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 858,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "smooth-gradient",
+    "pixelsSha256": "460505161f6891eacdcac9f6529b039e34761cb3eedaff368bf465495f4233ec",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 420,
+    "progression": 2,
+    "jpegSha256": "ee187ec2f132ea935478f4a40c21f39deeafa0e56cdd785d6578c8ee95e591a2",
+    "jpegBytes": 2506,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2574,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109822,
+        "fallback": 2
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 858,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "smooth-gradient",
+    "pixelsSha256": "460505161f6891eacdcac9f6529b039e34761cb3eedaff368bf465495f4233ec",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 444,
+    "progression": 0,
+    "jpegSha256": "afe6af19dd792bfd1dcaeb261c7a90b527880978ac0ea3375687b50a172e8f4a",
+    "jpegBytes": 2305,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2475,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105598,
+        "fallback": 2
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 825,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "smooth-gradient",
+    "pixelsSha256": "460505161f6891eacdcac9f6529b039e34761cb3eedaff368bf465495f4233ec",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 444,
+    "progression": 2,
+    "jpegSha256": "10c910445d1c668351a5c8ed7076c2a39dbf73148029331d4c6bab728b8d09bb",
+    "jpegBytes": 1961,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2475,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105598,
+        "fallback": 2
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 825,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "smooth-gradient",
+    "pixelsSha256": "460505161f6891eacdcac9f6529b039e34761cb3eedaff368bf465495f4233ec",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 420,
+    "progression": 0,
+    "jpegSha256": "7762d1cda3781a29bb93ad662f8747a83217391ede67323eb0fd5898d678e002",
+    "jpegBytes": 2063,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2574,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109822,
+        "fallback": 2
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 858,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "smooth-gradient",
+    "pixelsSha256": "460505161f6891eacdcac9f6529b039e34761cb3eedaff368bf465495f4233ec",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 420,
+    "progression": 2,
+    "jpegSha256": "cbccddcb362752b5a8f3dc88579346724671372e6dcef1dbbfa436babda6033e",
+    "jpegBytes": 1810,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2574,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109822,
+        "fallback": 2
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 858,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-contrast",
+    "pixelsSha256": "aaf923606635b8f32823911ec7445a9462cd1a116e7caf2d506470d544baae0f",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 444,
+    "progression": 0,
+    "jpegSha256": "d0ad1f60341b52205b8b747864d9e2b522cda9e91f1a9e9be1869a80e7811743",
+    "jpegBytes": 14334,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2475,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105600,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 825,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-contrast",
+    "pixelsSha256": "aaf923606635b8f32823911ec7445a9462cd1a116e7caf2d506470d544baae0f",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 444,
+    "progression": 2,
+    "jpegSha256": "af24461b0089283d008950ca091e03dead980f246d3d53bb31d9ae722b0587bd",
+    "jpegBytes": 13981,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2475,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105600,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 825,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-contrast",
+    "pixelsSha256": "aaf923606635b8f32823911ec7445a9462cd1a116e7caf2d506470d544baae0f",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 420,
+    "progression": 0,
+    "jpegSha256": "f3da8655d6e2c0d9f510b9d5efdd84ae6915093a783f0ace92b663a25541af9d",
+    "jpegBytes": 11020,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2574,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109824,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 858,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-contrast",
+    "pixelsSha256": "aaf923606635b8f32823911ec7445a9462cd1a116e7caf2d506470d544baae0f",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 420,
+    "progression": 2,
+    "jpegSha256": "fd2e170f50ba4cf643bff19b018c3362bccf5fdcadca45584d63a53544c9588f",
+    "jpegBytes": 10818,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2574,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109824,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 858,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-contrast",
+    "pixelsSha256": "aaf923606635b8f32823911ec7445a9462cd1a116e7caf2d506470d544baae0f",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 444,
+    "progression": 0,
+    "jpegSha256": "e9336a8c394ded4b6b6626fa32643a9db6eb092b9d5bfe215ca99007f7244c67",
+    "jpegBytes": 4356,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2475,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105600,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 825,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-contrast",
+    "pixelsSha256": "aaf923606635b8f32823911ec7445a9462cd1a116e7caf2d506470d544baae0f",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 444,
+    "progression": 2,
+    "jpegSha256": "c03c710a30549919060a6a9a75b4f7f1d0eda69ac54b57eeffb4ac3bc861937e",
+    "jpegBytes": 4538,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2475,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105600,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 825,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-contrast",
+    "pixelsSha256": "aaf923606635b8f32823911ec7445a9462cd1a116e7caf2d506470d544baae0f",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 420,
+    "progression": 0,
+    "jpegSha256": "1d2d86bfd1d086b3d897d2aa2fcd57cd77c16859301843a9c46edefc1910c961",
+    "jpegBytes": 3275,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2574,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109824,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 858,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-contrast",
+    "pixelsSha256": "aaf923606635b8f32823911ec7445a9462cd1a116e7caf2d506470d544baae0f",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 420,
+    "progression": 2,
+    "jpegSha256": "70be65a9dc801ae44b87678d495e8f7e155a2c87e860caa2c52a07d30fd380d4",
+    "jpegBytes": 3465,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2574,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109824,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 858,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-noise",
+    "pixelsSha256": "3b3f47c3cd069bcaae7baf8e73cbdc5562251ef6e356706079ea7b1873c9e2e9",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 444,
+    "progression": 0,
+    "jpegSha256": "d41a8175eac7682e3666675c6a0013f845ebf42829a3c9f94d657d92abc93b88",
+    "jpegBytes": 17052,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2474,
+        "fallback": 1
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105599,
+        "fallback": 1
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 825,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-noise",
+    "pixelsSha256": "3b3f47c3cd069bcaae7baf8e73cbdc5562251ef6e356706079ea7b1873c9e2e9",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 444,
+    "progression": 2,
+    "jpegSha256": "e77d46729e0160ab4500b3adbdf1f8a0703a205dfe9011a9b0c8c2d00a8594ee",
+    "jpegBytes": 17103,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2474,
+        "fallback": 1
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105599,
+        "fallback": 1
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 825,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-noise",
+    "pixelsSha256": "3b3f47c3cd069bcaae7baf8e73cbdc5562251ef6e356706079ea7b1873c9e2e9",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 420,
+    "progression": 0,
+    "jpegSha256": "992989e637c9164586f572c373a0b8bb4ec8331947809bbad2ab5ed0ff795b0e",
+    "jpegBytes": 12206,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2573,
+        "fallback": 1
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109823,
+        "fallback": 1
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 858,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-noise",
+    "pixelsSha256": "3b3f47c3cd069bcaae7baf8e73cbdc5562251ef6e356706079ea7b1873c9e2e9",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 420,
+    "progression": 2,
+    "jpegSha256": "d1f97df57a368142bba803304594d2b63251886ed4bffadfa58a5675bd99d2ba",
+    "jpegBytes": 12264,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2573,
+        "fallback": 1
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109823,
+        "fallback": 1
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 858,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-noise",
+    "pixelsSha256": "3b3f47c3cd069bcaae7baf8e73cbdc5562251ef6e356706079ea7b1873c9e2e9",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 444,
+    "progression": 0,
+    "jpegSha256": "78d34195015f5820fc350103ca4ea1575c967fd46504e461507a4abbc7a75200",
+    "jpegBytes": 2452,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2474,
+        "fallback": 1
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105599,
+        "fallback": 1
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 825,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-noise",
+    "pixelsSha256": "3b3f47c3cd069bcaae7baf8e73cbdc5562251ef6e356706079ea7b1873c9e2e9",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 444,
+    "progression": 2,
+    "jpegSha256": "d4ae5aeca5aeb51704d9fea69a480b0b438d35a5e2c8f6612b3a359102b44d9e",
+    "jpegBytes": 2504,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2474,
+        "fallback": 1
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105599,
+        "fallback": 1
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 825,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-noise",
+    "pixelsSha256": "3b3f47c3cd069bcaae7baf8e73cbdc5562251ef6e356706079ea7b1873c9e2e9",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 420,
+    "progression": 0,
+    "jpegSha256": "b371bcb1b017fdd49fad0847a15a42aaa037792afe45e418d90bfc9982143569",
+    "jpegBytes": 1654,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2573,
+        "fallback": 1
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109823,
+        "fallback": 1
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 858,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "low-noise",
+    "pixelsSha256": "3b3f47c3cd069bcaae7baf8e73cbdc5562251ef6e356706079ea7b1873c9e2e9",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 420,
+    "progression": 2,
+    "jpegSha256": "b82569588cedc73eb210424377b6c1c1f8dbe63efb760d2d5fe1ae4aece9d521",
+    "jpegBytes": 1881,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2573,
+        "fallback": 1
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109823,
+        "fallback": 1
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 858,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "full-noise",
+    "pixelsSha256": "fbba89852b7caef21e82a30d899489fb91468608ed4ca1eb9040e902227045f3",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 444,
+    "progression": 0,
+    "jpegSha256": "efe822b3f0319c2bbdf97716d04b47830af9a7da1cb9b57df248e1b721e31a38",
+    "jpegBytes": 62804,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2475,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105600,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 824,
+        "fallback": 1
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "full-noise",
+    "pixelsSha256": "fbba89852b7caef21e82a30d899489fb91468608ed4ca1eb9040e902227045f3",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 444,
+    "progression": 2,
+    "jpegSha256": "5b43e11b765a077238265b466ca383fb4be0dd85bb7c0b583f72666ab9b7950a",
+    "jpegBytes": 62982,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2475,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105600,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 824,
+        "fallback": 1
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "full-noise",
+    "pixelsSha256": "fbba89852b7caef21e82a30d899489fb91468608ed4ca1eb9040e902227045f3",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 420,
+    "progression": 0,
+    "jpegSha256": "87e5cd4bb6a7f9072fd1d8413c4f3753c0949aa9df226e9bec7441f00aca906b",
+    "jpegBytes": 39877,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2574,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109824,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 857,
+        "fallback": 1
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "full-noise",
+    "pixelsSha256": "fbba89852b7caef21e82a30d899489fb91468608ed4ca1eb9040e902227045f3",
+    "width": 257,
+    "height": 193,
+    "distance": 1,
+    "sampling": 420,
+    "progression": 2,
+    "jpegSha256": "81c313631e86a25597e42fec19f3d4a19a76489ea82bf8300d7f72fb50947b91",
+    "jpegBytes": 40347,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2574,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109824,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 857,
+        "fallback": 1
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "full-noise",
+    "pixelsSha256": "fbba89852b7caef21e82a30d899489fb91468608ed4ca1eb9040e902227045f3",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 444,
+    "progression": 0,
+    "jpegSha256": "8056019124ce8c7b3aac8dbfeb9314aeb2a90d70ba6ee3f1b4996f1a62a8c938",
+    "jpegBytes": 30714,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2475,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105600,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 824,
+        "fallback": 1
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "full-noise",
+    "pixelsSha256": "fbba89852b7caef21e82a30d899489fb91468608ed4ca1eb9040e902227045f3",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 444,
+    "progression": 2,
+    "jpegSha256": "28d2ac8c5d532ee239ead5b10216a8a13013e89cd90d3900681fa7ffbaf7d892",
+    "jpegBytes": 30578,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2475,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 105600,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 825,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 824,
+        "fallback": 1
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "full-noise",
+    "pixelsSha256": "fbba89852b7caef21e82a30d899489fb91468608ed4ca1eb9040e902227045f3",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 420,
+    "progression": 0,
+    "jpegSha256": "c54c8aeef20bf54fd425e6cbc340af58cc9800cb92712afd7a55c5aed14ba594",
+    "jpegBytes": 19862,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2574,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109824,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 857,
+        "fallback": 1
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "full-noise",
+    "pixelsSha256": "fbba89852b7caef21e82a30d899489fb91468608ed4ca1eb9040e902227045f3",
+    "width": 257,
+    "height": 193,
+    "distance": 4,
+    "sampling": 420,
+    "progression": 2,
+    "jpegSha256": "c5a8e224d68c87db67beee5d770c15770c11c9c4f1fe8b3b13cd59f3e7050667",
+    "jpegBytes": 19766,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 2574,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 109824,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 858,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 857,
+        "fallback": 1
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "tiny-odd-edges",
+    "pixelsSha256": "6b6e57355be38013f49728c2c208c9c2dd7b31edc84efc48997c418a08662660",
+    "width": 19,
+    "height": 17,
+    "distance": 1,
+    "sampling": 444,
+    "progression": 0,
+    "jpegSha256": "3e7430f35c8d736bc4a4766ad7959c5e460dee7fc75502ac9849feb6b5f307d5",
+    "jpegBytes": 894,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 27,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 1152,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 9,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 9,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 9,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "tiny-odd-edges",
+    "pixelsSha256": "6b6e57355be38013f49728c2c208c9c2dd7b31edc84efc48997c418a08662660",
+    "width": 19,
+    "height": 17,
+    "distance": 1,
+    "sampling": 444,
+    "progression": 2,
+    "jpegSha256": "8ce3a626d73f59f33002c1d8ea9df46df7fefd4c196792e90369accb5a1c788b",
+    "jpegBytes": 1060,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 27,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 1152,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 9,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 9,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 9,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "tiny-odd-edges",
+    "pixelsSha256": "6b6e57355be38013f49728c2c208c9c2dd7b31edc84efc48997c418a08662660",
+    "width": 19,
+    "height": 17,
+    "distance": 1,
+    "sampling": 420,
+    "progression": 0,
+    "jpegSha256": "82545a4d56632f051a5d7e1c468eb496fc411c4fce7aba36803832b8b8365742",
+    "jpegBytes": 711,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 36,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 1536,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 12,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 12,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 12,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "tiny-odd-edges",
+    "pixelsSha256": "6b6e57355be38013f49728c2c208c9c2dd7b31edc84efc48997c418a08662660",
+    "width": 19,
+    "height": 17,
+    "distance": 1,
+    "sampling": 420,
+    "progression": 2,
+    "jpegSha256": "ad9896fc51b1b3fd0a22951fed0afbdda465ebb7e78606dbc40d4d55db5f00bc",
+    "jpegBytes": 877,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 36,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 1536,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 12,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 12,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 12,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "tiny-odd-edges",
+    "pixelsSha256": "6b6e57355be38013f49728c2c208c9c2dd7b31edc84efc48997c418a08662660",
+    "width": 19,
+    "height": 17,
+    "distance": 4,
+    "sampling": 444,
+    "progression": 0,
+    "jpegSha256": "4cd62659e5c7798041c00408944e06358dee12cee40aef47d383765a5615c971",
+    "jpegBytes": 603,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 27,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 1152,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 9,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 9,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 9,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "tiny-odd-edges",
+    "pixelsSha256": "6b6e57355be38013f49728c2c208c9c2dd7b31edc84efc48997c418a08662660",
+    "width": 19,
+    "height": 17,
+    "distance": 4,
+    "sampling": 444,
+    "progression": 2,
+    "jpegSha256": "ecef9d97bd30392d9618580783f8abc69f70019c032682c1349dc0cb5421b16e",
+    "jpegBytes": 746,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 27,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 1152,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 9,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 9,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 9,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "tiny-odd-edges",
+    "pixelsSha256": "6b6e57355be38013f49728c2c208c9c2dd7b31edc84efc48997c418a08662660",
+    "width": 19,
+    "height": 17,
+    "distance": 4,
+    "sampling": 420,
+    "progression": 0,
+    "jpegSha256": "2dfbe783af7a9433b0fdadfff307acccf25ca22db3e46c33b8c339d174f58aeb",
+    "jpegBytes": 521,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 36,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 1536,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 12,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 12,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 12,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  },
+  {
+    "image": "tiny-odd-edges",
+    "pixelsSha256": "6b6e57355be38013f49728c2c208c9c2dd7b31edc84efc48997c418a08662660",
+    "width": 19,
+    "height": 17,
+    "distance": 4,
+    "sampling": 420,
+    "progression": 2,
+    "jpegSha256": "6c4739ea3a566aa064a5db9e2247845fd0138ba47867c16ecf0474a04617276c",
+    "jpegBytes": 663,
+    "sites": [
+      {
+        "site": "Mask",
+        "accepted": 36,
+        "fallback": 0
+      },
+      {
+        "site": "Derivative",
+        "accepted": 1536,
+        "fallback": 0
+      },
+      {
+        "site": "Log2",
+        "accepted": 12,
+        "fallback": 0
+      },
+      {
+        "site": "Pow2",
+        "accepted": 12,
+        "fallback": 0
+      },
+      {
+        "site": "Strength",
+        "accepted": 12,
+        "fallback": 0
+      }
+    ],
+    "vectorBatches": 0,
+    "fallbackVectorBatches": 0,
+    "vector256Batches": 0,
+    "fallbackVector256Batches": 0
+  }
+]

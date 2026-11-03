@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "scope": "Untimed binary32 numerical certification and actual AQ fallback counts; no benchmarks, native acceptance or speed verdict",
+  "startedAtUtc": "2026-11-03T09:53:00.8741772+00:00",
+  "runtime": ".NET 11.0.0-rc.3.26522.148",
+  "architecture": "Arm64",
+  "operatingSystem": "Microsoft Windows 10.0.26300",
+  "vectorLanes": 4,
+  "vectorAccelerated": false,
+  "vector256Accelerated": false,
+  "encoderSha256": "c83182e12df31909af8f1650807277e1cf92e1504c145bab71e36581d7156304",
+  "runnerSha256": "d27c07b7cf6dcdf373d312b59499ef8e12e53232614af2fe81b38553b1b86c45",
+  "policy": "One Original and one forced guarded encode per case, distance 1/4, 444/420, baseline/progressive level 2, AQ and optimized Huffman, one worker, default token budget",
+  "sources": [
+    {
+      "name": "photograph",
+      "width": 768,
+      "height": 512,
+      "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273"
+    },
+    {
+      "name": "smooth-gradient",
+      "width": 257,
+      "height": 193,
+      "pixelsSha256": "460505161f6891eacdcac9f6529b039e34761cb3eedaff368bf465495f4233ec"
+    },
+    {
+      "name": "low-contrast",
+      "width": 257,
+      "height": 193,
+      "pixelsSha256": "aaf923606635b8f32823911ec7445a9462cd1a116e7caf2d506470d544baae0f"
+    },
+    {
+      "name": "low-noise",
+      "width": 257,
+      "height": 193,
+      "pixelsSha256": "3b3f47c3cd069bcaae7baf8e73cbdc5562251ef6e356706079ea7b1873c9e2e9"
+    },
+    {
+      "name": "full-noise",
+      "width": 257,
+      "height": 193,
+      "pixelsSha256": "fbba89852b7caef21e82a30d899489fb91468608ed4ca1eb9040e902227045f3"
+    },
+    {
+      "name": "tiny-odd-edges",
+      "width": 19,
+      "height": 17,
+      "pixelsSha256": "6b6e57355be38013f49728c2c208c9c2dd7b31edc84efc48997c418a08662660"
+    }
+  ],
+  "notMeasured": "Latency, allocations, retained capacity, peak working memory, other hosts, full native acceptance"
+}
