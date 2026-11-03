@@ -29,6 +29,12 @@ completed work.
   shared mutable selector or timing-dependent JPEG output.
 - Scalar DCT uses fixed eight- and four-point schedules, preserving the original
   recursive arithmetic without recursive calls or per-stage scratch spans.
+- The .NET 11 eight-row transpose shared by DCT and batched AQ modulation
+  interleaves full-width rows with sixteen Zip operations instead of thirty-two
+  half-width Zip operations, retaining the same half reads and joins. Other
+  targets retain the four-panel schedule. Independent lanes and exact payload
+  bits are covered; fewer managed operations do not establish a machine-shuffle
+  or latency improvement.
 - AQ scratch has encode-owned bounded pooling, oversized-array fallback and
   strengths-row reuse across passes. Identical clamped pre-erosion rows reuse
   their rounded results at image boundaries.

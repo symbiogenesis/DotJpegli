@@ -454,6 +454,32 @@ internal static class ForwardDct
         ref Vector256<float> r2, ref Vector256<float> r3, ref Vector256<float> r4, ref Vector256<float> r5,
         ref Vector256<float> r6, ref Vector256<float> r7)
     {
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        // Interleave whole rows before joining their four-element halves.
+        // This network uses sixteen full-width zips instead of the four
+        // 4 by 4 panels' thirty-two half-width zips. Both schedules use the
+        // same sixteen half extractions and eight final assemblies.
+        Vector256<float> t0 = Vector256.ZipLower(r0, r1), t1 = Vector256.ZipUpper(r0, r1);
+        Vector256<float> t2 = Vector256.ZipLower(r2, r3), t3 = Vector256.ZipUpper(r2, r3);
+        Vector256<float> t4 = Vector256.ZipLower(r4, r5), t5 = Vector256.ZipUpper(r4, r5);
+        Vector256<float> t6 = Vector256.ZipLower(r6, r7), t7 = Vector256.ZipUpper(r6, r7);
+        Vector256<float> u0 = Vector256.ZipLower(t0.AsDouble(), t2.AsDouble()).AsSingle();
+        Vector256<float> u1 = Vector256.ZipUpper(t0.AsDouble(), t2.AsDouble()).AsSingle();
+        Vector256<float> u2 = Vector256.ZipLower(t1.AsDouble(), t3.AsDouble()).AsSingle();
+        Vector256<float> u3 = Vector256.ZipUpper(t1.AsDouble(), t3.AsDouble()).AsSingle();
+        Vector256<float> u4 = Vector256.ZipLower(t4.AsDouble(), t6.AsDouble()).AsSingle();
+        Vector256<float> u5 = Vector256.ZipUpper(t4.AsDouble(), t6.AsDouble()).AsSingle();
+        Vector256<float> u6 = Vector256.ZipLower(t5.AsDouble(), t7.AsDouble()).AsSingle();
+        Vector256<float> u7 = Vector256.ZipUpper(t5.AsDouble(), t7.AsDouble()).AsSingle();
+        r0 = Vector256.Create(u0.GetLower(), u4.GetLower());
+        r1 = Vector256.Create(u0.GetUpper(), u4.GetUpper());
+        r2 = Vector256.Create(u1.GetLower(), u5.GetLower());
+        r3 = Vector256.Create(u1.GetUpper(), u5.GetUpper());
+        r4 = Vector256.Create(u2.GetLower(), u6.GetLower());
+        r5 = Vector256.Create(u2.GetUpper(), u6.GetUpper());
+        r6 = Vector256.Create(u3.GetLower(), u7.GetLower());
+        r7 = Vector256.Create(u3.GetUpper(), u7.GetUpper());
+#else
         Vector128<float> a0 = r0.GetLower(), a1 = r1.GetLower(), a2 = r2.GetLower(), a3 = r3.GetLower();
         Vector128<float> b0 = r0.GetUpper(), b1 = r1.GetUpper(), b2 = r2.GetUpper(), b3 = r3.GetUpper();
         Vector128<float> c0 = r4.GetLower(), c1 = r5.GetLower(), c2 = r6.GetLower(), c3 = r7.GetLower();
@@ -470,6 +496,7 @@ internal static class ForwardDct
         r5 = Vector256.Create(b1, d1);
         r6 = Vector256.Create(b2, d2);
         r7 = Vector256.Create(b3, d3);
+#endif
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -7,6 +7,31 @@ using Xunit;
 public sealed class Net11DctTransposeTests
 {
     [Fact]
+    public void PortableTransposeMovesEveryIndependentLaneWithoutArithmetic()
+    {
+        foreach (int payload in new[] { int.MinValue, 1, unchecked((int)0xff801234) })
+        {
+            for (int source = 0; source < 64; source++)
+            {
+                var rows = new Vector256<float>[9];
+                rows[source / 8] = Vector256.WithElement(Vector256<int>.Zero, source % 8, payload).AsSingle();
+                rows[8] = Vector256.Create(0x7f805678).AsSingle();
+                ForwardDct.TransposePortable(rows);
+                for (int row = 0; row < 8; row++)
+                {
+                    for (int column = 0; column < 8; column++)
+                    {
+                        int expected = row == source % 8 && column == source / 8 ? payload : 0;
+                        Assert.Equal(expected, BitConverter.SingleToInt32Bits(rows[row][column]));
+                    }
+                }
+
+                Assert.Equal(Vector256.Create(0x7f805678), rows[8].AsInt32());
+            }
+        }
+    }
+
+    [Fact]
     public void PortableTransposePreservesEveryBitAndItsInverseRestoresRows()
     {
         int[] bits = Enumerable.Range(0, 72).Select(index => unchecked(index * 1932735281)).ToArray();
