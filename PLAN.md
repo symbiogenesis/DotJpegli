@@ -34,6 +34,9 @@ completed work.
 - Eight-block SIMD AQ modulation carries each horizontal neighbor into the next
   column and handles the final column separately, preserving each lane's
   high-frequency and gamma accumulation order without additional scratch.
+- Prepared ICC destination transforms retain the exact curve endpoints already
+  computed during inverse validation. Pixel conversion reuses those values;
+  shared curves remain immutable and inverse arithmetic is unchanged.
 - Entropy-token scans share one encode-owned 64 MiB budget, accounting actual
   accepted rental lengths. Earlier scans acquire capacity first. Abandoning a
   scan refunds its rentals without invalidating siblings; successful replay

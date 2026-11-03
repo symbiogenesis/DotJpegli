@@ -44,6 +44,15 @@ order, including the last row's vertical subtraction. The schedule adds no
 scratch storage; focused scalar/vector bit-parity and complete-encode checks
 cover the change. Latency remains a CI measurement question.
 
+ICC destination transforms retain the exact lower and upper curve endpoints
+computed during inverse validation, avoiding repeated endpoint evaluation for
+every converted pixel. The values belong to each prepared transform; shared
+identity curves remain immutable. Validation still evaluates the upper endpoint
+before the lower endpoint, and inverse interpolation and parametric arithmetic
+are unchanged. Focused regressions check output bits at clipping boundaries and
+sampled-curve plateaus. Source-ICC workload measurements are still needed to
+establish the latency effect.
+
 The scalar DCT specializes the same fixed eight- and four-point stages as the
 vector path. It keeps the recursive port's arithmetic and fused multiply-adds
 while avoiding recursive calls and per-stage scratch spans. A retained recursive

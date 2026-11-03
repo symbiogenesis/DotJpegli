@@ -122,6 +122,49 @@ public sealed class SourceIccColorManagementTests
         Assert.Equal("IccProfile", error.ParamName);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void DestinationParametricInversePreservesBitsAroundPreparedEndpoints(int function)
+    {
+        double offset = function == 2 ? 0.125 : 0;
+        byte[] destination = function == 2 ? ParametricGrayProfile(2, 2, 0.5, 0.25, offset) :
+            ParametricGrayProfile(1, 2, 0.5, 0.25);
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), destination, true, true);
+        float minimum = (float)(0.0625 + offset), maximum = (float)(0.5625 + offset);
+        foreach (float input in new[] { 0f, float.BitDecrement(minimum), minimum, float.BitIncrement(minimum),
+            0.5f, float.BitDecrement(maximum), maximum, float.BitIncrement(maximum), 1f })
+        {
+            double clipped = Math.Clamp((double)input, minimum, maximum);
+            float expected = (float)((Math.Pow(clipped - offset, 0.5) - 0.25) / 0.5);
+            transform.Convert(input, input, input, out float r, out float g, out float b);
+            Assert.Equal(BitConverter.SingleToInt32Bits(expected), BitConverter.SingleToInt32Bits(r));
+            Assert.Equal(BitConverter.SingleToInt32Bits(expected), BitConverter.SingleToInt32Bits(g));
+            Assert.Equal(BitConverter.SingleToInt32Bits(expected), BitConverter.SingleToInt32Bits(b));
+        }
+    }
+
+    [Fact]
+    public void SampledDestinationPreparedEndpointsPreserveClippingAndPlateauBits()
+    {
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(),
+            SampledGrayProfile(8192, 8192, 49152, 49152), true, true);
+        double minimum = 8192 / 65535d, maximum = 49152 / 65535d;
+        foreach (float input in new[] { 0f, float.BitDecrement((float)minimum), (float)minimum,
+            float.BitIncrement((float)minimum), 0.5f, float.BitDecrement((float)maximum),
+            (float)maximum, float.BitIncrement((float)maximum), 1f })
+        {
+            // The initial flat chooses its last sample and the terminal flat
+            // chooses its first. Interior samples lie on the only sloped interval.
+            double clipped = Math.Clamp((double)input, minimum, maximum);
+            float expected = (float)((1 + ((clipped - minimum) / (maximum - minimum))) / 3);
+            transform.Convert(input, input, input, out float r, out float g, out float b);
+            Assert.Equal(BitConverter.SingleToInt32Bits(expected), BitConverter.SingleToInt32Bits(r));
+            Assert.Equal(BitConverter.SingleToInt32Bits(expected), BitConverter.SingleToInt32Bits(g));
+            Assert.Equal(BitConverter.SingleToInt32Bits(expected), BitConverter.SingleToInt32Bits(b));
+        }
+    }
+
     [Fact]
     public void LabGrayscaleCurveRepresentsLightnessRatherThanXyzLuminance()
     {

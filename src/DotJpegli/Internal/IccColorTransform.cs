@@ -83,7 +83,8 @@ internal sealed class IccColorTransform
     private readonly record struct Triple(double X, double Y, double Z);
 
     private sealed class ProfileTransform(bool grayscale, bool lab, Curve[]? curves,
-        Matrix? matrix, Pipeline? pipeline, bool legacyLab)
+        Matrix? matrix, Pipeline? pipeline, bool legacyLab,
+        Triple inverseMinimum = default, Triple inverseMaximum = default)
     {
         internal Triple ToXyz(Triple device)
         {
@@ -110,11 +111,14 @@ internal sealed class IccColorTransform
             }
             if (grayscale)
             {
-                double value = curves![0].Inverse(lab ? XyzToLab(xyz).X / 100 : xyz.Y);
+                double value = curves![0].Inverse(lab ? XyzToLab(xyz).X / 100 : xyz.Y,
+                    inverseMinimum.X, inverseMaximum.X);
                 return new(value, value, value);
             }
             Triple linear = matrix!.Apply(xyz, false);
-            return new(curves![0].Inverse(linear.X), curves[1].Inverse(linear.Y), curves[2].Inverse(linear.Z));
+            return new(curves![0].Inverse(linear.X, inverseMinimum.X, inverseMaximum.X),
+                curves[1].Inverse(linear.Y, inverseMinimum.Y, inverseMaximum.Y),
+                curves[2].Inverse(linear.Z, inverseMinimum.Z, inverseMaximum.Z));
         }
     }
 
@@ -284,12 +288,14 @@ internal sealed class IccColorTransform
             if (this.grayscale)
             {
                 Curve curve = this.ReadCurve(this.Required("kTRC"), out _);
+                double minimum = 0, maximum = 0;
                 if (!toPcs)
                 {
-                    curve.ValidateInverse(this.parameter, this.cancellationToken);
+                    (minimum, maximum) = curve.ValidateInverse(this.parameter, this.cancellationToken);
                 }
 
-                return new(true, this.lab, [curve], null, null, false);
+                return new(true, this.lab, [curve], null, null, false,
+                    new(minimum, 0, 0), new(maximum, 0, 0));
             }
             if (this.lab)
             {
@@ -300,15 +306,17 @@ internal sealed class IccColorTransform
                 this.ReadCurve(this.Required("gTRC"), out _), this.ReadCurve(this.Required("bTRC"), out _)];
             Triple r = this.ReadXyz(this.Required("rXYZ")), g = this.ReadXyz(this.Required("gXYZ")), b = this.ReadXyz(this.Required("bXYZ"));
             Matrix matrix = new([r.X, g.X, b.X, r.Y, g.Y, b.Y, r.Z, g.Z, b.Z, 0, 0, 0]);
+            Triple inverseMinimum = default, inverseMaximum = default;
             if (!toPcs)
             {
                 matrix = matrix.Inverse(this.parameter);
-                foreach (Curve curve in curves)
-                {
-                    curve.ValidateInverse(this.parameter, this.cancellationToken);
-                }
+                (double redMinimum, double redMaximum) = curves[0].ValidateInverse(this.parameter, this.cancellationToken);
+                (double greenMinimum, double greenMaximum) = curves[1].ValidateInverse(this.parameter, this.cancellationToken);
+                (double blueMinimum, double blueMaximum) = curves[2].ValidateInverse(this.parameter, this.cancellationToken);
+                inverseMinimum = new(redMinimum, greenMinimum, blueMinimum);
+                inverseMaximum = new(redMaximum, greenMaximum, blueMaximum);
             }
-            return new(false, false, curves, matrix, null, false);
+            return new(false, false, curves, matrix, null, false, inverseMinimum, inverseMaximum);
         }
 
         private bool IsCompatibilityDestination(Tag tag)
@@ -726,7 +734,7 @@ internal sealed class IccColorTransform
             return Clamp(result);
         }
 
-        internal void ValidateInverse(string parameter, CancellationToken cancellationToken)
+        internal (double Minimum, double Maximum) ValidateInverse(string parameter, CancellationToken cancellationToken)
         {
             if (this.table)
             {
@@ -752,15 +760,19 @@ internal sealed class IccColorTransform
                     throw new ArgumentException("The destination ICC curve must be monotonically increasing.", parameter);
                 }
             }
-            if (this.Apply(1) <= this.Apply(0))
+            // Retain the validation order and the exact rounded endpoint values.
+            // The prepared transform owns them; shared identity curves stay immutable.
+            double maximum = this.Apply(1), minimum = this.Apply(0);
+            if (maximum <= minimum)
             {
                 throw new ArgumentException("The destination ICC curve has no usable inverse.", parameter);
             }
+            return (minimum, maximum);
         }
 
-        internal double Inverse(double input)
+        internal double Inverse(double input, double minimum, double maximum)
         {
-            double y = Math.Clamp(input, this.Apply(0), this.Apply(1));
+            double y = Math.Clamp(input, minimum, maximum);
             if (this.table)
             {
                 // Find the first entry >= y. Exact flats use the highest x,
