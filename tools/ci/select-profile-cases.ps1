@@ -1,14 +1,22 @@
-#requires -Version 7.0
+#requires -Version 7.6
+<#
+.SYNOPSIS
+Selects a bounded set of performance cases for CPU profiling.
+.PARAMETER Evidence
+Evidence directory containing cases.json and, for full selection, sources.json.
+.PARAMETER Full
+Selects the worst case for up to three distinct images and a failing smallest image.
+#>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][string] $Evidence,
+    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string] $Evidence,
     [switch] $Full
 )
 
 $ErrorActionPreference = 'Stop'
-Set-StrictMode -Version Latest
-$cases = @(Get-Content -LiteralPath (Join-Path $Evidence 'cases.json') -Raw | ConvertFrom-Json)
-if ($cases.Count -eq 0) { throw 'No performance cases to profile.' }
+Set-StrictMode -Version 3.0
+$cases = Get-Content -LiteralPath (Join-Path $Evidence 'cases.json') -Raw | ConvertFrom-Json -NoEnumerate
+if ($cases -isnot [array] -or $cases.Count -eq 0) { throw 'No performance cases to profile.' }
 $ordered = @($cases | Sort-Object -Property medianRatio -Descending -Stable)
 $profiles = [System.Collections.Generic.List[object]]::new()
 if ($Full) {
@@ -18,8 +26,8 @@ if ($Full) {
         $profiles.Add($case)
         if ($selected.Count -eq 3) { break }
     }
-    $sources = @(Get-Content -LiteralPath (Join-Path $Evidence 'sources.json') -Raw | ConvertFrom-Json)
-    if ($sources.Count -eq 0) { throw 'No source images to profile.' }
+    $sources = Get-Content -LiteralPath (Join-Path $Evidence 'sources.json') -Raw | ConvertFrom-Json -NoEnumerate
+    if ($sources -isnot [array] -or $sources.Count -eq 0) { throw 'No source images to profile.' }
     $smallest = ($sources | Sort-Object { [long]$_.width * $_.height } -Stable | Select-Object -First 1).id
     if (-not $selected.Contains($smallest)) {
         $case = $ordered | Where-Object { $_.id -ceq $smallest } | Select-Object -First 1

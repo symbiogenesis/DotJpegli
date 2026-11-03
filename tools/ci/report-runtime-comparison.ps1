@@ -1,20 +1,30 @@
-#requires -Version 7.0
+#requires -Version 7.6
+<#
+.SYNOPSIS
+Validates matching runtime evidence and writes the runtime comparison report.
+.PARAMETER Directory
+Directory containing the four runtime evidence directories.
+.PARAMETER Architecture
+Architecture label to include in the report; defaults to RUNNER_ARCH.
+.PARAMETER Summary
+Optional GitHub job summary path; defaults to GITHUB_STEP_SUMMARY.
+#>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][string] $Directory,
+    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string] $Directory,
     [string] $Architecture = $env:RUNNER_ARCH,
     [string] $Summary = $env:GITHUB_STEP_SUMMARY
 )
 
 $ErrorActionPreference = 'Stop'
-Set-StrictMode -Version Latest
+Set-StrictMode -Version 3.0
 $versions = @('10.0.14', '11.0.0-rc.3.26522.148', 'net11-baseline', 'net11-simd')
 $data = foreach ($version in $versions) {
     $path = Join-Path $Directory "runtime-$version"
     $run = Get-Content -LiteralPath (Join-Path $path 'run.json') -Raw | ConvertFrom-Json
     $summaryData = Get-Content -LiteralPath (Join-Path $path 'summary.json') -Raw | ConvertFrom-Json
-    $cases = @(Get-Content -LiteralPath (Join-Path $path 'cases.json') -Raw | ConvertFrom-Json)
-    if ($summaryData.valid -isnot [bool] -or -not $summaryData.valid -or $cases.Count -ne 1) { throw 'Runtime comparison needs stable matched evidence.' }
+    $cases = Get-Content -LiteralPath (Join-Path $path 'cases.json') -Raw | ConvertFrom-Json -NoEnumerate
+    if ($summaryData.valid -isnot [bool] -or -not $summaryData.valid -or $cases -isnot [array] -or $cases.Count -ne 1) { throw 'Runtime comparison needs stable matched evidence.' }
     $expected = if ($version -eq '10.0.14') { '10.0.14' } else { '11.0.0-rc.3.26522.148' }
     if ($run.environment.runtimeVersion -cne $expected.Split('-')[0]) { throw 'Unexpected runtime version.' }
     $product = $run.environment.runtimeProductVersion
@@ -51,14 +61,14 @@ for ($i = 0; $i -lt $versions.Count; $i++) {
     "`n.NET 11/.NET 10 managed latency ratio: **{0:F6}** (lower is better). JPEG hashes match.`n", $ratio))
 [void]$report.Append([string]::Format([Globalization.CultureInfo]::InvariantCulture,
     "`nExplicit .NET 11 SIMD/baseline latency ratio on .NET 11: **{0:F6}** (lower is better). This measures this rewrite only, not all possible new API uses.`n", $simdRatio))
-$text = $report.ToString()
-[IO.File]::WriteAllText((Join-Path $Directory 'runtime-comparison.md'), $text)
+$reportText = $report.ToString()
+Set-Content -LiteralPath (Join-Path $Directory 'runtime-comparison.md') -Value $reportText -Encoding utf8NoBOM -NoNewline
 $json = [ordered]@{
     versions = $versions
     net11OverNet10 = $ratio
     explicitSimdOverNet11Baseline = $simdRatio
     scope = 'one case, same CPU; separate runtime-only and explicit SIMD diagnostics'
 } | ConvertTo-Json -Depth 5
-[IO.File]::WriteAllText((Join-Path $Directory 'runtime-comparison.json'), $json + "`n")
-if ($Summary) { [IO.File]::AppendAllText($Summary, $text) }
-Write-Output $text
+Set-Content -LiteralPath (Join-Path $Directory 'runtime-comparison.json') -Value ($json + "`n") -Encoding utf8NoBOM -NoNewline
+if ($Summary) { Add-Content -LiteralPath $Summary -Value $reportText -Encoding utf8NoBOM -NoNewline }
+Write-Output $reportText

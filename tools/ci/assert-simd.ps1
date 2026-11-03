@@ -1,13 +1,23 @@
-#requires -Version 7.0
+#requires -Version 7.6
+<#
+.SYNOPSIS
+Validates the SIMD capabilities recorded by kernel or narrow performance runs.
+.PARAMETER Evidence
+One or more evidence directories containing run.json.
+.PARAMETER Architecture
+Expected architecture for kernel comparisons.
+.PARAMETER Narrow
+Requires accelerated 256-bit SIMD with 512-bit SIMD disabled.
+#>
 [CmdletBinding(DefaultParameterSetName = 'Kernel')]
 param(
-    [Parameter(Mandatory)][string[]] $Evidence,
+    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string[]] $Evidence,
     [Parameter(Mandatory, ParameterSetName = 'Kernel')][ValidateSet('X64', 'ARM64')][string] $Architecture,
     [Parameter(Mandatory, ParameterSetName = 'Narrow')][switch] $Narrow
 )
 
 $ErrorActionPreference = 'Stop'
-Set-StrictMode -Version Latest
+Set-StrictMode -Version 3.0
 foreach ($directory in $Evidence) {
     $run = Get-Content -LiteralPath (Join-Path $directory 'run.json') -Raw | ConvertFrom-Json
     $environment = $run.environment

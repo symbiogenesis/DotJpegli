@@ -1,23 +1,28 @@
-#requires -Version 7.0
-# Synthetic fixtures only: no encodes, profiling, or benchmarks.
+#requires -Version 7.6
+<#
+.SYNOPSIS
+Runs synthetic fixtures for the CI evidence validators and profile selector.
+.DESCRIPTION
+Does not encode images, collect CPU profiles, or run benchmarks.
+#>
 [CmdletBinding()]
 param()
 
 $ErrorActionPreference = 'Stop'
-Set-StrictMode -Version Latest
+Set-StrictMode -Version 3.0
 $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 $directory = Join-Path $temporaryRoot ('dotjpegli-ci-helpers-' + [guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($directory)
 function Write-Json([string] $Path, [object] $Value) {
-    [IO.File]::WriteAllText($Path, (ConvertTo-Json -InputObject $Value -Depth 10))
+    Set-Content -LiteralPath $Path -Value (ConvertTo-Json -InputObject $Value -Depth 10) -Encoding utf8NoBOM -NoNewline
 }
-function Assert([bool] $Condition, [string] $Message) {
+function Assert-Condition([bool] $Condition, [string] $Message) {
     if (-not $Condition) { throw $Message }
 }
-function Expect-Failure([scriptblock] $Action, [string] $Message) {
+function Assert-Failure([scriptblock] $Action, [string] $Message) {
     $failed = $false
     try { & $Action | Out-Null } catch { $failed = $true }
-    Assert $failed $Message
+    Assert-Condition $failed $Message
 }
 try {
     [IO.File]::WriteAllText((Join-Path $directory 'jpegli-parity-native'), 'synthetic native binary')
@@ -29,11 +34,11 @@ try {
     Write-Json (Join-Path $directory 'provenance.json') $metadata
     & "$PSScriptRoot/verify-native.ps1" -Directory $directory -Revision 'test-revision'
     [IO.File]::AppendAllText((Join-Path $directory 'jpegli-parity-native'), 'changed')
-    Expect-Failure { & "$PSScriptRoot/verify-native.ps1" -Directory $directory -Revision 'test-revision' } 'Changed native binary was accepted.'
-    Expect-Failure { & "$PSScriptRoot/verify-native.ps1" -Directory $directory -Revision 'wrong-revision' } 'Wrong native revision was accepted.'
+    Assert-Failure { & "$PSScriptRoot/verify-native.ps1" -Directory $directory -Revision 'test-revision' } 'Changed native binary was accepted.'
+    Assert-Failure { & "$PSScriptRoot/verify-native.ps1" -Directory $directory -Revision 'wrong-revision' } 'Wrong native revision was accepted.'
     $metadata.sourceUnmodified = $false
     Write-Json (Join-Path $directory 'provenance.json') $metadata
-    Expect-Failure { & "$PSScriptRoot/verify-native.ps1" -Directory $directory -Revision 'test-revision' } 'Modified native source was accepted.'
+    Assert-Failure { & "$PSScriptRoot/verify-native.ps1" -Directory $directory -Revision 'test-revision' } 'Modified native source was accepted.'
 
     $run = @{ environment = @{ vector128 = $true; vector256 = $true; vector512 = $false; vectorFloatWidth = 8 }; narrowApplicable = $true }
     Write-Json (Join-Path $directory 'run.json') $run
@@ -41,19 +46,19 @@ try {
     & "$PSScriptRoot/assert-simd.ps1" -Evidence $directory -Narrow
     $run.environment.vector512 = $true
     Write-Json (Join-Path $directory 'run.json') $run
-    Expect-Failure { & "$PSScriptRoot/assert-simd.ps1" -Evidence $directory -Narrow } 'Wide SIMD was accepted for narrow evidence.'
+    Assert-Failure { & "$PSScriptRoot/assert-simd.ps1" -Evidence $directory -Narrow } 'Wide SIMD was accepted for narrow evidence.'
     $run.environment.vector256 = 'true'
     $run.environment.vector512 = $false
     Write-Json (Join-Path $directory 'run.json') $run
-    Expect-Failure { & "$PSScriptRoot/assert-simd.ps1" -Evidence $directory -Narrow } 'String SIMD capability was accepted as a Boolean.'
+    Assert-Failure { & "$PSScriptRoot/assert-simd.ps1" -Evidence $directory -Narrow } 'String SIMD capability was accepted as a Boolean.'
     $run.environment = @{ vector128 = $true; vector256 = $false; vector512 = $false; vectorFloatWidth = 4 }
     $run.narrowApplicable = $false
     Write-Json (Join-Path $directory 'run.json') $run
     & "$PSScriptRoot/assert-simd.ps1" -Evidence $directory -Architecture ARM64
-    Expect-Failure { & "$PSScriptRoot/assert-simd.ps1" -Evidence $directory -Architecture X64 } 'ARM64 capabilities were accepted as X64.'
+    Assert-Failure { & "$PSScriptRoot/assert-simd.ps1" -Evidence $directory -Architecture X64 } 'ARM64 capabilities were accepted as X64.'
     $run.narrowApplicable = $true
     Write-Json (Join-Path $directory 'run.json') $run
-    Expect-Failure { & "$PSScriptRoot/assert-simd.ps1" -Evidence $directory -Architecture ARM64 } 'Applicable narrow SIMD was accepted for ARM64.'
+    Assert-Failure { & "$PSScriptRoot/assert-simd.ps1" -Evidence $directory -Architecture ARM64 } 'Applicable narrow SIMD was accepted for ARM64.'
 
     $cases = @(
         @{ id = 'a'; medianRatio = 5; sampling = 444; progressiveLevel = 0; distance = 1 },
@@ -68,13 +73,17 @@ try {
         @{ id = 'tiny'; width = 1; height = 1 }
     )
     $selected = @(& "$PSScriptRoot/select-profile-cases.ps1" -Evidence $directory)
-    Assert ($selected.Count -eq 1 -and $selected[0] -ceq 'a 444 0 1') 'Wrong selected-case profile.'
+    Assert-Condition ($selected.Count -eq 1 -and $selected[0] -ceq 'a 444 0 1') 'Wrong selected-case profile.'
     $selected = @(& "$PSScriptRoot/select-profile-cases.ps1" -Evidence $directory -Full)
-    Assert (($selected -join '|') -ceq 'a 444 0 1|b 420 2 4|c 444 0 1|tiny 420 0 1') 'Full profiles must select distinct worst images and the failing smallest input.'
+    Assert-Condition (($selected -join '|') -ceq 'a 444 0 1|b 420 2 4|c 444 0 1|tiny 420 0 1') 'Full profiles must select distinct worst images and the failing smallest input.'
     $cases[4].medianRatio = 1.10
     Write-Json (Join-Path $directory 'cases.json') $cases
     $selected = @(& "$PSScriptRoot/select-profile-cases.ps1" -Evidence $directory -Full)
-    Assert ($selected.Count -eq 3) 'Smallest passing input must not add a profile.'
+    Assert-Condition ($selected.Count -eq 3) 'Smallest passing input must not add a profile.'
+    Write-Json (Join-Path $directory 'cases.json') @()
+    Assert-Failure { & "$PSScriptRoot/select-profile-cases.ps1" -Evidence $directory } 'Empty case arrays were accepted.'
+    Write-Json (Join-Path $directory 'cases.json') $cases[0]
+    Assert-Failure { & "$PSScriptRoot/select-profile-cases.ps1" -Evidence $directory } 'A case object was accepted instead of an array.'
 
     $versions = @('10.0.14', '11.0.0-rc.3.26522.148', 'net11-baseline', 'net11-simd')
     for ($i = 0; $i -lt $versions.Count; $i++) {
@@ -99,22 +108,27 @@ try {
     $summary = Join-Path $directory 'job-summary.md'
     & "$PSScriptRoot/report-runtime-comparison.ps1" -Directory $directory -Architecture X64 -Summary $summary | Out-Null
     $result = Get-Content -LiteralPath (Join-Path $directory 'runtime-comparison.json') -Raw | ConvertFrom-Json
-    Assert ($result.net11OverNet10 -eq 1.1 -and [Math]::Abs($result.explicitSimdOverNet11Baseline - 13.0 / 12) -lt 1e-12) 'Wrong runtime comparison ratios.'
-    Assert ((Get-Content -LiteralPath $summary -Raw).Contains('| 10.0.14 | 1.000 | 0.500 |')) 'Missing invariant Markdown timing output.'
+    Assert-Condition ($result.net11OverNet10 -eq 1.1 -and [Math]::Abs($result.explicitSimdOverNet11Baseline - 13.0 / 12) -lt 1e-12) 'Wrong runtime comparison ratios.'
+    Assert-Condition ((Get-Content -LiteralPath $summary -Raw).Contains('| 10.0.14 | 1.000 | 0.500 |')) 'Missing invariant Markdown timing output.'
+    $runtimeCasePath = Join-Path $directory 'runtime-net11-simd/cases.json'
+    $runtimeCase = (Get-Content -LiteralPath $runtimeCasePath -Raw | ConvertFrom-Json -NoEnumerate)[0]
+    Write-Json $runtimeCasePath $runtimeCase
+    Assert-Failure { & "$PSScriptRoot/report-runtime-comparison.ps1" -Directory $directory -Summary '' } 'Runtime comparison accepted a case object instead of an array.'
+    Write-Json $runtimeCasePath @($runtimeCase)
     Write-Json (Join-Path $directory 'runtime-net11-simd/summary.json') @{ valid = 'false' }
-    Expect-Failure { & "$PSScriptRoot/report-runtime-comparison.ps1" -Directory $directory -Summary '' } 'Runtime comparison accepted a string evidence verdict.'
+    Assert-Failure { & "$PSScriptRoot/report-runtime-comparison.ps1" -Directory $directory -Summary '' } 'Runtime comparison accepted a string evidence verdict.'
     Write-Json (Join-Path $directory 'runtime-net11-simd/summary.json') @{ valid = $true }
     $simdPath = Join-Path $directory 'runtime-net11-simd/run.json'
     $simdRun = Get-Content -LiteralPath $simdPath -Raw | ConvertFrom-Json
     $simdRun.environment.affinity = '3'
     Write-Json $simdPath $simdRun
-    Expect-Failure { & "$PSScriptRoot/report-runtime-comparison.ps1" -Directory $directory -Summary '' } 'Runtime comparison accepted a different host.'
+    Assert-Failure { & "$PSScriptRoot/report-runtime-comparison.ps1" -Directory $directory -Summary '' } 'Runtime comparison accepted a different host.'
     $simdRun.environment.affinity = '2'
     Write-Json $simdPath $simdRun
     Write-Json (Join-Path $directory 'runtime-net11-simd/cases.json') @(@{
         managedJpegSha256 = 'changed-jpeg'; managed = @{ median = 1300000 }; native = @{ median = 500000 }
     })
-    Expect-Failure { & "$PSScriptRoot/report-runtime-comparison.ps1" -Directory $directory -Summary '' } 'Runtime comparison accepted changed JPEG bytes.'
+    Assert-Failure { & "$PSScriptRoot/report-runtime-comparison.ps1" -Directory $directory -Summary '' } 'Runtime comparison accepted changed JPEG bytes.'
     Write-Output 'CI helper synthetic checks passed.'
 } finally {
     $resolved = [IO.Path]::GetFullPath($directory)
