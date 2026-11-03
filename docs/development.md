@@ -37,6 +37,13 @@ two-pass regression checks result bits across strided blocks, low-contrast
 inputs, impulses and exceptional values. Reusing sample loads is not evidence
 of an end-to-end latency improvement.
 
+Eight-block SIMD AQ modulation carries each horizontal neighbor into the next
+column, then handles the final column without a horizontal difference. Each
+lane retains its original horizontal/vertical interleaving and gamma raster
+order, including the last row's vertical subtraction. The schedule adds no
+scratch storage; focused scalar/vector bit-parity and complete-encode checks
+cover the change. Latency remains a CI measurement question.
+
 The scalar DCT specializes the same fixed eight- and four-point stages as the
 vector path. It keeps the recursive port's arithmetic and fused multiply-adds
 while avoiding recursive calls and per-stage scratch spans. A retained recursive

@@ -31,6 +31,9 @@ completed work.
   their rounded results at image boundaries.
 - Scalar AQ modulation shares one block traversal for high-frequency and gamma
   analysis, retaining independent raster-order sums and the original rounding.
+- Eight-block SIMD AQ modulation carries each horizontal neighbor into the next
+  column and handles the final column separately, preserving each lane's
+  high-frequency and gamma accumulation order without additional scratch.
 - Entropy-token scans share one encode-owned 64 MiB budget, accounting actual
   accepted rental lengths. Earlier scans acquire capacity first. Abandoning a
   scan refunds its rentals without invalidating siblings; successful replay

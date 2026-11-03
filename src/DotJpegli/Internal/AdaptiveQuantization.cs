@@ -656,17 +656,19 @@ internal sealed class AdaptiveQuantization : IDisposable
             // A lane now represents one block. Each lane sees the original
             // horizontal/vertical interleaving and gamma raster-order sum,
             // without extracting or horizontally reducing individual lanes.
-            for (int column = 0; column < 8; column++)
+            // Carry each horizontal neighbor into the next column instead of
+            // reading it again; the last column has no horizontal difference.
+            Vector256<float> samples = current[0];
+            for (int column = 0; column < 7; column++)
             {
-                Vector256<float> samples = current[column];
-                if (column != 7)
-                {
-                    sum += Vector256.Abs(samples - current[column + 1]);
-                }
-
+                Vector256<float> nextSamples = current[column + 1];
+                sum += Vector256.Abs(samples - nextSamples);
                 sum += Vector256.Abs(samples - below[column]);
                 ratio += DerivativeRatio(samples + gammaOffset);
+                samples = nextSamples;
             }
+            sum += Vector256.Abs(samples - below[7]);
+            ratio += DerivativeRatio(samples + gammaOffset);
             Span<Vector256<float>> previous = current;
             current = next;
             next = previous;
