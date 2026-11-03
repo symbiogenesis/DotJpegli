@@ -38,19 +38,12 @@ internal static class JpegMarkerWriter
         // Their first tableCount component entries hold the distinct tables.
         int tableCount = quantizationSelectors[^1] + 1;
         Span<bool> wideTables = stackalloc bool[tableCount];
-        wideTables.Clear();
         int quantizationLength = 2;
         bool baseline = !extendedHuffman;
+        const ushort minimum = 0, maximum = 255;
         for (int table = 0; table < tableCount; table++)
         {
-            foreach (ushort value in quantization[table])
-            {
-                if (value > 255)
-                {
-                    wideTables[table] = true;
-                }
-            }
-
+            wideTables[table] = quantization[table].AsSpan().ContainsAnyExceptInRange(minimum, maximum);
             quantizationLength += wideTables[table] ? 129 : 65;
             baseline &= !wideTables[table];
         }
