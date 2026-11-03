@@ -282,7 +282,7 @@ jobs:
       - name: Interleave original and optimized encodes on one CPU (CI only)
         run: |
           cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')
-          taskset -c "$cpu" dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll" --compare-kernels --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/kernel-evidence" --images kodim01,low-noise,low-contrast,tiny-odd-edges --distances 1,4 --samplings 444,420 --progressions 0,2 --blocks 6 --warmups 5 --iterations 20
+          taskset -c "$cpu" dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll" --compare-kernels --include-automatic --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/kernel-evidence" --images kodim01,low-noise,low-contrast,tiny-odd-edges --distances 1,4 --samplings 444,420 --progressions 0,2 --blocks 6 --warmups 5 --iterations 20
       - name: Check actual comparison capabilities
         if: always()
         env:

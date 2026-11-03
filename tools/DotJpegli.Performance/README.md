@@ -84,6 +84,15 @@ arguments. The mode uses six balanced ABBA/BAAB quartets, five warmups per leg
 and 20 encodes per leg by default; images below 1,024 pixels use 100 encodes.
 The same count applies to both variants. Raw samples and actual counts are kept.
 
+`--include-automatic` adds a pair comparing both Original preferences with both
+Automatic preferences. The automatic workflow enables it to measure the actual
+deployment policy. Exact preference maps identify each pair, and schema 2 uses
+neutral baseline/candidate statistics and hash names. The default 32 selected
+configurations therefore produce 96 comparisons on eight-lane x64, or 64 on
+ARM64 where the 32 narrow-ordering pairs are explicitly skipped. A policy pair
+is measured even if it selects no new kernel; it must not be described as a
+forced optimized-kernel result.
+
 Use `--self-test-kernel-comparison` locally to check synthetic statistics without
 timing any encoding. The actual mode requires Release and GitHub Actions.
 Guards retain the 1 ms minimum and 10% MAD limit, and additionally reject
