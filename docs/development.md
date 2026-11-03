@@ -72,6 +72,32 @@ dotnet build src/DotJpegli/DotJpegli.csproj -c Release
 Use `-f netstandard2.1` to build only the portable library target. The pinned
 compiler is still required when building that target from source.
 
+## Banned APIs
+
+All projects reference `Microsoft.CodeAnalysis.BannedApiAnalyzers` as a private
+build dependency. The shared [`BannedSymbols.txt`](../BannedSymbols.txt) policy
+rejects unsafe/native interop, CPU-specific intrinsics, runtime code generation,
+blocking task waits, dangerous serialization, weak cryptography, implicit byte
+order/encoding and process-wide mutation. Each entry explains the alternative;
+`RS0030` diagnostics fail builds through `TreatWarningsAsErrors`. The analyzer
+does not become a runtime or transitive package dependency for consumers.
+
+The encoder also applies [`BannedSymbols.Library.txt`](../BannedSymbols.Library.txt)
+to keep filesystem, process, console and network access in callers, and to prevent
+ambient clocks and randomness from affecting encoded bytes. Tests and validation
+tools retain the host APIs needed for independent decoding, native process
+comparisons and evidence files while still following the shared policy.
+
+Portable SIMD, bounded `MemoryMarshal.Cast`/`AsBytes`, integer/floating-point bit
+conversions and explicitly seeded test randomness remain available. MD5 is allowed
+for the ICC and extended XMP identifiers mandated by those formats; use SHA-256 or
+stronger for security-sensitive hashes. Add bans using documentation comment IDs
+and a diagnostic explaining the supported alternative. Any necessary exception
+should suppress `RS0030` at the smallest possible scope with its format or test
+justification, rather than disabling the analyzer for a project.
+The test project's `.editorconfig` exempts only xUnit's generated synchronous
+entry point, which blocks while bridging to its asynchronous runners.
+
 ## Reproducible builds
 
 All projects use [DotNet.ReproducibleBuilds](https://github.com/dotnet/reproducible-builds)
