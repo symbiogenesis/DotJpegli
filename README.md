@@ -131,8 +131,8 @@ for coverage.
 
 Compare DotJpegli with **native Google Jpegli** on all 24 Kodak photographs.
 The charts use fresh measurements from **November 3, 2026**,
-[CI run 41603913358](https://github.com/symbiogenesis/DotJpegli/actions/runs/41603913358),
-testing revision `f52961b`. Compression and time differences are relative to
+[CI run 41619016995](https://github.com/symbiogenesis/DotJpegli/actions/runs/41619016995),
+testing revision `d5f3226`. Compression and time differences are relative to
 native; zero means equal file size or encoding time.
 
 ### Compression efficiency
@@ -146,10 +146,13 @@ the next 0.001%; exact group values are linked below.
 
 ### Encoding wall time
 
-On the measured AMD EPYC 9V74 host, progressive photograph encoding used
-**about 20% less time** than native; sequential encoding used **13.5–16.1% more**.
+On the measured AMD EPYC 7763 host, progressive photograph encoding used
+**3.7–4.3% less time** than native; sequential encoding used **25.0–25.5% more**.
 Bars show the percentage change in encoding time, with photographs and controls
 paired under each encoding mode. Left of zero means less time; right means more.
+
+The earlier snapshot used a different CPU, so these runs do not isolate the
+effect of encoder changes.
 
 ![Percentage encoding-time differences from native Google Jpegli, pairing Kodak photographs and deterministic controls for each encoding mode.](docs/images/performance/wall-time.svg)
 
@@ -164,7 +167,7 @@ and peak memory are outside this measurement.
 The time and allocation comparison uses distances 1/4, both sampling modes,
 one worker and tiered compilation disabled. The complete 256-case comparison
 includes eight deterministic controls; full performance parity remains
-unestablished. See the [retained measurements](docs/performance-evidence/2026-11-03-f52961b/README.md),
+unestablished. See the [retained measurements](docs/performance-evidence/2026-11-03-d5f3226/README.md),
 [chart values](docs/images/performance/metrics.json) and
 [reproducible protocol](docs/performance-parity.md) for the host, runtime,
 raw samples and individual regressions.

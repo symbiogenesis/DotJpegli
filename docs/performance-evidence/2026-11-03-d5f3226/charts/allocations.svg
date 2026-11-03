@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="386" viewBox="0 0 880 386" role="img" aria-labelledby="title desc">
+  <title id="title">Managed allocations</title>
+  <desc id="desc">Average managed allocations per complete encode in KiB for 24 Kodak photographs. Bars start at zero. Includes the returned JPEG; native allocations, retained pool capacity and peak memory were not measured.</desc>
+  <style>
+    :root { color-scheme: light dark; --bg: #ffffff; --ink: #1f2937; --muted: #576575; --grid: #e5eaf0; --baseline: #8996a6; --teal: #0b766e; --amber: #a25212; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0d1117; --ink: #e6edf3; --muted: #a3b1c2; --grid: #252e3a; --baseline: #738399; --teal: #5cdbca; --amber: #f2b36f; }
+    }
+    text { font-variant-numeric: tabular-nums; }
+  </style>
+  <rect width="880" height="386" rx="12" fill="var(--bg)"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="32.00" y="46" font-size="26" fill="var(--ink)" font-weight="650" text-anchor="start">Managed allocations</text>
+    <text x="32.00" y="76" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">KiB per encode · DotJpegli only · lower is better</text>
+    <line x1="278.00" y1="108" x2="278.00" y2="284" stroke="var(--grid)"/>
+    <text x="278.00" y="308" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">0</text>
+    <line x1="388.00" y1="108" x2="388.00" y2="284" stroke="var(--grid)"/>
+    <text x="388.00" y="308" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">50</text>
+    <line x1="498.00" y1="108" x2="498.00" y2="284" stroke="var(--grid)"/>
+    <text x="498.00" y="308" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">100</text>
+    <line x1="608.00" y1="108" x2="608.00" y2="284" stroke="var(--grid)"/>
+    <text x="608.00" y="308" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">150</text>
+    <line x1="718.00" y1="108" x2="718.00" y2="284" stroke="var(--grid)"/>
+    <text x="718.00" y="308" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">200</text>
+    <text x="32.00" y="131" font-size="17" fill="var(--ink)" font-weight="500" text-anchor="start">Sequential · 4:4:4</text>
+    <rect x="278.00" y="116" width="266.16" height="18" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="131" font-size="19" fill="var(--ink)" font-weight="600" text-anchor="end">121.0</text>
+    <text x="32.00" y="177" font-size="17" fill="var(--ink)" font-weight="500" text-anchor="start">Sequential · 4:2:0</text>
+    <rect x="278.00" y="162" width="241.53" height="18" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="177" font-size="19" fill="var(--ink)" font-weight="600" text-anchor="end">109.8</text>
+    <text x="32.00" y="223" font-size="17" fill="var(--ink)" font-weight="500" text-anchor="start">Progressive · 4:4:4</text>
+    <rect x="278.00" y="208" width="370.81" height="18" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="223" font-size="19" fill="var(--ink)" font-weight="600" text-anchor="end">168.5</text>
+    <text x="32.00" y="269" font-size="17" fill="var(--ink)" font-weight="500" text-anchor="start">Progressive · 4:2:0</text>
+    <rect x="278.00" y="254" width="343.17" height="18" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="269" font-size="19" fill="var(--ink)" font-weight="600" text-anchor="end">156.0</text>
+    <text x="32.00" y="340" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">Includes JPEG output · native allocations and peak memory were not measured</text>
+    <text x="32.00" y="370" font-size="12" fill="var(--muted)" font-weight="400" text-anchor="start">2026-11-03 UTC · revision d5f3226 · run 41619016995</text>
+  </g>
+</svg>
