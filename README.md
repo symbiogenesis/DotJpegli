@@ -116,13 +116,15 @@ for coverage.
 
 ## Performance
 
-In the latest retained CI comparison, DotJpegli's progressive encodes used
-**7–17% less time than native Google Jpegli**. Sequential encodes took 2–5% more
-time. This compares Kodak01 at distance 1, 4:4:4 and 4:2:0, with one worker,
-on an AMD EPYC 7763 running .NET `11.0.0-rc.3.26522.148`, with tiered compilation
-disabled. See the [measurements and reproducible comparison protocol](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md)
-for exact revisions, raw samples and scope. Broader parity requires the complete
-256-case acceptance matrix.
+DotJpegli's progressive 4:2:0 encoding used **17% less time than native Google
+Jpegli** across 24 Kodak photographs at distances 1 and 4, by geometric mean.
+All 48 cases had lower median latency. The comparison uses one worker on AMD
+EPYC 9V74 with .NET `11.0.0-rc.3.26522.148` and tiered compilation disabled.
+
+The complete 256-case comparison also identifies slower sequential, low-detail
+and tiny-image cases, so full performance parity remains unestablished.
+See the [retained measurements and reproducible protocol](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md)
+for exact revisions, raw samples, settings and limits.
 
 ## Documentation
 

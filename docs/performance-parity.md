@@ -10,28 +10,39 @@ before the first measurement.
 
 ## Current measurement scope
 
-Full performance parity is not established. The retained reference measurement
-tests revision `9f350f9d7f1d8ed3d527d7efad08364a1645f420` in
-[hosted run 41567970649](https://github.com/symbiogenesis/DotJpegli/actions/runs/41567970649).
-All four selected cases pass timing stability, matched JPEG settings and the
-fixed 1.10 individual latency bound:
+The complete 256-case comparison of revision
+`ba9693f455b82c2ffd0326b3125a6892373ee64a` in
+[hosted run 41569147611](https://github.com/symbiogenesis/DotJpegli/actions/runs/41569147611)
+has valid, stable measurements and matched settings, but **fails full performance
+parity**. The same run passes the complete quality/compression matrix.
 
-| Sampling | Sequential | Progressive level 2 |
-| --- | ---: | ---: |
-| 4:4:4 | 1.054× | 0.926× |
-| 4:2:0 | 1.022× | 0.832× |
+| Corpus | Sampling | Sequential mean / worst | Progressive level 2 mean / worst |
+| --- | --- | ---: | ---: |
+| Kodak photographs | 4:4:4 | 1.044 / 1.216 | 0.929 / 1.125 |
+| Kodak photographs | 4:2:0 | 1.034 / 1.257 | 0.835 / 0.995 |
+| Deterministic controls | 4:4:4 | 1.279 / 2.261 | 1.289 / 2.527 |
+| Deterministic controls | 4:2:0 | 1.216 / 2.229 | 1.265 / 2.615 |
 
-Ratios are managed/native median latency; lower is better. The comparison uses
-Kodak01 RGB8 to YCbCr at distance 1, adaptive quantization, optimized Huffman
-coding and one worker, on an AMD EPYC 7763 x64 host with
-.NET `11.0.0-rc.3.26522.148` and tiered compilation disabled. Progressive
-latency is 7–17% lower; sequential latency is 2–5% higher. The
-[reference evidence](performance-evidence/2026-11-02-9f350f9/README.md) retains
-raw samples, host identity, settings, hashes and native build provenance.
-These selected cases do not establish the 256-case acceptance protocol or
-predict performance for other images, runtimes, architectures or options.
-The [older reference](performance-evidence/2026-10-15-5604d60/README.md) used a
-different CPU and runtime; its 15–24% reduction cannot be applied to this host.
+Each mean is the geometric mean of managed/native median latency ratios across
+the group's images and both distances; worst is the largest case ratio.
+Lower is better. Progressive 4:2:0 is faster in all 48 photograph cases, with
+16.5% lower latency by geometric mean. Sequential distance-4 encodes, low-detail
+controls and tiny inputs expose the remaining gaps. Group averages cannot
+override failed individual cases.
+
+This RGB8 to YCbCr comparison uses distances 1/4, adaptive quantization, optimized
+Huffman coding and one worker, on AMD EPYC 9V74 x64 with .NET
+`11.0.0-rc.3.26522.148` and tiered compilation disabled.
+The [complete reference evidence](performance-evidence/2026-11-02-ba9693f/README.md)
+retains every case, failure, raw sample, host identity, setting, hash and native
+build provenance. These measurements support a scoped progressive-photograph
+speed claim; full parity remains unestablished.
+
+Earlier four-case references remain available for
+[.NET 11 RC3 on EPYC 7763](performance-evidence/2026-11-02-9f350f9/README.md) and
+[RC2 on EPYC 9V74](performance-evidence/2026-10-15-5604d60/README.md).
+Their different hosts, runtimes and narrow coverage are not interchangeable
+with the complete matrix.
 
 ## Targeted development comparisons
 
