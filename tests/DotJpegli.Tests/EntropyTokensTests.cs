@@ -5,6 +5,91 @@ namespace DotJpegli.Tests;
 
 public sealed class EntropyTokensTests
 {
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(8)]
+    [InlineData(16)]
+    [InlineData(32)]
+    [InlineData(63)]
+    public void SelectedLookupContextsPreserveUnexpectedContextsAndGenericSuffixFallbacks(int mask)
+    {
+        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        var coding = new HuffmanCodingPlan.ScanCoding([table, table, table], [table, table, table], [], []);
+        using var tokens = new EntropyTokens(huffmanContextMask: mask);
+        using var expected = new MemoryStream();
+        var writer = new BitWriter(expected, buffered: true);
+        for (int index = 0; index < 1027; index++)
+        {
+            int context = index % 6, symbol = index & 255;
+            int count = symbol == 0xf0 ? 0 : (symbol & 15) == 0 ? symbol >> 4 : symbol & 15;
+            if (index % 19 == 18)
+                count = (count + 3) % 17;
+            uint suffix = unchecked((uint)index * 0x9e3779b9U) & ((1U << count) - 1);
+            table.WriteSymbolWithBits(writer, symbol, suffix, count);
+            tokens.AddHuffman(context >> 1, (context & 1) != 0, symbol, suffix, count);
+            if (index % 17 == 16)
+            {
+                writer.WriteBits(uint.MaxValue, 32);
+                tokens.AddBits(uint.MaxValue, 32);
+            }
+            if (index % 263 == 262)
+            {
+                writer.WriteRestartMarker(index & 7);
+                tokens.AddRestart(index & 7);
+            }
+        }
+        writer.Flush();
+        using var actual = new MemoryStream();
+        var replay = new BitWriter(actual, buffered: true);
+        tokens.Replay(replay, coding, TestContext.Current.CancellationToken);
+        replay.Flush();
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void ScanScriptsPrepareOnlyTheirUsedDcAcOrRawContexts(int mode)
+    {
+        JpegScan scan = mode switch
+        {
+            0 => new([1], 0, 0, 0, 2),
+            1 => new([2], 3, 63, 2, 1),
+            _ => new([0, 1, 2], 0, 0, 1, 0)
+        };
+        using var scans = new EntropyTokenScans([scan], progressive: true);
+        EntropyTokens tokens = scans[0];
+        HuffmanTable table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
+        // Inactive contexts have no table at all. A scan must neither prepare
+        // their codes nor touch them while replaying its selected decisions.
+        HuffmanTable[] dc = [null!, null!, null!], ac = [null!, null!, null!];
+        using var expected = new MemoryStream();
+        var writer = new BitWriter(expected, buffered: true);
+        if (mode < 2)
+        {
+            if (mode == 0)
+                dc[1] = table;
+            else
+                ac[2] = table;
+            table.WriteSymbolWithBits(writer, 3, 5, 3);
+            tokens.AddHuffman(mode == 0 ? 1 : 2, mode == 1, 3, 5, 3);
+        }
+        writer.WriteBits(0xabcdef, 24);
+        tokens.AddBits(0xabcdef, 24);
+        writer.WriteRestartMarker(3);
+        tokens.AddRestart(3);
+        writer.Flush();
+        using var actual = new MemoryStream();
+        var replay = new BitWriter(actual, buffered: true);
+        tokens.Replay(replay, new(dc, ac, [], []), TestContext.Current.CancellationToken);
+        replay.Flush();
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+    }
+
     [Fact]
     public void BufferedTokenBatchesPreserveEveryAlignmentAcrossFallbacksAndRestarts()
     {

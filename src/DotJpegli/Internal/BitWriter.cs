@@ -83,8 +83,8 @@ internal sealed class BitWriter
     {
         if (outputBuffer is null)
             return 0;
-        if (lookups.Length < 6 * 256)
-            throw new ArgumentException("All six Huffman contexts must have lookup storage.", nameof(lookups));
+        if (lookups.Length > 6 * 256 || (lookups.Length & 255) != 0)
+            throw new ArgumentException("Lookup storage must contain zero to six complete Huffman contexts.", nameof(lookups));
 
         ulong pending = buffer;
         int pendingBits = bufferedBits;
@@ -95,7 +95,7 @@ internal sealed class BitWriter
             int lookupIndex = (int)(token >> 16) & 2047;
             uint bits;
             int count;
-            if (lookupIndex < 6 * 256)
+            if (lookupIndex < lookups.Length)
             {
                 ulong prepared = lookups[lookupIndex];
                 if ((int)(prepared >> 38) != (int)(token >> 27) + 1)
@@ -103,7 +103,7 @@ internal sealed class BitWriter
                 bits = (uint)prepared | (token & 0xffffU);
                 count = (int)(prepared >> 32) & 63;
             }
-            else if (lookupIndex < 7 * 256)
+            else if (lookupIndex >= 6 * 256 && lookupIndex < 7 * 256)
             {
                 // AddBits already split wider payloads into at most 24 bits.
                 // Progressive corrections no longer terminate every batch.

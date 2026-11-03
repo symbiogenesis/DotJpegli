@@ -21,14 +21,18 @@ internal sealed class EntropyTokens : IDisposable
     private const uint RestartContext = 7U << ContextShift;
     private readonly List<uint[]> segments = [];
     private readonly long maximumBytes;
+    private readonly int huffmanContextMask;
     private int nextSegmentLength;
     private uint[]? current;
     private int currentCount;
     private long rentedBytes;
 
-    internal EntropyTokens(long maximumBytes = 64L * 1024 * 1024)
+    internal EntropyTokens(long maximumBytes = 64L * 1024 * 1024, int huffmanContextMask = 63)
     {
         Guard.ThrowIfNegative(maximumBytes);
+        if ((uint)huffmanContextMask > 63)
+            throw new ArgumentOutOfRangeException(nameof(huffmanContextMask));
+        this.huffmanContextMask = huffmanContextMask;
         this.maximumBytes = Math.Min(maximumBytes, 64L * 1024 * 1024);
         uint available = (uint)Math.Min(DefaultSegmentLength, this.maximumBytes / sizeof(uint));
         // Shared-pool buckets start at sixteen elements. Smaller budgets simply
@@ -144,12 +148,20 @@ internal sealed class EntropyTokens : IDisposable
         if (!IsComplete)
             throw new InvalidOperationException("An abandoned entropy token sequence cannot be replayed.");
         cancellationToken.ThrowIfCancellationRequested();
-        Span<ulong> lookups = stackalloc ulong[6 * 256];
+        if (segments.Count == 0)
+            return;
+        // Progressive scans usually emit one Huffman context. Prepare only
+        // their selected tables, without copying unused component/DC contexts
+        // for every scan. Raw-only scans need no Huffman lookup storage.
+        int contextCount = huffmanContextMask == 0 ? 0 : BitOperations.Log2((uint)huffmanContextMask) + 1;
+        Span<ulong> lookups = stackalloc ulong[contextCount * 256];
         lookups.Clear();
         for (int component = 0; component < coding.DcTables.Length; component++)
-            coding.DcTables[component].GetPrebiasedCodes().CopyTo(lookups.Slice(component * 512, 256));
+            if ((huffmanContextMask & (1 << (component * 2))) != 0)
+                coding.DcTables[component].GetPrebiasedCodes().CopyTo(lookups.Slice(component * 512, 256));
         for (int component = 0; component < coding.AcTables.Length; component++)
-            coding.AcTables[component].GetPrebiasedCodes().CopyTo(lookups.Slice(component * 512 + 256, 256));
+            if ((huffmanContextMask & (2 << (component * 2))) != 0)
+                coding.AcTables[component].GetPrebiasedCodes().CopyTo(lookups.Slice(component * 512 + 256, 256));
         for (int segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
         {
             uint[] segment = segments[segmentIndex];
@@ -172,7 +184,7 @@ internal sealed class EntropyTokens : IDisposable
                         // Context and symbol occupy adjacent bits in the token.
                         // One index avoids the jagged table lookup per symbol.
                         int lookupIndex = (int)(token >> SymbolShift) & 2047;
-                        ulong prepared = lookups[lookupIndex];
+                        ulong prepared = lookupIndex < lookups.Length ? lookups[lookupIndex] : 0;
                         if ((int)(prepared >> 38) == count + 1)
                             writer.WriteBitsPrevalidated((uint)prepared | (token & 0xffffU), (int)(prepared >> 32) & 63);
                         else

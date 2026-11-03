@@ -538,7 +538,7 @@ public static class JpegliEncoder
         using QuantizedImage? quantizedImage = streamSequential ? null : QuantizedImage.Create(pixels, width, height, stride,
             sampling, tables, distance, options.SmoothingFactor, adaptive, adaptiveMultipliers, cancellationToken,
             zigZagOrdered: true);
-        using EntropyTokenScans? tokenScans = streamSequential || quantizedImage is not null ? new(scans.Length) : null;
+        using EntropyTokenScans? tokenScans = streamSequential || quantizedImage is not null ? new(scans, options.Progressive) : null;
         var dcFrequencies = new long[componentCount][];
         for (int component = 0; component < componentCount; component++)
             dcFrequencies[component] = new long[256];
