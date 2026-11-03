@@ -92,6 +92,7 @@ jobs:
           ./tools/update-performance-charts.ps1 -SelfTest
           ./tools/assert-infersharp.ps1 -SelfTest
           ./tools/verify-release.ps1 -SelfTest
+          ./tools/ci/test-cli-installer.ps1 -SelfTest
           ./tools/Invoke-Automation.ps1 -CommandArguments @('native-reference', '--self-test')
 
   test:

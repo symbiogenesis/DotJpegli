@@ -6,17 +6,58 @@ Checks portable release assets and MSI install, repair, and removal on disposabl
 OutputRoot produced by tools/publish-cli.ps1.
 .PARAMETER RuntimeIdentifier
 Native architecture of the artifacts being checked.
+.PARAMETER SelfTest
+Checks PATH restoration comparisons using synthetic values without installing anything.
 .EXAMPLE
 ./tools/ci/test-cli-installer.ps1 -ArtifactRoot C:/build/cli -RuntimeIdentifier win-x64
 #>
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName = 'Installer')]
 param(
-    [Parameter(Mandatory)][ValidateNotNullOrWhiteSpace()][string] $ArtifactRoot,
-    [Parameter(Mandatory)][ValidateSet('win-x64', 'win-arm64')][string] $RuntimeIdentifier
+    [Parameter(Mandatory, ParameterSetName = 'Installer')][ValidateNotNullOrWhiteSpace()][string] $ArtifactRoot,
+    [Parameter(Mandatory, ParameterSetName = 'Installer')][ValidateSet('win-x64', 'win-arm64')][string] $RuntimeIdentifier,
+    [Parameter(Mandatory, ParameterSetName = 'SelfTest')][switch] $SelfTest
 )
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
+
+function Assert-UserPathRestored([string] $Original, [string] $Current, [string] $InstalledDirectory) {
+    # Windows Installer can normalize empty entries when editing a PATH list.
+    # Compare every nonempty entry in order, retaining duplicate entries and spelling.
+    $originalEntries = $Original.Split(';', [StringSplitOptions]::RemoveEmptyEntries)
+    $currentEntries = $Current.Split(';', [StringSplitOptions]::RemoveEmptyEntries)
+    if (@($currentEntries | Where-Object { $_.TrimEnd('\') -ieq $InstalledDirectory.TrimEnd('\') }).Count -ne 0) {
+        throw 'Uninstall left the CLI directory in the user PATH.'
+    }
+    if (-not [Linq.Enumerable]::SequenceEqual[string]($originalEntries, $currentEntries, [StringComparer]::Ordinal)) {
+        $state = @{ original = $Original; current = $Current } | ConvertTo-Json -Compress
+        throw "Uninstall changed the original user PATH entries: $state"
+    }
+}
+
+if ($SelfTest) {
+    $installed = 'C:\Programs\DotJpegli\x64'
+    foreach ($restored in @('C:\Windows;C:\Tools', 'C:\Windows;C:\Tools;', ';C:\Windows;;C:\Tools;')) {
+        Assert-UserPathRestored -Original 'C:\Windows;C:\Tools;' -Current $restored -InstalledDirectory $installed
+    }
+    Assert-UserPathRestored -Original '' -Current ';' -InstalledDirectory $installed
+    foreach ($invalid in @('C:\Windows', 'C:\Tools;C:\Windows', 'C:\Windows;C:\Tools;C:\Unexpected',
+            "C:\Windows;C:\Tools;$installed\")) {
+        $rejected = $false
+        try { Assert-UserPathRestored -Original 'C:\Windows;C:\Tools;' -Current $invalid -InstalledDirectory $installed } catch {
+            $rejected = $true
+        }
+        if (-not $rejected) { throw 'PATH self-test accepted changed entries or a retained CLI directory.' }
+    }
+    $rejected = $false
+    try { Assert-UserPathRestored -Original 'C:\Tools;C:\Tools' -Current 'C:\Tools' -InstalledDirectory $installed } catch {
+        $rejected = $true
+    }
+    if (-not $rejected) { throw 'PATH self-test accepted a removed duplicate entry.' }
+    Write-Output 'Installer PATH comparison self-test passed.'
+    return
+}
+
 if (-not $IsWindows -or $env:GITHUB_ACTIONS -ne 'true') {
     throw 'Installer smoke checks require a disposable Windows GitHub Actions runner.'
 }
@@ -57,6 +98,8 @@ $installedDirectory = Join-Path ([Environment]::GetFolderPath('LocalApplicationD
 $installedExecutable = Join-Path $installedDirectory 'dotjpegli.exe'
 if (Test-Path -LiteralPath $installedDirectory) { throw 'A pre-existing CLI installation must not be modified.' }
 $originalUserPath = [string] [Environment]::GetEnvironmentVariable('PATH', 'User')
+$pathState = [ordered] @{ original = $originalUserPath }
+$pathStateLog = Join-Path $ArtifactRoot 'msi-path-state.log'
 
 function Invoke-MsiCommand([string] $Operation, [string] $LogName) {
     $log = Join-Path $ArtifactRoot $LogName
@@ -79,6 +122,7 @@ function Assert-InstalledPath {
 
 try {
     Invoke-MsiCommand -Operation '/i' -LogName 'msi-install.log'
+    $pathState['installed'] = [string] [Environment]::GetEnvironmentVariable('PATH', 'User')
     Assert-InstalledPath
     & (Join-Path $PSScriptRoot 'test-cli.ps1') -ExecutablePath $installedExecutable `
         -OutputRoot (Join-Path $ArtifactRoot 'installed-smoke') -ExpectedVersion $version
@@ -89,15 +133,16 @@ try {
     # The exact file is under the just-created installation on this disposable host.
     Remove-Item -LiteralPath $installedExecutable
     Invoke-MsiCommand -Operation '/fa' -LogName 'msi-repair.log'
+    $pathState['repaired'] = [string] [Environment]::GetEnvironmentVariable('PATH', 'User')
     Assert-InstalledPath
     if ((Get-FileHash -LiteralPath $installedExecutable -Algorithm SHA256).Hash -ne $expectedHash) {
         throw 'MSI repair did not restore the executable.'
     }
 } finally {
     Invoke-MsiCommand -Operation '/x' -LogName 'msi-uninstall.log'
+    $pathState['uninstalled'] = [string] [Environment]::GetEnvironmentVariable('PATH', 'User')
+    $pathState | ConvertTo-Json | Set-Content -LiteralPath $pathStateLog -Encoding utf8NoBOM
 }
 if (Test-Path -LiteralPath $installedExecutable) { throw 'Uninstall left the CLI executable behind.' }
-if ([string] [Environment]::GetEnvironmentVariable('PATH', 'User') -cne $originalUserPath) {
-    throw 'Uninstall did not restore the original user PATH.'
-}
+Assert-UserPathRestored -Original $originalUserPath -Current $pathState['uninstalled'] -InstalledDirectory $installedDirectory
 Write-Output 'CLI distribution checks passed: portable/symbols archives and MSI install, repair, and uninstall.'
