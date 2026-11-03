@@ -38,9 +38,13 @@ internal static class PerformanceJson
 
     internal static double Number(JsonNode? value)
     {
-        Require(value?.GetValueKind() == JsonValueKind.Number &&
-            double.TryParse(value.ToJsonString(), NumberStyles.Float, CultureInfo.InvariantCulture, out _), "Expected a JSON number");
-        return double.Parse(value!.ToJsonString(), CultureInfo.InvariantCulture);
+        if (value?.GetValueKind() != JsonValueKind.Number ||
+            !double.TryParse(value.ToJsonString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double result))
+        {
+            throw new InvalidOperationException("Expected a JSON number");
+        }
+
+        return result;
     }
 
     internal static double Positive(JsonNode? value, string label)
