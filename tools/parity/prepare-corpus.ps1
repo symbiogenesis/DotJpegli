@@ -26,51 +26,12 @@ param(
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
-if (-not ('DotJpegli.Tools.CorpusPng' -as [type])) {
-    Add-Type -LiteralPath (Join-Path $PSScriptRoot 'CorpusPng.cs')
-}
+$commandArguments = [Collections.Generic.List[string]]::new()
+$commandArguments.Add('corpus')
 if ($SelfTest) {
-    if (-not ('DotJpegli.Tools.CorpusPngTests' -as [type])) {
-        Add-Type -LiteralPath (Join-Path $PSScriptRoot '../tests/CorpusPngTests.cs')
-    }
-    $decoder = [DotJpegli.Tools.CorpusPng].GetMethod('ToPpm').CreateDelegate([System.Func[byte[], byte[]]])
-    [DotJpegli.Tools.CorpusPngTests]::Run($decoder)
-    Write-Output 'Corpus preparation self-test passed (all PNG filters and invalid-input checks).'
-    return
+    $commandArguments.Add('--self-test')
+} else {
+    $commandArguments.AddRange([string[]]@('--output', $Output, '--manifest', (Join-Path $PSScriptRoot 'corpus.json')))
+    if ($Source) { $commandArguments.AddRange([string[]]@('--source', $Source)) }
 }
-
-foreach ($value in @($Output, $Source)) {
-    if ($value -and -not [System.IO.Path]::IsPathFullyQualified($value)) {
-        throw 'Output and source paths must be absolute.'
-    }
-}
-if (Test-Path -LiteralPath $Output) { throw "Output already exists: $Output" }
-[System.IO.Directory]::CreateDirectory($Output) | Out-Null
-$manifestPath = Join-Path $PSScriptRoot 'corpus.json'
-$manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
-$client = $Source ? $null : [System.Net.Http.HttpClient]::new()
-try {
-    if ($null -ne $client) { $client.Timeout = [TimeSpan]::FromSeconds(60) }
-    foreach ($entry in $manifest.images) {
-        $name = $entry.name
-        [byte[]] $data = if ($Source) {
-            [System.IO.File]::ReadAllBytes((Join-Path $Source $name))
-        } else {
-            $client.GetByteArrayAsync($manifest.baseUrl + $name).GetAwaiter().GetResult()
-        }
-        if ([Convert]::ToHexStringLower([System.Security.Cryptography.SHA256]::HashData($data)) -cne $entry.pngSha256) {
-            throw "Source hash mismatch: $name"
-        }
-        [byte[]] $ppm = [DotJpegli.Tools.CorpusPng]::ToPpm($data)
-        if ([Convert]::ToHexStringLower([System.Security.Cryptography.SHA256]::HashData($ppm)) -cne $entry.ppmSha256) {
-            throw "Decoded pixel hash mismatch: $name"
-        }
-        [System.IO.File]::WriteAllBytes((Join-Path $Output ([System.IO.Path]::ChangeExtension($name, '.ppm'))), $ppm)
-        Write-Output "Verified ${name}: $($entry.width)x$($entry.height)"
-    }
-    # Use the canonical LF manifest on Windows as well as Linux.
-    [System.IO.File]::WriteAllText((Join-Path $Output 'corpus.json'),
-        [System.IO.File]::ReadAllText($manifestPath).ReplaceLineEndings("`n"))
-} finally {
-    ${client}?.Dispose()
-}
+& (Join-Path $PSScriptRoot '../Invoke-Automation.ps1') -CommandArguments $commandArguments.ToArray()

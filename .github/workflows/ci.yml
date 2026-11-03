@@ -240,6 +240,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup .NET for compiled automation
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
       - name: Identify native cache toolchain
         id: toolchain
         run: |
@@ -267,7 +271,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/parity-corpus
-          key: jpegli-corpus-v1-${{ hashFiles('tools/parity/corpus.json', 'tools/parity/prepare-corpus.ps1', 'tools/parity/*.cs') }}
+          key: jpegli-corpus-v1-${{ hashFiles('tools/parity/corpus.json', 'tools/parity/prepare-corpus.ps1', 'tools/DotJpegli.Automation/Corpus*.cs') }}
       - name: Prepare hash-pinned lossless photographic corpus
         if: steps.corpus-cache.outputs.cache-hit != 'true'
         shell: pwsh

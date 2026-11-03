@@ -1,17 +1,13 @@
 // Restricted, lossless RGB8 PNG decoder for the hash-pinned parity corpus.
-// Loaded by PowerShell with Add-Type; no image library or color transforms.
+// No image library or color transforms.
 
-#pragma warning disable IDE0130 // PowerShell loads this standalone type by its fixed DotJpegli.Tools name.
-namespace DotJpegli.Tools;
-#pragma warning restore IDE0130
+namespace DotJpegli.Automation;
 
-using System;
-
-public static class CorpusPng
+internal static class CorpusPng
 {
-    public static byte[] ToPpm(byte[] data)
+    internal static byte[] ToPpm(byte[] data)
     {
-        byte[] signature = { 137, 80, 78, 71, 13, 10, 26, 10 };
+        byte[] signature = [137, 80, 78, 71, 13, 10, 26, 10];
         if (data.Length < signature.Length ||
             !MemoryExtensions.SequenceEqual(data.AsSpan(0, 8), signature))
         {
@@ -110,7 +106,7 @@ public static class CorpusPng
                 throw new System.IO.InvalidDataException("Unexpected pixel extent");
             }
         }
-        byte[] header = System.Text.Encoding.ASCII.GetBytes("P6\n" + width + " " + height + "\n255\n");
+        byte[] header = System.Text.Encoding.ASCII.GetBytes(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"P6\n{width} {height}\n255\n"));
         byte[] ppm = new byte[header.Length + (stride * height)];
         Buffer.BlockCopy(header, 0, ppm, 0, header.Length);
         for (int row = 0; row < height; row++)

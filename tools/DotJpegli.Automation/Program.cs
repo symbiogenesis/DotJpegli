@@ -2,7 +2,7 @@ namespace DotJpegli.Automation;
 
 internal static class Program
 {
-    public static int Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
         try
         {
@@ -18,6 +18,10 @@ internal static class Program
                 case "infer-sharp":
                     options.Validate(["report", "translation-log", "baseline", "framework", "source-root"], ["self-test"]);
                     InferSharpCommand.Run(options);
+                    break;
+                case "corpus":
+                    options.Validate(["output", "source", "manifest"], ["self-test"]);
+                    await CorpusCommand.Run(options);
                     break;
                 default:
                     throw new ArgumentException($"Unknown command: {args[0]}");

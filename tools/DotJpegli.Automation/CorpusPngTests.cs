@@ -1,10 +1,8 @@
-#pragma warning disable IDE0130 // PowerShell loads this standalone type by its fixed DotJpegli.Tools name.
-namespace DotJpegli.Tools;
-#pragma warning restore IDE0130
+namespace DotJpegli.Automation;
 
-public static class CorpusPngTests
+internal static class CorpusPngTests
 {
-    public static void Run(System.Func<byte[], byte[]> decode)
+    internal static void Run(System.Func<byte[], byte[]> decode)
     {
         // Each filter sees multiple RGB pixels and an earlier row. Values wrap
         // modulo 256, and the Paeth rows exercise left/above/upper-left choices.
@@ -19,7 +17,7 @@ public static class CorpusPngTests
         byte[] png = MakePng(pixels);
         if (!System.MemoryExtensions.SequenceEqual<byte>(decode(png), expected))
         {
-            throw new System.Exception("Lossless PNG filters changed RGB samples.");
+            throw new System.InvalidOperationException("Lossless PNG filters changed RGB samples.");
         }
 
         byte[] corrupt = (byte[])png.Clone();
@@ -28,7 +26,7 @@ public static class CorpusPngTests
         corrupt = (byte[])png.Clone();
         corrupt[0] = 0;
         Reject(decode, corrupt, "signature");
-        Reject(decode, new byte[] { 137, 80, 78, 71, 13, 10, 26, 10, 0 }, "truncation");
+        Reject(decode, [137, 80, 78, 71, 13, 10, 26, 10, 0], "truncation");
         Reject(decode, MakePng(pixels, depth: 16), "RGB8 restriction");
         Reject(decode, MakePng(pixels, firstFilter: 5), "unknown filter");
         Reject(decode, MakePng(pixels, extraRawByte: true), "pixel extent");
@@ -43,10 +41,10 @@ public static class CorpusPngTests
         try
         { _ = decode(png); }
         catch (System.IO.InvalidDataException) { return; }
-        throw new System.Exception("Accepted invalid PNG: " + label);
+        throw new System.InvalidOperationException("Accepted invalid PNG: " + label);
     }
 
-    private static byte[] MakePng(byte[] pixels, byte depth = 8, int firstFilter = 0, bool extraRawByte = false, bool critical = false)
+    internal static byte[] MakePng(byte[] pixels, byte depth = 8, int firstFilter = 0, bool extraRawByte = false, bool critical = false)
     {
         byte[] raw = new byte[130 + (extraRawByte ? 1 : 0)];
         for (int row = 0; row < 10; row++)
@@ -67,8 +65,8 @@ public static class CorpusPngTests
             }
         }
         using var output = new System.IO.MemoryStream();
-        output.Write(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 });
-        Chunk(output, "IHDR", new byte[] { 0, 0, 0, 4, 0, 0, 0, 10, depth, 2, 0, 0, 0 });
+        output.Write([137, 80, 78, 71, 13, 10, 26, 10]);
+        Chunk(output, "IHDR", [0, 0, 0, 4, 0, 0, 0, 10, depth, 2, 0, 0, 0]);
         Chunk(output, critical ? "TEST" : "tEXt", System.Text.Encoding.ASCII.GetBytes("Comment\0ignored"));
         using (var compressed = new System.IO.MemoryStream())
         {
@@ -84,7 +82,7 @@ public static class CorpusPngTests
             Chunk(output, "IDAT", first);
             Chunk(output, "IDAT", second);
         }
-        Chunk(output, "IEND", new byte[0]);
+        Chunk(output, "IEND", []);
         return output.ToArray();
     }
 
@@ -106,5 +104,5 @@ public static class CorpusPngTests
         UInt32(output, crc ^ 0xffffffff);
     }
 
-    private static void UInt32(System.IO.Stream output, uint value) => output.Write(new byte[] { (byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8), (byte)value });
+    private static void UInt32(System.IO.Stream output, uint value) => output.Write([(byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8), (byte)value]);
 }
