@@ -1031,6 +1031,10 @@ internal static class Quantization
         if (distance < NonlinearThreshold)
             return distance;
         float exponent = FrequencyExponents[frequency];
+        // For a positive finite distance, pow(distance, 1) and its unit
+        // multiplier retain distance exactly; the other Max operand is smaller.
+        if (exponent == 1f)
+            return distance;
         // C++ uses std::pow(float, double) for the first pow due to 1.0.
         float multiplier = PreparedScales.Values[frequency].Multiplier;
         return MathF.Max(0.5f * distance, multiplier * MathF.Pow(distance, exponent));
@@ -1055,6 +1059,8 @@ internal static class Quantization
     internal static float ScaleToDistance(float scale, int frequency)
     {
         if (scale < NonlinearThreshold)
+            return scale;
+        if (FrequencyExponents[frequency] == 1f)
             return scale;
         ref readonly var factors = ref PreparedScales.Values[frequency];
         return MathF.Min(2f * scale, factors.InverseMultiplier * MathF.Pow(scale, factors.InverseExponent));
