@@ -57,7 +57,6 @@ internal sealed class QuantizedImage : IDisposable
                     rgb: pixels.IsRgb);
             }
             Span<float> samples = stackalloc float[64];
-            Span<float> transformed = stackalloc float[64];
             Span<short> naturalOrder = stackalloc short[64];
             int horizontal = sampling.MaxHorizontal;
             int vertical = sampling.MaxVertical;
@@ -86,27 +85,31 @@ internal sealed class QuantizedImage : IDisposable
                                 + x * horizontal / factor.Horizontal];
                             Span<short> quantized = image.Block(component, x, y);
                             if (pixels.ParallelRows is { } parallelRows)
-                                parallelRows.CopyBlock(component, x, y, transformed);
+                                parallelRows.CopyBlock(component, x, y, samples);
                             else if (!plane.IsEmpty && x * 8 + 8 <= planeWidth && y * 8 + 8 <= planeHeight)
                             {
-                                if (zigZagOrdered && Vector.IsHardwareAccelerated && Vector<float>.Count == 8)
-                                {
-                                    ForwardDct.TransformQuantizePlane(plane, planeWidth, x * 8, y * 8,
-                                        quantizers[component], quantized, strength);
-                                    continue;
-                                }
-                                ForwardDct.TransformPlane(plane, planeWidth, x * 8, y * 8, transformed);
+                                ForwardDct.TransformQuantizePlane(plane, planeWidth, x * 8, y * 8,
+                                    quantizers[component], quantized, strength, zigZagOrdered);
+                                continue;
+                            }
+                            else if (!plane.IsEmpty && zigZagOrdered)
+                            {
+                                ForwardDct.TransformQuantizePaddedPlane(plane, planeWidth, planeHeight,
+                                    x * 8, y * 8, quantizers[component], quantized, strength);
+                                continue;
                             }
                             else
                             {
                                 Downsampling.FillBlock(pixels, width, height, stride, component, x, y,
                                     horizontal, vertical, factor.Horizontal, factor.Vertical, samples, smoothingFactor);
-                                ForwardDct.Transform(samples, transformed);
+                                ForwardDct.TransformQuantizeBlock(samples, quantizers[component], quantized,
+                                    strength, zigZagOrdered);
+                                continue;
                             }
                             // Built-in DC zero-bias multipliers are zero, so the full DC
                             // coefficient does not depend on scan order or restart predictors.
                             Span<short> natural = zigZagOrdered ? naturalOrder : quantized;
-                            Quantization.QuantizePrepared(transformed, quantizers[component], natural,
+                            Quantization.QuantizePrepared(samples, quantizers[component], natural,
                                 adaptiveStrength: strength);
                             EntropyEncoder.ValidateAc(natural);
                             if (zigZagOrdered)

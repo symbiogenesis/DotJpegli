@@ -62,6 +62,65 @@ public sealed class QuantizedImageTests
     }
 
     [Fact]
+    public void OrderedTinyAndOddPlaneEdgesMatchUnfusedStreamingBlocks()
+    {
+        foreach ((int width, int height) in new[] { (1, 1), (19, 17) })
+            foreach (ChromaSubsampling subsampling in new[] { ChromaSubsampling.None, ChromaSubsampling.Quarter })
+                foreach (bool adaptive in new[] { false, true })
+                {
+                    JpegSamplingFactors sampling = JpegSamplingFactors.FromSubsampling(subsampling);
+                    int horizontal = sampling.MaxHorizontal, vertical = sampling.MaxVertical;
+                    int stride = width * 3;
+                    PixelSource original = new(TestImages.Gradient(width, height), PixelLayout.Rgb24);
+                    PixelSource converted = sampling.Is420
+                        ? original.WithConverted420Planes(width, height, stride, TestContext.Current.CancellationToken)
+                        : original.WithConvertedPlanes(width, height, stride, TestContext.Current.CancellationToken);
+                    using IDisposable? storage = converted.ConvertedStorage;
+                    ushort[][] tables = Enumerable.Range(0, 3)
+                        .Select(component => Quantization.CreateTableForDistance(4f, component, horizontal, vertical)).ToArray();
+                    float[][]? multipliers = adaptive
+                        ? Quantization.CreateAdaptiveZeroBiasMultipliers(tables, horizontal, vertical, false) : null;
+                    using QuantizedImage raw = QuantizedImage.Create(original, width, height, stride, sampling,
+                        tables, 4f, 0, adaptive ? new(width, height, vertical) : null, multipliers,
+                        TestContext.Current.CancellationToken, zigZagOrdered: true)!;
+                    using QuantizedImage planar = QuantizedImage.Create(converted, width, height, stride, sampling,
+                        tables, 4f, 0, adaptive ? new(width, height, vertical) : null, multipliers,
+                        TestContext.Current.CancellationToken, zigZagOrdered: true)!;
+                    var analysis = adaptive ? new AdaptiveQuantization(width, height, vertical) : null;
+                    float[] strengths = new float[((width + 7) / 8) * vertical];
+                    float[] samples = new float[64], transformed = new float[64];
+                    short[] natural = new short[64], expected = new short[64];
+                    for (int component = 0; component < 3; component++)
+                    {
+                        JpegComponentSampling factor = sampling[component];
+                        int columns = (width * factor.Horizontal + horizontal * 8 - 1) / (horizontal * 8);
+                        int rows = (height * factor.Vertical + vertical * 8 - 1) / (vertical * 8);
+                        for (int y = 0; y < rows; y++)
+                        {
+                            int top = y / factor.Vertical * vertical * 8;
+                            analysis?.ComputeRow(original, stride, top, tables[0][1], strengths,
+                                TestContext.Current.CancellationToken);
+                            for (int x = 0; x < columns; x++)
+                            {
+                                Downsampling.FillBlock(original, width, height, stride, component, x, y,
+                                    horizontal, vertical, factor.Horizontal, factor.Vertical, samples);
+                                ForwardDct.Transform(samples, transformed);
+                                float strength = !adaptive ? 0f : strengths[(y % factor.Vertical) * analysis!.BlocksWide
+                                    + x * horizontal / factor.Horizontal];
+                                Quantization.Quantize(transformed, tables[component], natural, component, 4f,
+                                    adaptiveQuantization: adaptive, adaptiveStrength: strength,
+                                    adaptiveMultipliers: multipliers is null ? default : multipliers[component]);
+                                EntropyEncoder.ValidateAc(natural);
+                                ZigZagOrdering.Reorder(natural, expected);
+                                Assert.Equal(expected, raw.GetBlock(component, x, y).ToArray());
+                                Assert.Equal(expected, planar.GetBlock(component, x, y).ToArray());
+                            }
+                        }
+                    }
+                }
+    }
+
+    [Fact]
     public void OversizedCacheFallsBackBeforeReadingOrAllocatingImageStorage()
     {
         ushort[][] tables = [new ushort[64], new ushort[64], new ushort[64]];
