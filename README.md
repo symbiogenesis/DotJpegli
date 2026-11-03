@@ -116,13 +116,15 @@ for coverage.
 
 ## Performance
 
-DotJpegli's progressive 4:2:0 encoding used **17% less time than native Google
-Jpegli** across 24 Kodak photographs at distances 1 and 4, by geometric mean.
-All 48 cases had lower median latency. The comparison uses one worker on AMD
-EPYC 9V74 with .NET `11.0.0-rc.3.26522.148` and tiered compilation disabled.
+DotJpegli used **8–29% less time than native Google Jpegli** in the Kodak
+photograph comparison: 8–9% lower latency for sequential and 28–29% lower for
+progressive encoding, by geometric mean. This covers all 24 photographs,
+distances 1/4 and 4:4:4/4:2:0 sampling, using one worker on AMD EPYC 9V45 with
+.NET `11.0.0-rc.3.26522.148` and tiered compilation disabled.
 
-The complete 256-case comparison also identifies slower sequential, low-detail
-and tiny-image cases, so full performance parity remains unestablished.
+The complete 256-case comparison also identifies individual sequential,
+low-detail and tiny-image regressions, so full performance parity remains
+unestablished.
 See the [retained measurements and reproducible protocol](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md)
 for exact revisions, raw samples, settings and limits.
 
@@ -147,9 +149,9 @@ libjpeg's. Decoding is outside the project's scope.
 
 Quality and compression parity with upstream is established within a
 [documented RGB8 YCbCr scope](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/quality-compression-parity.md).
-Byte-identical upstream output and full
-[performance parity](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md)
-are not claimed.
+Byte-identical upstream output is not claimed.
+[Performance results and acceptance bounds](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md)
+are documented separately.
 
 ## License
 

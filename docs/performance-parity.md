@@ -11,38 +11,42 @@ before the first measurement.
 ## Current measurement scope
 
 The complete 256-case comparison of revision
-`ba9693f455b82c2ffd0326b3125a6892373ee64a` in
-[hosted run 41569147611](https://github.com/symbiogenesis/DotJpegli/actions/runs/41569147611)
+`eb86172fb197b7614ca9e82ffdbd6422cfc4d74f` in
+[hosted run 41573245587](https://github.com/symbiogenesis/DotJpegli/actions/runs/41573245587)
 has valid, stable measurements and matched settings, but **fails full performance
 parity**. The same run passes the complete quality/compression matrix.
 
 | Corpus | Sampling | Sequential mean / worst | Progressive level 2 mean / worst |
 | --- | --- | ---: | ---: |
-| Kodak photographs | 4:4:4 | 1.044 / 1.216 | 0.929 / 1.125 |
-| Kodak photographs | 4:2:0 | 1.034 / 1.257 | 0.835 / 0.995 |
-| Deterministic controls | 4:4:4 | 1.279 / 2.261 | 1.289 / 2.527 |
-| Deterministic controls | 4:2:0 | 1.216 / 2.229 | 1.265 / 2.615 |
+| Kodak photographs | 4:4:4 | 0.914 / 1.099 | 0.720 / 0.765 |
+| Kodak photographs | 4:2:0 | 0.919 / 1.148 | 0.713 / 0.802 |
+| Deterministic controls | 4:4:4 | 1.085 / 1.763 | 1.040 / 2.097 |
+| Deterministic controls | 4:2:0 | 1.017 / 1.753 | 1.048 / 2.054 |
 
 Each mean is the geometric mean of managed/native median latency ratios across
 the group's images and both distances; worst is the largest case ratio.
-Lower is better. Progressive 4:2:0 is faster in all 48 photograph cases, with
-16.5% lower latency by geometric mean. Sequential distance-4 encodes, low-detail
-controls and tiny inputs expose the remaining gaps. Group averages cannot
-override failed individual cases.
+Lower is better. All four photograph groups have lower mean latency: 8–9% less
+time for sequential and 28–29% less for progressive. Every progressive photograph
+case is faster. Both progressive groups and sequential 4:4:4 pass all fixed
+bounds; sequential 4:2:0 includes a 1.147908 case ratio. Low-detail controls and
+tiny inputs expose the remaining gaps. Group averages cannot override failures.
 
 This RGB8 to YCbCr comparison uses distances 1/4, adaptive quantization, optimized
-Huffman coding and one worker, on AMD EPYC 9V74 x64 with .NET
+Huffman coding and one worker, on AMD EPYC 9V45 x64 with .NET
 `11.0.0-rc.3.26522.148` and tiered compilation disabled.
-The [complete reference evidence](performance-evidence/2026-11-02-ba9693f/README.md)
-retains every case, failure, raw sample, host identity, setting, hash and native
-build provenance. These measurements support a scoped progressive-photograph
-speed claim; full parity remains unestablished.
+The [complete reference evidence](performance-evidence/2026-11-02-eb86172/README.md)
+retains every case, failure, raw sample, host identity, setting, hash, native
+provenance and separate CPU profiles. These measurements support a photograph
+speed claim within this scope; full parity remains unestablished.
 
-Earlier four-case references remain available for
+Earlier complete references on
+[EPYC 7763](performance-evidence/2026-11-02-6738b09/README.md) and
+[EPYC 9V74](performance-evidence/2026-11-02-ba9693f/README.md) retain their failures
+and different revisions. Four-case references remain available for
 [.NET 11 RC3 on EPYC 7763](performance-evidence/2026-11-02-9f350f9/README.md) and
 [RC2 on EPYC 9V74](performance-evidence/2026-10-15-5604d60/README.md).
-Their different hosts, runtimes and narrow coverage are not interchangeable
-with the complete matrix.
+Their different hosts, revisions and runtimes cannot establish before/after
+optimization gains or be substituted for this complete matrix.
 
 ## Targeted development comparisons
 
