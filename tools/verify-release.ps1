@@ -59,7 +59,9 @@ try {
     foreach ($lane in @('first', 'different-depth/second')) {
         $checkout = Join-Path $OutputRoot "$lane/checkout"
         $artifacts = Join-Path $OutputRoot "$lane/artifacts"
-        git -C $repository worktree add --detach $checkout $revision
+        # The second lane deliberately exercises a deeper checkout. Retained
+        # evidence paths can exceed Win32's legacy limit beneath that prefix.
+        git -c core.longpaths=true -C $repository worktree add --detach $checkout $revision
         $worktrees.Add($checkout)
         $null = [IO.Directory]::CreateDirectory($artifacts)
         Push-Location -LiteralPath $checkout
@@ -90,6 +92,6 @@ try {
             $relative.StartsWith('..' + [IO.Path]::DirectorySeparatorChar, [StringComparison]::Ordinal)) {
             throw 'Refusing to remove a checkout outside OutputRoot.'
         }
-        git -C $repository worktree remove --force $resolved
+        git -c core.longpaths=true -C $repository worktree remove --force $resolved
     }
 }
