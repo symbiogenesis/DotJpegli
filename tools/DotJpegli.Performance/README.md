@@ -14,6 +14,25 @@ commands keep their existing CI guard. The
 contains its rounding-cell proof, independent regressions, actual fallback
 counts and scope; Automatic remains on original AQ division.
 
+The `--coefficient-cache-analysis --photograph <PPM> --output <empty-directory>`
+command performs a separate untimed storage study and can run locally. It
+compares immutable 32-block bitmap/packed-short and per-band bit-packed tiles
+with dense storage, retaining direct DC access, exact full-block and individual
+coefficient reads, dense fallback, and actual pooled payload/index lengths.
+The fixed 64 MiB accepted-rental cap is shared across all components in capacity
+trials. Photographs are bounded to 1024 by 1024 pixels; output must be empty.
+
+The [retained representation study](../../docs/performance-evidence/2026-11-03-compact-coefficients/README.md)
+contains 360 layout comparisons on 24 real AQ image configurations, 75
+adversarial comparisons and 30 shared-budget capacity attempts. Source,
+coefficient and binary hashes accompany the storage and abstract work counts.
+Replicated coefficients establish capacity only. The counters describe offline
+codecs; production dense storage writes DCT output directly and returns spans
+without these pack/copy passes. Production remains unchanged. This command
+runs before the CI benchmark guard and has no timers, warmups, calibration,
+allocation measurement or performance verdict; latency and peak memory remain
+unmeasured. All benchmark commands retain their CI guard.
+
 The bounded `--ac-reciprocal-experiment --photograph <absolute-PPM> --output
 <empty-directory>` command researches AC quantization with prepared reciprocal
 intervals. It runs after the normal CI guard, separately from native acceptance.

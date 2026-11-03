@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "scope": "Untimed exact coefficient storage, rental-cap admission and abstract access work; offline prototypes, no encoder dispatch change",
+  "runtime": ".NET 11.0.0-rc.3.26522.148",
+  "architecture": "Arm64",
+  "operatingSystem": "Microsoft Windows 10.0.26300",
+  "encoderSha256": "734451f1977287cc21213825249806c23733a2b457ca028bfec4e8c6f4ce6f33",
+  "runnerSha256": "61b232ea58615fa11bb87f059e0885d8b521499a14d0d2905884087708df1dc5",
+  "maximumAcceptedRentalBytes": 67108864,
+  "blocksPerTile": 32,
+  "coefficientPolicy": "Actual complete QuantizedImage coefficients, zigzag order, AQ, distance 1/4, 444/420, smoothing 0, original narrow zigzag preference",
+  "accessPolicy": "One full-block pass, one direct-DC pass and one individual-coefficient pass over positions 0..63; every value compared exactly with the original cache",
+  "workScope": "Counters compare executable offline codecs. Production dense storage is filled by DCT directly and returns spans without the prototype\u0027s pack/copy passes; these counters do not measure production work or speed. Rejected capacity rows retain accepted-prefix counters and all attempted rental lengths",
+  "capacityPolicy": "Repeat all three completed components of four declared real cases, plus an adversarial full-width grayscale set, by the largest integral repetition fitting the production 64 MiB summed bucket budget, then by one more repetition; one shared prototype cap across components, actual accepted/rejected rentals and 129 sampled blocks per admitted component",
+  "sources": [
+    {
+      "name": "photograph",
+      "width": 768,
+      "height": 512,
+      "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273"
+    },
+    {
+      "name": "smooth-gradient",
+      "width": 257,
+      "height": 193,
+      "pixelsSha256": "460505161f6891eacdcac9f6529b039e34761cb3eedaff368bf465495f4233ec"
+    },
+    {
+      "name": "low-contrast",
+      "width": 257,
+      "height": 193,
+      "pixelsSha256": "aaf923606635b8f32823911ec7445a9462cd1a116e7caf2d506470d544baae0f"
+    },
+    {
+      "name": "low-noise",
+      "width": 257,
+      "height": 193,
+      "pixelsSha256": "3b3f47c3cd069bcaae7baf8e73cbdc5562251ef6e356706079ea7b1873c9e2e9"
+    },
+    {
+      "name": "full-noise",
+      "width": 257,
+      "height": 193,
+      "pixelsSha256": "fbba89852b7caef21e82a30d899489fb91468608ed4ca1eb9040e902227045f3"
+    },
+    {
+      "name": "tiny-odd-edges",
+      "width": 19,
+      "height": 17,
+      "pixelsSha256": "6b6e57355be38013f49728c2c208c9c2dd7b31edc84efc48997c418a08662660"
+    }
+  ],
+  "notMeasured": "Latency, allocated bytes, managed object/array headers, source and construction overlap, peak memory, native acceptance, end-to-end compact JPEG encoding"
+}

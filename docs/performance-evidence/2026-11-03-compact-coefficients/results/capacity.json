@@ -1,0 +1,1227 @@
+[
+  {
+    "image": "photograph",
+    "distance": 1,
+    "sampling": 444,
+    "repetitions": 21,
+    "denseUsefulBytes": 49545216,
+    "productionDenseRentalBytes": 50331648,
+    "productionDenseAdmitted": true,
+    "components": [
+      {
+        "component": 0,
+        "sourceCoefficientsSha256": "a1689a4af31a66426fc80a60e318d5ac5fd3098babb446bb28e1ad8d256f1757",
+        "sourceBlocks": 6144,
+        "replicatedBlocks": 129024,
+        "replicatedCoefficientsSha256": "b6a90a5e2852374ad41ba81ba2fdd801276b0c1992e1a0b387873a0eb55243a1",
+        "productionDenseRentalBytes": 16777216,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 1,
+        "sourceCoefficientsSha256": "d8227cca12ebd348c728f4ce36ef2be1d5920d6f77bbff5e7fcd4ad24c4a58d4",
+        "sourceBlocks": 6144,
+        "replicatedBlocks": 129024,
+        "replicatedCoefficientsSha256": "c7dc1e78c4ecf7f44f2003aa6948ffe3ec0c8cbafe76922d65ad2eee828ff1b8",
+        "productionDenseRentalBytes": 16777216,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 2,
+        "sourceCoefficientsSha256": "8fab7c6f5b559eccaa4631a47cc8a101bfe5d5a2b6d85a54f5ce6c78ea4d9d50",
+        "sourceBlocks": 6144,
+        "replicatedBlocks": 129024,
+        "replicatedCoefficientsSha256": "cfef8fc0b1f3afaba75dfb0e555b97c743b0728892c3e79d8dc163583d9aca50",
+        "productionDenseRentalBytes": 16777216,
+        "checkedBlocks": 129
+      }
+    ],
+    "layouts": [
+      {
+        "layout": "Dense",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 50331648,
+        "observedPayloadRentalBytes": 50331648,
+        "observedIndexRentalBytes": 0,
+        "acceptedUsefulBytes": 49545216,
+        "acceptedCompactTiles": 0,
+        "acceptedDenseTiles": 12096,
+        "acceptedPacking": [
+          {
+            "reads": 8257536,
+            "writes": 16515072,
+            "indexOperations": 8257536,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          {
+            "reads": 8257536,
+            "writes": 16515072,
+            "indexOperations": 8257536,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          {
+            "reads": 8257536,
+            "writes": 16515072,
+            "indexOperations": 8257536,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        ]
+      },
+      {
+        "layout": "Bitmap",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 21020672,
+        "observedPayloadRentalBytes": 20971520,
+        "observedIndexRentalBytes": 49152,
+        "acceptedUsefulBytes": 12065298,
+        "acceptedCompactTiles": 12096,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 24514560,
+            "writes": 8704164,
+            "indexOperations": 28094514,
+            "rankOperations": 0,
+            "bitOperations": 7151844
+          },
+          {
+            "reads": 24514560,
+            "writes": 1597428,
+            "indexOperations": 24541146,
+            "rankOperations": 0,
+            "bitOperations": 45108
+          },
+          {
+            "reads": 24514560,
+            "writes": 1727418,
+            "indexOperations": 24606141,
+            "rankOperations": 0,
+            "bitOperations": 175098
+          }
+        ]
+      },
+      {
+        "layout": "BitPacked",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 12632064,
+        "observedPayloadRentalBytes": 12582912,
+        "observedIndexRentalBytes": 49152,
+        "acceptedUsefulBytes": 7187880,
+        "acceptedCompactTiles": 12096,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 34024032,
+            "writes": 14367108,
+            "indexOperations": 32647104,
+            "rankOperations": 0,
+            "bitOperations": 121183818
+          },
+          {
+            "reads": 24738336,
+            "writes": 1316616,
+            "indexOperations": 32647104,
+            "rankOperations": 0,
+            "bitOperations": 74288256
+          },
+          {
+            "reads": 25117512,
+            "writes": 1804068,
+            "indexOperations": 32647104,
+            "rankOperations": 0,
+            "bitOperations": 76204338
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "image": "photograph",
+    "distance": 1,
+    "sampling": 444,
+    "repetitions": 22,
+    "denseUsefulBytes": 51904512,
+    "productionDenseRentalBytes": 100663296,
+    "productionDenseAdmitted": false,
+    "components": [
+      {
+        "component": 0,
+        "sourceCoefficientsSha256": "a1689a4af31a66426fc80a60e318d5ac5fd3098babb446bb28e1ad8d256f1757",
+        "sourceBlocks": 6144,
+        "replicatedBlocks": 135168,
+        "replicatedCoefficientsSha256": "920e262c699e22fed5cb125f71a1e05d88845ffbfdd23d97537ac65c7bc8d0f2",
+        "productionDenseRentalBytes": 33554432,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 1,
+        "sourceCoefficientsSha256": "d8227cca12ebd348c728f4ce36ef2be1d5920d6f77bbff5e7fcd4ad24c4a58d4",
+        "sourceBlocks": 6144,
+        "replicatedBlocks": 135168,
+        "replicatedCoefficientsSha256": "64a7758b6c9bc769b98178a8361a55f44370e595926f89f1c752ba7515bd8c76",
+        "productionDenseRentalBytes": 33554432,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 2,
+        "sourceCoefficientsSha256": "8fab7c6f5b559eccaa4631a47cc8a101bfe5d5a2b6d85a54f5ce6c78ea4d9d50",
+        "sourceBlocks": 6144,
+        "replicatedBlocks": 135168,
+        "replicatedCoefficientsSha256": "80a491be4f9413b4176adcc3e3ac6631ef61ddfaa9ac25351f45d7266cc800ab",
+        "productionDenseRentalBytes": 33554432,
+        "checkedBlocks": 129
+      }
+    ],
+    "layouts": [
+      {
+        "layout": "Dense",
+        "admitted": false,
+        "rejection": "Component 2: useful payload/index exceeds remaining shared cap before rental",
+        "acceptedRentalBytes": 67108864,
+        "observedPayloadRentalBytes": 67108864,
+        "observedIndexRentalBytes": 0,
+        "acceptedUsefulBytes": 34603008,
+        "acceptedCompactTiles": 0,
+        "acceptedDenseTiles": 8448,
+        "acceptedPacking": [
+          {
+            "reads": 8650752,
+            "writes": 17301504,
+            "indexOperations": 8650752,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          {
+            "reads": 8650752,
+            "writes": 17301504,
+            "indexOperations": 8650752,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        ]
+      },
+      {
+        "layout": "Bitmap",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 21069824,
+        "observedPayloadRentalBytes": 20971520,
+        "observedIndexRentalBytes": 98304,
+        "acceptedUsefulBytes": 12639836,
+        "acceptedCompactTiles": 12672,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 25681920,
+            "writes": 9118648,
+            "indexOperations": 29432348,
+            "rankOperations": 0,
+            "bitOperations": 7492408
+          },
+          {
+            "reads": 25681920,
+            "writes": 1673496,
+            "indexOperations": 25709772,
+            "rankOperations": 0,
+            "bitOperations": 47256
+          },
+          {
+            "reads": 25681920,
+            "writes": 1809676,
+            "indexOperations": 25777862,
+            "rankOperations": 0,
+            "bitOperations": 183436
+          }
+        ]
+      },
+      {
+        "layout": "BitPacked",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 12681216,
+        "observedPayloadRentalBytes": 12582912,
+        "observedIndexRentalBytes": 98304,
+        "acceptedUsefulBytes": 7530160,
+        "acceptedCompactTiles": 12672,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 35644224,
+            "writes": 15051256,
+            "indexOperations": 34201728,
+            "rankOperations": 0,
+            "bitOperations": 126954476
+          },
+          {
+            "reads": 25916352,
+            "writes": 1379312,
+            "indexOperations": 34201728,
+            "rankOperations": 0,
+            "bitOperations": 77825792
+          },
+          {
+            "reads": 26313584,
+            "writes": 1889976,
+            "indexOperations": 34201728,
+            "rankOperations": 0,
+            "bitOperations": 79833116
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "image": "smooth-gradient",
+    "distance": 1,
+    "sampling": 444,
+    "repetitions": 158,
+    "denseUsefulBytes": 50054400,
+    "productionDenseRentalBytes": 50331648,
+    "productionDenseAdmitted": true,
+    "components": [
+      {
+        "component": 0,
+        "sourceCoefficientsSha256": "7d43f61b05c4600623579b670cf9c3eb386054dbf900fc2961b8ff5dd57834bc",
+        "sourceBlocks": 825,
+        "replicatedBlocks": 130350,
+        "replicatedCoefficientsSha256": "07223d10080994ad5382c76c42d3f983fd28249b31737e884fa091aa1de2df3b",
+        "productionDenseRentalBytes": 16777216,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 1,
+        "sourceCoefficientsSha256": "b2b584706413824f9f8738e65b452089343a332afd997ba32c4d20ae0c5449d7",
+        "sourceBlocks": 825,
+        "replicatedBlocks": 130350,
+        "replicatedCoefficientsSha256": "e24c79b9a88770205ea8fa69c21ef53291cddd32f29ad0d412485853a67d8ef0",
+        "productionDenseRentalBytes": 16777216,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 2,
+        "sourceCoefficientsSha256": "a2b94eccfbd6bf12d6439d8b0cd80f06d3921490959f0ff674102a77f5e3b7d8",
+        "sourceBlocks": 825,
+        "replicatedBlocks": 130350,
+        "replicatedCoefficientsSha256": "c893d4ea975a4d6206c6bcab0c6747b1f78cf105785636511d1bd0c3baca52c9",
+        "productionDenseRentalBytes": 16777216,
+        "checkedBlocks": 129
+      }
+    ],
+    "layouts": [
+      {
+        "layout": "Dense",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 50331648,
+        "observedPayloadRentalBytes": 50331648,
+        "observedIndexRentalBytes": 0,
+        "acceptedUsefulBytes": 50054400,
+        "acceptedCompactTiles": 0,
+        "acceptedDenseTiles": 12222,
+        "acceptedPacking": [
+          {
+            "reads": 8342400,
+            "writes": 16684800,
+            "indexOperations": 8342400,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          {
+            "reads": 8342400,
+            "writes": 16684800,
+            "indexOperations": 8342400,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          {
+            "reads": 8342400,
+            "writes": 16684800,
+            "indexOperations": 8342400,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        ]
+      },
+      {
+        "layout": "Bitmap",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 6340608,
+        "observedPayloadRentalBytes": 6291456,
+        "observedIndexRentalBytes": 49152,
+        "acceptedUsefulBytes": 5747632,
+        "acceptedCompactTiles": 12222,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 24766500,
+            "writes": 2071346,
+            "indexOperations": 25022110,
+            "rankOperations": 0,
+            "bitOperations": 503072
+          },
+          {
+            "reads": 24766500,
+            "writes": 1568274,
+            "indexOperations": 24770574,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          {
+            "reads": 24766500,
+            "writes": 2071346,
+            "indexOperations": 25022110,
+            "rankOperations": 0,
+            "bitOperations": 503072
+          }
+        ]
+      },
+      {
+        "layout": "BitPacked",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 5292032,
+        "observedPayloadRentalBytes": 5242880,
+        "observedIndexRentalBytes": 49152,
+        "acceptedUsefulBytes": 3287364,
+        "acceptedCompactTiles": 12222,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 25026898,
+            "writes": 1392770,
+            "indexOperations": 32982624,
+            "rankOperations": 0,
+            "bitOperations": 75226716
+          },
+          {
+            "reads": 24766500,
+            "writes": 1034760,
+            "indexOperations": 32982624,
+            "rankOperations": 0,
+            "bitOperations": 73908450
+          },
+          {
+            "reads": 25026898,
+            "writes": 1343964,
+            "indexOperations": 32982624,
+            "rankOperations": 0,
+            "bitOperations": 75226716
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "image": "smooth-gradient",
+    "distance": 1,
+    "sampling": 444,
+    "repetitions": 159,
+    "denseUsefulBytes": 50371200,
+    "productionDenseRentalBytes": 100663296,
+    "productionDenseAdmitted": false,
+    "components": [
+      {
+        "component": 0,
+        "sourceCoefficientsSha256": "7d43f61b05c4600623579b670cf9c3eb386054dbf900fc2961b8ff5dd57834bc",
+        "sourceBlocks": 825,
+        "replicatedBlocks": 131175,
+        "replicatedCoefficientsSha256": "356e6c934226d1b60cc55c6cabd7ab96b254845b8ab49d0340541facbc0b303c",
+        "productionDenseRentalBytes": 33554432,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 1,
+        "sourceCoefficientsSha256": "b2b584706413824f9f8738e65b452089343a332afd997ba32c4d20ae0c5449d7",
+        "sourceBlocks": 825,
+        "replicatedBlocks": 131175,
+        "replicatedCoefficientsSha256": "69f380f537cbfeab60172459ede201b2fa240605347d347025ac18bdc144f427",
+        "productionDenseRentalBytes": 33554432,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 2,
+        "sourceCoefficientsSha256": "a2b94eccfbd6bf12d6439d8b0cd80f06d3921490959f0ff674102a77f5e3b7d8",
+        "sourceBlocks": 825,
+        "replicatedBlocks": 131175,
+        "replicatedCoefficientsSha256": "c46d8bdcbef15b2250586f31c00cc488f7921f9d44132d1058a46c4de199d895",
+        "productionDenseRentalBytes": 33554432,
+        "checkedBlocks": 129
+      }
+    ],
+    "layouts": [
+      {
+        "layout": "Dense",
+        "admitted": false,
+        "rejection": "Component 2: useful payload/index exceeds remaining shared cap before rental",
+        "acceptedRentalBytes": 67108864,
+        "observedPayloadRentalBytes": 67108864,
+        "observedIndexRentalBytes": 0,
+        "acceptedUsefulBytes": 33580800,
+        "acceptedCompactTiles": 0,
+        "acceptedDenseTiles": 8200,
+        "acceptedPacking": [
+          {
+            "reads": 8395200,
+            "writes": 16790400,
+            "indexOperations": 8395200,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          {
+            "reads": 8395200,
+            "writes": 16790400,
+            "indexOperations": 8395200,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        ]
+      },
+      {
+        "layout": "Bitmap",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 6389760,
+        "observedPayloadRentalBytes": 6291456,
+        "observedIndexRentalBytes": 98304,
+        "acceptedUsefulBytes": 5784012,
+        "acceptedCompactTiles": 12300,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 24923250,
+            "writes": 2084456,
+            "indexOperations": 25180478,
+            "rankOperations": 0,
+            "bitOperations": 506256
+          },
+          {
+            "reads": 24923250,
+            "writes": 1578200,
+            "indexOperations": 24927350,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          {
+            "reads": 24923250,
+            "writes": 2084456,
+            "indexOperations": 25180478,
+            "rankOperations": 0,
+            "bitOperations": 506256
+          }
+        ]
+      },
+      {
+        "layout": "BitPacked",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 5341184,
+        "observedPayloadRentalBytes": 5242880,
+        "observedIndexRentalBytes": 98304,
+        "acceptedUsefulBytes": 3308301,
+        "acceptedCompactTiles": 12300,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 25185305,
+            "writes": 1401639,
+            "indexOperations": 33191375,
+            "rankOperations": 0,
+            "bitOperations": 75702880
+          },
+          {
+            "reads": 24923250,
+            "writes": 1041350,
+            "indexOperations": 33191375,
+            "rankOperations": 0,
+            "bitOperations": 74376225
+          },
+          {
+            "reads": 25185305,
+            "writes": 1352522,
+            "indexOperations": 33191375,
+            "rankOperations": 0,
+            "bitOperations": 75702880
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "image": "full-noise",
+    "distance": 1,
+    "sampling": 444,
+    "repetitions": 158,
+    "denseUsefulBytes": 50054400,
+    "productionDenseRentalBytes": 50331648,
+    "productionDenseAdmitted": true,
+    "components": [
+      {
+        "component": 0,
+        "sourceCoefficientsSha256": "ffef73e6aac7460ff269ed5665219009cc9d6aafa6d80ef75771cbedc3d11f80",
+        "sourceBlocks": 825,
+        "replicatedBlocks": 130350,
+        "replicatedCoefficientsSha256": "bf1447dd5f50712b91152f92d201187267631af136c9213104464d658d2d9d28",
+        "productionDenseRentalBytes": 16777216,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 1,
+        "sourceCoefficientsSha256": "bc2a66676ae95204791fa6fa00e72b708c0c0448c6a2d5cd5da8d461b599269c",
+        "sourceBlocks": 825,
+        "replicatedBlocks": 130350,
+        "replicatedCoefficientsSha256": "507dad75a6715c10f274d6a5639e3c3e3ae82da098dab12d76fbc3aca3341f8e",
+        "productionDenseRentalBytes": 16777216,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 2,
+        "sourceCoefficientsSha256": "5dc6232f25d2c4820c0adf62e08e5cd3ba6564db033a80104d4124c645f16f9c",
+        "sourceBlocks": 825,
+        "replicatedBlocks": 130350,
+        "replicatedCoefficientsSha256": "2f71cd6b9231147c3372c7da3ce34a4ba059005086f241b6c901916806f5c9d5",
+        "productionDenseRentalBytes": 16777216,
+        "checkedBlocks": 129
+      }
+    ],
+    "layouts": [
+      {
+        "layout": "Dense",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 50331648,
+        "observedPayloadRentalBytes": 50331648,
+        "observedIndexRentalBytes": 0,
+        "acceptedUsefulBytes": 50054400,
+        "acceptedCompactTiles": 0,
+        "acceptedDenseTiles": 12222,
+        "acceptedPacking": [
+          {
+            "reads": 8342400,
+            "writes": 16684800,
+            "indexOperations": 8342400,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          {
+            "reads": 8342400,
+            "writes": 16684800,
+            "indexOperations": 8342400,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          {
+            "reads": 8342400,
+            "writes": 16684800,
+            "indexOperations": 8342400,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        ]
+      },
+      {
+        "layout": "Bitmap",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 37797888,
+        "observedPayloadRentalBytes": 37748736,
+        "observedIndexRentalBytes": 49152,
+        "acceptedUsefulBytes": 30096380,
+        "acceptedCompactTiles": 12222,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 24766500,
+            "writes": 14339098,
+            "indexOperations": 31155986,
+            "rankOperations": 0,
+            "bitOperations": 12770824
+          },
+          {
+            "reads": 24766500,
+            "writes": 4083318,
+            "indexOperations": 26028096,
+            "rankOperations": 0,
+            "bitOperations": 2515044
+          },
+          {
+            "reads": 24766500,
+            "writes": 11637298,
+            "indexOperations": 29805086,
+            "rankOperations": 0,
+            "bitOperations": 10069024
+          }
+        ]
+      },
+      {
+        "layout": "BitPacked",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 21020672,
+        "observedPayloadRentalBytes": 20971520,
+        "observedIndexRentalBytes": 49152,
+        "acceptedUsefulBytes": 15595674,
+        "acceptedCompactTiles": 12222,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 37089699,
+            "writes": 19081137,
+            "indexOperations": 32982624,
+            "rankOperations": 0,
+            "bitOperations": 136035939
+          },
+          {
+            "reads": 31423402,
+            "writes": 10179710,
+            "indexOperations": 32982624,
+            "rankOperations": 0,
+            "bitOperations": 107549968
+          },
+          {
+            "reads": 34247559,
+            "writes": 14759321,
+            "indexOperations": 32982624,
+            "rankOperations": 0,
+            "bitOperations": 121777685
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "image": "full-noise",
+    "distance": 1,
+    "sampling": 444,
+    "repetitions": 159,
+    "denseUsefulBytes": 50371200,
+    "productionDenseRentalBytes": 100663296,
+    "productionDenseAdmitted": false,
+    "components": [
+      {
+        "component": 0,
+        "sourceCoefficientsSha256": "ffef73e6aac7460ff269ed5665219009cc9d6aafa6d80ef75771cbedc3d11f80",
+        "sourceBlocks": 825,
+        "replicatedBlocks": 131175,
+        "replicatedCoefficientsSha256": "99bfe225249f197c2b0b7a45ecbe7f1784baf73f3c4d08b0b1648a6e98a5e836",
+        "productionDenseRentalBytes": 33554432,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 1,
+        "sourceCoefficientsSha256": "bc2a66676ae95204791fa6fa00e72b708c0c0448c6a2d5cd5da8d461b599269c",
+        "sourceBlocks": 825,
+        "replicatedBlocks": 131175,
+        "replicatedCoefficientsSha256": "aa3abd4a5c8eca7bc5c58e1f1b28ec28eb9b521124456896d2d4324318174162",
+        "productionDenseRentalBytes": 33554432,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 2,
+        "sourceCoefficientsSha256": "5dc6232f25d2c4820c0adf62e08e5cd3ba6564db033a80104d4124c645f16f9c",
+        "sourceBlocks": 825,
+        "replicatedBlocks": 131175,
+        "replicatedCoefficientsSha256": "b03f1e65968769f639cf48602ed12af601ffbeac7d45126b0f4f5f3bd3a6d62f",
+        "productionDenseRentalBytes": 33554432,
+        "checkedBlocks": 129
+      }
+    ],
+    "layouts": [
+      {
+        "layout": "Dense",
+        "admitted": false,
+        "rejection": "Component 2: useful payload/index exceeds remaining shared cap before rental",
+        "acceptedRentalBytes": 67108864,
+        "observedPayloadRentalBytes": 67108864,
+        "observedIndexRentalBytes": 0,
+        "acceptedUsefulBytes": 33580800,
+        "acceptedCompactTiles": 0,
+        "acceptedDenseTiles": 8200,
+        "acceptedPacking": [
+          {
+            "reads": 8395200,
+            "writes": 16790400,
+            "indexOperations": 8395200,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          {
+            "reads": 8395200,
+            "writes": 16790400,
+            "indexOperations": 8395200,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        ]
+      },
+      {
+        "layout": "Bitmap",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 37847040,
+        "observedPayloadRentalBytes": 37748736,
+        "observedIndexRentalBytes": 98304,
+        "acceptedUsefulBytes": 30286866,
+        "acceptedCompactTiles": 12300,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 24923250,
+            "writes": 14429852,
+            "indexOperations": 31353176,
+            "rankOperations": 0,
+            "bitOperations": 12851652
+          },
+          {
+            "reads": 24923250,
+            "writes": 4109162,
+            "indexOperations": 26192831,
+            "rankOperations": 0,
+            "bitOperations": 2530962
+          },
+          {
+            "reads": 24923250,
+            "writes": 11710952,
+            "indexOperations": 29993726,
+            "rankOperations": 0,
+            "bitOperations": 10132752
+          }
+        ]
+      },
+      {
+        "layout": "BitPacked",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 21069824,
+        "observedPayloadRentalBytes": 20971520,
+        "observedIndexRentalBytes": 98304,
+        "acceptedUsefulBytes": 15695199,
+        "acceptedCompactTiles": 12300,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 37325272,
+            "writes": 19203155,
+            "indexOperations": 33191375,
+            "rankOperations": 0,
+            "bitOperations": 136901105
+          },
+          {
+            "reads": 31622396,
+            "writes": 10244329,
+            "indexOperations": 33191375,
+            "rankOperations": 0,
+            "bitOperations": 108231233
+          },
+          {
+            "reads": 34464955,
+            "writes": 14853688,
+            "indexOperations": 33191375,
+            "rankOperations": 0,
+            "bitOperations": 122551662
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "image": "full-noise",
+    "distance": 4,
+    "sampling": 420,
+    "repetitions": 317,
+    "denseUsefulBytes": 51409792,
+    "productionDenseRentalBytes": 67108864,
+    "productionDenseAdmitted": true,
+    "components": [
+      {
+        "component": 0,
+        "sourceCoefficientsSha256": "cf1e868ea618ab9ea24c47f028f4ade6bc16d314bfc03455abdde8ee98e0de15",
+        "sourceBlocks": 825,
+        "replicatedBlocks": 261525,
+        "replicatedCoefficientsSha256": "28ae6855f9471b141e5f14612df737df31af3fe4501776209487cba0ebcbeed7",
+        "productionDenseRentalBytes": 33554432,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 1,
+        "sourceCoefficientsSha256": "b49a4a49e47a78c309151ab9ec01da64be7244a8604b82d8a2930b9045a828ca",
+        "sourceBlocks": 221,
+        "replicatedBlocks": 70057,
+        "replicatedCoefficientsSha256": "1b159366a3b86cc197f955a34ddccfb09ffb5ff521eaf3948decc40b66344846",
+        "productionDenseRentalBytes": 16777216,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 2,
+        "sourceCoefficientsSha256": "a0496e2718f8016a91b22e795431e5e3ba99655b9eb0e3905e622a777d5afa5d",
+        "sourceBlocks": 221,
+        "replicatedBlocks": 70057,
+        "replicatedCoefficientsSha256": "e198e29c483fabb9136db212d93851c309947fbd6f2f33728be2256c2927fa1a",
+        "productionDenseRentalBytes": 16777216,
+        "checkedBlocks": 129
+      }
+    ],
+    "layouts": [
+      {
+        "layout": "Dense",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 67108864,
+        "observedPayloadRentalBytes": 67108864,
+        "observedIndexRentalBytes": 0,
+        "acceptedUsefulBytes": 51409792,
+        "acceptedCompactTiles": 0,
+        "acceptedDenseTiles": 12553,
+        "acceptedPacking": [
+          {
+            "reads": 16737600,
+            "writes": 33475200,
+            "indexOperations": 16737600,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          {
+            "reads": 4483648,
+            "writes": 8967296,
+            "indexOperations": 4483648,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          {
+            "reads": 4483648,
+            "writes": 8967296,
+            "indexOperations": 4483648,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        ]
+      },
+      {
+        "layout": "Bitmap",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 23134208,
+        "observedPayloadRentalBytes": 23068672,
+        "observedIndexRentalBytes": 65536,
+        "acceptedUsefulBytes": 20958898,
+        "acceptedCompactTiles": 12553,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 49689750,
+            "writes": 15746589,
+            "indexOperations": 55997981,
+            "rankOperations": 0,
+            "bitOperations": 12600116
+          },
+          {
+            "reads": 13310830,
+            "writes": 1130076,
+            "indexOperations": 13456621,
+            "rankOperations": 0,
+            "bitOperations": 287202
+          },
+          {
+            "reads": 13310830,
+            "writes": 4044574,
+            "indexOperations": 14913870,
+            "rankOperations": 0,
+            "bitOperations": 3201700
+          }
+        ]
+      },
+      {
+        "layout": "BitPacked",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 22085632,
+        "observedPayloadRentalBytes": 22020096,
+        "observedIndexRentalBytes": 65536,
+        "acceptedUsefulBytes": 12406169,
+        "acceptedCompactTiles": 12553,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 68953659,
+            "writes": 28435611,
+            "indexOperations": 66173998,
+            "rankOperations": 0,
+            "bitOperations": 245627008
+          },
+          {
+            "reads": 14529916,
+            "writes": 2186346,
+            "indexOperations": 17726611,
+            "rankOperations": 0,
+            "bitOperations": 45882511
+          },
+          {
+            "reads": 18478332,
+            "writes": 7397050,
+            "indexOperations": 17726611,
+            "rankOperations": 0,
+            "bitOperations": 65829809
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "image": "full-noise",
+    "distance": 4,
+    "sampling": 420,
+    "repetitions": 318,
+    "denseUsefulBytes": 51571968,
+    "productionDenseRentalBytes": 100663296,
+    "productionDenseAdmitted": false,
+    "components": [
+      {
+        "component": 0,
+        "sourceCoefficientsSha256": "cf1e868ea618ab9ea24c47f028f4ade6bc16d314bfc03455abdde8ee98e0de15",
+        "sourceBlocks": 825,
+        "replicatedBlocks": 262350,
+        "replicatedCoefficientsSha256": "9da02b77f69f84c22ccf55698f4aade71be13da097825695818f409d7377492c",
+        "productionDenseRentalBytes": 67108864,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 1,
+        "sourceCoefficientsSha256": "b49a4a49e47a78c309151ab9ec01da64be7244a8604b82d8a2930b9045a828ca",
+        "sourceBlocks": 221,
+        "replicatedBlocks": 70278,
+        "replicatedCoefficientsSha256": "452d27aea2231df9250a008785347573f068300847d51666a23599b177b4a7bc",
+        "productionDenseRentalBytes": 16777216,
+        "checkedBlocks": 129
+      },
+      {
+        "component": 2,
+        "sourceCoefficientsSha256": "a0496e2718f8016a91b22e795431e5e3ba99655b9eb0e3905e622a777d5afa5d",
+        "sourceBlocks": 221,
+        "replicatedBlocks": 70278,
+        "replicatedCoefficientsSha256": "d9acef642a5a486623936cbfc811d675064004802a06aed655727c06bd0d2806",
+        "productionDenseRentalBytes": 16777216,
+        "checkedBlocks": 129
+      }
+    ],
+    "layouts": [
+      {
+        "layout": "Dense",
+        "admitted": false,
+        "rejection": "Component 1: useful payload/index exceeds remaining shared cap before rental",
+        "acceptedRentalBytes": 67108864,
+        "observedPayloadRentalBytes": 67108864,
+        "observedIndexRentalBytes": 0,
+        "acceptedUsefulBytes": 33580800,
+        "acceptedCompactTiles": 0,
+        "acceptedDenseTiles": 8199,
+        "acceptedPacking": [
+          {
+            "reads": 16790400,
+            "writes": 33580800,
+            "indexOperations": 16790400,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        ]
+      },
+      {
+        "layout": "Bitmap",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 23166976,
+        "observedPayloadRentalBytes": 23068672,
+        "observedIndexRentalBytes": 98304,
+        "acceptedUsefulBytes": 21025016,
+        "acceptedCompactTiles": 12593,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 49846500,
+            "writes": 15796263,
+            "indexOperations": 56174631,
+            "rankOperations": 0,
+            "bitOperations": 12639864
+          },
+          {
+            "reads": 13352820,
+            "writes": 1133641,
+            "indexOperations": 13499071,
+            "rankOperations": 0,
+            "bitOperations": 288108
+          },
+          {
+            "reads": 13352820,
+            "writes": 4057333,
+            "indexOperations": 14960917,
+            "rankOperations": 0,
+            "bitOperations": 3211800
+          }
+        ]
+      },
+      {
+        "layout": "BitPacked",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 22118400,
+        "observedPayloadRentalBytes": 22020096,
+        "observedIndexRentalBytes": 98304,
+        "acceptedUsefulBytes": 12445795,
+        "acceptedCompactTiles": 12593,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": [
+          {
+            "reads": 69172064,
+            "writes": 28526513,
+            "indexOperations": 66382749,
+            "rankOperations": 0,
+            "bitOperations": 246406332
+          },
+          {
+            "reads": 14575876,
+            "writes": 2193433,
+            "indexOperations": 17782531,
+            "rankOperations": 0,
+            "bitOperations": 46027880
+          },
+          {
+            "reads": 18536881,
+            "writes": 7420751,
+            "indexOperations": 17782531,
+            "rankOperations": 0,
+            "bitOperations": 66038779
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "image": "synthetic-full-width-grayscale",
+    "distance": 0,
+    "sampling": 400,
+    "repetitions": 16384,
+    "denseUsefulBytes": 67108864,
+    "productionDenseRentalBytes": 67108864,
+    "productionDenseAdmitted": true,
+    "components": [
+      {
+        "component": 0,
+        "sourceCoefficientsSha256": "dcfc87ba19f3050b40dec33ac4382eee45462c2b07166cfeb1caadeb073d46db",
+        "sourceBlocks": 32,
+        "replicatedBlocks": 524288,
+        "replicatedCoefficientsSha256": "06ae85c6d9665986b8eb5de53cc179e3e2b96c983c8973ff756a1a0cb26017d4",
+        "productionDenseRentalBytes": 67108864,
+        "checkedBlocks": 129
+      }
+    ],
+    "layouts": [
+      {
+        "layout": "Dense",
+        "admitted": true,
+        "rejection": null,
+        "acceptedRentalBytes": 67108864,
+        "observedPayloadRentalBytes": 67108864,
+        "observedIndexRentalBytes": 0,
+        "acceptedUsefulBytes": 67108864,
+        "acceptedCompactTiles": 0,
+        "acceptedDenseTiles": 16384,
+        "acceptedPacking": [
+          {
+            "reads": 33554432,
+            "writes": 67108864,
+            "indexOperations": 33554432,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        ]
+      },
+      {
+        "layout": "Bitmap",
+        "admitted": false,
+        "rejection": "Component 0: useful payload/index exceeds remaining shared cap before rental",
+        "acceptedRentalBytes": 0,
+        "observedPayloadRentalBytes": 0,
+        "observedIndexRentalBytes": 0,
+        "acceptedUsefulBytes": 0,
+        "acceptedCompactTiles": 0,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": []
+      },
+      {
+        "layout": "BitPacked",
+        "admitted": false,
+        "rejection": "Component 0: useful payload/index exceeds remaining shared cap before rental",
+        "acceptedRentalBytes": 0,
+        "observedPayloadRentalBytes": 0,
+        "observedIndexRentalBytes": 0,
+        "acceptedUsefulBytes": 0,
+        "acceptedCompactTiles": 0,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": []
+      }
+    ]
+  },
+  {
+    "image": "synthetic-full-width-grayscale",
+    "distance": 0,
+    "sampling": 400,
+    "repetitions": 16385,
+    "denseUsefulBytes": 67112960,
+    "productionDenseRentalBytes": 134217728,
+    "productionDenseAdmitted": false,
+    "components": [
+      {
+        "component": 0,
+        "sourceCoefficientsSha256": "dcfc87ba19f3050b40dec33ac4382eee45462c2b07166cfeb1caadeb073d46db",
+        "sourceBlocks": 32,
+        "replicatedBlocks": 524320,
+        "replicatedCoefficientsSha256": "fb24e3a69ef93f6ca0c1346e0329a1c75035fa718f66a244db10750ef1098316",
+        "productionDenseRentalBytes": 134217728,
+        "checkedBlocks": 129
+      }
+    ],
+    "layouts": [
+      {
+        "layout": "Dense",
+        "admitted": false,
+        "rejection": "Component 0: useful payload/index exceeds remaining shared cap before rental",
+        "acceptedRentalBytes": 0,
+        "observedPayloadRentalBytes": 0,
+        "observedIndexRentalBytes": 0,
+        "acceptedUsefulBytes": 0,
+        "acceptedCompactTiles": 0,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": []
+      },
+      {
+        "layout": "Bitmap",
+        "admitted": false,
+        "rejection": "Component 0: useful payload/index exceeds remaining shared cap before rental",
+        "acceptedRentalBytes": 0,
+        "observedPayloadRentalBytes": 0,
+        "observedIndexRentalBytes": 0,
+        "acceptedUsefulBytes": 0,
+        "acceptedCompactTiles": 0,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": []
+      },
+      {
+        "layout": "BitPacked",
+        "admitted": false,
+        "rejection": "Component 0: useful payload/index exceeds remaining shared cap before rental",
+        "acceptedRentalBytes": 0,
+        "observedPayloadRentalBytes": 0,
+        "observedIndexRentalBytes": 0,
+        "acceptedUsefulBytes": 0,
+        "acceptedCompactTiles": 0,
+        "acceptedDenseTiles": 0,
+        "acceptedPacking": []
+      }
+    ]
+  }
+]

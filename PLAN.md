@@ -122,6 +122,14 @@ completed work.
 - Converted planes, fused DCT/quantization, prepared quantizers, coefficient and
   token caches, histogram planning and buffered entropy emission already have
   optimized paths. New proposals must be compared against the current encoder.
+- The bounded [compact coefficient-cache comparison](docs/performance-evidence/2026-11-03-compact-coefficients/README.md)
+  compares bitmap/packed-short and per-band bit-packed tiles with dense storage.
+  Exact block, direct-DC and individual progressive lookups preserve all values.
+  Real sparse/noisy coefficients, adversarial full-width values, actual pooled
+  payload/index lengths and shared 64 MiB admission trials expose both savings
+  and metadata regressions. The prototypes remain offline; production retains
+  dense storage. Work counters describe these codecs, without a latency,
+  allocation, construction-overlap or peak-memory claim.
 - The opt-in [offline progressive scan search](tools/DotJpegli.Parity/README.md#bounded-progressive-scan-search)
   compares 181 complete JPEG candidates across spectral boundaries, refinement
   depths, component orders and standard/optimized Huffman assignments. It keeps
@@ -176,16 +184,6 @@ low-contrast and tiny odd-edge controls, both distances and sampling modes,
 baseline/progressive output and dedicated cache-pressure workloads as relevant.
 
 ## Architectural candidates
-
-### Compact coefficient cache
-
-Compare nonzero bitmaps plus packed shorts with bit-packed tiles in
-`QuantizedImage`. Preserve inexpensive DC access and progressive lookup, retain
-dense fallback, and account for packing, unpacking, rank/indexing and actual
-pooled bucket sizes. Sparse and noisy images must both be measured. Determine
-whether keeping more images below the 64 MiB cache limit offsets representation
-costs. [FastLanes](https://ir.cwi.nl/pub/33289/) is an internal-layout inspiration,
-not a replacement JPEG bitstream.
 
 ### Larger-image and ICC workspaces
 

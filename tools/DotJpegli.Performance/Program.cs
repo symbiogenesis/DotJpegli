@@ -46,6 +46,11 @@ internal static class Program
             {
                 return await AqReciprocalAnalysis.Run(args);
             }
+            // Storage/work evidence has no clocks, calibration or benchmark calls.
+            if (args.Contains("--coefficient-cache-analysis", StringComparer.Ordinal))
+            {
+                return await CoefficientCacheAnalysis.Run(args);
+            }
             RequireCi();
             if (args.Contains("--ac-reciprocal-experiment", StringComparer.Ordinal))
             {

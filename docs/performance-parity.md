@@ -52,6 +52,26 @@ and different revisions. Four-case references remain available for
 Their different hosts, revisions and runtimes cannot establish before/after
 optimization gains or be substituted for this complete matrix.
 
+## Untimed compact coefficient storage study
+
+The [completed bounded representation study](performance-evidence/2026-11-03-compact-coefficients/README.md)
+compares dense storage, bitmap/packed-short tiles and per-band bit-packed tiles,
+including dense fallback and actual pooled payload/index capacity. Its 360
+real-coefficient comparisons cover 24 AQ configurations from a photograph and
+five sparse, noisy and odd-edge controls at distances 1/4 and 444/420. Another
+75 adversarial layout comparisons check signed extremes and partial tiles;
+30 capacity attempts test shared component budgets around the unchanged 64 MiB
+dense admission boundary. Full-block, direct-DC and individual coefficient
+values are checked exactly, and retained operation counts have a defined scope.
+
+Compact layouts admit additional replicated coefficients for some source sets;
+pooling and index overhead prevent uniform savings. These are synthetic capacity
+trials, without large-image encoding or speed evidence. The work counters
+compare offline prototypes; production dense storage writes DCT output directly
+and returns spans. The study retains the production implementation and makes no
+latency, allocation, peak-memory or native-acceptance claim. Its local untimed
+command is described in the [runner guide](../tools/DotJpegli.Performance/README.md).
+
 ## Targeted development comparisons
 
 A normal push to `main` runs four cases directly: `kodim01` at distance 1,

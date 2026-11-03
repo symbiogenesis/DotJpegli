@@ -146,6 +146,27 @@ narrow ordering; default wide-SIMD dispatch remains available. AQ keeps the
 original insertion kernel because no portable selection guard was established. Both
 algorithms preserve the existing arithmetic; no runtime benchmarking is used.
 
+The [bounded compact coefficient-cache study](performance-evidence/2026-11-03-compact-coefficients/README.md)
+compares immutable offline layouts in 32-block tiles. Bitmap tiles retain direct
+DC shorts, 63-bit AC masks, per-block packed-value offsets and nonzero shorts;
+individual AC lookup uses a mask test and population-count rank. Bit-packed tiles
+retain direct DC shorts and per-band widths and bit offsets for folded signed
+AC values. Both layouts support exact full-block expansion and individual
+coefficient access, with optional dense tiles when compact payloads would grow.
+Accepted payload and tile-index rentals share a fixed 64 MiB cap, charged at
+their actual pooled lengths; dense fallback still carries the compact index.
+
+The untimed analysis checks 24 actual AQ image configurations across distances
+1/4 and 444/420, plus adversarial signed coefficients and partial tiles. It
+retains useful bytes, actual rental capacity and explicitly defined packing,
+read, indexing, rank and bit-operation counters. Capacity trials repeat all
+source components in their original proportions around the production summed
+rental boundary, preserving one shared cap across components. These replicas
+establish storage admissions only. Counters compare the executable offline
+codecs: production dense storage receives DCT output directly and returns block
+spans without the prototype's packing and expansion passes. Production retains
+that dense implementation; latency, allocations and peak memory are unmeasured.
+
 Optimized Huffman encoding shares one 64 MiB entropy-token rental budget across
 all scans in an encode. Scans acquire storage in script order, accounting for
 actual pooled array lengths, so small DC scans can leave capacity for larger AC

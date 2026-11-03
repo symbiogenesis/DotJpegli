@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "status": "complete",
+  "exactCoefficients": true,
+  "imageConfigurations": 24,
+  "components": 72,
+  "layoutComparisons": 360,
+  "adversarialLayoutComparisons": 75,
+  "capacityComparisons": 30,
+  "maximumAcceptedRentalBytes": 67108864,
+  "decision": "Retain production dense storage: rental/index overhead prevents uniform storage savings, and added packing/access work leaves latency unestablished; any additional admitted replicas establish storage capacity only",
+  "performanceVerdict": "not-evaluated"
+}

@@ -1,0 +1,3197 @@
+[
+  {
+    "pattern": "zero-ac",
+    "blocks": 1,
+    "component": {
+      "component": 0,
+      "blocks": 1,
+      "nonzeroAc": 0,
+      "coefficientsSha256": "2ae09b37d85678b7528eec1dcabfc81f29701574d5f2a76e129b2c8961e8f616",
+      "productionDenseRentalBytes": 128,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 128,
+          "rentedBytes": 128,
+          "payloadBytes": 128,
+          "rentedPayloadBytes": 128,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 64,
+            "writes": 128,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 128,
+            "writes": 64,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 2,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 128,
+            "writes": 0,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 16,
+          "rentedBytes": 80,
+          "payloadBytes": 12,
+          "rentedPayloadBytes": 16,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 190,
+            "writes": 13,
+            "indexOperations": 191,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 13,
+            "writes": 64,
+            "indexOperations": 2,
+            "rankOperations": 0,
+            "bitOperations": 126
+          },
+          "dcPass": {
+            "reads": 3,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 570,
+            "writes": 0,
+            "indexOperations": 127,
+            "rankOperations": 0,
+            "bitOperations": 126
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 16,
+          "rentedBytes": 80,
+          "payloadBytes": 12,
+          "rentedPayloadBytes": 16,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 190,
+            "writes": 13,
+            "indexOperations": 191,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 13,
+            "writes": 64,
+            "indexOperations": 2,
+            "rankOperations": 0,
+            "bitOperations": 126
+          },
+          "dcPass": {
+            "reads": 3,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 570,
+            "writes": 0,
+            "indexOperations": 127,
+            "rankOperations": 0,
+            "bitOperations": 126
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 195,
+          "rentedBytes": 320,
+          "payloadBytes": 191,
+          "rentedPayloadBytes": 256,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 190,
+            "writes": 192,
+            "indexOperations": 254,
+            "rankOperations": 0,
+            "bitOperations": 567
+          },
+          "fullBlockPass": {
+            "reads": 192,
+            "writes": 64,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 189
+          },
+          "dcPass": {
+            "reads": 3,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 255,
+            "writes": 0,
+            "indexOperations": 127,
+            "rankOperations": 0,
+            "bitOperations": 189
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 132,
+          "rentedBytes": 192,
+          "payloadBytes": 128,
+          "rentedPayloadBytes": 128,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 190,
+            "writes": 129,
+            "indexOperations": 191,
+            "rankOperations": 0,
+            "bitOperations": 378
+          },
+          "fullBlockPass": {
+            "reads": 129,
+            "writes": 64,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 3,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 192,
+            "writes": 0,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "pattern": "coefficient-63-only",
+    "blocks": 1,
+    "component": {
+      "component": 0,
+      "blocks": 1,
+      "nonzeroAc": 1,
+      "coefficientsSha256": "88230ed0473284fa40991e245b7c32137ceffa664ee1255a4da8b53cb5035e1b",
+      "productionDenseRentalBytes": 128,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 128,
+          "rentedBytes": 128,
+          "payloadBytes": 128,
+          "rentedPayloadBytes": 128,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 64,
+            "writes": 128,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 128,
+            "writes": 64,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 2,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 128,
+            "writes": 0,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 18,
+          "rentedBytes": 80,
+          "payloadBytes": 14,
+          "rentedPayloadBytes": 16,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 190,
+            "writes": 15,
+            "indexOperations": 192,
+            "rankOperations": 0,
+            "bitOperations": 2
+          },
+          "fullBlockPass": {
+            "reads": 15,
+            "writes": 64,
+            "indexOperations": 3,
+            "rankOperations": 0,
+            "bitOperations": 126
+          },
+          "dcPass": {
+            "reads": 3,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 574,
+            "writes": 0,
+            "indexOperations": 127,
+            "rankOperations": 1,
+            "bitOperations": 127
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 18,
+          "rentedBytes": 80,
+          "payloadBytes": 14,
+          "rentedPayloadBytes": 16,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 190,
+            "writes": 15,
+            "indexOperations": 192,
+            "rankOperations": 0,
+            "bitOperations": 2
+          },
+          "fullBlockPass": {
+            "reads": 15,
+            "writes": 64,
+            "indexOperations": 3,
+            "rankOperations": 0,
+            "bitOperations": 126
+          },
+          "dcPass": {
+            "reads": 3,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 574,
+            "writes": 0,
+            "indexOperations": 127,
+            "rankOperations": 1,
+            "bitOperations": 127
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 197,
+          "rentedBytes": 320,
+          "payloadBytes": 193,
+          "rentedPayloadBytes": 256,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 192,
+            "writes": 196,
+            "indexOperations": 254,
+            "rankOperations": 0,
+            "bitOperations": 579
+          },
+          "fullBlockPass": {
+            "reads": 194,
+            "writes": 64,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 199
+          },
+          "dcPass": {
+            "reads": 3,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 257,
+            "writes": 0,
+            "indexOperations": 127,
+            "rankOperations": 0,
+            "bitOperations": 199
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 132,
+          "rentedBytes": 192,
+          "payloadBytes": 128,
+          "rentedPayloadBytes": 128,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 190,
+            "writes": 129,
+            "indexOperations": 191,
+            "rankOperations": 0,
+            "bitOperations": 380
+          },
+          "fullBlockPass": {
+            "reads": 129,
+            "writes": 64,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 3,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 192,
+            "writes": 0,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "pattern": "full-width",
+    "blocks": 1,
+    "component": {
+      "component": 0,
+      "blocks": 1,
+      "nonzeroAc": 63,
+      "coefficientsSha256": "e8706feb7ad5ef0491375cdc8edc3cf4c71c7638bdf267000bce6495f745f035",
+      "productionDenseRentalBytes": 128,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 128,
+          "rentedBytes": 128,
+          "payloadBytes": 128,
+          "rentedPayloadBytes": 128,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 64,
+            "writes": 128,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 128,
+            "writes": 64,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 2,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 128,
+            "writes": 0,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 142,
+          "rentedBytes": 320,
+          "payloadBytes": 138,
+          "rentedPayloadBytes": 256,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 190,
+            "writes": 139,
+            "indexOperations": 254,
+            "rankOperations": 0,
+            "bitOperations": 126
+          },
+          "fullBlockPass": {
+            "reads": 139,
+            "writes": 64,
+            "indexOperations": 65,
+            "rankOperations": 0,
+            "bitOperations": 126
+          },
+          "dcPass": {
+            "reads": 3,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 822,
+            "writes": 0,
+            "indexOperations": 127,
+            "rankOperations": 63,
+            "bitOperations": 189
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 132,
+          "rentedBytes": 192,
+          "payloadBytes": 128,
+          "rentedPayloadBytes": 128,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 190,
+            "writes": 129,
+            "indexOperations": 191,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 129,
+            "writes": 64,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 3,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 192,
+            "writes": 0,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 321,
+          "rentedBytes": 576,
+          "payloadBytes": 317,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 316,
+            "writes": 444,
+            "indexOperations": 254,
+            "rankOperations": 0,
+            "bitOperations": 1323
+          },
+          "fullBlockPass": {
+            "reads": 318,
+            "writes": 64,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 819
+          },
+          "dcPass": {
+            "reads": 3,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 381,
+            "writes": 0,
+            "indexOperations": 127,
+            "rankOperations": 0,
+            "bitOperations": 819
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 132,
+          "rentedBytes": 192,
+          "payloadBytes": 128,
+          "rentedPayloadBytes": 128,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 190,
+            "writes": 129,
+            "indexOperations": 191,
+            "rankOperations": 0,
+            "bitOperations": 504
+          },
+          "fullBlockPass": {
+            "reads": 129,
+            "writes": 64,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 3,
+            "writes": 0,
+            "indexOperations": 1,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 192,
+            "writes": 0,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "pattern": "zero-ac",
+    "blocks": 31,
+    "component": {
+      "component": 0,
+      "blocks": 31,
+      "nonzeroAc": 0,
+      "coefficientsSha256": "0d40861413823c0ea3493bbdc0cffaf5bb71a0b3dd6049421e2e94984ede0dea",
+      "productionDenseRentalBytes": 4096,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 3968,
+          "rentedBytes": 4096,
+          "payloadBytes": 3968,
+          "rentedPayloadBytes": 4096,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 1984,
+            "writes": 3968,
+            "indexOperations": 1984,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 3968,
+            "writes": 1984,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 62,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 3968,
+            "writes": 0,
+            "indexOperations": 1984,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 376,
+          "rentedBytes": 576,
+          "payloadBytes": 372,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 5890,
+            "writes": 373,
+            "indexOperations": 5891,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 403,
+            "writes": 1984,
+            "indexOperations": 62,
+            "rankOperations": 0,
+            "bitOperations": 3906
+          },
+          "dcPass": {
+            "reads": 93,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 17670,
+            "writes": 0,
+            "indexOperations": 3937,
+            "rankOperations": 0,
+            "bitOperations": 3906
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 376,
+          "rentedBytes": 576,
+          "payloadBytes": 372,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 5890,
+            "writes": 373,
+            "indexOperations": 5891,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 403,
+            "writes": 1984,
+            "indexOperations": 62,
+            "rankOperations": 0,
+            "bitOperations": 3906
+          },
+          "dcPass": {
+            "reads": 93,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 17670,
+            "writes": 0,
+            "indexOperations": 3937,
+            "rankOperations": 0,
+            "bitOperations": 3906
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 255,
+          "rentedBytes": 320,
+          "payloadBytes": 251,
+          "rentedPayloadBytes": 256,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 5890,
+            "writes": 252,
+            "indexOperations": 7844,
+            "rankOperations": 0,
+            "bitOperations": 17577
+          },
+          "fullBlockPass": {
+            "reads": 5952,
+            "writes": 1984,
+            "indexOperations": 1984,
+            "rankOperations": 0,
+            "bitOperations": 5859
+          },
+          "dcPass": {
+            "reads": 93,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 7905,
+            "writes": 0,
+            "indexOperations": 3937,
+            "rankOperations": 0,
+            "bitOperations": 5859
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 255,
+          "rentedBytes": 320,
+          "payloadBytes": 251,
+          "rentedPayloadBytes": 256,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 5890,
+            "writes": 252,
+            "indexOperations": 7844,
+            "rankOperations": 0,
+            "bitOperations": 17577
+          },
+          "fullBlockPass": {
+            "reads": 5952,
+            "writes": 1984,
+            "indexOperations": 1984,
+            "rankOperations": 0,
+            "bitOperations": 5859
+          },
+          "dcPass": {
+            "reads": 93,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 7905,
+            "writes": 0,
+            "indexOperations": 3937,
+            "rankOperations": 0,
+            "bitOperations": 5859
+          }
+        }
+      ]
+    }
+  },
+  {
+    "pattern": "coefficient-63-only",
+    "blocks": 31,
+    "component": {
+      "component": 0,
+      "blocks": 31,
+      "nonzeroAc": 31,
+      "coefficientsSha256": "b64e019140963d34c352d8af45b77ba2264ee2408a77a37ded224780dfb3f368",
+      "productionDenseRentalBytes": 4096,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 3968,
+          "rentedBytes": 4096,
+          "payloadBytes": 3968,
+          "rentedPayloadBytes": 4096,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 1984,
+            "writes": 3968,
+            "indexOperations": 1984,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 3968,
+            "writes": 1984,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 62,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 3968,
+            "writes": 0,
+            "indexOperations": 1984,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 438,
+          "rentedBytes": 576,
+          "payloadBytes": 434,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 5890,
+            "writes": 435,
+            "indexOperations": 5922,
+            "rankOperations": 0,
+            "bitOperations": 62
+          },
+          "fullBlockPass": {
+            "reads": 465,
+            "writes": 1984,
+            "indexOperations": 93,
+            "rankOperations": 0,
+            "bitOperations": 3906
+          },
+          "dcPass": {
+            "reads": 93,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 17794,
+            "writes": 0,
+            "indexOperations": 3937,
+            "rankOperations": 31,
+            "bitOperations": 3937
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 438,
+          "rentedBytes": 576,
+          "payloadBytes": 434,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 5890,
+            "writes": 435,
+            "indexOperations": 5922,
+            "rankOperations": 0,
+            "bitOperations": 62
+          },
+          "fullBlockPass": {
+            "reads": 465,
+            "writes": 1984,
+            "indexOperations": 93,
+            "rankOperations": 0,
+            "bitOperations": 3906
+          },
+          "dcPass": {
+            "reads": 93,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 17794,
+            "writes": 0,
+            "indexOperations": 3937,
+            "rankOperations": 31,
+            "bitOperations": 3937
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 317,
+          "rentedBytes": 576,
+          "payloadBytes": 313,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 5952,
+            "writes": 376,
+            "indexOperations": 7844,
+            "rankOperations": 0,
+            "bitOperations": 17889
+          },
+          "fullBlockPass": {
+            "reads": 6014,
+            "writes": 1984,
+            "indexOperations": 1984,
+            "rankOperations": 0,
+            "bitOperations": 6169
+          },
+          "dcPass": {
+            "reads": 93,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 7967,
+            "writes": 0,
+            "indexOperations": 3937,
+            "rankOperations": 0,
+            "bitOperations": 6169
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 317,
+          "rentedBytes": 576,
+          "payloadBytes": 313,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 5952,
+            "writes": 376,
+            "indexOperations": 7844,
+            "rankOperations": 0,
+            "bitOperations": 17889
+          },
+          "fullBlockPass": {
+            "reads": 6014,
+            "writes": 1984,
+            "indexOperations": 1984,
+            "rankOperations": 0,
+            "bitOperations": 6169
+          },
+          "dcPass": {
+            "reads": 93,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 7967,
+            "writes": 0,
+            "indexOperations": 3937,
+            "rankOperations": 0,
+            "bitOperations": 6169
+          }
+        }
+      ]
+    }
+  },
+  {
+    "pattern": "full-width",
+    "blocks": 31,
+    "component": {
+      "component": 0,
+      "blocks": 31,
+      "nonzeroAc": 1953,
+      "coefficientsSha256": "88aa98ba7a2fa8d015753ff154ff135c23c18049b720d15380feae69c2086a72",
+      "productionDenseRentalBytes": 4096,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 3968,
+          "rentedBytes": 4096,
+          "payloadBytes": 3968,
+          "rentedPayloadBytes": 4096,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 1984,
+            "writes": 3968,
+            "indexOperations": 1984,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 3968,
+            "writes": 1984,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 62,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 3968,
+            "writes": 0,
+            "indexOperations": 1984,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 4282,
+          "rentedBytes": 8256,
+          "payloadBytes": 4278,
+          "rentedPayloadBytes": 8192,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 5890,
+            "writes": 4279,
+            "indexOperations": 7844,
+            "rankOperations": 0,
+            "bitOperations": 3906
+          },
+          "fullBlockPass": {
+            "reads": 4309,
+            "writes": 1984,
+            "indexOperations": 2015,
+            "rankOperations": 0,
+            "bitOperations": 3906
+          },
+          "dcPass": {
+            "reads": 93,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 25482,
+            "writes": 0,
+            "indexOperations": 3937,
+            "rankOperations": 1953,
+            "bitOperations": 5859
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 3972,
+          "rentedBytes": 4160,
+          "payloadBytes": 3968,
+          "rentedPayloadBytes": 4096,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 5890,
+            "writes": 3969,
+            "indexOperations": 5891,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 3999,
+            "writes": 1984,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 93,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 5952,
+            "writes": 0,
+            "indexOperations": 1984,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 4161,
+          "rentedBytes": 8256,
+          "payloadBytes": 4157,
+          "rentedPayloadBytes": 8192,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 9796,
+            "writes": 8064,
+            "indexOperations": 7844,
+            "rankOperations": 0,
+            "bitOperations": 37233
+          },
+          "fullBlockPass": {
+            "reads": 9858,
+            "writes": 1984,
+            "indexOperations": 1984,
+            "rankOperations": 0,
+            "bitOperations": 25389
+          },
+          "dcPass": {
+            "reads": 93,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 11811,
+            "writes": 0,
+            "indexOperations": 3937,
+            "rankOperations": 0,
+            "bitOperations": 25389
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 3972,
+          "rentedBytes": 4160,
+          "payloadBytes": 3968,
+          "rentedPayloadBytes": 4096,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 5890,
+            "writes": 3969,
+            "indexOperations": 5891,
+            "rankOperations": 0,
+            "bitOperations": 11844
+          },
+          "fullBlockPass": {
+            "reads": 3999,
+            "writes": 1984,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 93,
+            "writes": 0,
+            "indexOperations": 31,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 5952,
+            "writes": 0,
+            "indexOperations": 1984,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "pattern": "zero-ac",
+    "blocks": 32,
+    "component": {
+      "component": 0,
+      "blocks": 32,
+      "nonzeroAc": 0,
+      "coefficientsSha256": "6558902896acd38dda153d987344f346acc80b89829ec813d61ce6a57c4fa3be",
+      "productionDenseRentalBytes": 4096,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 4096,
+          "rentedBytes": 4096,
+          "payloadBytes": 4096,
+          "rentedPayloadBytes": 4096,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 2048,
+            "writes": 4096,
+            "indexOperations": 2048,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 4096,
+            "writes": 2048,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 64,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 4096,
+            "writes": 0,
+            "indexOperations": 2048,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 388,
+          "rentedBytes": 576,
+          "payloadBytes": 384,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6080,
+            "writes": 385,
+            "indexOperations": 6081,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 416,
+            "writes": 2048,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 4032
+          },
+          "dcPass": {
+            "reads": 96,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 18240,
+            "writes": 0,
+            "indexOperations": 4064,
+            "rankOperations": 0,
+            "bitOperations": 4032
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 388,
+          "rentedBytes": 576,
+          "payloadBytes": 384,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6080,
+            "writes": 385,
+            "indexOperations": 6081,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 416,
+            "writes": 2048,
+            "indexOperations": 64,
+            "rankOperations": 0,
+            "bitOperations": 4032
+          },
+          "dcPass": {
+            "reads": 96,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 18240,
+            "writes": 0,
+            "indexOperations": 4064,
+            "rankOperations": 0,
+            "bitOperations": 4032
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 257,
+          "rentedBytes": 320,
+          "payloadBytes": 253,
+          "rentedPayloadBytes": 256,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6080,
+            "writes": 254,
+            "indexOperations": 8097,
+            "rankOperations": 0,
+            "bitOperations": 18144
+          },
+          "fullBlockPass": {
+            "reads": 6144,
+            "writes": 2048,
+            "indexOperations": 2048,
+            "rankOperations": 0,
+            "bitOperations": 6048
+          },
+          "dcPass": {
+            "reads": 96,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 8160,
+            "writes": 0,
+            "indexOperations": 4064,
+            "rankOperations": 0,
+            "bitOperations": 6048
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 257,
+          "rentedBytes": 320,
+          "payloadBytes": 253,
+          "rentedPayloadBytes": 256,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6080,
+            "writes": 254,
+            "indexOperations": 8097,
+            "rankOperations": 0,
+            "bitOperations": 18144
+          },
+          "fullBlockPass": {
+            "reads": 6144,
+            "writes": 2048,
+            "indexOperations": 2048,
+            "rankOperations": 0,
+            "bitOperations": 6048
+          },
+          "dcPass": {
+            "reads": 96,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 8160,
+            "writes": 0,
+            "indexOperations": 4064,
+            "rankOperations": 0,
+            "bitOperations": 6048
+          }
+        }
+      ]
+    }
+  },
+  {
+    "pattern": "coefficient-63-only",
+    "blocks": 32,
+    "component": {
+      "component": 0,
+      "blocks": 32,
+      "nonzeroAc": 32,
+      "coefficientsSha256": "aa10c05c596d84a507d8af22f654fb8306758c9b8703ea476b4a15635ff04f6e",
+      "productionDenseRentalBytes": 4096,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 4096,
+          "rentedBytes": 4096,
+          "payloadBytes": 4096,
+          "rentedPayloadBytes": 4096,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 2048,
+            "writes": 4096,
+            "indexOperations": 2048,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 4096,
+            "writes": 2048,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 64,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 4096,
+            "writes": 0,
+            "indexOperations": 2048,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 452,
+          "rentedBytes": 576,
+          "payloadBytes": 448,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6080,
+            "writes": 449,
+            "indexOperations": 6113,
+            "rankOperations": 0,
+            "bitOperations": 64
+          },
+          "fullBlockPass": {
+            "reads": 480,
+            "writes": 2048,
+            "indexOperations": 96,
+            "rankOperations": 0,
+            "bitOperations": 4032
+          },
+          "dcPass": {
+            "reads": 96,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 18368,
+            "writes": 0,
+            "indexOperations": 4064,
+            "rankOperations": 32,
+            "bitOperations": 4064
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 452,
+          "rentedBytes": 576,
+          "payloadBytes": 448,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6080,
+            "writes": 449,
+            "indexOperations": 6113,
+            "rankOperations": 0,
+            "bitOperations": 64
+          },
+          "fullBlockPass": {
+            "reads": 480,
+            "writes": 2048,
+            "indexOperations": 96,
+            "rankOperations": 0,
+            "bitOperations": 4032
+          },
+          "dcPass": {
+            "reads": 96,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 18368,
+            "writes": 0,
+            "indexOperations": 4064,
+            "rankOperations": 32,
+            "bitOperations": 4064
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 321,
+          "rentedBytes": 576,
+          "payloadBytes": 317,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6144,
+            "writes": 382,
+            "indexOperations": 8097,
+            "rankOperations": 0,
+            "bitOperations": 18466
+          },
+          "fullBlockPass": {
+            "reads": 6208,
+            "writes": 2048,
+            "indexOperations": 2048,
+            "rankOperations": 0,
+            "bitOperations": 6368
+          },
+          "dcPass": {
+            "reads": 96,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 8224,
+            "writes": 0,
+            "indexOperations": 4064,
+            "rankOperations": 0,
+            "bitOperations": 6368
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 321,
+          "rentedBytes": 576,
+          "payloadBytes": 317,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6144,
+            "writes": 382,
+            "indexOperations": 8097,
+            "rankOperations": 0,
+            "bitOperations": 18466
+          },
+          "fullBlockPass": {
+            "reads": 6208,
+            "writes": 2048,
+            "indexOperations": 2048,
+            "rankOperations": 0,
+            "bitOperations": 6368
+          },
+          "dcPass": {
+            "reads": 96,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 8224,
+            "writes": 0,
+            "indexOperations": 4064,
+            "rankOperations": 0,
+            "bitOperations": 6368
+          }
+        }
+      ]
+    }
+  },
+  {
+    "pattern": "full-width",
+    "blocks": 32,
+    "component": {
+      "component": 0,
+      "blocks": 32,
+      "nonzeroAc": 2016,
+      "coefficientsSha256": "dcfc87ba19f3050b40dec33ac4382eee45462c2b07166cfeb1caadeb073d46db",
+      "productionDenseRentalBytes": 4096,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 4096,
+          "rentedBytes": 4096,
+          "payloadBytes": 4096,
+          "rentedPayloadBytes": 4096,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 2048,
+            "writes": 4096,
+            "indexOperations": 2048,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 4096,
+            "writes": 2048,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 64,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 4096,
+            "writes": 0,
+            "indexOperations": 2048,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 4420,
+          "rentedBytes": 8256,
+          "payloadBytes": 4416,
+          "rentedPayloadBytes": 8192,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6080,
+            "writes": 4417,
+            "indexOperations": 8097,
+            "rankOperations": 0,
+            "bitOperations": 4032
+          },
+          "fullBlockPass": {
+            "reads": 4448,
+            "writes": 2048,
+            "indexOperations": 2080,
+            "rankOperations": 0,
+            "bitOperations": 4032
+          },
+          "dcPass": {
+            "reads": 96,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 26304,
+            "writes": 0,
+            "indexOperations": 4064,
+            "rankOperations": 2016,
+            "bitOperations": 6048
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 4100,
+          "rentedBytes": 4160,
+          "payloadBytes": 4096,
+          "rentedPayloadBytes": 4096,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 6080,
+            "writes": 4097,
+            "indexOperations": 6081,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 4128,
+            "writes": 2048,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 96,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 6144,
+            "writes": 0,
+            "indexOperations": 2048,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 4289,
+          "rentedBytes": 8256,
+          "payloadBytes": 4285,
+          "rentedPayloadBytes": 8192,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 10112,
+            "writes": 8318,
+            "indexOperations": 8097,
+            "rankOperations": 0,
+            "bitOperations": 38430
+          },
+          "fullBlockPass": {
+            "reads": 10176,
+            "writes": 2048,
+            "indexOperations": 2048,
+            "rankOperations": 0,
+            "bitOperations": 26208
+          },
+          "dcPass": {
+            "reads": 96,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 12192,
+            "writes": 0,
+            "indexOperations": 4064,
+            "rankOperations": 0,
+            "bitOperations": 26208
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 4100,
+          "rentedBytes": 4160,
+          "payloadBytes": 4096,
+          "rentedPayloadBytes": 4096,
+          "indexBytes": 4,
+          "rentedIndexBytes": 64,
+          "compactTiles": 0,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 6080,
+            "writes": 4097,
+            "indexOperations": 6081,
+            "rankOperations": 0,
+            "bitOperations": 12222
+          },
+          "fullBlockPass": {
+            "reads": 4128,
+            "writes": 2048,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 96,
+            "writes": 0,
+            "indexOperations": 32,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 6144,
+            "writes": 0,
+            "indexOperations": 2048,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "pattern": "zero-ac",
+    "blocks": 33,
+    "component": {
+      "component": 0,
+      "blocks": 33,
+      "nonzeroAc": 0,
+      "coefficientsSha256": "97c9d9583c192b22a27f3f9f9154dfdc8ca5737bf34dbadf7e3ddf5515a39a25",
+      "productionDenseRentalBytes": 8192,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 4224,
+          "rentedBytes": 8192,
+          "payloadBytes": 4224,
+          "rentedPayloadBytes": 8192,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 2,
+          "packing": {
+            "reads": 2112,
+            "writes": 4224,
+            "indexOperations": 2112,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 4224,
+            "writes": 2112,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 66,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 4224,
+            "writes": 0,
+            "indexOperations": 2112,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 404,
+          "rentedBytes": 576,
+          "payloadBytes": 396,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 8,
+          "rentedIndexBytes": 64,
+          "compactTiles": 2,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6270,
+            "writes": 398,
+            "indexOperations": 6272,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 429,
+            "writes": 2112,
+            "indexOperations": 66,
+            "rankOperations": 0,
+            "bitOperations": 4158
+          },
+          "dcPass": {
+            "reads": 99,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 18810,
+            "writes": 0,
+            "indexOperations": 4191,
+            "rankOperations": 0,
+            "bitOperations": 4158
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 404,
+          "rentedBytes": 576,
+          "payloadBytes": 396,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 8,
+          "rentedIndexBytes": 64,
+          "compactTiles": 2,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6270,
+            "writes": 398,
+            "indexOperations": 6272,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 429,
+            "writes": 2112,
+            "indexOperations": 66,
+            "rankOperations": 0,
+            "bitOperations": 4158
+          },
+          "dcPass": {
+            "reads": 99,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 18810,
+            "writes": 0,
+            "indexOperations": 4191,
+            "rankOperations": 0,
+            "bitOperations": 4158
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 452,
+          "rentedBytes": 576,
+          "payloadBytes": 444,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 8,
+          "rentedIndexBytes": 64,
+          "compactTiles": 2,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6270,
+            "writes": 446,
+            "indexOperations": 8351,
+            "rankOperations": 0,
+            "bitOperations": 18711
+          },
+          "fullBlockPass": {
+            "reads": 6336,
+            "writes": 2112,
+            "indexOperations": 2112,
+            "rankOperations": 0,
+            "bitOperations": 6237
+          },
+          "dcPass": {
+            "reads": 99,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 8415,
+            "writes": 0,
+            "indexOperations": 4191,
+            "rankOperations": 0,
+            "bitOperations": 6237
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 389,
+          "rentedBytes": 576,
+          "payloadBytes": 381,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 8,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 6270,
+            "writes": 383,
+            "indexOperations": 8288,
+            "rankOperations": 0,
+            "bitOperations": 18522
+          },
+          "fullBlockPass": {
+            "reads": 6273,
+            "writes": 2112,
+            "indexOperations": 2049,
+            "rankOperations": 0,
+            "bitOperations": 6048
+          },
+          "dcPass": {
+            "reads": 99,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 8352,
+            "writes": 0,
+            "indexOperations": 4128,
+            "rankOperations": 0,
+            "bitOperations": 6048
+          }
+        }
+      ]
+    }
+  },
+  {
+    "pattern": "coefficient-63-only",
+    "blocks": 33,
+    "component": {
+      "component": 0,
+      "blocks": 33,
+      "nonzeroAc": 33,
+      "coefficientsSha256": "60254ff05942b899074e5d7335c42020d22360211574d719949f215a9d4c6df1",
+      "productionDenseRentalBytes": 8192,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 4224,
+          "rentedBytes": 8192,
+          "payloadBytes": 4224,
+          "rentedPayloadBytes": 8192,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 2,
+          "packing": {
+            "reads": 2112,
+            "writes": 4224,
+            "indexOperations": 2112,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 4224,
+            "writes": 2112,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 66,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 4224,
+            "writes": 0,
+            "indexOperations": 2112,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 470,
+          "rentedBytes": 576,
+          "payloadBytes": 462,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 8,
+          "rentedIndexBytes": 64,
+          "compactTiles": 2,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6270,
+            "writes": 464,
+            "indexOperations": 6305,
+            "rankOperations": 0,
+            "bitOperations": 66
+          },
+          "fullBlockPass": {
+            "reads": 495,
+            "writes": 2112,
+            "indexOperations": 99,
+            "rankOperations": 0,
+            "bitOperations": 4158
+          },
+          "dcPass": {
+            "reads": 99,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 18942,
+            "writes": 0,
+            "indexOperations": 4191,
+            "rankOperations": 33,
+            "bitOperations": 4191
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 470,
+          "rentedBytes": 576,
+          "payloadBytes": 462,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 8,
+          "rentedIndexBytes": 64,
+          "compactTiles": 2,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6270,
+            "writes": 464,
+            "indexOperations": 6305,
+            "rankOperations": 0,
+            "bitOperations": 66
+          },
+          "fullBlockPass": {
+            "reads": 495,
+            "writes": 2112,
+            "indexOperations": 99,
+            "rankOperations": 0,
+            "bitOperations": 4158
+          },
+          "dcPass": {
+            "reads": 99,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 18942,
+            "writes": 0,
+            "indexOperations": 4191,
+            "rankOperations": 33,
+            "bitOperations": 4191
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 518,
+          "rentedBytes": 576,
+          "payloadBytes": 510,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 8,
+          "rentedIndexBytes": 64,
+          "compactTiles": 2,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6336,
+            "writes": 578,
+            "indexOperations": 8351,
+            "rankOperations": 0,
+            "bitOperations": 19045
+          },
+          "fullBlockPass": {
+            "reads": 6402,
+            "writes": 2112,
+            "indexOperations": 2112,
+            "rankOperations": 0,
+            "bitOperations": 6567
+          },
+          "dcPass": {
+            "reads": 99,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 8481,
+            "writes": 0,
+            "indexOperations": 4191,
+            "rankOperations": 0,
+            "bitOperations": 6567
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 453,
+          "rentedBytes": 576,
+          "payloadBytes": 445,
+          "rentedPayloadBytes": 512,
+          "indexBytes": 8,
+          "rentedIndexBytes": 64,
+          "compactTiles": 1,
+          "denseTiles": 1,
+          "packing": {
+            "reads": 6334,
+            "writes": 511,
+            "indexOperations": 8288,
+            "rankOperations": 0,
+            "bitOperations": 18846
+          },
+          "fullBlockPass": {
+            "reads": 6337,
+            "writes": 2112,
+            "indexOperations": 2049,
+            "rankOperations": 0,
+            "bitOperations": 6368
+          },
+          "dcPass": {
+            "reads": 99,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 8416,
+            "writes": 0,
+            "indexOperations": 4128,
+            "rankOperations": 0,
+            "bitOperations": 6368
+          }
+        }
+      ]
+    }
+  },
+  {
+    "pattern": "full-width",
+    "blocks": 33,
+    "component": {
+      "component": 0,
+      "blocks": 33,
+      "nonzeroAc": 2079,
+      "coefficientsSha256": "57cf5de83a690b2d252c4b9e9999b6e14af8a3c2252656c2736b1bd07034eb12",
+      "productionDenseRentalBytes": 8192,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 4224,
+          "rentedBytes": 8192,
+          "payloadBytes": 4224,
+          "rentedPayloadBytes": 8192,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 2,
+          "packing": {
+            "reads": 2112,
+            "writes": 4224,
+            "indexOperations": 2112,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 4224,
+            "writes": 2112,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 66,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 4224,
+            "writes": 0,
+            "indexOperations": 2112,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 4562,
+          "rentedBytes": 8256,
+          "payloadBytes": 4554,
+          "rentedPayloadBytes": 8192,
+          "indexBytes": 8,
+          "rentedIndexBytes": 64,
+          "compactTiles": 2,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 6270,
+            "writes": 4556,
+            "indexOperations": 8351,
+            "rankOperations": 0,
+            "bitOperations": 4158
+          },
+          "fullBlockPass": {
+            "reads": 4587,
+            "writes": 2112,
+            "indexOperations": 2145,
+            "rankOperations": 0,
+            "bitOperations": 4158
+          },
+          "dcPass": {
+            "reads": 99,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 27126,
+            "writes": 0,
+            "indexOperations": 4191,
+            "rankOperations": 2079,
+            "bitOperations": 6237
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 4232,
+          "rentedBytes": 8256,
+          "payloadBytes": 4224,
+          "rentedPayloadBytes": 8192,
+          "indexBytes": 8,
+          "rentedIndexBytes": 64,
+          "compactTiles": 0,
+          "denseTiles": 2,
+          "packing": {
+            "reads": 6270,
+            "writes": 4226,
+            "indexOperations": 6272,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 4257,
+            "writes": 2112,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 99,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 6336,
+            "writes": 0,
+            "indexOperations": 2112,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 4610,
+          "rentedBytes": 8256,
+          "payloadBytes": 4602,
+          "rentedPayloadBytes": 8192,
+          "indexBytes": 8,
+          "rentedIndexBytes": 64,
+          "compactTiles": 2,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 10428,
+            "writes": 8762,
+            "indexOperations": 8351,
+            "rankOperations": 0,
+            "bitOperations": 39753
+          },
+          "fullBlockPass": {
+            "reads": 10494,
+            "writes": 2112,
+            "indexOperations": 2112,
+            "rankOperations": 0,
+            "bitOperations": 27027
+          },
+          "dcPass": {
+            "reads": 99,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 12573,
+            "writes": 0,
+            "indexOperations": 4191,
+            "rankOperations": 0,
+            "bitOperations": 27027
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 4232,
+          "rentedBytes": 8256,
+          "payloadBytes": 4224,
+          "rentedPayloadBytes": 8192,
+          "indexBytes": 8,
+          "rentedIndexBytes": 64,
+          "compactTiles": 0,
+          "denseTiles": 2,
+          "packing": {
+            "reads": 6270,
+            "writes": 4226,
+            "indexOperations": 6272,
+            "rankOperations": 0,
+            "bitOperations": 12726
+          },
+          "fullBlockPass": {
+            "reads": 4257,
+            "writes": 2112,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 99,
+            "writes": 0,
+            "indexOperations": 33,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 6336,
+            "writes": 0,
+            "indexOperations": 2112,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "pattern": "zero-ac",
+    "blocks": 67,
+    "component": {
+      "component": 0,
+      "blocks": 67,
+      "nonzeroAc": 0,
+      "coefficientsSha256": "c80b8e0f560fcfdbb90baaf68a5ad3baad8e53d64f345ee2a620950de940c876",
+      "productionDenseRentalBytes": 16384,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 8576,
+          "rentedBytes": 16384,
+          "payloadBytes": 8576,
+          "rentedPayloadBytes": 16384,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 3,
+          "packing": {
+            "reads": 4288,
+            "writes": 8576,
+            "indexOperations": 4288,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 8576,
+            "writes": 4288,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 134,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 8576,
+            "writes": 0,
+            "indexOperations": 4288,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 816,
+          "rentedBytes": 1088,
+          "payloadBytes": 804,
+          "rentedPayloadBytes": 1024,
+          "indexBytes": 12,
+          "rentedIndexBytes": 64,
+          "compactTiles": 3,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 12730,
+            "writes": 807,
+            "indexOperations": 12733,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 871,
+            "writes": 4288,
+            "indexOperations": 134,
+            "rankOperations": 0,
+            "bitOperations": 8442
+          },
+          "dcPass": {
+            "reads": 201,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 38190,
+            "writes": 0,
+            "indexOperations": 8509,
+            "rankOperations": 0,
+            "bitOperations": 8442
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 816,
+          "rentedBytes": 1088,
+          "payloadBytes": 804,
+          "rentedPayloadBytes": 1024,
+          "indexBytes": 12,
+          "rentedIndexBytes": 64,
+          "compactTiles": 3,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 12730,
+            "writes": 807,
+            "indexOperations": 12733,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 871,
+            "writes": 4288,
+            "indexOperations": 134,
+            "rankOperations": 0,
+            "bitOperations": 8442
+          },
+          "dcPass": {
+            "reads": 201,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 38190,
+            "writes": 0,
+            "indexOperations": 8509,
+            "rankOperations": 0,
+            "bitOperations": 8442
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 713,
+          "rentedBytes": 1088,
+          "payloadBytes": 701,
+          "rentedPayloadBytes": 1024,
+          "indexBytes": 12,
+          "rentedIndexBytes": 64,
+          "compactTiles": 3,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 12730,
+            "writes": 704,
+            "indexOperations": 16954,
+            "rankOperations": 0,
+            "bitOperations": 37989
+          },
+          "fullBlockPass": {
+            "reads": 12864,
+            "writes": 4288,
+            "indexOperations": 4288,
+            "rankOperations": 0,
+            "bitOperations": 12663
+          },
+          "dcPass": {
+            "reads": 201,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 17085,
+            "writes": 0,
+            "indexOperations": 8509,
+            "rankOperations": 0,
+            "bitOperations": 12663
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 713,
+          "rentedBytes": 1088,
+          "payloadBytes": 701,
+          "rentedPayloadBytes": 1024,
+          "indexBytes": 12,
+          "rentedIndexBytes": 64,
+          "compactTiles": 3,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 12730,
+            "writes": 704,
+            "indexOperations": 16954,
+            "rankOperations": 0,
+            "bitOperations": 37989
+          },
+          "fullBlockPass": {
+            "reads": 12864,
+            "writes": 4288,
+            "indexOperations": 4288,
+            "rankOperations": 0,
+            "bitOperations": 12663
+          },
+          "dcPass": {
+            "reads": 201,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 17085,
+            "writes": 0,
+            "indexOperations": 8509,
+            "rankOperations": 0,
+            "bitOperations": 12663
+          }
+        }
+      ]
+    }
+  },
+  {
+    "pattern": "coefficient-63-only",
+    "blocks": 67,
+    "component": {
+      "component": 0,
+      "blocks": 67,
+      "nonzeroAc": 67,
+      "coefficientsSha256": "54a61ba5af37941aced3565826fc0b57628c205898d27e5f97a5e94257bae725",
+      "productionDenseRentalBytes": 16384,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 8576,
+          "rentedBytes": 16384,
+          "payloadBytes": 8576,
+          "rentedPayloadBytes": 16384,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 3,
+          "packing": {
+            "reads": 4288,
+            "writes": 8576,
+            "indexOperations": 4288,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 8576,
+            "writes": 4288,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 134,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 8576,
+            "writes": 0,
+            "indexOperations": 4288,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 950,
+          "rentedBytes": 1088,
+          "payloadBytes": 938,
+          "rentedPayloadBytes": 1024,
+          "indexBytes": 12,
+          "rentedIndexBytes": 64,
+          "compactTiles": 3,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 12730,
+            "writes": 941,
+            "indexOperations": 12800,
+            "rankOperations": 0,
+            "bitOperations": 134
+          },
+          "fullBlockPass": {
+            "reads": 1005,
+            "writes": 4288,
+            "indexOperations": 201,
+            "rankOperations": 0,
+            "bitOperations": 8442
+          },
+          "dcPass": {
+            "reads": 201,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 38458,
+            "writes": 0,
+            "indexOperations": 8509,
+            "rankOperations": 67,
+            "bitOperations": 8509
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 950,
+          "rentedBytes": 1088,
+          "payloadBytes": 938,
+          "rentedPayloadBytes": 1024,
+          "indexBytes": 12,
+          "rentedIndexBytes": 64,
+          "compactTiles": 3,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 12730,
+            "writes": 941,
+            "indexOperations": 12800,
+            "rankOperations": 0,
+            "bitOperations": 134
+          },
+          "fullBlockPass": {
+            "reads": 1005,
+            "writes": 4288,
+            "indexOperations": 201,
+            "rankOperations": 0,
+            "bitOperations": 8442
+          },
+          "dcPass": {
+            "reads": 201,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 38458,
+            "writes": 0,
+            "indexOperations": 8509,
+            "rankOperations": 67,
+            "bitOperations": 8509
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 847,
+          "rentedBytes": 1088,
+          "payloadBytes": 835,
+          "rentedPayloadBytes": 1024,
+          "indexBytes": 12,
+          "rentedIndexBytes": 64,
+          "compactTiles": 3,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 12864,
+            "writes": 972,
+            "indexOperations": 16954,
+            "rankOperations": 0,
+            "bitOperations": 38665
+          },
+          "fullBlockPass": {
+            "reads": 12998,
+            "writes": 4288,
+            "indexOperations": 4288,
+            "rankOperations": 0,
+            "bitOperations": 13333
+          },
+          "dcPass": {
+            "reads": 201,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 17219,
+            "writes": 0,
+            "indexOperations": 8509,
+            "rankOperations": 0,
+            "bitOperations": 13333
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 847,
+          "rentedBytes": 1088,
+          "payloadBytes": 835,
+          "rentedPayloadBytes": 1024,
+          "indexBytes": 12,
+          "rentedIndexBytes": 64,
+          "compactTiles": 3,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 12864,
+            "writes": 972,
+            "indexOperations": 16954,
+            "rankOperations": 0,
+            "bitOperations": 38665
+          },
+          "fullBlockPass": {
+            "reads": 12998,
+            "writes": 4288,
+            "indexOperations": 4288,
+            "rankOperations": 0,
+            "bitOperations": 13333
+          },
+          "dcPass": {
+            "reads": 201,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 17219,
+            "writes": 0,
+            "indexOperations": 8509,
+            "rankOperations": 0,
+            "bitOperations": 13333
+          }
+        }
+      ]
+    }
+  },
+  {
+    "pattern": "full-width",
+    "blocks": 67,
+    "component": {
+      "component": 0,
+      "blocks": 67,
+      "nonzeroAc": 4221,
+      "coefficientsSha256": "7ad68e1dd7c9ceedd6da9444fe6472d666f9fcaac921cfb14cbb1d004c2b69c1",
+      "productionDenseRentalBytes": 16384,
+      "layouts": [
+        {
+          "layout": "Dense",
+          "denseFallback": true,
+          "usefulBytes": 8576,
+          "rentedBytes": 16384,
+          "payloadBytes": 8576,
+          "rentedPayloadBytes": 16384,
+          "indexBytes": 0,
+          "rentedIndexBytes": 0,
+          "compactTiles": 0,
+          "denseTiles": 3,
+          "packing": {
+            "reads": 4288,
+            "writes": 8576,
+            "indexOperations": 4288,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 8576,
+            "writes": 4288,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 134,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 8576,
+            "writes": 0,
+            "indexOperations": 4288,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": false,
+          "usefulBytes": 9258,
+          "rentedBytes": 16448,
+          "payloadBytes": 9246,
+          "rentedPayloadBytes": 16384,
+          "indexBytes": 12,
+          "rentedIndexBytes": 64,
+          "compactTiles": 3,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 12730,
+            "writes": 9249,
+            "indexOperations": 16954,
+            "rankOperations": 0,
+            "bitOperations": 8442
+          },
+          "fullBlockPass": {
+            "reads": 9313,
+            "writes": 4288,
+            "indexOperations": 4355,
+            "rankOperations": 0,
+            "bitOperations": 8442
+          },
+          "dcPass": {
+            "reads": 201,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 55074,
+            "writes": 0,
+            "indexOperations": 8509,
+            "rankOperations": 4221,
+            "bitOperations": 12663
+          }
+        },
+        {
+          "layout": "Bitmap",
+          "denseFallback": true,
+          "usefulBytes": 8588,
+          "rentedBytes": 16448,
+          "payloadBytes": 8576,
+          "rentedPayloadBytes": 16384,
+          "indexBytes": 12,
+          "rentedIndexBytes": 64,
+          "compactTiles": 0,
+          "denseTiles": 3,
+          "packing": {
+            "reads": 12730,
+            "writes": 8579,
+            "indexOperations": 12733,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "fullBlockPass": {
+            "reads": 8643,
+            "writes": 4288,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 201,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 12864,
+            "writes": 0,
+            "indexOperations": 4288,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": false,
+          "usefulBytes": 9155,
+          "rentedBytes": 16448,
+          "payloadBytes": 9143,
+          "rentedPayloadBytes": 16384,
+          "indexBytes": 12,
+          "rentedIndexBytes": 64,
+          "compactTiles": 3,
+          "denseTiles": 0,
+          "packing": {
+            "reads": 21172,
+            "writes": 17588,
+            "indexOperations": 16954,
+            "rankOperations": 0,
+            "bitOperations": 80577
+          },
+          "fullBlockPass": {
+            "reads": 21306,
+            "writes": 4288,
+            "indexOperations": 4288,
+            "rankOperations": 0,
+            "bitOperations": 54873
+          },
+          "dcPass": {
+            "reads": 201,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 25527,
+            "writes": 0,
+            "indexOperations": 8509,
+            "rankOperations": 0,
+            "bitOperations": 54873
+          }
+        },
+        {
+          "layout": "BitPacked",
+          "denseFallback": true,
+          "usefulBytes": 8588,
+          "rentedBytes": 16448,
+          "payloadBytes": 8576,
+          "rentedPayloadBytes": 16384,
+          "indexBytes": 12,
+          "rentedIndexBytes": 64,
+          "compactTiles": 0,
+          "denseTiles": 3,
+          "packing": {
+            "reads": 12730,
+            "writes": 8579,
+            "indexOperations": 12733,
+            "rankOperations": 0,
+            "bitOperations": 25704
+          },
+          "fullBlockPass": {
+            "reads": 8643,
+            "writes": 4288,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "dcPass": {
+            "reads": 201,
+            "writes": 0,
+            "indexOperations": 67,
+            "rankOperations": 0,
+            "bitOperations": 0
+          },
+          "individualCoefficientPass": {
+            "reads": 12864,
+            "writes": 0,
+            "indexOperations": 4288,
+            "rankOperations": 0,
+            "bitOperations": 0
+          }
+        }
+      ]
+    }
+  }
+]
