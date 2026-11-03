@@ -34,6 +34,22 @@ internal static class StandardSpanExtensions
         return false;
     }
 
+    internal static bool ContainsAnyInRange(this Span<long> span, long lowInclusive, long highInclusive)
+    {
+        foreach (long value in span)
+            if (value >= lowInclusive && value <= highInclusive)
+                return true;
+        return false;
+    }
+
+    internal static bool ContainsAnyExcept(this Span<long> span, long value)
+    {
+        foreach (long item in span)
+            if (item != value)
+                return true;
+        return false;
+    }
+
     // Huffman construction sorts at most 257 nodes. Heap sort keeps its existing
     // span storage and the same comparison without a second temporary array.
     internal static void Sort<T>(this Span<T> span, Comparison<T> comparison)

@@ -7,6 +7,41 @@ namespace DotJpegli.Tests;
 
 public sealed class HuffmanCodingPlanTests
 {
+    [Theory]
+    [InlineData(0)]
+    [InlineData(15)]
+    [InlineData(16)]
+    [InlineData(255)]
+    public void NegativeDcAndAcFrequenciesAreRejectedAtHistogramBoundaries(int symbol)
+    {
+        long[] invalid = Histogram(symbol, symbol == 0 ? long.MinValue : -1L);
+        Assert.Throws<ArgumentException>(() => HuffmanCodingPlan.Create([new([0])],
+            [invalid], [[Histogram(0, 1)]], false, true));
+        Assert.Throws<ArgumentException>(() => HuffmanCodingPlan.Create([new([0])],
+            [Histogram(0, 1)], [[invalid]], false, true));
+    }
+
+    [Fact]
+    public void EmptyHistogramsUseFallbackTablesWithoutDefinitions()
+    {
+        HuffmanCodingPlan plan = HuffmanCodingPlan.Create([new([0])],
+            [new long[256]], [[new long[256]]], false, true);
+        HuffmanCodingPlan.ScanCoding scan = Assert.Single(plan.Scans);
+        Assert.Empty(scan.Definitions);
+        Assert.Equal(new byte[] { 0 }, scan.Selectors);
+        Assert.Equal(new byte[] { 0 }, Assert.Single(scan.DcTables).Symbols);
+        Assert.Same(scan.DcTables[0], Assert.Single(scan.AcTables));
+    }
+
+    [Fact]
+    public void LargestPositiveFrequencyAtLastSymbolProducesTableDefinitions()
+    {
+        HuffmanCodingPlan plan = HuffmanCodingPlan.Create([new([0])],
+            [Histogram(255, long.MaxValue)], [[Histogram(255, long.MaxValue)]], false, true);
+        Assert.Equal(new[] { 0, 16 }, plan.Scans[0].Definitions.Select(definition => definition.Selector));
+        Assert.All(plan.Scans[0].Definitions, definition => Assert.Equal(new byte[] { 255 }, definition.Table.Symbols));
+    }
+
     [Fact]
     public void IdenticalComponentHistogramsMergeAndShareOneDcAndAcDefinition()
     {

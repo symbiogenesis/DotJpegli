@@ -115,9 +115,9 @@ internal sealed class HuffmanCodingPlan
         for (int index = 0; index < histograms.Count; index++)
         {
             long[] current = histograms[index];
-            if (current.Length != 256 || current.Any(count => count < 0))
+            if (current.Length != 256 || current.AsSpan().ContainsAnyInRange(long.MinValue, -1L))
                 throw new ArgumentException("Each histogram requires 256 nonnegative frequencies.", nameof(histograms));
-            if (current.All(count => count == 0))
+            if (!current.AsSpan().ContainsAnyExcept(0L))
                 continue;
             int bestSlot = slotHistograms.Count;
             float bestCost = forceBaseline && bestSlot > 1 ? float.MaxValue : Cost(current);
