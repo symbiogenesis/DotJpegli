@@ -61,6 +61,14 @@ completed work.
   32,768-pixel guard, an 8-by-4,096 tall image and 64K/128K intermediate images.
   They run in bounded sequential selections within the optional CI kernel
   comparison and do not expand the fixed native acceptance corpus.
+- Same-host revision diagnostics use persistent workers and balanced ABBA/BAAB
+  quartets with identical runner bytes, inputs, runtime, CPU affinity, encoding
+  policy and iteration counts. Encoder commit metadata and JPEG hashes must
+  match the declared comparison. MAD, minority timing states, repeated-leg drift
+  and order bias invalidate affected rows; reports retain invalid and
+  inconclusive results. The automatic `[compare-baseline]` run collects normal
+  and narrow-SIMD selections sequentially. See the
+  [comparison protocol](tools/DotJpegli.Performance/README.md).
 - Converted planes, fused DCT/quantization, prepared quantizers, coefficient and
   token caches, histogram planning and buffered entropy emission already have
   optimized paths. New proposals must be compared against the current encoder.
@@ -72,15 +80,11 @@ the revision being delivered.
 
 ## Immediate validation and measurement work
 
-1. Measure shared token budgeting on large progressive and custom-script images
-   whose scans compete for capacity. Compare cached/fallback scan behavior,
-   latency, allocated bytes, retained rental capacity and peak working memory.
-   Include sparse and noisy controls; check whether early-scan priority harms
-   later scans. The 64 MiB token cap must remain fixed.
-2. Use interleaved same-host revision comparisons with identical inputs,
-   runtime, CPU affinity, encoding policy and JPEG hashes. Detect minority
-   timing states and order bias as well as MAD and drift; native drift alone
-   cannot correct mixed timing regimes. Report invalid and inconclusive rows.
+Measure shared token budgeting on large progressive and custom-script images
+whose scans compete for capacity. Compare cached/fallback scan behavior,
+latency, allocated bytes, retained rental capacity and peak working memory.
+Include sparse and noisy controls; check whether early-scan priority harms
+later scans. The 64 MiB token cap must remain fixed.
 
 Do not infer speed from operation counts, reduced allocations from pool reuse,
 or lower peak memory from allocated-byte totals. Include photograph, low-noise,
