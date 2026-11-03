@@ -104,7 +104,8 @@ internal static class RevisionComparison
                 }
             });
             ValidateIdentities(baseline.Identity, current.Identity, options.BaselineRevision, options.CurrentRevision,
-                Environment.GetEnvironmentVariable("DOTNET_EnableAVX512") == "0");
+                requireNarrow: Environment.GetEnvironmentVariable("DOTNET_EnableAVX512") == "0",
+                requireWide: Environment.GetEnvironmentVariable("DOTJPEGLI_REQUIRE_WIDE_SIMD") == "1");
 
             foreach ((string id, string category, string sourcePath, Parity.PpmImage image) in Program.ReadCorpus(options.Corpus)
                 .Where(source => selection.Images.Contains(source.Id, StringComparer.Ordinal)))
@@ -370,7 +371,7 @@ internal static class RevisionComparison
     }
 
     internal static void ValidateIdentities(RevisionWorker.Identity baseline, RevisionWorker.Identity current,
-        string baselineRevision, string currentRevision, bool requireNarrow = false)
+        string baselineRevision, string currentRevision, bool requireNarrow = false, bool requireWide = false)
     {
         foreach ((RevisionWorker.Identity identity, string expected) in new[] { (baseline, baselineRevision), (current, currentRevision) })
         {
@@ -396,6 +397,10 @@ internal static class RevisionComparison
                 || !environment.GetProperty("vectorFloatWidth").TryGetInt32(out int width) || width != 8))
             {
                 throw new InvalidDataException("The narrow comparison requires accelerated eight-lane256-bit SIMD without512-bit acceleration.");
+            }
+            if (requireWide && environment.GetProperty("vector512").ValueKind != JsonValueKind.True)
+            {
+                throw new InvalidDataException("The wide comparison requires accelerated Vector512. This host cannot cover that path; no cases were measured.");
             }
         }
 
@@ -496,6 +501,11 @@ internal static class RevisionComparison
         var baseline = new RevisionWorker.Identity(hash, hash, baselineRevision, environment, "1.0.0+" + baselineRevision);
         var current = new RevisionWorker.Identity(new string('b', 64), hash, currentRevision, environment, "1.0.0+" + currentRevision);
         ValidateIdentities(baseline, current, baselineRevision, currentRevision, requireNarrow: true);
+        Reject(() => ValidateIdentities(baseline, current, baselineRevision, currentRevision, requireWide: true));
+        var wideFields = new Dictionary<string, object?>(environmentFields, StringComparer.Ordinal) { ["vector512"] = true };
+        JsonElement wideEnvironment = JsonSerializer.SerializeToElement(wideFields);
+        ValidateIdentities(baseline with { Environment = wideEnvironment }, current with { Environment = wideEnvironment },
+            baselineRevision, currentRevision, requireWide: true);
         Reject(() => ValidateIdentities(baseline, current with { TestedRevision = baselineRevision }, baselineRevision, currentRevision));
         Reject(() => ValidateIdentities(baseline, current with { RunnerSha256 = new string('c', 64) }, baselineRevision, currentRevision));
         Reject(() => ValidateIdentities(baseline, current with { AssemblyInformationalVersion = "1.0.0+" + baselineRevision }, baselineRevision, currentRevision));

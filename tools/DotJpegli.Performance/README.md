@@ -9,6 +9,16 @@ as NuGet 1.0.0, `a40868bfdace7d737413085522a88d351aa16782` (publication run
 This runs in the same automatic workflow, independently of `[full-parity]`.
 Reuse that run; do not dispatch a duplicate.
 
+When previous evidence lacks .NET 11 on accelerated Vector512 hardware, use
+`[compare-release-wide]` to select only the x64/.NET 11/default lane in the same
+automatic workflow. This marker takes precedence over `[compare-release]` if
+both are present. `DOTJPEGLI_REQUIRE_WIDE_SIMD=1` makes the worker identity check
+reject a runner without accelerated Vector512 before any encoding is timed.
+It still compares all 256 cases and the same retained algorithm scenarios.
+Reuse or retry that specific failed job when hardware coverage is missing;
+there is no additional concurrent workflow or substitute narrow measurement.
+Ordinary `[compare-release]` runs retain all six lanes.
+
 The release comparison uses .NET 10 and .NET 11 on x64 and ARM64, with additional
 x64 lanes disabling AVX-512 to cover the narrow SIMD path. Each lane rebuilds
 the release source with the current pinned SDK, refreshes only its isolated
@@ -49,8 +59,11 @@ Conditioning on stability can favor quieter intervals, including intervals
 without GC. Selected trials therefore do not describe an initially stable
 matrix or the full latency distribution of all attempts.
 
-The `release-regression-<architecture>-<framework>-<SIMD>-<revision>` artifacts
-retain raw legs, identities, input hashes, reports and build provenance.
+The `release-regression-<architecture>-<framework>-<SIMD>-<revision>-attempt<run-attempt>`
+artifacts retain raw legs, identities, input hashes, reports and build provenance.
+The workflow-attempt suffix also applies to `algorithm-scenarios-*` artifacts,
+so rerunning a specific failed job preserves every earlier job attempt. This
+suffix is separate from the per-case timing attempts inside each artifact.
 `--self-test-revision-comparison` validates the gate and fixed selection using
 synthetic data locally, without encoding or reading clocks.
 

@@ -558,36 +558,20 @@ jobs:
 
   release-regression:
     name: Release regression (${{ matrix.architecture }}, ${{ matrix.framework }}, ${{ matrix.simd }})
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[compare-release]')
+    if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[compare-release]') || contains(github.event.head_commit.message, '[compare-release-wide]'))
     needs: native-reference
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: ubuntu-latest
-            architecture: X64
-            framework: net10.0
-            simd: default
-          - runner: ubuntu-latest
-            architecture: X64
-            framework: net11.0
-            simd: default
-          - runner: ubuntu-latest
-            architecture: X64
-            framework: net10.0
-            simd: avx2
-          - runner: ubuntu-latest
-            architecture: X64
-            framework: net11.0
-            simd: avx2
-          - runner: ubuntu-24.04-arm
-            architecture: ARM64
-            framework: net10.0
-            simd: default
-          - runner: ubuntu-24.04-arm
-            architecture: ARM64
-            framework: net11.0
-            simd: default
+        include: >-
+          ${{ fromJSON(contains(github.event.head_commit.message, '[compare-release-wide]')
+          && '[{"runner":"ubuntu-latest","architecture":"X64","framework":"net11.0","simd":"default"}]'
+          || '[{"runner":"ubuntu-latest","architecture":"X64","framework":"net10.0","simd":"default"},
+          {"runner":"ubuntu-latest","architecture":"X64","framework":"net11.0","simd":"default"},
+          {"runner":"ubuntu-latest","architecture":"X64","framework":"net10.0","simd":"avx2"},
+          {"runner":"ubuntu-latest","architecture":"X64","framework":"net11.0","simd":"avx2"},
+          {"runner":"ubuntu-24.04-arm","architecture":"ARM64","framework":"net10.0","simd":"default"},
+          {"runner":"ubuntu-24.04-arm","architecture":"ARM64","framework":"net11.0","simd":"default"}]') }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 50
     env:
@@ -598,6 +582,7 @@ jobs:
       # an AVX-512 runner. The comparison verifies actual narrow capabilities.
       DOTNET_EnableAVX512F: ${{ matrix.simd == 'avx2' && '0' || '1' }}
       DOTNET_EnableAVX512: ${{ matrix.simd == 'avx2' && '0' || '1' }}
+      DOTJPEGLI_REQUIRE_WIDE_SIMD: ${{ contains(github.event.head_commit.message, '[compare-release-wide]') && '1' || '0' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -632,6 +617,8 @@ jobs:
             echo "Current source: ${{ github.sha }}"
             echo "Framework: ${{ matrix.framework }}"
             echo "SIMD lane: ${{ matrix.simd }}"
+            echo "Require accelerated Vector512 before measurement: $DOTJPEGLI_REQUIRE_WIDE_SIMD"
+            echo "Workflow run attempt: ${{ github.run_attempt }}"
             echo "Baseline AssemblyVersion override for identical worker binding: $assembly_version"
             echo "Only global.json is copied from current into the released source tree."
             echo "Baseline restore reevaluates SDK-owned ILLink tasks for the identical current SDK."
@@ -662,7 +649,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: release-regression-${{ matrix.architecture }}-${{ matrix.framework }}-${{ matrix.simd }}-${{ github.sha }}
+          name: release-regression-${{ matrix.architecture }}-${{ matrix.framework }}-${{ matrix.simd }}-${{ github.sha }}-attempt${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/release-regression/
             ${{ runner.temp }}/release-build-provenance/
@@ -743,7 +730,7 @@ jobs:
         if: always() && steps.algorithm_scenarios.outcome != 'skipped'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: algorithm-scenarios-${{ matrix.architecture }}-${{ matrix.framework }}-${{ matrix.simd }}-${{ github.sha }}
+          name: algorithm-scenarios-${{ matrix.architecture }}-${{ matrix.framework }}-${{ matrix.simd }}-${{ github.sha }}-attempt${{ github.run_attempt }}
           path: ${{ runner.temp }}/algorithm-scenarios/
           retention-days: 30
           if-no-files-found: warn
