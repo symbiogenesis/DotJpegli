@@ -244,6 +244,51 @@ public sealed class ExifMetadataTests
         Assert.Equal(Convert.FromHexString("000000000000F03F"), metadata.GetEntry(ExifDirectory.Image, 0xc101)!.Value.ToArray());
     }
 
+    [Theory]
+    [InlineData(ExifFieldType.UnsignedShort, "0123", "2301")]
+    [InlineData(ExifFieldType.SignedShort, "FEDC", "DCFE")]
+    [InlineData(ExifFieldType.UnsignedLong, "01234567", "67452301")]
+    [InlineData(ExifFieldType.SignedLong, "FEDCBA98", "98BADCFE")]
+    [InlineData(ExifFieldType.Float, "4523C17F", "7FC12345")]
+    [InlineData(ExifFieldType.Double, "0123456789ABF8FF", "FFF8AB8967452301")]
+    [InlineData(ExifFieldType.UnsignedRational, "0123456789ABCDEF", "67452301EFCDAB89")]
+    [InlineData(ExifFieldType.SignedRational, "FEDCBA9876543210", "98BADCFE10325476")]
+    public void BigEndianNumericArraysPreserveComponentOrderAndBits(ExifFieldType type,
+        string littleEndianHex, string bigEndianHex)
+    {
+        byte[] littleValue = Convert.FromHexString(littleEndianHex);
+        byte[] bigValue = Convert.FromHexString(bigEndianHex);
+        // Include inline values, empty arrays, full vectors and partial vector tails.
+        foreach (int count in new[] { 0, 1, 2, 35 })
+        {
+            byte[] expected = new byte[count * littleValue.Length];
+            byte[] input = new byte[26 + (expected.Length > 4 ? expected.Length : 0)];
+            Header(input, false);
+            W16(input, 8, 1, false);
+            Entry(input, 10, 0xc100, (ushort)type, (uint)count, expected.Length > 4 ? 26u : 0u, false);
+            int valueOffset = expected.Length > 4 ? 26 : 18;
+            for (int index = 0; index < count; index++)
+            {
+                littleValue.CopyTo(expected, index * littleValue.Length);
+                bigValue.CopyTo(input, valueOffset + index * bigValue.Length);
+                // Distinguish adjacent elements without changing the byte-order oracle.
+                if ((index & 1) != 0)
+                {
+                    for (int octet = 0; octet < littleValue.Length; octet++)
+                    {
+                        expected[index * littleValue.Length + octet] ^= 255;
+                        input[valueOffset + index * bigValue.Length + octet] ^= 255;
+                    }
+                }
+            }
+            ExifMetadata metadata = ExifMetadata.Parse(input);
+            Assert.Equal(expected, metadata.GetEntry(ExifDirectory.Image, 0xc100)!.Value.ToArray());
+            byte[] output = metadata.ToArray();
+            Assert.Equal(input, output);
+            Assert.Equal(expected, ExifMetadata.Parse(output).GetEntry(ExifDirectory.Image, 0xc100)!.Value.ToArray());
+        }
+    }
+
     [Fact]
     public void EveryTruncatedPrefixOfTheIndependentFixtureIsRejectedSafely()
     {

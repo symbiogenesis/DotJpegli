@@ -1,4 +1,7 @@
 using System.Buffers.Binary;
+#if !NETSTANDARD2_1
+using System.Runtime.InteropServices;
+#endif
 using System.Text;
 
 namespace DotJpegli;
@@ -428,9 +431,29 @@ public sealed class ExifMetadata
     private static void ReverseComponents(Span<byte> value, ExifFieldType fieldType)
     {
         int size = fieldType is ExifFieldType.UnsignedRational or ExifFieldType.SignedRational ? 4 : SizeOf(fieldType);
+#if NETSTANDARD2_1
         if (size > 1)
             for (int start = 0; start < value.Length; start += size)
                 value.Slice(start, size).Reverse();
+#else
+        // Reverse each numeric component in place, including the two separate
+        // 32-bit components of a rational. The BCL handles vectorization and tails.
+        switch (size)
+        {
+            case 2:
+                Span<ushort> shorts = MemoryMarshal.Cast<byte, ushort>(value);
+                BinaryPrimitives.ReverseEndianness(shorts, shorts);
+                break;
+            case 4:
+                Span<uint> ints = MemoryMarshal.Cast<byte, uint>(value);
+                BinaryPrimitives.ReverseEndianness(ints, ints);
+                break;
+            case 8:
+                Span<ulong> longs = MemoryMarshal.Cast<byte, ulong>(value);
+                BinaryPrimitives.ReverseEndianness(longs, longs);
+                break;
+        }
+#endif
     }
 
     private static uint RequireLong(ExifEntry entry)
