@@ -172,6 +172,89 @@ public sealed class FusedPlaneQuantizationTests
     }
 
     [Fact]
+    public void NonzeroSuppressedAcRowsPreserveDcAndStickyInvalidState()
+    {
+        var table = Quantization.PreparedTable.Create(Enumerable.Repeat((ushort)3, 64).ToArray(), 0, 4f,
+            adaptiveQuantization: true, adaptiveMultipliers: Enumerable.Repeat(0.5f, 64).ToArray());
+        float[] coefficients = Enumerable.Range(0, 64).Select(index => index % 2 == 0 ? 0.1f : -0.1f).ToArray();
+        coefficients[0] = 7.5f;
+        AssertTransposed(coefficients, table, 0.625f);
+        foreach (int index in new[] { 1, 8, 16, 63 })
+            foreach (float invalid in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity, 3072f, -3072f })
+            {
+                float previous = coefficients[index];
+                coefficients[index] = invalid;
+                short[] output = Enumerable.Repeat((short)-23456, 72).ToArray();
+                Assert.False(TryTransposed(coefficients, table, 0.625f, output));
+                Assert.All(output, value => Assert.Equal((short)-23456, value));
+                coefficients[index] = previous;
+            }
+    }
+
+    [Fact]
+    public void ConservativeAcSuppressionPreservesDivisionBoundariesForEveryDivisor()
+    {
+        const float margin = 1f - 1f / 1048576f;
+        foreach (float threshold in new[] { 1e-20f, 0.5f, 0.59082f, 1f, 65536f })
+            for (int first = 1; first <= 32767; first += 8)
+            {
+                float[] divisors = Enumerable.Range(0, 8).Select(lane => (float)Math.Min(first + lane, 32767)).ToArray();
+                float[] cutoffs = divisors.Select(divisor => (threshold * margin) * divisor).ToArray();
+                foreach (int position in new[] { -1, 0, 1 })
+                {
+                    float[] coefficients = cutoffs.Select(cutoff => position < 0 ? MathF.BitDecrement(cutoff)
+                        : position == 0 ? cutoff : MathF.BitIncrement(cutoff)).ToArray();
+                    bool suppressed = CanSuppress(coefficients, divisors, threshold, threshold);
+                    Assert.Equal(position < 0, suppressed);
+                    if (suppressed)
+                        for (int lane = 0; lane < 8; lane++)
+                            Assert.True(coefficients[lane] / divisors[lane] < threshold);
+                }
+                // A coefficient near the true suppression boundary must use
+                // division, even when its quotient happens to round below it.
+                float[] boundary = divisors.Select(divisor => threshold * divisor).ToArray();
+                Assert.False(CanSuppress(boundary, divisors, threshold, threshold));
+            }
+    }
+
+    [Fact]
+    public void ConservativeAcSuppressionHandlesExtremeThresholdsAndNonfiniteLanes()
+    {
+        float[] divisors = [1f, 2f, 3f, 17f, 255f, 256f, 16384f, 32767f];
+        float[] zeros = new float[8];
+        foreach (float threshold in new[] { 0f, float.Epsilon, 1e-30f, MathF.BitDecrement(1e-20f) })
+            Assert.False(CanSuppress(zeros, divisors, threshold, threshold));
+        foreach (float threshold in new[] { float.MaxValue, float.PositiveInfinity, float.NaN })
+            Assert.False(CanSuppress(zeros, divisors, threshold, 0.5f));
+        Assert.False(CanSuppress(zeros, divisors, 0.59082f, float.NaN));
+        foreach (float invalid in new[] { float.NaN, float.PositiveInfinity })
+            for (int lane = 0; lane < 8; lane++)
+            {
+                float[] magnitudes = new float[8];
+                magnitudes[lane] = invalid;
+                Assert.False(CanSuppress(magnitudes, divisors, 0.59082f, 0.59082f));
+            }
+        // Subnormal quotients remain far below the supported normal threshold.
+        Assert.True(CanSuppress(Enumerable.Repeat(float.Epsilon, 8).ToArray(), divisors, 1e-20f, 1e-20f));
+        var random = new Random(174029);
+        for (int sample = 0; sample < 12000; sample++)
+        {
+            float threshold = MathF.ScaleB(0.5f + (float)random.NextDouble(), random.Next(-65, 128));
+            for (int lane = 0; lane < 8; lane++)
+                divisors[lane] = random.Next(1, 32768);
+            float[] magnitudes = Enumerable.Range(0, 8).Select(_ =>
+                BitConverter.Int32BitsToSingle(random.Next(0, 0x7f800000))).ToArray();
+            if (CanSuppress(magnitudes, divisors, threshold, 1e-20f))
+                for (int lane = 0; lane < 8; lane++)
+                    Assert.True(magnitudes[lane] / divisors[lane] < threshold);
+        }
+    }
+
+    private static bool CanSuppress(float[] magnitudes, float[] divisors, float threshold, float offset)
+        => Quantization.CanSuppressTransposedAcRow(Vector256.Create(magnitudes.AsSpan()), Vector256.Create(divisors.AsSpan()),
+            Vector256.Create(threshold), offset);
+
+    [Fact]
     public void BothPortableOrderingNetworksPreserveEverySignedShortBitPattern()
     {
         for (int shift = 0; shift < 1024; shift++)

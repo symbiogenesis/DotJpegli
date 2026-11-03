@@ -607,17 +607,21 @@ internal static class Quantization
         ReadOnlySpan<float> divisors, ReadOnlySpan<float> multipliers, float acOffset, float adaptiveStrength,
         bool adaptive, bool dc, ref bool valid)
     {
-        valid &= Vector256.LessThanOrEqualAll(Vector256.Abs(coefficients), Vector256.Create(float.MaxValue));
+        Vector256<float> magnitudes = Vector256.Abs(coefficients);
+        valid &= Vector256.LessThanOrEqualAll(magnitudes, Vector256.Create(float.MaxValue));
         // Exact zero AC coefficients stay zero for every validated divisor
         // and adaptive bias, including negative zero and a zero threshold.
         // Keep the finite check and sticky failure state before this shortcut.
         if (!dc && Vector256.EqualsAll(coefficients, Vector256<float>.Zero))
             return Vector128<short>.Zero;
-        Vector256<float> values = coefficients / Vector256.Create(divisors);
-        float dcValue = dc ? values.GetElement(0) : 0f;
+        Vector256<float> divisorValues = Vector256.Create(divisors);
         Vector256<float> threshold = Vector256.Create(acOffset);
         if (adaptive)
             threshold += Vector256.Create(adaptiveStrength) * Vector256.Create(multipliers);
+        if (!dc && CanSuppressTransposedAcRow(magnitudes, divisorValues, threshold, acOffset))
+            return Vector128<short>.Zero;
+        Vector256<float> values = coefficients / divisorValues;
+        float dcValue = dc ? values.GetElement(0) : 0f;
         Vector256<float> suppressed = Vector256.LessThan(Vector256.Abs(values), threshold);
         // Low-detail blocks often suppress a complete AC frequency row. Keep
         // the original division and strict bias comparison, then avoid rounding,
@@ -639,6 +643,23 @@ internal static class Quantization
         // Conversion results from an invalid lane are never stored to output.
         Vector256<int> integers = Vector256.ConvertToInt32(values);
         return Vector128.Narrow(integers.GetLower(), integers.GetUpper());
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static bool CanSuppressTransposedAcRow(Vector256<float> magnitudes, Vector256<float> divisors,
+        Vector256<float> thresholds, float acOffset)
+    {
+        // Validated divisors are integers >=1 and thresholds are >=acOffset.
+        // The offset bound keeps finite products normal. The 16u
+        // margin exceeds their <2u rounding error and the final division's u,
+        // so this strict coefficient bound implies abs(coefficient/divisor)
+        // is strictly below the original threshold. Unsupported boundaries
+        // and nonfinite products retain the original division path.
+        if (!(acOffset >= 1e-20f))
+            return false;
+        Vector256<float> cutoffs = (thresholds * Vector256.Create(1f - 1f / 1048576f)) * divisors;
+        return Vector256.LessThanAll(magnitudes, cutoffs)
+            && Vector256.LessThanOrEqualAll(cutoffs, Vector256.Create(float.MaxValue));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
