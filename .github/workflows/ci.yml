@@ -589,7 +589,7 @@ jobs:
             framework: net11.0
             simd: default
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 40
+    timeout-minutes: 50
     env:
       # This is the source revision published as NuGet 1.0.0.
       BASELINE_REVISION: a40868bfdace7d737413085522a88d351aa16782
@@ -611,6 +611,7 @@ jobs:
           name: parity-reference-X64-${{ github.sha }}
           path: ${{ runner.temp }}
       - name: Build current release comparison worker
+        id: current_build
         run: |
           dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
           dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release -f ${{ matrix.framework }} --no-restore -p:SourceRevisionId="${{ github.sha }}"
@@ -647,6 +648,7 @@ jobs:
           cp "$lane/src/DotJpegli/bin/Release/${{ matrix.framework }}/DotJpegli.dll" "$worker/DotJpegli.dll"
           sha256sum "$worker/DotJpegli.dll" "$worker/DotJpegli.Performance.dll" "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.dll" >> "$provenance/build.txt"
       - name: Compare all 256 cases with released 1.0.0 on the same CPU (CI only)
+        id: release_measurement
         run: |
           cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
           taskset -c "$cpu" dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll" --compare-revisions --release-regression --baseline-runner "${{ runner.temp }}/released-encoder-worker/DotJpegli.Performance.dll" --baseline-revision "$BASELINE_REVISION" --current-revision "${{ github.sha }}" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/release-regression"
@@ -664,6 +666,85 @@ jobs:
           path: |
             ${{ runner.temp }}/release-regression/
             ${{ runner.temp }}/release-build-provenance/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Compare retained algorithms on deterministic scenarios (CI diagnostic only)
+        id: algorithm_scenarios
+        if: always() && matrix.architecture == 'X64' && steps.current_build.outcome == 'success' && (steps.release_measurement.outcome == 'success' || steps.release_measurement.outcome == 'failure')
+        continue-on-error: true
+        run: |
+          cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
+          default_worker="${{ runner.temp }}/algorithm-default-worker"
+          scenarios="${{ runner.temp }}/algorithm-scenarios"
+          mkdir -p "$default_worker" "$scenarios"
+          cp "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/"* "$default_worker/"
+          variants=(sparse-transposed)
+          if [[ '${{ matrix.framework }}' == 'net11.0' ]]; then variants+=(full-width-transpose); fi
+          comparison_status=0
+          for variant in "${variants[@]}"; do
+            sparse=false
+            transpose=false
+            if [[ "$variant" == 'sparse-transposed' ]]; then sparse=true; else transpose=true; fi
+            variant_root="$scenarios/$variant"
+            provenance="$variant_root/build-provenance"
+            worker="${{ runner.temp }}/algorithm-$variant-worker"
+            library="${{ runner.temp }}/algorithm-$variant-library"
+            mkdir -p "$provenance" "$worker" "$library"
+            cp "$default_worker/"* "$worker/"
+            {
+              echo "Comparison: current default versus retained $variant algorithm"
+              echo "Source for both workers: ${{ github.sha }}"
+              echo "Framework: ${{ matrix.framework }}; SIMD lane: ${{ matrix.simd }}; CPU affinity: $cpu"
+              echo 'Baseline flags: DotJpegliSparseTransposedQuantization=false; DotJpegliFullWidthTranspose=false'
+              echo "Candidate flags: DotJpegliSparseTransposedQuantization=$sparse; DotJpegliFullWidthTranspose=$transpose"
+              echo 'Selection: kodim01,kodim02,kodim04,kodim22,low-noise,low-contrast,full-noise,tiny-odd-edges; distances1/4; sampling444/420; progression0/2'
+              echo 'Method: six balanced quartets, 20 encodes per leg (100 for tiny input), five warmups; no timing retries in this selected diagnostic'
+            } > "$provenance/build.txt"
+            if ! dotnet build src/DotJpegli/DotJpegli.csproj -c Release -f ${{ matrix.framework }} --no-restore -o "$library" -p:SourceRevisionId="${{ github.sha }}" -p:DotJpegliSparseTransposedQuantization="$sparse" -p:DotJpegliFullWidthTranspose="$transpose" 2>&1 | tee "$provenance/build.log"; then
+              echo 'build failed' > "$provenance/exit-code.txt"
+              comparison_status=2
+              continue
+            fi
+            cp "$library/DotJpegli.dll" "$worker/DotJpegli.dll"
+            sha256sum "$default_worker/DotJpegli.dll" "$worker/DotJpegli.dll" "$default_worker/DotJpegli.Performance.dll" "$worker/DotJpegli.Performance.dll" >> "$provenance/build.txt"
+            verdict=0
+            taskset -c "$cpu" dotnet "$worker/DotJpegli.Performance.dll" --compare-revisions --baseline-runner "$default_worker/DotJpegli.Performance.dll" --baseline-revision "${{ github.sha }}" --current-revision "${{ github.sha }}" --corpus "${{ runner.temp }}/parity-corpus" --output "$variant_root/evidence" --images kodim01,kodim02,kodim04,kodim22,low-noise,low-contrast,full-noise,tiny-odd-edges --distances 1,4 --samplings 444,420 --progressions 0,2 --blocks 6 --iterations 20 --warmups 5 || verdict=$?
+            echo "$verdict" > "$provenance/exit-code.txt"
+            if (( verdict > comparison_status )); then comparison_status=$verdict; fi
+            {
+              echo "# Retained algorithm scenarios: $variant"
+              echo
+              echo 'Baseline is the current default encoder. Candidate enables only the named retained algorithm through build flags; both use the same source revision and identical worker binaries.'
+              echo
+              echo "Framework: ${{ matrix.framework }}; architecture: ${{ matrix.architecture }}; SIMD lane: ${{ matrix.simd }}. Diagnostic exit code: $verdict."
+              echo
+              echo 'These selected results do not change production dispatch or the released-version regression verdict. Invalid and inconclusive rows remain in the report.'
+              echo
+              echo '[Comparison report](evidence/report.md) and [build flags and binary identities](build-provenance/build.txt).'
+            } > "$variant_root/README.md"
+          done
+          exit "$comparison_status"
+      - name: Record unreachable retained algorithms on ARM64
+        if: always() && matrix.architecture == 'ARM64' && steps.current_build.outcome == 'success'
+        run: |
+          echo 'Retained sparse-transposed and full-width-transpose scenario comparisons are skipped on ARM64: these alternatives require accelerated eight-lane Vector256 operations, while this lane uses the unchanged four-lane path.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish retained algorithm scenario reports
+        if: always() && steps.algorithm_scenarios.outcome != 'skipped'
+        run: |
+          for variant in sparse-transposed full-width-transpose; do
+            evidence="${{ runner.temp }}/algorithm-scenarios/$variant/evidence/report.md"
+            if [[ -f "$evidence" ]]; then
+              echo "# Current default versus retained $variant algorithm (${{ matrix.framework }}, ${{ matrix.architecture }}, ${{ matrix.simd }})" >> "$GITHUB_STEP_SUMMARY"
+              cat "$evidence" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+      - name: Retain algorithm scenario evidence separately from the release gate
+        if: always() && steps.algorithm_scenarios.outcome != 'skipped'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: algorithm-scenarios-${{ matrix.architecture }}-${{ matrix.framework }}-${{ matrix.simd }}-${{ github.sha }}
+          path: ${{ runner.temp }}/algorithm-scenarios/
           retention-days: 30
           if-no-files-found: warn
 

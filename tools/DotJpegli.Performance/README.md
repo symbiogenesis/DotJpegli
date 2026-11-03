@@ -29,10 +29,41 @@ Inconclusive rows remain in the report and do not prove equal speed. Managed
 allocations are reported separately. This comparison does not establish native
 Jpegli performance parity or cover every public encoder option.
 
+Release comparisons allow at most eight complete attempts for each case when
+only the existing MAD, repeated-leg drift, minority timing-state or order-bias
+guards fail. Every attempt uses the same six quartets, counts and warmups. The
+first valid attempt is final, including a regression or an inconclusive result;
+selection never uses speed or chooses the fastest trial. Identity, JPEG,
+coverage, leg-layout, nonfinite and too-short-interval failures are not retried.
+Cases still invalid at the cap fail validation. Other comparison modes retain
+one attempt. A confirmed regression does not stop the remaining matrix.
+
+Schema 2 writes each trial to a separate raw file after every completed quartet;
+an interrupted trial retains its completed prefix. It also retains per-case
+attempt analyses, the selected attempt, and initial-invalid and retry counts.
+The first raw filename remains unchanged; retries add
+`_attemptNN`, and `_attempts.json` records completed-trial analyses. No samples
+are removed or merged within a trial. Earlier invalid attempts remain visible
+in the report, even when a later valid attempt supplies the case verdict.
+Conditioning on stability can favor quieter intervals, including intervals
+without GC. Selected trials therefore do not describe an initially stable
+matrix or the full latency distribution of all attempts.
+
 The `release-regression-<architecture>-<framework>-<SIMD>-<revision>` artifacts
 retain raw legs, identities, input hashes, reports and build provenance.
 `--self-test-revision-comparison` validates the gate and fixed selection using
 synthetic data locally, without encoding or reading clocks.
+
+After retaining the release comparison, each x64 lane also compares the default
+encoder with isolated builds enabling `DotJpegliSparseTransposedQuantization`
+and, on .NET 11, `DotJpegliFullWidthTranspose`. These diagnostics use Kodak01/02/04/22,
+low noise, low contrast, full noise and tiny odd edges at both distances,
+samplings and progressions: 64 configurations per alternative. They use the
+same CPU and identical workers, retain flags and binary hashes, and do not retry
+unstable timings. The `algorithm-scenarios-*` artifacts are separate from the
+release gate. They inform deterministic selection rules; they do not change
+production policy. ARM64 records an explicit skip because its four-lane encoder
+does not enter these eight-lane alternatives.
 
 The `--aq-reciprocal-analysis --photograph <PPM> --output <empty-directory>`
 command performs untimed numerical analysis and can run locally. It compares

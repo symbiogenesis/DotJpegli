@@ -12,6 +12,7 @@ internal static class RevisionComparison
 {
     // Source identity verified by the successful 1.0.0 NuGet publication run 38698571455.
     private const string ReleasedRevision = "a40868bfdace7d737413085522a88d351aa16782";
+    private const int ReleaseMaximumAttempts = 8;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -31,9 +32,11 @@ internal static class RevisionComparison
         string Corpus, string Output, DiagnosticSelection Selection, bool ReleaseRegression);
     internal sealed record Leg(int Position, string Variant, RevisionWorker.Measurement Measurement);
     internal sealed record Quartet(int Block, string Order, Leg[] Legs);
+    private sealed record Attempt(int Number, string RawFile, KernelComparison.Analysis Analysis);
     private sealed record Result(string Id, string Category, int Width, int Height, int Sampling,
         int ProgressiveLevel, float Distance, int Iterations, string BaselineJpegSha256,
-        string CurrentJpegSha256, Quartet[] Quartets, KernelComparison.Analysis Analysis);
+        string CurrentJpegSha256, Quartet[] Quartets, KernelComparison.Analysis Analysis,
+        int SelectedAttempt, Attempt[] Attempts);
 
     internal static async Task<int> Run(string[] args)
     {
@@ -56,7 +59,7 @@ internal static class RevisionComparison
             var sources = new List<SourceImage>();
             await WriteJson(output, "summary.json", new
             {
-                schemaVersion = 1,
+                schemaVersion = 2,
                 mode = "interleaved-revision-comparison",
                 status = "incomplete",
                 valid = false,
@@ -68,7 +71,7 @@ internal static class RevisionComparison
             await using RevisionWorkerClient current = await RevisionWorkerClient.Start(Assembly.GetExecutingAssembly().Location, options.CurrentRevision);
             await WriteJson(output, "run.json", new
             {
-                schemaVersion = 1,
+                schemaVersion = 2,
                 mode = "interleaved-revision-comparison",
                 startedAtUtc = DateTimeOffset.UtcNow,
                 options.BaselineRevision,
@@ -93,7 +96,11 @@ internal static class RevisionComparison
                     preference = "Valid rows require every quartet beyond1+/-0.005 in the same direction; other valid rows are inconclusive",
                     gc = "Natural collections included; no forced GC or no-GC region; allocations and collections retained per leg",
                     memory = "Allocated bytes do not measure retained pool capacity or peak working memory",
-                    rawMeasurements = "raw-comparisons/*.json updated after every completed quartet, before analysis"
+                    rawMeasurements = "raw-comparisons/*.json updated after every completed quartet, before analysis; every attempt has a separate raw file",
+                    retryPolicy = options.ReleaseRegression
+                        ? "At most eight whole attempts per case, only for MAD, repeated-leg drift, minority timing states or order bias; first valid attempt is final regardless of speed; no merging or sample removal; identity, JPEG, structure, nonfinite and too-short failures are not retried"
+                        : "One attempt per case; selected diagnostics do not retry",
+                    maximumAttempts = options.ReleaseRegression ? ReleaseMaximumAttempts : 1
                 }
             });
             ValidateIdentities(baseline.Identity, current.Identity, options.BaselineRevision, options.CurrentRevision,
@@ -116,46 +123,73 @@ internal static class RevisionComparison
                             int iterations = Iterations(image.Width, image.Height, selection.Policy.MinimumIterations);
                             Policy casePolicy = selection.Policy with { MinimumIterations = iterations, MaximumIterations = iterations };
                             string stem = FormattableString.Invariant($"{id}_{sampling}_p{progression}_d{distance:0}");
-                            var quartets = new List<Quartet>();
-                            for (int block = 0; block < selection.Policy.Blocks; block++)
+                            var attempts = new List<Attempt>();
+                            Quartet[] raw;
+                            KernelComparison.Analysis analysis;
+                            do
                             {
-                                string order = Order(index, block);
-                                var legs = new Leg[4];
-                                for (int position = 0; position < order.Length; position++)
+                                int attempt = attempts.Count + 1;
+                                string rawFile = attempt == 1 ? stem + ".json"
+                                    : FormattableString.Invariant($"{stem}_attempt{attempt:D2}.json");
+                                var quartets = new List<Quartet>();
+                                for (int block = 0; block < selection.Policy.Blocks; block++)
                                 {
-                                    bool isBaseline = order[position] == 'A';
-                                    RevisionWorker.Measurement measured = await (isBaseline ? baseline : current).Measure(
-                                        input, sampling, progression, distance, iterations, selection.Policy.Warmups);
-                                    legs[position] = new(position, isBaseline ? "baseline" : "current", measured);
+                                    string order = Order(index, block);
+                                    var legs = new Leg[4];
+                                    for (int position = 0; position < order.Length; position++)
+                                    {
+                                        bool isBaseline = order[position] == 'A';
+                                        RevisionWorker.Measurement measured = await (isBaseline ? baseline : current).Measure(
+                                            input, sampling, progression, distance, iterations, selection.Policy.Warmups);
+                                        legs[position] = new(position, isBaseline ? "baseline" : "current", measured);
+                                    }
+
+                                    quartets.Add(new(block, order, legs));
+                                    await WriteJson(Path.Combine(output, "raw-comparisons"), rawFile, new
+                                    {
+                                        schemaVersion = 2,
+                                        id,
+                                        category,
+                                        width = image.Width,
+                                        height = image.Height,
+                                        sampling,
+                                        progressiveLevel = progression,
+                                        distance,
+                                        comparisonIndex = index,
+                                        attempt,
+                                        iterations,
+                                        warmups = selection.Policy.Warmups,
+                                        completedQuartets = quartets.Count,
+                                        expectedQuartets = selection.Policy.Blocks,
+                                        updatedAtUtc = DateTimeOffset.UtcNow,
+                                        quartets
+                                    });
                                 }
 
-                                quartets.Add(new(block, order, legs));
-                                await WriteJson(Path.Combine(output, "raw-comparisons"), stem + ".json", new
+                                raw = quartets.ToArray();
+                                analysis = Analyze(raw, iterations, casePolicy, index);
+                                attempts.Add(new(attempt, "raw-comparisons/" + rawFile, analysis));
+                                await WriteJson(Path.Combine(output, "raw-comparisons"), stem + "_attempts.json", new
                                 {
-                                    schemaVersion = 1,
+                                    schemaVersion = 2,
                                     id,
-                                    category,
-                                    width = image.Width,
-                                    height = image.Height,
                                     sampling,
                                     progressiveLevel = progression,
                                     distance,
                                     comparisonIndex = index,
-                                    iterations,
-                                    warmups = selection.Policy.Warmups,
-                                    completedQuartets = quartets.Count,
-                                    expectedQuartets = selection.Policy.Blocks,
-                                    updatedAtUtc = DateTimeOffset.UtcNow,
-                                    quartets
+                                    attempts
                                 });
+                                if (ShouldRetry(options.ReleaseRegression, attempts.Count, analysis))
+                                {
+                                    Console.WriteLine(FormattableString.Invariant($"{id}/{sampling}/p{progression}/d{distance}: attempt {attempt} timing-invalid; retaining entire trial and retrying within fixed cap {ReleaseMaximumAttempts}."));
+                                }
                             }
+                            while (ShouldRetry(options.ReleaseRegression, attempts.Count, analysis));
 
-                            Quartet[] raw = quartets.ToArray();
-                            KernelComparison.Analysis analysis = Analyze(raw, iterations, casePolicy, index);
                             string baselineHash = raw[0].Legs.First(leg => leg.Variant == "baseline").Measurement.JpegSha256;
                             string currentHash = raw[0].Legs.First(leg => leg.Variant == "current").Measurement.JpegSha256;
                             results.Add(new(id, category, image.Width, image.Height, sampling, progression, distance,
-                                iterations, baselineHash, currentHash, raw, analysis));
+                                iterations, baselineHash, currentHash, raw, analysis, attempts.Count, attempts.ToArray()));
                             await WriteJson(output, "cases.json", results);
                             await WriteJson(output, "progress.json", new
                             {
@@ -185,7 +219,7 @@ internal static class RevisionComparison
             string[] regressions = results.Where(result => IsRegression(result.Analysis)).Select(Label).ToArray();
             await WriteJson(output, "summary.json", new
             {
-                schemaVersion = 1,
+                schemaVersion = 2,
                 mode = "interleaved-revision-comparison",
                 status = valid ? "completed" : "invalid",
                 valid,
@@ -199,6 +233,10 @@ internal static class RevisionComparison
                 regressions,
                 comparisons = results.Count,
                 expectedComparisons = selection.ExpectedCases,
+                initiallyInvalidComparisons = results.Count(result => result.Attempts[0].Analysis.InvalidReasons.Length != 0),
+                retriedComparisons = results.Count(result => result.Attempts.Length > 1),
+                totalAttempts = results.Sum(result => result.Attempts.Length),
+                maximumAttempts = options.ReleaseRegression ? ReleaseMaximumAttempts : 1,
                 inconclusiveComparisons = results.Count(result => result.Analysis.InvalidReasons.Length == 0 && result.Analysis.EvidencePreference == "inconclusive"),
                 invalidReasons = invalid
             });
@@ -214,7 +252,7 @@ internal static class RevisionComparison
             {
                 await WriteJson(output, "summary.json", new
                 {
-                    schemaVersion = 1,
+                    schemaVersion = 2,
                     mode = "interleaved-revision-comparison",
                     status = "invalid",
                     valid = false,
@@ -303,6 +341,22 @@ internal static class RevisionComparison
 
     private static bool IsRegression(KernelComparison.Analysis analysis)
         => analysis.InvalidReasons.Length == 0 && analysis.EvidencePreference == "baseline";
+
+    private static bool ShouldRetry(bool releaseRegression, int completedAttempts, KernelComparison.Analysis analysis)
+        => releaseRegression && completedAttempts is > 0 and < ReleaseMaximumAttempts
+            && analysis.InvalidReasons.Length != 0 && analysis.InvalidReasons.All(IsRetryableTimingReason);
+
+    // Only these existing instability guards allow a whole-trial retry. New or
+    // unrecognized failures remain hard failures; never infer eligibility from
+    // the measured ratio or which encoder the timings appear to favor.
+    private static bool IsRetryableTimingReason(string reason)
+        => reason is "baseline: relative MAD exceeds10%." or "current: relative MAD exceeds10%."
+            or "baseline: p90/p10 drift exceeds20%, including minority timing states."
+            or "current: p90/p10 drift exceeds20%, including minority timing states."
+            or "baseline: repeated legs within a quartet differ by over10%."
+            or "current: repeated legs within a quartet differ by over10%."
+            or "Paired-ratio relative MAD exceeds10%."
+            or "ABBA/BAAB order bias exceeds10% or one order is absent.";
 
     private static int ExitCode(bool valid, bool releaseRegression, int regressions)
         => !valid ? 2 : releaseRegression && regressions != 0 ? 1 : 0;
@@ -396,12 +450,25 @@ internal static class RevisionComparison
         {
             int regressions = results.Count(result => IsRegression(result.Analysis));
             _ = report.AppendLine(CultureInfo.InvariantCulture, $"\nRelease comparison: {results.Count}/256 cases against published 1.0.0 source `{ReleasedRevision}`, rebuilt with the candidate SDK. {regressions} valid cases consistently favor 1.0.0 and fail the regression gate. Invalid or missing evidence fails validation separately. Inconclusive differences are retained and do not prove equal performance. The gate checks latency; allocation counts are reported separately.");
+            _ = report.AppendLine(CultureInfo.InvariantCulture, $"\nTiming-only instability permits at most {ReleaseMaximumAttempts} complete attempts per case. The first valid attempt is final, including regressions and inconclusive results; the fastest trial is never selected. Identity, JPEG, structure, nonfinite and too-short failures are never retried. Samples are never merged or removed within a trial. {results.Count(result => result.Attempts[0].Analysis.InvalidReasons.Length != 0)} cases were initially invalid; {results.Count(result => result.Attempts.Length > 1)} were retried. Every earlier invalid trial remains below and in separate raw files; selected results do not describe an initially stable matrix. Conditioning on stability can favor quieter intervals, including intervals without GC, so the selected trials do not characterize the full latency distribution of all attempts.");
         }
-        _ = report.AppendLine("\n| Case | Current/baseline | Order bias | Maximum repeat drift | Baseline p90/p10 | Current p90/p10 | Baseline B/encode | Current B/encode | Valid | Preference |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |");
+        _ = report.AppendLine("\n| Case | Current/baseline | Order bias | Maximum repeat drift | Baseline p90/p10 | Current p90/p10 | Baseline B/encode | Current B/encode | Valid | Preference | Selected attempt |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: |");
         foreach (Result result in results)
         {
             KernelComparison.Analysis analysis = result.Analysis;
-            _ = report.AppendLine(FormattableString.Invariant($"| {Label(result)} | {Metric(analysis.PairedRatios?.Median)} | {Metric(analysis.OrderBias)} | {Metric(analysis.MaximumWithinQuartetDrift)} | {Metric(analysis.OriginalPercentileDrift)} | {Metric(analysis.OptimizedPercentileDrift)} | {Metric(analysis.OriginalAllocatedBytesPerEncode)} | {Metric(analysis.OptimizedAllocatedBytesPerEncode)} | {analysis.InvalidReasons.Length == 0} | {analysis.EvidencePreference} |"));
+            _ = report.AppendLine(FormattableString.Invariant($"| {Label(result)} | {Metric(analysis.PairedRatios?.Median)} | {Metric(analysis.OrderBias)} | {Metric(analysis.MaximumWithinQuartetDrift)} | {Metric(analysis.OriginalPercentileDrift)} | {Metric(analysis.OptimizedPercentileDrift)} | {Metric(analysis.OriginalAllocatedBytesPerEncode)} | {Metric(analysis.OptimizedAllocatedBytesPerEncode)} | {analysis.InvalidReasons.Length == 0} | {analysis.EvidencePreference} | {result.SelectedAttempt} |"));
+        }
+
+        if (results.Any(result => result.Attempts.Length > 1))
+        {
+            _ = report.AppendLine("\nRetained earlier attempts (invalid evidence, excluded from the selected timing verdict):\n\n| Case | Attempt | Current/baseline | Invalid reasons | Raw trial |\n| --- | ---: | ---: | --- | --- |");
+            foreach (Result result in results)
+            {
+                foreach (Attempt attempt in result.Attempts.Where(attempt => attempt.Number != result.SelectedAttempt))
+                {
+                    _ = report.AppendLine(FormattableString.Invariant($"| {Label(result)} | {attempt.Number} | {Metric(attempt.Analysis.PairedRatios?.Median)} | {string.Join("; ", attempt.Analysis.InvalidReasons)} | [raw]({attempt.RawFile}) |"));
+                }
+            }
         }
 
         if (invalid.Length != 0)
@@ -488,6 +555,35 @@ internal static class RevisionComparison
         Check(IsRegression(Analyze(slower, 20, policy, 0)), "Consistent release regression was not detected.");
         Check(!IsRegression(stable) && !IsRegression(minorityAnalysis)
             && !IsRegression(Analyze(tinyEffect, 20, policy, 0)), "Invalid, faster or inconclusive evidence was called a regression.");
+        foreach (KernelComparison.Analysis valid in new[] { stable, Analyze(slower, 20, policy, 0), Analyze(tinyEffect, 20, policy, 0) })
+        {
+            Check(!ShouldRetry(true, 1, valid), "Valid faster, slower or inconclusive results must never be retried.");
+        }
+        foreach (KernelComparison.Analysis timing in new[] { minorityAnalysis, Analyze(spike, 20, policy, 0), Analyze(orderBias, 20, policy, 0) })
+        {
+            for (int attempt = 1; attempt < ReleaseMaximumAttempts; attempt++)
+            {
+                Check(ShouldRetry(true, attempt, timing), "Recognized timing instability should allow the bounded release retry.");
+            }
+            Check(!ShouldRetry(true, ReleaseMaximumAttempts, timing) && !ShouldRetry(true, 0, timing)
+                && !ShouldRetry(false, 1, timing), "Retry cap or diagnostic isolation failed.");
+        }
+        Quartet[] invalidSlow = Mutate(minority, (_, leg) => leg.Variant == "current"
+            ? leg with { Measurement = leg.Measurement with { NsPerEncode = leg.Measurement.NsPerEncode * 1.5 } } : leg);
+        Check(ShouldRetry(true, 1, Analyze(invalidSlow, 20, policy, 0)), "Timing retry eligibility must not depend on the measured direction.");
+        Quartet[] nonfinite = Mutate(samples, (block, leg) => block == 0 && leg.Position == 0
+            ? leg with { Measurement = leg.Measurement with { NsPerEncode = double.NaN } } : leg);
+        Quartet[] tooShort = Mutate(samples, (_, leg) => leg with { Measurement = leg.Measurement with { NsPerEncode = 1 } });
+        Quartet[] malformed = Mutate(samples, (block, leg) => block == 0 && leg.Position == 0 ? leg with { Position = 1 } : leg);
+        foreach (KernelComparison.Analysis hardFailure in new[]
+        {
+            Analyze(jpegMismatch, 20, policy, 0), Analyze(nonfinite, 20, policy, 0),
+            Analyze(tooShort, 20, policy, 0), Analyze(malformed, 20, policy, 0), Analyze(samples[..5], 20, policy, 0),
+            minorityAnalysis with { InvalidReasons = [.. minorityAnalysis.InvalidReasons, "Unknown validation failure."] }
+        })
+        {
+            Check(!ShouldRetry(true, 1, hardFailure), "Hard validation failures must not be retried, even alongside timing instability.");
+        }
         Check(ExitCode(true, true, 1) == 1 && ExitCode(false, true, 1) == 2
             && ExitCode(true, true, 0) == 0 && ExitCode(true, false, 1) == 0,
             "Release regression exit codes must distinguish regressions, invalid evidence and diagnostics.");

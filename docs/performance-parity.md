@@ -81,7 +81,14 @@ complete 256-case comparison against the source actually published as 1.0.0,
 current SDK and interleaved on the same CPU/runtime, on .NET 10/11 and
 x64/ARM64, including forced narrow x64 SIMD. The fixed comparison rejects
 invalid evidence and consistently slower cases; inconclusive rows remain
-explicit. See the [release comparison protocol](../tools/DotJpegli.Performance/README.md#regression-comparison-against-released-100).
+explicit. Timing-instability failures may retry the entire case, at most eight
+attempts, with every trial retained. The first valid trial is final regardless
+of speed; valid regressions and inconclusive results are never retried. Hard
+identity, JPEG, structural, nonfinite and too-short failures cannot retry.
+Reports expose initial-invalid and retry counts and every prior invalid trial.
+This selection conditions on stability and may favor quieter intervals; it
+does not characterize the full latency distribution across all attempts.
+See the [release comparison protocol](../tools/DotJpegli.Performance/README.md#regression-comparison-against-released-100).
 It can accompany `[full-parity]` in one automatic run. Historical README
 native-relative charts from different CPUs cannot establish version regressions.
 
