@@ -425,3 +425,7 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# Deliberately retained CI evidence includes release directories and build logs.
+!docs/performance-evidence/**/
+!docs/performance-evidence/**/*
