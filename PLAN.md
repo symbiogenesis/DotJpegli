@@ -282,13 +282,22 @@ its AQ instance and prepared quantizers. Explicit preferences support tests and
 CI; ordinary callers use Automatic. There is no process-global mutable selector,
 per-image race, startup benchmark or timing-dependent JPEG output.
 
-This follow-up first measures each kernel independently with the other set to
-Automatic. Until those isolated measurements justify a guard, Automatic uses
-the original kernel. The existing wide-SIMD and DC-only paths remain available.
-Explicit narrow preferences reach the 128-bit implementation even on an
-AVX-512 host; default dispatch retains the wide path.
+The isolated comparisons measured one kernel at a time with the other set to
+Automatic. The final per-encode policy uses tiled narrow ordering only on x64
+with accelerated 256-bit SIMD, eight float lanes, disabled 512-bit SIMD, source
+dimensions at least eight and at least 32,768 source pixels. Small images,
+software, four-lane paths, .NET Standard and other architectures keep Original.
+The 32K-pixel floor is a provisional minimum-work deployment guard, not a
+measured crossover: sampled areas were 323, 49,601 and 393,216 pixels.
+Intermediate sizes and unusually narrow/tall images need further measurements.
 
-The planned `[compare-kernels]` push runs one interleaved comparison job per
+The choice is captured once in each prepared quantizer, not recomputed for every
+block. Wide-SIMD and shared DC-only paths remain available. Explicit narrow
+preferences reach the 128-bit implementation even on an AVX-512 host; default
+dispatch retains the wide path. AQ Automatic keeps insertion on every platform:
+its results do not justify a portable guard for the selection network.
+
+The `[compare-kernels]` push runs one interleaved comparison job per
 framework and architecture: .NET 10/11 on x64 and ARM64. Six balanced ABBA/BAAB
 quartets compare identical encodes in the same process and on one CPU, using
 20 iterations per leg (100 for inputs below 1,024 pixels) and five warmups.
@@ -298,14 +307,29 @@ ordering as unreachable instead of claiming to measure it.
 
 Raw leg timings, allocations, collections and quartet ratios are retained.
 Guards check minimum timed work, MAD, repeated-leg drift, minority timing states
-and order bias. Small or inconsistent differences stay inconclusive. Final
-hardware/input rules will use only supported measurements, keep the original
-implementation as a fallback, and avoid image-ID-specific decisions.
+and order bias. Small or inconsistent differences stay inconclusive. Rules keep
+the original fallback and do not use image IDs, distance or progression lookups.
+
+[Run 41581024412](https://github.com/symbiogenesis/DotJpegli/actions/runs/41581024412)
+measured the alternatives in four architecture/framework lanes. All JPEG hashes
+match. All 42 valid non-tiny narrow-ordering comparisons favor Tiled by case
+median; 17 satisfy the stronger every-quartet preference criterion. Tiny results
+are inconclusive and contain every valid narrow-ordering regression. AQ is
+inconclusive on ARM64 and x64/.NET 10; x64/.NET 11 has three strong individual
+wins but no defensible hardware/input partition. Each complete timing summary
+is invalid because some rows fail stability guards; those rows are retained and
+excluded from dispatch justification. This is a provisional deployment policy,
+not a guarantee that every selected encode is fastest.
 
 Focused tests cover both kernels exhaustively, per-instance preference capture,
 forced prepared-table output, all nine kernel combinations in complete encodes,
-concurrent encodes, padding and software fallback. Measurement and final
-Automatic rules are pending the planned run.
+concurrent encodes, padding and software fallback. Boundary cases cover images
+below, at and above the 32K-pixel guard. The next automatic comparison also uses
+`--include-automatic`: both Original versus the actual Automatic policy, so the
+combined decision is measured as well as isolated forced kernels.
+
+[Retained selection evidence](docs/performance-evidence/2026-11-02-kernel-selection-9af9a87/README.md)
+records each lane's raw samples, invalid rows, preference decisions and limits.
 
 ## First-batch implementation and validation
 

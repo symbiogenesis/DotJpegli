@@ -1,0 +1,38 @@
+[
+  {
+    "id": "kodim01",
+    "category": "natural",
+    "sourcePath": "kodim01.ppm",
+    "ppmSha256": "998ccf0be59a31ed12dfc2296a957f5363e35043e47ee232932ca5f1039e8628",
+    "pixelsSha256": "a00210743353594464ac67e680a41710f484444ca5f9dfddeb570de25c428273",
+    "width": 768,
+    "height": 512
+  },
+  {
+    "id": "low-contrast",
+    "category": "controlled",
+    "sourcePath": "generated:low-contrast",
+    "ppmSha256": "5c41553820198825825b9cc54d2083aa3bfd90a95339c1a18888ba39bd445c5c",
+    "pixelsSha256": "aaf923606635b8f32823911ec7445a9462cd1a116e7caf2d506470d544baae0f",
+    "width": 257,
+    "height": 193
+  },
+  {
+    "id": "low-noise",
+    "category": "controlled",
+    "sourcePath": "generated:low-noise",
+    "ppmSha256": "8a07ecfb883e0e02eb55f76af681e1d2e5b9e2e3afabc9836542d6950c62850d",
+    "pixelsSha256": "3b3f47c3cd069bcaae7baf8e73cbdc5562251ef6e356706079ea7b1873c9e2e9",
+    "width": 257,
+    "height": 193
+  },
+  {
+    "id": "tiny-odd-edges",
+    "category": "controlled",
+    "sourcePath": "generated:tiny-odd-edges",
+    "ppmSha256": "760a131a1e7ccf32c54ff53907ef094746b67504dce9aa4dd3f6ddb65931d8cc",
+    "pixelsSha256": "6b6e57355be38013f49728c2c208c9c2dd7b31edc84efc48997c418a08662660",
+    "width": 19,
+    "height": 17
+  }
+]
