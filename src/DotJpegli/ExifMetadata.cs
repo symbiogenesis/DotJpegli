@@ -437,9 +437,11 @@ public sealed class ExifMetadata
             image[GpsPointer] = LongEntry(0);
         }
 
+        KeyValuePair<ExifDirectory, SortedDictionary<ushort, ExifEntry>>[] orderedDirectories =
+            directories.OrderBy(pair => pair.Key).ToArray();
         Dictionary<ExifDirectory, int> offsets = [];
         long total = 8;
-        foreach ((ExifDirectory directory, SortedDictionary<ushort, ExifEntry> entries) in directories.OrderBy(pair => pair.Key))
+        foreach ((ExifDirectory directory, SortedDictionary<ushort, ExifEntry> entries) in orderedDirectories)
         {
             if (entries.Count > ushort.MaxValue)
             {
@@ -485,7 +487,7 @@ public sealed class ExifMetadata
         this.Write16(bytes.AsSpan(2), 42);
         this.Write32(bytes.AsSpan(4), (uint)offsets[ExifDirectory.Image]);
         int dataOffset = dataStart;
-        foreach ((ExifDirectory directory, SortedDictionary<ushort, ExifEntry> entries) in directories.OrderBy(pair => pair.Key))
+        foreach ((ExifDirectory directory, SortedDictionary<ushort, ExifEntry> entries) in orderedDirectories)
         {
             int start = offsets[directory];
             this.Write16(bytes.AsSpan(start), (ushort)entries.Count);
