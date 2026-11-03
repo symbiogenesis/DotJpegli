@@ -77,8 +77,10 @@ public sealed class EntropyTokensTests
     [InlineData(63)]
     public void SelectedLookupContextsPreserveUnexpectedContextsAndGenericSuffixFallbacks(int mask)
     {
-        var table = HuffmanTable.CreateOptimized(Enumerable.Repeat(1L, 256).ToArray());
-        var coding = new HuffmanCodingPlan.ScanCoding([table, table, table], [table, table, table], [], []);
+        HuffmanTable[] tables = Enumerable.Range(0, 6).Select(context => HuffmanTable.CreateOptimized(
+            Enumerable.Range(0, 256).Select(symbol => (long)(1 + (((symbol * 17) + (context * 31)) % 257))).ToArray())).ToArray();
+        var coding = new HuffmanCodingPlan.ScanCoding([tables[0], tables[2], tables[4]],
+            [tables[1], tables[3], tables[5]], [], []);
         using var tokens = new EntropyTokens(huffmanContextMask: mask);
         using var expected = new MemoryStream();
         var writer = new BitWriter(expected, buffered: true);
@@ -92,7 +94,7 @@ public sealed class EntropyTokensTests
             }
 
             uint suffix = unchecked((uint)index * 0x9e3779b9U) & ((1U << count) - 1);
-            table.WriteSymbolWithBits(writer, symbol, suffix, count);
+            tables[context].WriteSymbolWithBits(writer, symbol, suffix, count);
             tokens.AddHuffman(context >> 1, (context & 1) != 0, symbol, suffix, count);
             if (index % 17 == 16)
             {
@@ -207,23 +209,30 @@ public sealed class EntropyTokensTests
     }
 
     [Theory]
-    [InlineData(27)]
-    [InlineData(67)]
-    public void SmallAndBulkReplayStopBeforeAMissingSymbolAndRetainTheirPendingPrefix(int validPrefix)
+    [InlineData(27, 63)]
+    [InlineData(67, 63)]
+    [InlineData(67, 1)]
+    [InlineData(67, 2)]
+    [InlineData(67, 4)]
+    [InlineData(67, 8)]
+    [InlineData(67, 16)]
+    [InlineData(67, 32)]
+    public void SmallAndBulkReplayStopBeforeAMissingSymbolAndRetainTheirPendingPrefix(int validPrefix, int mask)
     {
         long[] frequencies = new long[256];
         frequencies[5] = 1;
         var table = HuffmanTable.CreateOptimized(frequencies);
-        var coding = new HuffmanCodingPlan.ScanCoding([table], [table], [], []);
-        using var tokens = new EntropyTokens();
+        int context = mask == 63 ? 1 : System.Numerics.BitOperations.Log2((uint)mask);
+        var coding = new HuffmanCodingPlan.ScanCoding([table, table, table], [table, table, table], [], []);
+        using var tokens = new EntropyTokens(huffmanContextMask: mask);
         using var expected = new MemoryStream();
         var expectedWriter = new BitWriter(expected, buffered: true);
         for (int index = 0; index < validPrefix; index++)
         {
             table.WriteSymbolWithBits(expectedWriter, 5, (uint)index & 31, 5);
-            tokens.AddHuffman(0, true, 5, (uint)index & 31, 5);
+            tokens.AddHuffman(context >> 1, (context & 1) != 0, 5, (uint)index & 31, 5);
         }
-        tokens.AddHuffman(0, true, 0, 0, 0);
+        tokens.AddHuffman(context >> 1, (context & 1) != 0, 0, 0, 0);
         using var actual = new MemoryStream();
         var writer = new BitWriter(actual, buffered: true);
         InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>

@@ -48,6 +48,9 @@ completed work.
   releases storage early. Which scans remain cached can change with this policy.
 - Entropy words use a single capacity check for byte stuffing when sixteen
   output bytes remain; the boundary path retains per-byte drain behavior.
+- Single-context entropy-token replay reuses its immutable prepared Huffman
+  lookup directly, avoiding stack clearing and copying for that scan. Multiple
+  contexts retain contiguous staging and strict fallback behavior.
 - Progressive refinement correction bits fill up to 24 bits per cached raw token.
   Direct emission retains its existing grouping; fewer token records can keep
   more corrections within the unchanged shared rental budget.

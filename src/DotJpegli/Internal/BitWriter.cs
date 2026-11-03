@@ -79,7 +79,7 @@ internal sealed class BitWriter
     // Raw correction bits share that accumulator. Restart records and
     // noncanonical suffix widths stop at an exact prefix so the caller can
     // preserve the strict generic write behavior.
-    internal int WriteEntropyTokens(ReadOnlySpan<uint> tokens, ReadOnlySpan<ulong> lookups)
+    internal int WriteEntropyTokens(ReadOnlySpan<uint> tokens, ReadOnlySpan<ulong> lookups, int lookupOffset = 0)
     {
         if (this.outputBuffer is null)
         {
@@ -90,6 +90,10 @@ internal sealed class BitWriter
         {
             throw new ArgumentException("Lookup storage must contain zero to six complete Huffman contexts.", nameof(lookups));
         }
+        if ((uint)lookupOffset > (uint)((6 * 256) - lookups.Length) || (lookupOffset & 255) != 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(lookupOffset));
+        }
 
         ulong pending = this.buffer;
         int pendingBits = this.bufferedBits;
@@ -97,10 +101,11 @@ internal sealed class BitWriter
         for (; index < tokens.Length; index++)
         {
             uint token = tokens[index];
-            int lookupIndex = (int)(token >> 16) & 2047;
+            int contextAndSymbol = (int)(token >> 16) & 2047;
+            int lookupIndex = contextAndSymbol - lookupOffset;
             uint bits;
             int count;
-            if (lookupIndex < lookups.Length)
+            if ((uint)lookupIndex < (uint)lookups.Length)
             {
                 ulong prepared = lookups[lookupIndex];
                 if ((int)(prepared >> 38) != (int)(token >> 27) + 1)
@@ -111,7 +116,7 @@ internal sealed class BitWriter
                 bits = (uint)prepared | (token & 0xffffU);
                 count = (int)(prepared >> 32) & 63;
             }
-            else if (lookupIndex is >= (6 * 256) and < (7 * 256))
+            else if (contextAndSymbol is >= (6 * 256) and < (7 * 256))
             {
                 // AddBits already split wider payloads into at most 24 bits.
                 // Progressive corrections no longer terminate every batch.

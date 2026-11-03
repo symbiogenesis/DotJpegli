@@ -102,6 +102,15 @@ Independent encodes own independent budgets. This policy preserves JPEG bytes
 but can change which scans are cached; it does not establish lower latency or
 peak working memory for every image.
 
+Single-context entropy-token replay reads the table's immutable prepared lookup
+directly, avoiding a stack clear and copy for that scan. Bulk and strict replay
+use the same context-relative index; raw bits and restart markers retain their
+absolute contexts. Multiple contexts retain contiguous stack staging. Focused
+regressions compare distinct tables across all six contexts, generic suffix
+fallbacks, raw bits, restart markers and missing-symbol output prefixes. This
+removes stack staging, not table allocation; the extra index subtraction and
+avoided copying still require CI latency measurements.
+
 Progressive refinement fills each cached raw correction token with up to 24 bits,
 matching the token payload width. Both reserved and ordinary token construction
 use the same packing; direct bit-writer emission retains its existing grouping.

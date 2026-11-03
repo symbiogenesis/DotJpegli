@@ -190,9 +190,19 @@ internal sealed class EntropyTokens : IDisposable
             this.ReplaySmall(writer, coding, cancellationToken);
             return;
         }
-        // Progressive scans usually emit one Huffman context. Prepare only
-        // their selected tables, without copying unused component/DC contexts
-        // for every scan. Raw-only scans need no Huffman lookup storage.
+        // Progressive scans usually emit one Huffman context. Reuse that
+        // immutable table's prepared array without staging a copy on the stack.
+        if (this.huffmanContextMask != 0 && (this.huffmanContextMask & (this.huffmanContextMask - 1)) == 0)
+        {
+            int context = BitOperations.Log2((uint)this.huffmanContextMask);
+            HuffmanTable[] tables = (context & 1) == 0 ? coding.DcTables : coding.AcTables;
+            ReadOnlySpan<ulong> selected = context / 2 < tables.Length ? tables[context / 2].GetPrebiasedCodes() : [];
+            this.ReplayWithLookups(writer, coding, selected, context * 256, cancellationToken);
+            return;
+        }
+
+        // Multiple contexts retain contiguous lookup storage. Raw-only scans
+        // need no Huffman lookup storage.
         int contextCount = this.huffmanContextMask == 0 ? 0 : BitOperations.Log2((uint)this.huffmanContextMask) + 1;
         Span<ulong> lookups = stackalloc ulong[contextCount * 256];
         lookups.Clear();
@@ -212,6 +222,12 @@ internal sealed class EntropyTokens : IDisposable
             }
         }
 
+        this.ReplayWithLookups(writer, coding, lookups, 0, cancellationToken);
+    }
+
+    private void ReplayWithLookups(BitWriter writer, HuffmanCodingPlan.ScanCoding coding,
+        ReadOnlySpan<ulong> lookups, int lookupOffset, CancellationToken cancellationToken)
+    {
         for (int segmentIndex = 0; segmentIndex < this.segments.Count; segmentIndex++)
         {
             uint[] segment = this.segments[segmentIndex];
@@ -223,7 +239,7 @@ internal sealed class EntropyTokens : IDisposable
                 int index = chunk;
                 while (index < end)
                 {
-                    index += writer.WriteEntropyTokens(segment.AsSpan(index, end - index), lookups);
+                    index += writer.WriteEntropyTokens(segment.AsSpan(index, end - index), lookups, lookupOffset);
                     if (index == end)
                     {
                         break;
@@ -237,7 +253,8 @@ internal sealed class EntropyTokens : IDisposable
                         // Context and symbol occupy adjacent bits in the token.
                         // One index avoids the jagged table lookup per symbol.
                         int lookupIndex = (int)(token >> SymbolShift) & 2047;
-                        ulong prepared = lookupIndex < lookups.Length ? lookups[lookupIndex] : 0;
+                        int relativeIndex = lookupIndex - lookupOffset;
+                        ulong prepared = (uint)relativeIndex < (uint)lookups.Length ? lookups[relativeIndex] : 0;
                         if ((int)(prepared >> 38) == count + 1)
                         {
                             writer.WriteBitsPrevalidated((uint)prepared | (token & 0xffffU), (int)(prepared >> 32) & 63);
