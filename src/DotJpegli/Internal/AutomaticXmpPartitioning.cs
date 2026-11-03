@@ -157,13 +157,14 @@ internal static class AutomaticXmpPartitioning
                     foreach (XAttribute attribute in description.Attributes().ToArray())
                     {
                         cancellationToken.ThrowIfCancellationRequested();
+                        bool selected = selection.Contains(attribute.Name);
                         if (attribute.IsNamespaceDeclaration || attribute.Name.Namespace == Rdf ||
-                            attribute.Name.Namespace == XNamespace.Xml || selection.Contains(attribute.Name))
+                            attribute.Name.Namespace == XNamespace.Xml || selected)
                         {
                             standardDescription.Add(new XAttribute(attribute));
                         }
 
-                        if (selection.Contains(attribute.Name))
+                        if (selected)
                         {
                             attribute.Remove();
                         }
