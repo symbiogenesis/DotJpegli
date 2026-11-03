@@ -59,11 +59,12 @@ public sealed class HuffmanTableOptimizationTests
     [InlineData(0)]
     [InlineData(2)]
     [InlineData(3)]
-    public void SparseCostPathsStillRejectLaterNegativeFrequencies(int symbols)
+    public void SparseTableAndCostPathsStillRejectLaterNegativeFrequencies(int symbols)
     {
         long[] frequencies = new long[256];
         Array.Fill(frequencies, 1L, 0, symbols);
         frequencies[255] = -1;
+        Assert.Throws<ArgumentOutOfRangeException>(() => HuffmanTable.CreateOptimized(frequencies));
         Assert.Throws<ArgumentOutOfRangeException>(() => HuffmanTable.EstimateOptimizedCost(frequencies));
     }
 

@@ -100,6 +100,24 @@ internal sealed class HuffmanTable
 
     public static HuffmanTable CreateOptimized(ReadOnlySpan<long> frequencies)
     {
+        if (!TryReadSparseHistogram(frequencies, out int firstSymbol, out long first,
+                out int secondSymbol, out long second))
+            return CreateOptimizedTree(frequencies);
+        byte[] histogram = new byte[16];
+        histogram[0] = 1;
+        if (secondSymbol < 0)
+            return new HuffmanTable(histogram, [(byte)Math.Max(0, firstSymbol)]);
+        // The unit-weight padding symbol pairs with the smaller real weight.
+        // Equal real weights give the lower symbol the shorter code, matching
+        // the tree's descending-symbol ordering before its first merge.
+        histogram[1] = 1;
+        if (first < second)
+            (firstSymbol, secondSymbol) = (secondSymbol, firstSymbol);
+        return new HuffmanTable(histogram, [(byte)firstSymbol, (byte)secondSymbol]);
+    }
+
+    private static HuffmanTable CreateOptimizedTree(ReadOnlySpan<long> frequencies)
+    {
         Span<int> depth = stackalloc int[257];
         BuildCodeLengths(frequencies, depth);
         byte[] histogram = new byte[16];
@@ -141,30 +159,39 @@ internal sealed class HuffmanTable
     // canonical codes and allocating table arrays for each trial is unnecessary.
     internal static float EstimateOptimizedCost(ReadOnlySpan<long> frequencies)
     {
-        if (frequencies.Length != 256)
-            throw new ArgumentException("A frequency table must have 256 entries.", nameof(frequencies));
-        int symbols = 0;
-        long first = 0, second = 0;
-        foreach (long frequency in frequencies)
-        {
-            if (frequency < 0)
-                throw new ArgumentOutOfRangeException(nameof(frequencies), "Symbol frequencies cannot be negative.");
-            if (frequency == 0)
-                continue;
-            if (++symbols > 2)
-                return EstimateTreeCost(frequencies);
-            if (symbols == 1)
-                first = frequency;
-            else
-                second = frequency;
-        }
+        if (!TryReadSparseHistogram(frequencies, out _, out long first, out int secondSymbol, out long second))
+            return EstimateTreeCost(frequencies);
         // The padding pseudo-symbol has weight one. Zero/singleton inputs use
         // one real length-one code; two real symbols use lengths one and two,
         // assigning the shorter code to the larger frequency. Include the
         // selector, sixteen counts and one byte per emitted real symbol.
-        return symbols < 2
+        return secondSymbol < 0
             ? HistogramCost((UInt128)first + 144)
             : HistogramCost((UInt128)Math.Max(first, second) + (UInt128)Math.Min(first, second) * 2 + 152);
+    }
+
+    private static bool TryReadSparseHistogram(ReadOnlySpan<long> frequencies,
+        out int firstSymbol, out long first, out int secondSymbol, out long second)
+    {
+        if (frequencies.Length != 256)
+            throw new ArgumentException("A frequency table must have 256 entries.", nameof(frequencies));
+        firstSymbol = secondSymbol = -1;
+        first = second = 0;
+        for (int symbol = 0; symbol < frequencies.Length; symbol++)
+        {
+            long frequency = frequencies[symbol];
+            if (frequency < 0)
+                throw new ArgumentOutOfRangeException(nameof(frequencies), "Symbol frequencies cannot be negative.");
+            if (frequency == 0)
+                continue;
+            if (firstSymbol < 0)
+                (firstSymbol, first) = (symbol, frequency);
+            else if (secondSymbol < 0)
+                (secondSymbol, second) = (symbol, frequency);
+            else
+                return false;
+        }
+        return true;
     }
 
     private static float EstimateTreeCost(ReadOnlySpan<long> frequencies)
