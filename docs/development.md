@@ -91,7 +91,29 @@ dotnet build src/DotJpegli/DotJpegli.csproj -c Release
 Use `-f netstandard2.1` to build only the portable library target. The pinned
 compiler is still required when building that target from source.
 
-Repository automation uses PowerShell 7 and .NET. Corpus preparation and CI
+Repository automation requires PowerShell 7.6 LTS or newer (`pwsh`) and .NET.
+Scripts declare their minimum version, use strict mode 3.0 and stop on errors.
+Scripts invoking native tools also enable `$PSNativeCommandUseErrorActionPreference`
+so a failing Git, CMake or .NET command stops the operation immediately.
+Strict mode uses a fixed version so a future PowerShell update cannot silently
+change script behavior. Filesystem inputs use literal paths, JSON evidence keeps
+timestamp strings and array shapes, and text artifacts use UTF-8 without a BOM.
+
+The CI PowerShell job runs on Linux and Windows. It checks every repository
+PowerShell file and workflow PowerShell command with all default PSScriptAnalyzer
+rules, treating every diagnostic severity as a failure. Analysis tools are pinned
+to PSScriptAnalyzer 1.25.0 and powershell-yaml 0.4.12; the latter reads workflow
+YAML for inline command analysis. Build artifacts and ignored files are excluded.
+Install these development-only modules with the PSResourceGet included in
+PowerShell, then run the same check locally:
+
+```powershell
+Install-PSResource -Name PSScriptAnalyzer -Version 1.25.0 -Scope CurrentUser -TrustRepository
+Install-PSResource -Name powershell-yaml -Version 0.4.12 -Scope CurrentUser -TrustRepository
+./tools/ci/analyze-powershell.ps1
+```
+
+Corpus preparation and CI
 evidence processing require no additional scripting runtime. The corpus tool
 loads its lossless PNG decoder from C# source and verifies both the downloaded
 PNG hashes and canonical PPM hashes against the committed manifest:
@@ -107,6 +129,8 @@ revision comparator locally with synthetic fixtures, without running benchmarks:
 ```powershell
 ./tools/parity/prepare-corpus.ps1 -SelfTest
 ./tools/compare-performance-revisions.ps1 -SelfTest
+./tools/ci/test-helpers.ps1
+./tools/tests/test-infersharp.ps1
 ```
 
 ## Banned APIs
@@ -161,7 +185,7 @@ When updating a package intentionally, update `Directory.Packages.props`, run
 `dotnet restore DotJpegli.slnx --force-evaluate`, and commit the lock-file changes.
 The Isolated SDK version is declared separately in `Directory.Build.props`.
 
-With Git and PowerShell 7 installed, verify the Release library and unsigned
+With Git and PowerShell 7.6 or newer installed, verify the Release library and unsigned
 NuGet package containing all three target-framework assemblies from a committed revision:
 
 ```powershell
@@ -328,7 +352,7 @@ source SHA-256 hashes and per-target rule/path/line/fingerprint identities with
 reasons. It rejects changed sources, new findings and stale exceptions. Add
 the baseline and those arguments to the workflow only after that review.
 
-Run the focused report-validator regressions with PowerShell 7:
+Run the focused report-validator regressions with PowerShell 7.6 or newer:
 
 ```powershell
 ./tools/tests/test-infersharp.ps1

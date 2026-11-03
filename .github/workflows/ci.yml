@@ -53,6 +53,40 @@ permissions:
   contents: read
 
 jobs:
+  powershell:
+    name: PowerShell (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Load pinned PowerShell analysis tools
+        run: |
+          #requires -Version 7.6
+          Set-StrictMode -Version 3.0
+          $modules = Join-Path $env:RUNNER_TEMP 'powershell-modules'
+          [void][System.IO.Directory]::CreateDirectory($modules)
+          Save-PSResource -Name PSScriptAnalyzer -Version 1.25.0 -Path $modules -Repository PSGallery -TrustRepository -Quiet
+          Save-PSResource -Name powershell-yaml -Version 0.4.12 -Path $modules -Repository PSGallery -TrustRepository -Quiet
+          "PSModulePath=$modules$([System.IO.Path]::PathSeparator)$env:PSModulePath" |
+            Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8NoBOM
+      - name: Analyze every PowerShell file and workflow command
+        run: ./tools/ci/analyze-powershell.ps1
+      - name: Check automation using synthetic fixtures (no benchmarks)
+        run: |
+          ./tools/parity/prepare-corpus.ps1 -SelfTest
+          ./tools/compare-performance-revisions.ps1 -SelfTest
+          ./tools/ci/test-helpers.ps1
+          ./tools/tests/test-infersharp.ps1
+
   test:
     name: Tests (${{ matrix.os }}, ${{ matrix.target.library }} on ${{ matrix.target.framework }})
     strategy:
@@ -94,12 +128,13 @@ jobs:
         if: always()
         shell: pwsh
         run: |
+          #requires -Version 7.6
+          Set-StrictMode -Version 3.0
           $reportPath = Join-Path $env:RUNNER_TEMP 'dotjpegli-full-tests.xml'
           if (Test-Path -LiteralPath $reportPath) {
             [xml]$report = Get-Content -LiteralPath $reportPath -Raw
             $report.SelectNodes('//test') |
-              Sort-Object { [double]$_.time } -Descending |
-              Select-Object -First 20 |
+              Sort-Object { [double]::Parse($_.time, [System.Globalization.CultureInfo]::InvariantCulture) } -Descending -Top 20 |
               ForEach-Object { '{0}s {1}' -f $_.time, $_.name }
           }
       - name: Managed SIMD fallback and software vector parity
@@ -141,22 +176,26 @@ jobs:
         working-directory: ${{ runner.temp }}
         shell: pwsh
         run: |
-          $extension = if ($IsWindows) { '.exe' } else { '' }
-          & "${{ runner.temp }}/trimmed-smoke/DotJpegli.AotSmoke$extension"
-          if ($LASTEXITCODE -ne 0) { throw 'Trimmed consumer failed.' }
+          #requires -Version 7.6
+          Set-StrictMode -Version 3.0
+          $PSNativeCommandUseErrorActionPreference = $true
+          $extension = $IsWindows ? '.exe' : ''
+          & (Join-Path $env:RUNNER_TEMP "trimmed-smoke/DotJpegli.AotSmoke$extension")
       - name: Publish NativeAOT consumer (all library methods analyzed)
         run: dotnet publish tests/DotJpegli.AotSmoke/DotJpegli.AotSmoke.csproj -c Release -f ${{ matrix.framework }} -r ${{ matrix.rid }} --self-contained true -p:PublishAot=true -o "${{ runner.temp }}/aot-smoke"
       - name: Run NativeAOT consumer
         working-directory: ${{ runner.temp }}
         shell: pwsh
         run: |
-          $extension = if ($IsWindows) { '.exe' } else { '' }
-          & "${{ runner.temp }}/aot-smoke/DotJpegli.AotSmoke$extension"
-          if ($LASTEXITCODE -ne 0) { throw 'NativeAOT consumer failed.' }
+          #requires -Version 7.6
+          Set-StrictMode -Version 3.0
+          $PSNativeCommandUseErrorActionPreference = $true
+          $extension = $IsWindows ? '.exe' : ''
+          & (Join-Path $env:RUNNER_TEMP "aot-smoke/DotJpegli.AotSmoke$extension")
 
   package:
     name: Release NuGet package
-    needs: [test, deployment]
+    needs: [powershell, test, deployment]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -174,10 +213,12 @@ jobs:
         env:
           EXPECTED_REVISION: ${{ github.sha }}
         run: |
-          $packages = @(Get-ChildItem -LiteralPath "$env:RUNNER_TEMP/nuget" -Filter '*.nupkg' -File)
+          #requires -Version 7.6
+          Set-StrictMode -Version 3.0
+          $PSNativeCommandUseErrorActionPreference = $true
+          $packages = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'nuget') -Filter '*.nupkg' -File)
           if ($packages.Count -ne 1) { throw 'Expected exactly one NuGet package.' }
           $version = dotnet msbuild src/DotJpegli/DotJpegli.csproj -nologo -getProperty:PackageVersion
-          if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve package version.' }
           ./tools/verify-nuget-package.ps1 -PackagePath $packages[0].FullName -ExpectedVersion $version -ExpectedRevision $env:EXPECTED_REVISION
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -200,11 +241,6 @@ jobs:
         run: |
           identity=$( { cat /etc/os-release; uname -m; c++ --version; cmake --version; ninja --version; } | sha256sum | cut -d' ' -f1)
           echo "identity=$identity" >> "$GITHUB_OUTPUT"
-      - name: Verify corpus conversion and CI diagnostics using synthetic inputs
-        shell: pwsh
-        run: |
-          ./tools/parity/prepare-corpus.ps1 -SelfTest
-          ./tools/ci/test-helpers.ps1
       - name: Restore pinned native executable and provenance
         id: native-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -343,9 +379,6 @@ jobs:
           dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-restore
       - name: Verify performance evidence policy using synthetic samples
         run: dotnet run --project tools/DotJpegli.Performance -c Release -f ${{ inputs.framework || 'net11.0' }} --no-build -- --self-test
-      - name: Verify revision comparison guards using synthetic evidence
-        shell: pwsh
-        run: ./tools/compare-performance-revisions.ps1 -SelfTest
       - name: Compare selected encoding cases (CI only; no full parity verdict)
         id: targeted
         env:
