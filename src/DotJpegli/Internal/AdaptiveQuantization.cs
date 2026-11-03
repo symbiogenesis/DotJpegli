@@ -170,9 +170,52 @@ internal sealed class AdaptiveQuantization : IDisposable
         => this.ComputeRowCore(pixels, stride, top, lumaAcQuant, strengths,
             useVector: true, forceBatchedModulation: true, cancellationToken);
 
+    // Value-type specialization keeps the opt-in certificate and diagnostic
+    // branches out of the normal per-pixel loops, including non-tiered and AOT
+    // builds. Dispatch once for the whole MCU row; both paths retain the same
+    // rounded expressions, pixel ordering and neighborhood storage.
+    private readonly struct OriginalDivision
+    {
+    }
+
+    private readonly struct CertifiedDivision
+    {
+    }
+
     private void ComputeRowCore(PixelSource pixels, int stride, int top, int lumaAcQuant,
         Span<float> strengths, bool useVector, bool forceBatchedModulation,
         CancellationToken cancellationToken)
+    {
+        if (this.useAqReciprocal)
+        {
+            this.ComputeRowCore<CertifiedDivision>(pixels, stride, top, lumaAcQuant,
+                strengths, useVector, forceBatchedModulation, cancellationToken);
+            // Specializing the arithmetic can change which NaN operand the JIT
+            // propagates through commutative expressions. Exceptional internal
+            // inputs therefore retain Original's exact payloads; public pixel
+            // validation already excludes them. Only the research path scans
+            // its output and its initial certificate counts remain available.
+            foreach (float strength in strengths[..(this.BlocksWide * this.verticalSampling)])
+            {
+                if (!float.IsFinite(strength))
+                {
+                    this.ComputeRowCore<OriginalDivision>(pixels, stride, top, lumaAcQuant,
+                        strengths, useVector, forceBatchedModulation, cancellationToken);
+                    break;
+                }
+            }
+        }
+        else
+        {
+            this.ComputeRowCore<OriginalDivision>(pixels, stride, top, lumaAcQuant,
+                strengths, useVector, forceBatchedModulation, cancellationToken);
+        }
+    }
+
+    private void ComputeRowCore<TDivision>(PixelSource pixels, int stride, int top, int lumaAcQuant,
+        Span<float> strengths, bool useVector, bool forceBatchedModulation,
+        CancellationToken cancellationToken)
+        where TDivision : struct
     {
         Guard.ThrowIfDisposed(this.disposed, this);
         int mcuHeight = this.verticalSampling * 8;
@@ -262,7 +305,7 @@ internal sealed class AdaptiveQuantization : IDisposable
             }
             else
             {
-                this.ComputePreErosion(sourceY - firstLumaY, row, useVector);
+                this.ComputePreErosion<TDivision>(sourceY - firstLumaY, row, useVector);
             }
             previousPreY = sourceY;
         }
@@ -289,18 +332,18 @@ internal sealed class AdaptiveQuantization : IDisposable
             {
                 for (; blockX <= this.BlocksWide - 8; blockX += 8)
                 {
-                    this.ModulateEightBlocks(blockX * 8, 5 + (blockY * 8), modulationRows, modulationValues);
+                    this.ModulateEightBlocks<TDivision>(blockX * 8, 5 + (blockY * 8), modulationRows, modulationValues);
                     for (int block = 0; block < 8; block++)
                     {
                         int x = (blockX + block) * 2;
                         float value = this.fuzzy[this.preStride + x] + this.fuzzy[this.preStride + x + 1]
                             + this.fuzzy[x] + this.fuzzy[x + 1];
-                        value = ComputeMask(value, this.useAqReciprocal, this.aqRationalDiagnostics);
+                        value = ComputeMask<TDivision>(value, this.aqRationalDiagnostics);
                         value = modulationValues[block] + value;
-                        value = (-0.15526878023684174f * InvLog2E * FastLog2(modulationValues[8 + block], this.useAqReciprocal, this.aqRationalDiagnostics)) + value;
-                        float field = (FastPow2(value * 1.442695041f, this.useAqReciprocal, this.aqRationalDiagnostics) * mul) + add;
+                        value = (-0.15526878023684174f * InvLog2E * FastLog2<TDivision>(modulationValues[8 + block], this.aqRationalDiagnostics)) + value;
+                        float field = (FastPow2<TDivision>(value * 1.442695041f, this.aqRationalDiagnostics) * mul) + add;
                         strengths[(blockY * this.BlocksWide) + blockX + block] = MathF.Max(0f,
-                            Divide(0.6f, field, AqRationalSite.Strength, this.useAqReciprocal, this.aqRationalDiagnostics) - 1f);
+                            Divide<TDivision>(0.6f, field, AqRationalSite.Strength, this.aqRationalDiagnostics) - 1f);
                     }
                 }
             }
@@ -310,20 +353,20 @@ internal sealed class AdaptiveQuantization : IDisposable
                 int x = blockX * 2;
                 float value = this.fuzzy[this.preStride + x] + this.fuzzy[this.preStride + x + 1]
                     + this.fuzzy[x] + this.fuzzy[x + 1];
-                value = ComputeMask(value, this.useAqReciprocal, this.aqRationalDiagnostics);
+                value = ComputeMask<TDivision>(value, this.aqRationalDiagnostics);
                 if (useVector && Vector<float>.Count is 4 or 8)
                 {
-                    value = this.ModulateVector(blockX * 8, 5 + (blockY * 8), value);
+                    value = this.ModulateVector<TDivision>(blockX * 8, 5 + (blockY * 8), value);
                 }
                 else
                 {
                     int offset = ((5 + (blockY * 8)) * this.lumaStride) + (blockX * 8) + 1;
-                    value = ModulateScalar(this.luma.AsSpan(offset), this.lumaStride, value,
-                        this.useAqReciprocal, this.aqRationalDiagnostics);
+                    value = ModulateScalar<TDivision>(this.luma.AsSpan(offset), this.lumaStride, value,
+                        this.aqRationalDiagnostics);
                 }
-                float field = (FastPow2(value * 1.442695041f, this.useAqReciprocal, this.aqRationalDiagnostics) * mul) + add;
+                float field = (FastPow2<TDivision>(value * 1.442695041f, this.aqRationalDiagnostics) * mul) + add;
                 strengths[(blockY * this.BlocksWide) + blockX] = MathF.Max(0f,
-                    Divide(0.6f, field, AqRationalSite.Strength, this.useAqReciprocal, this.aqRationalDiagnostics) - 1f);
+                    Divide<TDivision>(0.6f, field, AqRationalSite.Strength, this.aqRationalDiagnostics) - 1f);
             }
         }
         this.previousStorage = storage;
@@ -332,7 +375,8 @@ internal sealed class AdaptiveQuantization : IDisposable
         this.previousUseVector = useVector;
     }
 
-    private void ComputePreErosion(int firstRow, int outputRow, bool useVector)
+    private void ComputePreErosion<TDivision>(int firstRow, int outputRow, bool useVector)
+        where TDivision : struct
     {
         const float gammaOffset = (float)(0.019 / InputScaling);
         float maskingScale = MathF.Sqrt((float)(211.50759899638012f * 1e8));
@@ -347,7 +391,7 @@ internal sealed class AdaptiveQuantization : IDisposable
                 Vector<float> above = new(this.luma, index - this.lumaStride);
                 Vector<float> current = new(this.luma, index);
                 Vector<float> below = new(this.luma, index + this.lumaStride);
-                Vector<float> sum = this.PreErosionDifference(current, new(this.luma, index - 1), new(this.luma, index + 1),
+                Vector<float> sum = this.PreErosionDifference<TDivision>(current, new(this.luma, index - 1), new(this.luma, index + 1),
                     above, below, gammaOffset, maskingScale);
                 // Each following pixel row reuses the two vertical neighbors
                 // already loaded. Retain the original left-to-right dy sum,
@@ -355,17 +399,17 @@ internal sealed class AdaptiveQuantization : IDisposable
                 above = current;
                 current = below;
                 below = new(this.luma, index + (2 * this.lumaStride));
-                sum += this.PreErosionDifference(current, new(this.luma, index + this.lumaStride - 1),
+                sum += this.PreErosionDifference<TDivision>(current, new(this.luma, index + this.lumaStride - 1),
                     new(this.luma, index + this.lumaStride + 1), above, below, gammaOffset, maskingScale);
                 above = current;
                 current = below;
                 below = new(this.luma, index + (3 * this.lumaStride));
-                sum += this.PreErosionDifference(current, new(this.luma, index + (2 * this.lumaStride) - 1),
+                sum += this.PreErosionDifference<TDivision>(current, new(this.luma, index + (2 * this.lumaStride) - 1),
                     new(this.luma, index + (2 * this.lumaStride) + 1), above, below, gammaOffset, maskingScale);
                 above = current;
                 current = below;
                 below = new(this.luma, index + (4 * this.lumaStride));
-                sum += this.PreErosionDifference(current, new(this.luma, index + (3 * this.lumaStride) - 1),
+                sum += this.PreErosionDifference<TDivision>(current, new(this.luma, index + (3 * this.lumaStride) - 1),
                     new(this.luma, index + (3 * this.lumaStride) + 1), above, below, gammaOffset, maskingScale);
                 // Reduce each horizontal group while its four-row sums are
                 // still available. Explicit lane reads preserve the original
@@ -381,46 +425,49 @@ internal sealed class AdaptiveQuantization : IDisposable
         for (; x < this.paddedWidth; x += 4)
         {
             int index = middle + x;
-            float first = this.PreErosionColumn(index, gammaOffset, maskingScale);
-            float second = this.PreErosionColumn(index + 1, gammaOffset, maskingScale);
-            float third = this.PreErosionColumn(index + 2, gammaOffset, maskingScale);
-            float fourth = this.PreErosionColumn(index + 3, gammaOffset, maskingScale);
+            float first = this.PreErosionColumn<TDivision>(index, gammaOffset, maskingScale);
+            float second = this.PreErosionColumn<TDivision>(index + 1, gammaOffset, maskingScale);
+            float third = this.PreErosionColumn<TDivision>(index + 2, gammaOffset, maskingScale);
+            float fourth = this.PreErosionColumn<TDivision>(index + 3, gammaOffset, maskingScale);
             this.preErosion[output + (x / 4)] = (first + second + third + fourth) * 0.25f;
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private float PreErosionColumn(int index, float gammaOffset, float maskingScale)
+    private float PreErosionColumn<TDivision>(int index, float gammaOffset, float maskingScale)
+        where TDivision : struct
     {
-        float sum = this.PreErosionDifference(this.luma[index], this.luma[index - 1], this.luma[index + 1],
+        float sum = this.PreErosionDifference<TDivision>(this.luma[index], this.luma[index - 1], this.luma[index + 1],
             this.luma[index - this.lumaStride], this.luma[index + this.lumaStride], gammaOffset, maskingScale);
         for (int dy = 1; dy < 4; dy++)
         {
             int next = index + (dy * this.lumaStride);
-            sum += this.PreErosionDifference(this.luma[next], this.luma[next - 1], this.luma[next + 1],
+            sum += this.PreErosionDifference<TDivision>(this.luma[next], this.luma[next - 1], this.luma[next + 1],
                 this.luma[next - this.lumaStride], this.luma[next + this.lumaStride], gammaOffset, maskingScale);
         }
         return sum;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private Vector<float> PreErosionDifference(Vector<float> value, Vector<float> left, Vector<float> right,
+    private Vector<float> PreErosionDifference<TDivision>(Vector<float> value, Vector<float> left, Vector<float> right,
         Vector<float> above, Vector<float> below, float gammaOffset, float maskingScale)
+        where TDivision : struct
     {
         Vector<float> baseValue = new Vector<float>(0.25f) * (right + left + (above + below));
-        Vector<float> diff = DerivativeRatio(value + new Vector<float>(gammaOffset), invert: false,
-            this.useAqReciprocal, this.aqRationalDiagnostics) * (value - baseValue);
+        Vector<float> diff = DerivativeRatio<TDivision>(value + new Vector<float>(gammaOffset), invert: false,
+            this.aqRationalDiagnostics) * (value - baseValue);
         diff = Vector.Min(diff * diff, new Vector<float>(0.2f));
         return new Vector<float>(0.25f) * Vector.SquareRoot((diff * new Vector<float>(maskingScale)) + new Vector<float>(28f));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private float PreErosionDifference(float value, float left, float right, float above, float below,
+    private float PreErosionDifference<TDivision>(float value, float left, float right, float above, float below,
         float gammaOffset, float maskingScale)
+        where TDivision : struct
     {
         float baseValue = 0.25f * (right + left + (above + below));
-        float diff = DerivativeRatio(value + gammaOffset, invert: false,
-            this.useAqReciprocal, this.aqRationalDiagnostics) * (value - baseValue);
+        float diff = DerivativeRatio<TDivision>(value + gammaOffset, invert: false,
+            this.aqRationalDiagnostics) * (value - baseValue);
         diff = MathF.Min(diff * diff, 0.2f);
         return 0.25f * MathF.Sqrt((diff * maskingScale) + 28f);
     }
@@ -651,18 +698,20 @@ internal sealed class AdaptiveQuantization : IDisposable
         min3 = Vector.Min(min3, next2);
     }
 
-    private static float ComputeMask(float value, bool useReciprocal, AqRationalDiagnostics? diagnostics)
+    private static float ComputeMask<TDivision>(float value, AqRationalDiagnostics? diagnostics)
+        where TDivision : struct
     {
         float v = MathF.Max(value * 0.74760422233706747f, 1e-3f);
-        float v2 = Divide(1f, v + 305.04035728311436f, AqRationalSite.Mask, useReciprocal, diagnostics);
-        float v3 = Divide(1f, (v * v) + 2.1925739705298404f, AqRationalSite.Mask, useReciprocal, diagnostics);
-        float v4 = Divide(1f, (v * v) + (0.25f * 2.1925739705298404f), AqRationalSite.Mask, useReciprocal, diagnostics);
+        float v2 = Divide<TDivision>(1f, v + 305.04035728311436f, AqRationalSite.Mask, diagnostics);
+        float v3 = Divide<TDivision>(1f, (v * v) + 2.1925739705298404f, AqRationalSite.Mask, diagnostics);
+        float v4 = Divide<TDivision>(1f, (v * v) + (0.25f * 2.1925739705298404f), AqRationalSite.Mask, diagnostics);
         return -0.74174993f + ((3.2353257320940401f * v4)
             + ((12.906028311180409f * v2) + (5.0220313103171232f * v3)));
     }
 
 #if !NETSTANDARD2_1
-    private void ModulateEightBlocks(int x, int y, Span<Vector256<float>> rows, Span<float> output)
+    private void ModulateEightBlocks<TDivision>(int x, int y, Span<Vector256<float>> rows, Span<float> output)
+        where TDivision : struct
     {
         Span<Vector256<float>> current = rows[..8], next = rows.Slice(8, 8);
         int row = (y * this.lumaStride) + x + 1;
@@ -688,11 +737,11 @@ internal sealed class AdaptiveQuantization : IDisposable
                 Vector256<float> nextSamples = current[column + 1];
                 sum += Vector256.Abs(samples - nextSamples);
                 sum += Vector256.Abs(samples - below[column]);
-                ratio += DerivativeRatio(samples + gammaOffset, this.useAqReciprocal, this.aqRationalDiagnostics);
+                ratio += DerivativeRatio<TDivision>(samples + gammaOffset, this.aqRationalDiagnostics);
                 samples = nextSamples;
             }
             sum += Vector256.Abs(samples - below[7]);
-            ratio += DerivativeRatio(samples + gammaOffset, this.useAqReciprocal, this.aqRationalDiagnostics);
+            ratio += DerivativeRatio<TDivision>(samples + gammaOffset, this.aqRationalDiagnostics);
             Span<Vector256<float>> previous = current;
             current = next;
             next = previous;
@@ -716,17 +765,19 @@ internal sealed class AdaptiveQuantization : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Vector256<float> DerivativeRatio(Vector256<float> value, bool useReciprocal, AqRationalDiagnostics? diagnostics)
+    private static Vector256<float> DerivativeRatio<TDivision>(Vector256<float> value, AqRationalDiagnostics? diagnostics)
+        where TDivision : struct
     {
         value = Vector256.Max(value, Vector256<float>.Zero);
         Vector256<float> squared = value * value;
         Vector256<float> numerator = (Vector256.Create(NumMul) * squared) + Vector256.Create(NumOffset);
         Vector256<float> denominator = (Vector256.Create(DenMul) * value * squared) + Vector256.Create(VOffset);
-        return Divide(numerator, denominator, AqRationalSite.Derivative, useReciprocal, diagnostics);
+        return Divide<TDivision>(numerator, denominator, AqRationalSite.Derivative, diagnostics);
     }
 
 #endif
-    private float ModulateVector(int x, int y, float value)
+    private float ModulateVector<TDivision>(int x, int y, float value)
+        where TDivision : struct
     {
         float sum = 0;
         float ratio = 0;
@@ -743,8 +794,8 @@ internal sealed class AdaptiveQuantization : IDisposable
                 var horizontal = Vector.Abs(samples - new Vector<float>(this.luma, row + 1));
                 var vertical = Vector.Abs(samples - next);
                 sum = AddHfDifferences(sum, horizontal, vertical);
-                ratio = AddGammaDerivatives(ratio, DerivativeRatio(samples + gammaOffset, invert: true,
-                    this.useAqReciprocal, this.aqRationalDiagnostics));
+                ratio = AddGammaDerivatives(ratio, DerivativeRatio<TDivision>(samples + gammaOffset, invert: true,
+                    this.aqRationalDiagnostics));
                 samples = next;
                 row += this.lumaStride;
             }
@@ -761,10 +812,10 @@ internal sealed class AdaptiveQuantization : IDisposable
                 var horizontalRight = Vector.Abs(right - new Vector<float>(this.luma, row + 5));
                 sum = AddHfFourDifferences(sum, horizontalLeft, Vector.Abs(left - nextLeft), includeLastHorizontal: true);
                 sum = AddHfFourDifferences(sum, horizontalRight, Vector.Abs(right - nextRight), includeLastHorizontal: false);
-                ratio = AddGammaFourDerivatives(ratio, DerivativeRatio(left + gammaOffset, invert: true,
-                    this.useAqReciprocal, this.aqRationalDiagnostics));
-                ratio = AddGammaFourDerivatives(ratio, DerivativeRatio(right + gammaOffset, invert: true,
-                    this.useAqReciprocal, this.aqRationalDiagnostics));
+                ratio = AddGammaFourDerivatives(ratio, DerivativeRatio<TDivision>(left + gammaOffset, invert: true,
+                    this.aqRationalDiagnostics));
+                ratio = AddGammaFourDerivatives(ratio, DerivativeRatio<TDivision>(right + gammaOffset, invert: true,
+                    this.aqRationalDiagnostics));
                 left = nextLeft;
                 right = nextRight;
                 row += this.lumaStride;
@@ -776,11 +827,17 @@ internal sealed class AdaptiveQuantization : IDisposable
         const float sumCoeff = (float)(-2.0052193233688884f * InputScaling / 112.0);
         value = (sum * sumCoeff) + value;
         ratio *= InputScaling / 64f;
-        return (-0.15526878023684174f * InvLog2E * FastLog2(ratio, this.useAqReciprocal, this.aqRationalDiagnostics)) + value;
+        return (-0.15526878023684174f * InvLog2E * FastLog2<TDivision>(ratio, this.aqRationalDiagnostics)) + value;
     }
 
     internal static float ModulateScalar(ReadOnlySpan<float> samples, int stride, float value,
         bool useReciprocal = false, AqRationalDiagnostics? diagnostics = null)
+        => useReciprocal ? ModulateScalar<CertifiedDivision>(samples, stride, value, diagnostics)
+            : ModulateScalar<OriginalDivision>(samples, stride, value, diagnostics);
+
+    private static float ModulateScalar<TDivision>(ReadOnlySpan<float> samples, int stride, float value,
+        AqRationalDiagnostics? diagnostics)
+        where TDivision : struct
     {
         float sum = 0;
         float ratio = 0;
@@ -794,20 +851,20 @@ internal sealed class AdaptiveQuantization : IDisposable
                 float nextSample = samples[row + dx + 1];
                 sum += MathF.Abs(sample - nextSample);
                 sum += MathF.Abs(sample - samples[next + dx]);
-                ratio += DerivativeRatio(sample + (0.16f / InputScaling), invert: true, useReciprocal, diagnostics);
+                ratio += DerivativeRatio<TDivision>(sample + (0.16f / InputScaling), invert: true, diagnostics);
                 sample = nextSample;
             }
             // The final column has no horizontal difference. Carrying each
             // neighbor above preserves both raster-order sums without rereads.
             sum += MathF.Abs(sample - samples[next + 7]);
-            ratio += DerivativeRatio(sample + (0.16f / InputScaling), invert: true, useReciprocal, diagnostics);
+            ratio += DerivativeRatio<TDivision>(sample + (0.16f / InputScaling), invert: true, diagnostics);
         }
         // Share sample loads while retaining two independent raster-order sums.
         // Apply HF before gamma, exactly as the previous two scalar traversals did.
         const float sumCoeff = (float)(-2.0052193233688884f * InputScaling / 112.0);
         value = (sum * sumCoeff) + value;
         ratio *= InputScaling / 64f;
-        return (-0.15526878023684174f * InvLog2E * FastLog2(ratio, useReciprocal, diagnostics)) + value;
+        return (-0.15526878023684174f * InvLog2E * FastLog2<TDivision>(ratio, diagnostics)) + value;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -872,27 +929,30 @@ internal sealed class AdaptiveQuantization : IDisposable
         return ratio + values[7];
     }
 
-    private static float DerivativeRatio(float value, bool invert, bool useReciprocal, AqRationalDiagnostics? diagnostics)
+    private static float DerivativeRatio<TDivision>(float value, bool invert, AqRationalDiagnostics? diagnostics)
+        where TDivision : struct
     {
         value = MathF.Max(value, 0);
         float squared = value * value;
         float numerator = (NumMul * squared) + NumOffset;
         float denominator = (DenMul * value * squared) + VOffset;
-        return invert ? Divide(numerator, denominator, AqRationalSite.Derivative, useReciprocal, diagnostics)
-            : Divide(denominator, numerator, AqRationalSite.Derivative, useReciprocal, diagnostics);
+        return invert ? Divide<TDivision>(numerator, denominator, AqRationalSite.Derivative, diagnostics)
+            : Divide<TDivision>(denominator, numerator, AqRationalSite.Derivative, diagnostics);
     }
 
-    private static Vector<float> DerivativeRatio(Vector<float> value, bool invert, bool useReciprocal, AqRationalDiagnostics? diagnostics)
+    private static Vector<float> DerivativeRatio<TDivision>(Vector<float> value, bool invert, AqRationalDiagnostics? diagnostics)
+        where TDivision : struct
     {
         value = Vector.Max(value, Vector<float>.Zero);
         Vector<float> squared = value * value;
         Vector<float> numerator = (new Vector<float>(NumMul) * squared) + new Vector<float>(NumOffset);
         Vector<float> denominator = (new Vector<float>(DenMul) * value * squared) + new Vector<float>(VOffset);
-        return invert ? Divide(numerator, denominator, AqRationalSite.Derivative, useReciprocal, diagnostics)
-            : Divide(denominator, numerator, AqRationalSite.Derivative, useReciprocal, diagnostics);
+        return invert ? Divide<TDivision>(numerator, denominator, AqRationalSite.Derivative, diagnostics)
+            : Divide<TDivision>(denominator, numerator, AqRationalSite.Derivative, diagnostics);
     }
 
-    private static float FastLog2(float value, bool useReciprocal, AqRationalDiagnostics? diagnostics)
+    private static float FastLog2<TDivision>(float value, AqRationalDiagnostics? diagnostics)
+        where TDivision : struct
     {
         int bits = BitConverter.SingleToInt32Bits(value);
         int exponent = unchecked(bits - 0x3f2aaaab) >> 23;
@@ -901,10 +961,11 @@ internal sealed class AdaptiveQuantization : IDisposable
             * mantissa) - 1.8503833400518310e-6f;
         float denominator = (((0.17409343003366853f * mantissa) + 1.0096718572241148f)
             * mantissa) + 0.99032814277590719f;
-        return Divide(numerator, denominator, AqRationalSite.Log2, useReciprocal, diagnostics) + exponent;
+        return Divide<TDivision>(numerator, denominator, AqRationalSite.Log2, diagnostics) + exponent;
     }
 
-    private static float FastPow2(float value, bool useReciprocal, AqRationalDiagnostics? diagnostics)
+    private static float FastPow2<TDivision>(float value, AqRationalDiagnostics? diagnostics)
+        where TDivision : struct
     {
         float floor = MathF.Floor(value);
         float exponent = BitConverter.Int32BitsToSingle(((int)floor + 127) << 23);
@@ -916,14 +977,15 @@ internal sealed class AdaptiveQuantization : IDisposable
         float denominator = (fraction * 2.10242958e-1f) - 2.22328856e-2f;
         denominator = (denominator * fraction) - 1.94414990e1f;
         denominator = (denominator * fraction) + 9.85506633e1f;
-        return Divide(numerator, denominator, AqRationalSite.Pow2, useReciprocal, diagnostics);
+        return Divide<TDivision>(numerator, denominator, AqRationalSite.Pow2, diagnostics);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static float Divide(float numerator, float denominator, AqRationalSite site,
-        bool useReciprocal, AqRationalDiagnostics? diagnostics)
+    private static float Divide<TDivision>(float numerator, float denominator, AqRationalSite site,
+        AqRationalDiagnostics? diagnostics)
+        where TDivision : struct
     {
-        if (!useReciprocal)
+        if (typeof(TDivision) == typeof(OriginalDivision))
         {
             return numerator / denominator;
         }
@@ -933,9 +995,10 @@ internal sealed class AdaptiveQuantization : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Vector<float> Divide(Vector<float> numerator, Vector<float> denominator, AqRationalSite site,
-        bool useReciprocal, AqRationalDiagnostics? diagnostics)
-        => useReciprocal ? DivideReciprocal(numerator, denominator, site, diagnostics) : numerator / denominator;
+    private static Vector<float> Divide<TDivision>(Vector<float> numerator, Vector<float> denominator, AqRationalSite site,
+        AqRationalDiagnostics? diagnostics)
+        where TDivision : struct
+        => typeof(TDivision) == typeof(CertifiedDivision) ? DivideReciprocal(numerator, denominator, site, diagnostics) : numerator / denominator;
 
     private static Vector<float> DivideReciprocal(Vector<float> numerator, Vector<float> denominator,
         AqRationalSite site, AqRationalDiagnostics? diagnostics)
@@ -969,9 +1032,10 @@ internal sealed class AdaptiveQuantization : IDisposable
 
 #if !NETSTANDARD2_1
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Vector256<float> Divide(Vector256<float> numerator, Vector256<float> denominator, AqRationalSite site,
-        bool useReciprocal, AqRationalDiagnostics? diagnostics)
-        => useReciprocal ? DivideReciprocal(numerator, denominator, site, diagnostics) : numerator / denominator;
+    private static Vector256<float> Divide<TDivision>(Vector256<float> numerator, Vector256<float> denominator, AqRationalSite site,
+        AqRationalDiagnostics? diagnostics)
+        where TDivision : struct
+        => typeof(TDivision) == typeof(CertifiedDivision) ? DivideReciprocal(numerator, denominator, site, diagnostics) : numerator / denominator;
 
     private static Vector256<float> DivideReciprocal(Vector256<float> numerator, Vector256<float> denominator,
         AqRationalSite site, AqRationalDiagnostics? diagnostics)
