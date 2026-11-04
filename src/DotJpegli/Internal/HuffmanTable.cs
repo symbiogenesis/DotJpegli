@@ -14,6 +14,16 @@ using System.Runtime.InteropServices;
 // 031a0077f5799a6041004267fc12b956c1f52a20.
 internal sealed class HuffmanTable
 {
+    private static class DefaultTables
+    {
+        // Canonical tables and their thread-safe replay lookups are read-only
+        // after construction. Share them across components and encodes.
+        internal static readonly HuffmanTable DcLuma = CreateDefaultTable(false, false);
+        internal static readonly HuffmanTable DcChroma = CreateDefaultTable(false, true);
+        internal static readonly HuffmanTable AcLuma = CreateDefaultTable(true, false);
+        internal static readonly HuffmanTable AcChroma = CreateDefaultTable(true, true);
+    }
+
     private readonly uint[] codes = new uint[256];
     private readonly byte[] lengths = new byte[256];
     private ulong[]? prebiasedCodes;
@@ -54,6 +64,11 @@ internal sealed class HuffmanTable
     }
 
     public static HuffmanTable CreateDefault(bool isAc, bool chroma)
+        => isAc
+            ? chroma ? DefaultTables.AcChroma : DefaultTables.AcLuma
+            : chroma ? DefaultTables.DcChroma : DefaultTables.DcLuma;
+
+    private static HuffmanTable CreateDefaultTable(bool isAc, bool chroma)
     {
         if (!isAc)
         {
