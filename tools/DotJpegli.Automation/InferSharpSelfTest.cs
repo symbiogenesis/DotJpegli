@@ -245,7 +245,18 @@ internal static partial class InferSharpSelfTest
             WriteJson(baselinePath, missingFramework);
             Check("Baseline without selected framework fails", "Invalid InferSharp baseline", baseline: true);
 
-            foreach (string path in new[] { "../outside.cs", "src/../../outside.cs", "/absolute.cs", "C:/absolute.cs", "src\\Example.cs" })
+            const string dottedPath = "src/Example..cs";
+            File.WriteAllText(Path.Combine(fixtureRoot, dottedPath), SourceText);
+            JsonObject dottedBaseline = Baseline();
+            dottedBaseline["sources"] = new JsonObject { [dottedPath] = sourceHash };
+            dottedBaseline["targets"]!["net11.0"]![0]!["path"] = dottedPath;
+            WriteJson(baselinePath, dottedBaseline);
+            JsonObject dottedFinding = Finding();
+            dottedFinding["locations"]![0]!["physicalLocation"]!["artifactLocation"]!["uri"] = "file:/_/" + dottedPath;
+            WriteReport([dottedFinding]);
+            Check("Dots within a source name are not traversal", baseline: true);
+
+            foreach (string path in new[] { "..", "src/..", "../outside.cs", "src/../../outside.cs", "/absolute.cs", "C:/absolute.cs", "src\\Example.cs" })
             {
                 JsonObject baseline = Baseline();
                 baseline["sources"] = new JsonObject { [path] = sourceHash };

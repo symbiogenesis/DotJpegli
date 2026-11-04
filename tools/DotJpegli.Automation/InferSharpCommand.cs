@@ -159,7 +159,7 @@ internal static partial class InferSharpCommand
         foreach (JsonProperty source in sources.EnumerateObject())
         {
             if (!SourceIdentityPattern().IsMatch(source.Name) ||
-                source.Name.Split('/').Contains("..", StringComparer.Ordinal) || !Matches(source.Value, "^[0-9a-f]{64}$"))
+                HasParentDirectorySegment(source.Name) || !Matches(source.Value, "^[0-9a-f]{64}$"))
             {
                 throw new InvalidDataException("Invalid InferSharp baseline: invalid source identity.");
             }
@@ -197,6 +197,19 @@ internal static partial class InferSharpCommand
         }
 
         return reviewed;
+    }
+
+    private static bool HasParentDirectorySegment(ReadOnlySpan<char> path)
+    {
+        foreach (Range segment in path.Split('/'))
+        {
+            if (path[segment].SequenceEqual(".."))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static JsonDocument ReadJson(string path, string error)
