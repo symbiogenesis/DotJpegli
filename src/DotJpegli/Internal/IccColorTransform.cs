@@ -2,6 +2,7 @@ namespace DotJpegli.Internal;
 
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 // ICC.1 v2/v4 transforms are connected in unencoded D50 XYZ. See ICC.1:2022
 // sections 6.3, 8.10, 10.6, 10.10-10.13, 10.18 and Annex F.
@@ -891,51 +892,7 @@ internal sealed class IccColorTransform
             double y = Math.Clamp(input, minimum, maximum);
             if (this.table)
             {
-                // Find the first entry >= y. Exact flats use the highest x,
-                // except a terminal flat uses its lowest x (ICC Annex F.1).
-                int low = 0, high = this.values.Length;
-                if (this.inverseIndex is { } index)
-                {
-                    index.GetRange(this.values, y, out low, out high);
-                }
-                int rangeEnd = high;
-                while (low < high)
-                {
-                    int middle = low + ((high - low) / 2);
-                    if (this.values[middle] < y)
-                    {
-                        low = middle + 1;
-                    }
-                    else
-                    {
-                        high = middle;
-                    }
-                }
-                int upper = low;
-                if (this.values[upper] == y)
-                {
-                    if (y == this.values[^1])
-                    {
-                        return (double)upper / (this.values.Length - 1);
-                    }
-
-                    high = rangeEnd;
-                    while (low < high)
-                    {
-                        int middle = low + ((high - low) / 2);
-                        if (this.values[middle] <= y)
-                        {
-                            low = middle + 1;
-                        }
-                        else
-                        {
-                            high = middle;
-                        }
-                    }
-                    return (double)(low - 1) / (this.values.Length - 1);
-                }
-                int lower = upper - 1;
-                return (lower + ((y - this.values[lower]) / (this.values[upper] - this.values[lower]))) / (this.values.Length - 1);
+                return this.InverseSampled(y);
             }
             if (this.function == 0)
             {
@@ -978,6 +935,59 @@ internal sealed class IccColorTransform
                 }
             }
             return Clamp(Math.Max(d, (Math.Pow(Math.Max(0, y - e), this.inverseExponent) - this.values[2]) / this.values[1]));
+        }
+
+        // Keep indexed searches and their live locals out of the parametric
+        // inverse's generated frame. Its power and piecewise arithmetic stay
+        // unchanged; only sampled destination curves enter this helper.
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private double InverseSampled(double y)
+        {
+            // Find the first entry >= y. Exact flats use the highest x,
+            // except a terminal flat uses its lowest x (ICC Annex F.1).
+            int low = 0, high = this.values.Length;
+            if (this.inverseIndex is { } index)
+            {
+                index.GetRange(this.values, y, out low, out high);
+            }
+            int rangeEnd = high;
+            while (low < high)
+            {
+                int middle = low + ((high - low) / 2);
+                if (this.values[middle] < y)
+                {
+                    low = middle + 1;
+                }
+                else
+                {
+                    high = middle;
+                }
+            }
+            int upper = low;
+            if (this.values[upper] == y)
+            {
+                if (y == this.values[^1])
+                {
+                    return (double)upper / (this.values.Length - 1);
+                }
+
+                high = rangeEnd;
+                while (low < high)
+                {
+                    int middle = low + ((high - low) / 2);
+                    if (this.values[middle] <= y)
+                    {
+                        low = middle + 1;
+                    }
+                    else
+                    {
+                        high = middle;
+                    }
+                }
+                return (double)(low - 1) / (this.values.Length - 1);
+            }
+            int lower = upper - 1;
+            return (lower + ((y - this.values[lower]) / (this.values[upper] - this.values[lower]))) / (this.values.Length - 1);
         }
     }
 
