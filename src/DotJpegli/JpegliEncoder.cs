@@ -640,6 +640,8 @@ public static class JpegliEncoder
         EncoderCacheBudget cacheBudget, CancellationToken cancellationToken)
     {
         int componentCount = tables.Length;
+        int workerLimit = options.MaxDegreeOfParallelism == -1
+            ? Environment.ProcessorCount : options.MaxDegreeOfParallelism;
         // A single sequential scan can retain entropy decisions without storing
         // coefficients. With 256-bit SIMD, separate component-row preparation
         // keeps the fused transform out of the MCU traversal's live state.
@@ -711,6 +713,12 @@ public static class JpegliEncoder
 
             int interval = scan.Components.Count == 1
                 ? componentRestartIntervals[scan.Components[0]] : interleavedRestartInterval;
+            if (!options.Progressive && quantizedImage is not null
+                && ParallelBaselineCollector.TryCollect(quantizedImage, width, height, sampling, scan,
+                    interval, workerLimit, dcFrequencies, acFrequencies[scanIndex], scanTokens, cancellationToken))
+            {
+                continue;
+            }
             if (streamSequential)
             {
                 ProcessSequentialInterleaved(pixels, width, height, stride, sampling, tables, distance,
@@ -740,8 +748,6 @@ public static class JpegliEncoder
             emptyTables, emptyTables, options, extendedXmp, cancellationToken, rgb: pixels.IsRgb,
             writeHuffmanTables: false, extendedHuffman: plan.RequiresExtendedSequential);
         var bits = new BitWriter(output, buffered: true, options.EntropyByteStuffingKernel);
-        int workerLimit = options.MaxDegreeOfParallelism == -1
-            ? Environment.ProcessorCount : options.MaxDegreeOfParallelism;
         int lastRestartInterval = 0;
         for (int scanIndex = 0; scanIndex < scans.Length; scanIndex++)
         {
