@@ -77,7 +77,12 @@ internal static class Downsampling
         int component, int left, int top, int sampleWidth, int sampleHeight,
         Span<float> samples, int smoothingFactor = 0)
     {
-        if (Vector.IsHardwareAccelerated && CanUseVector && smoothingFactor == 0)
+        if (smoothingFactor != 0 && sampleWidth is >= 1 and <= 4 && sampleHeight is >= 1 and <= 4)
+        {
+            SmoothedDownsampling.FillBlock(pixels, width, height, stride, component, left, top,
+                sampleWidth, sampleHeight, samples, smoothingFactor);
+        }
+        else if (Vector.IsHardwareAccelerated && CanUseVector && smoothingFactor == 0)
         {
             FillBlockVector(pixels, width, height, stride, component, left, top, sampleWidth, sampleHeight, samples);
         }
