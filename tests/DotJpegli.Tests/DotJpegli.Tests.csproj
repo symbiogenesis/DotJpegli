@@ -31,6 +31,9 @@
     <Compile Include="../../tools/DotJpegli.Parity/DcTrellisSearchCommand.cs" Link="Parity/DcTrellisSearchCommand.cs" />
     <Compile Include="../../tools/DotJpegli.Parity/HuffmanFeedbackSearch.cs" Link="Parity/HuffmanFeedbackSearch.cs" />
     <Compile Include="../../tools/DotJpegli.Parity/HuffmanFeedbackSearchCommand.cs" Link="Parity/HuffmanFeedbackSearchCommand.cs" />
+    <Compile Include="../../tools/DotJpegli.Parity/ColorPreprocessing.cs" Link="Parity/ColorPreprocessing.cs" />
+    <Compile Include="../../tools/DotJpegli.Parity/ColorPreprocessingSearch.cs" Link="Parity/ColorPreprocessingSearch.cs" />
+    <Compile Include="../../tools/DotJpegli.Parity/ColorPreprocessingSearchCommand.cs" Link="Parity/ColorPreprocessingSearchCommand.cs" />
     <Compile Include="../../tools/DotJpegli.Parity/ProgressiveScanSearchCommand.cs" Link="Parity/ProgressiveScanSearchCommand.cs" />
     <Compile Include="../../tools/DotJpegli.Parity/JpegStructure.cs" Link="Parity/JpegStructure.cs" />
     <Compile Include="../../tools/DotJpegli.Parity/PpmImage.cs" Link="Parity/PpmImage.cs" />
