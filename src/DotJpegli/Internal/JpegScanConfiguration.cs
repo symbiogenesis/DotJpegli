@@ -151,36 +151,61 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
 
         internal JpegScan[] CreateDefaultScript(int componentCount)
         {
-            var scans = new List<JpegScan>();
             int[] components = Enumerable.Range(0, componentCount).ToArray();
             bool interleaveInitialScan = this.InterleaveInitialScan;
             bool progressive = this.Progressive;
+            if (!progressive && interleaveInitialScan)
+            {
+                return [new(components, 0, 63, 0, this.DcRefinementBits)];
+            }
+
+            int dcScanCount = interleaveInitialScan ? 1 : componentCount;
+            int scanCount = dcScanCount;
+            if (progressive)
+            {
+                scanCount *= 1 + this.DcRefinementBits;
+                foreach (int depth in this.AcRefinementBits)
+                {
+                    scanCount += componentCount * (1 + depth);
+                }
+            }
+
+            var scans = new JpegScan[scanCount];
+            // These selectors belong to this encode and are only read by scans.
+            // Every AC band and refinement round can share the same singleton.
+            int[][] componentSelectors = new int[componentCount][];
+            foreach (int component in components)
+            {
+                componentSelectors[component] = componentCount == 1 ? components : [component];
+            }
+
+            int nextScan = 0;
             void AddDc(int high, int low)
             {
                 if (interleaveInitialScan)
                 {
-                    scans.Add(new(components, 0, progressive ? 0 : 63, high, low));
+                    scans[nextScan++] = new(components, 0, progressive ? 0 : 63, high, low);
                 }
                 else
                 {
                     foreach (int component in components)
                     {
-                        scans.Add(new([component], 0, progressive ? 0 : 63, high, low));
+                        scans[nextScan++] = new(componentSelectors[component], 0, progressive ? 0 : 63, high, low);
                     }
                 }
             }
             AddDc(0, this.DcRefinementBits);
             if (!this.Progressive)
             {
-                return scans.ToArray();
+                return scans;
             }
 
             for (int band = 0; band < this.AcScanEnds.Length; band++)
             {
                 foreach (int component in components)
                 {
-                    scans.Add(new([component], band == 0 ? 1 : this.AcScanEnds[band - 1] + 1,
-                        this.AcScanEnds[band], 0, this.AcRefinementBits[band]));
+                    scans[nextScan++] = new(componentSelectors[component], band == 0 ? 1 : this.AcScanEnds[band - 1] + 1,
+                        this.AcScanEnds[band], 0, this.AcRefinementBits[band]);
                 }
             }
 
@@ -197,13 +222,13 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
                     {
                         foreach (int component in components)
                         {
-                            scans.Add(new([component], band == 0 ? 1 : this.AcScanEnds[band - 1] + 1,
-                                this.AcScanEnds[band], low + 1, low));
+                            scans[nextScan++] = new(componentSelectors[component], band == 0 ? 1 : this.AcScanEnds[band - 1] + 1,
+                                this.AcScanEnds[band], low + 1, low);
                         }
                     }
                 }
             }
-            return scans.ToArray();
+            return scans;
         }
     }
 }
