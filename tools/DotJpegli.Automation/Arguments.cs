@@ -53,7 +53,7 @@ internal sealed class Arguments
 
     public IReadOnlyList<string> Values(string name) => this.values.TryGetValue(Name(name), out List<string>? items) ? items : [];
 
-    public void Validate(string[] valueOptions, string[] switches, string? repeatedOption = null)
+    public void Validate(ReadOnlySpan<string> valueOptions, ReadOnlySpan<string> switches, string? repeatedOption = null)
     {
         foreach ((string name, List<string> items) in this.values)
         {

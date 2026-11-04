@@ -16,7 +16,7 @@ internal static class PerformanceJson
         }
     }
 
-    internal static void Fields(JsonNode? value, params string[] names)
+    internal static void Fields(JsonNode? value, params ReadOnlySpan<string> names)
     {
         Require(value is JsonObject, "Expected a JSON object");
         foreach (string name in names)
