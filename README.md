@@ -155,56 +155,32 @@ for quality, sampling and progression controls.
 
 ## Performance
 
-Compare DotJpegli with **native Google Jpegli** on all 24 Kodak photographs.
-The compression and timing charts use the complete valid measurements from **November 3, 2026**
-(America/Chicago; November 4 UTC) at revision `744f7be` in
-[CI run 41772797925](https://github.com/symbiogenesis/DotJpegli/actions/runs/41772797925).
-Compression and time differences are relative to native; zero means equal file
-size or encoding time.
+These charts compare DotJpegli with **native Google Jpegli** on 24 Kodak photographs.
 
 ### Compression efficiency
 
-Photograph group mean JPEG sizes differ from native by **at most 0.002%** across
-all four encoding modes at matched PSNR and SSIM.
+Mean JPEG sizes differ from native by **at most 0.002%** at matched PSNR and SSIM.
 
 ![Photograph group mean JPEG file-size differences from native Google Jpegli are at most 0.002% across all four encoding modes at matched PSNR and SSIM.](docs/images/performance/compression.svg)
 
 ### Encoding wall time
 
-On the measured Intel Xeon Platinum 8573C host, progressive photograph encoding used
-**16.1–18.6% less time** than native; sequential encoding used **3.7–8.3% more**.
-Left of zero means less time; right means more.
+On an Intel Xeon Platinum 8573C, progressive encoding averaged **16.1–18.6% less
+time** than native; sequential averaged **3.7–8.3% more**.
 
 ![Percentage encoding-time differences from native Google Jpegli, pairing Kodak photographs and deterministic controls for each encoding mode.](docs/images/performance/wall-time.svg)
 
 ### Allocations per encode
 
-Compare **DotJpegli managed GC allocations** with **official Google C++ jpegli
-heap requests** per complete encode, including the returned JPEG. The separate
-[CI allocation observation](docs/performance-evidence/2026-11-03-ae1bf49-allocations/README.md)
-covers all 24 Kodak photographs at both distances and all four encoding modes:
-192 configurations, with three samples after five warmups.
-
-GC allocation bytes include object headers and alignment; native bars count
-successful requested heap bytes, including full reallocation requests, and
-exclude native allocator metadata and slack. Prepared input, retained pool
-capacity and peak memory are outside this measurement. The instrumented native
-encoder must produce exactly the same JPEG as the ordinary native reference.
+[Allocation measurements](docs/performance-evidence/2026-11-03-ae1bf49-allocations/README.md)
+compare managed GC allocations with native heap requests per encode, including
+the output JPEG. These do not measure peak memory.
 
 ![DotJpegli managed GC allocation bytes and official Google C++ jpegli requested heap bytes in KiB per encode, grouped by sampling and sequential or progressive encoding.](docs/images/performance/allocations.svg)
 
-The compression and timing charts use distances 1/4, both sampling modes, one
-worker and tiered compilation disabled. The [retained measurements](docs/performance-evidence/2026-11-03-744f7be/README.md),
-[chart values](docs/images/performance/metrics.json) and [protocol](docs/performance-parity.md)
-cover all 256 cases, including eight deterministic controls. Full native
-performance parity remains unestablished. Separate runs do not isolate revision
-speedups.
-
-Against released **1.0.0**, the [retained same-host comparison at `0104778`](docs/performance-evidence/2026-11-03-0104778/release/README.md)
-favors that revision in 1,310 of 1,536 selected cases, but 110 regress:
-**two of six release gates fail**, with a worst selected median of **14.64% more time**.
-Separate [large-image workload observations](docs/performance-evidence/2026-11-03-0104778-workloads/README.md)
-cover cache boundaries, memory and concurrency.
+See [methodology and full results](docs/performance-parity.md) and
+[chart data](docs/images/performance/metrics.json). The full comparison does not
+meet native performance parity.
 
 ## Documentation
 
