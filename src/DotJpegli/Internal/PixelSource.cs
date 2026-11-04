@@ -928,10 +928,7 @@ internal readonly ref struct PixelSource
         }
         if (this.IsXyb && !this.xyb)
         {
-            float red = this.ReadNormalizedComponent(offset + (this.IsGrayscaleInput ? 0 : this.bgr ? 2 : 0));
-            float green = this.IsGrayscaleInput ? red : this.ReadNormalizedComponent(offset + 1);
-            float blue = this.IsGrayscaleInput ? red : this.ReadNormalizedComponent(offset + (this.bgr ? 0 : 2));
-            XybColorConversion.SrgbToScaledXyb(red, green, blue, out float scaledX, out float scaledY, out float scaledB);
+            this.ReadRawScaledXyb(offset, out float scaledX, out float scaledY, out float scaledB);
             return component switch { 0 => scaledX, 1 => scaledY, _ => scaledB };
         }
         if (this.IsGrayscaleInput)
@@ -977,9 +974,8 @@ internal readonly ref struct PixelSource
             }
             else
             {
-                red = this.ReadNormalizedComponent(offset + (this.IsGrayscaleInput ? 0 : this.bgr ? 2 : 0));
-                green = this.IsGrayscaleInput ? red : this.ReadNormalizedComponent(offset + 1);
-                blue = this.IsGrayscaleInput ? red : this.ReadNormalizedComponent(offset + (this.bgr ? 0 : 2));
+                this.ReadRawScaledXyb(offset, out first, out second, out third);
+                return;
             }
 
             if (this.IsXyb)
@@ -1023,6 +1019,23 @@ internal readonly ref struct PixelSource
         {
             ColorConversion.RgbToYCbCr(r, g, b, out first, out second, out third);
         }
+    }
+
+    private void ReadRawScaledXyb(int offset, out float first, out float second, out float third)
+    {
+        int redOffset = offset + (this.IsGrayscaleInput ? 0 : this.bgr ? 2 : 0);
+        int blueOffset = this.IsGrayscaleInput ? offset : offset + (this.bgr ? 0 : 2);
+        if (this.sourceType == SourceType.Byte)
+        {
+            byte red = this.bytes[redOffset];
+            byte green = this.IsGrayscaleInput ? red : this.bytes[offset + 1];
+            XybColorConversion.SrgbBytesToScaledXyb(red, green, this.bytes[blueOffset], out first, out second, out third);
+            return;
+        }
+        float r = this.ReadNormalizedComponent(redOffset);
+        float g = this.IsGrayscaleInput ? r : this.ReadNormalizedComponent(offset + 1);
+        float b = this.IsGrayscaleInput ? r : this.ReadNormalizedComponent(blueOffset);
+        XybColorConversion.SrgbToScaledXyb(r, g, b, out first, out second, out third);
     }
 
     // Read only a bounded source row, including replicated edge pixels.

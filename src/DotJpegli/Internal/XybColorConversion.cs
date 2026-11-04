@@ -29,6 +29,19 @@ internal static class XybColorConversion
         r = Linearize(r);
         g = Linearize(g);
         b = Linearize(b);
+        LinearToScaledXyb(r, g, b, out x, out y, out bMinusY);
+    }
+
+    internal static void SrgbBytesToScaledXyb(byte r, byte g, byte b,
+        out float x, out float y, out float bMinusY)
+    {
+        float[] values = ByteLinearization.Values;
+        LinearToScaledXyb(values[r], values[g], values[b], out x, out y, out bMinusY);
+    }
+
+    private static void LinearToScaledXyb(float r, float g, float b,
+        out float x, out float y, out float bMinusY)
+    {
         float mixed0 = Absorb(r, g, b, M00, M01, M02);
         float mixed1 = Absorb(r, g, b, M10, M11, M12);
         float mixed2 = Absorb(r, g, b, M20, M21, M22);
@@ -43,6 +56,24 @@ internal static class XybColorConversion
         if (!float.IsFinite(x) || !float.IsFinite(y) || !float.IsFinite(bMinusY))
         {
             throw NonfinitePixels();
+        }
+    }
+
+    // The nested holder prepares 1 KiB only when raw byte sRGB first needs XYB.
+    // Retain PixelSource's double normalization followed by a float rounding,
+    // rather than introducing a different normalization expression.
+    private static class ByteLinearization
+    {
+        internal static readonly float[] Values = Create();
+
+        private static float[] Create()
+        {
+            float[] values = new float[256];
+            for (int value = 0; value < values.Length; value++)
+            {
+                values[value] = Linearize((float)(value * (1.0 / 255.0)));
+            }
+            return values;
         }
     }
 
