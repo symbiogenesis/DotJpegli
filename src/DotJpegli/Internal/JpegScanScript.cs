@@ -57,14 +57,10 @@ internal static class JpegScanScript
         }
 
         progressive = snapshot[0].SpectralStart != 0 || snapshot[0].SpectralEnd != 63;
-        int[,] approximation = new int[componentCount, 64];
-        for (int component = 0; component < componentCount; component++)
-        {
-            for (int coefficient = 0; coefficient < 64; coefficient++)
-            {
-                approximation[component, coefficient] = -1;
-            }
-        }
+        // The encoder has one or three components. Keep this short-lived
+        // progression state on the stack and access each component as a span.
+        Span<int> approximation = stackalloc int[componentCount * 64];
+        approximation.Fill(-1);
 
         int acContexts = 0;
         foreach (JpegScan scan in snapshot)
@@ -118,14 +114,15 @@ internal static class JpegScanScript
             }
             foreach (int component in scan.Components)
             {
-                if (scan.SpectralStart != 0 && approximation[component, 0] < 0)
+                Span<int> componentApproximation = approximation.Slice(component * 64, 64);
+                if (scan.SpectralStart != 0 && componentApproximation[0] < 0)
                 {
                     throw Invalid("A component's initial DC scan must precede its AC scans.");
                 }
 
                 for (int coefficient = scan.SpectralStart; coefficient <= scan.SpectralEnd; coefficient++)
                 {
-                    int current = approximation[component, coefficient];
+                    int current = componentApproximation[coefficient];
                     if (current < 0)
                     {
                         if (scan.SuccessiveHigh != 0)
@@ -138,16 +135,16 @@ internal static class JpegScanScript
                         throw Invalid("Refinement scans must continue each selected coefficient by exactly one bit.");
                     }
 
-                    approximation[component, coefficient] = scan.SuccessiveLow;
+                    componentApproximation[coefficient] = scan.SuccessiveLow;
                 }
             }
         }
         for (int component = 0; component < componentCount; component++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            for (int coefficient = 0; coefficient < 64; coefficient++)
+            foreach (int current in approximation.Slice(component * 64, 64))
             {
-                if (approximation[component, coefficient] != 0)
+                if (current != 0)
                 {
                     throw Invalid("The scan script must deliver every output coefficient through bit zero.");
                 }
