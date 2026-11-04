@@ -231,3 +231,30 @@ four downloaded winner files matched their reported lengths and SHA-256 hashes.
 These 31 complete encodes/decodes establish only the stated single-image
 results. No timings were collected, and the tiny accepted savings do not
 establish a general compression improvement or human-quality equivalence.
+
+## Corrective CI correctness and native comparison
+
+Revision `744f7be` passed all six full-suite jobs across Windows/Linux and
+.NET 10, .NET 11 and the portable library target. All four deployment jobs,
+both Windows NativeAOT CLI jobs, reproducibility checks and package publishing
+also passed. These checks and the following measurements used the same
+[automatic run](https://github.com/symbiogenesis/DotJpegli/actions/runs/41772797925).
+
+The full native quality/compression gate passed all 1280 cases, 2057 matched-rate
+targets and 4396 matched-quality targets against the pinned upstream reference.
+This establishes the declared size, RGB PSNR and local luma SSIM bounds on that
+matrix, rather than visual equivalence.
+
+The native latency matrix had complete, valid coverage of all 256 cases, but
+failed its fixed noninferiority limits. Sixty-six cases exceeded the 1.10
+per-case ratio and two group means exceeded 1.05. Natural progressive 4:4:4 and
+4:2:0 passed their complete gates, with managed/native geometric mean ratios
+0.8385 and 0.8138. Natural sequential ratios were 1.0833 and 1.0373; both groups
+failed individual bounds. All four control groups also had individual failures.
+The worst case was `kodim02/444/p0/d4` at 1.4453.
+
+That native comparison used one CPU on an Intel Xeon Platinum 8573C with
+.NET 11.0.0-rc.3.26522.148, eight float lanes and accelerated 256/512-bit vectors.
+Its host differs from CI1. Cross-run ratio changes do not measure the corrective
+patches; only each same-host managed revision pair isolates the batch. The
+results do not establish global speed superiority over Google's encoder.
