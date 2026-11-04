@@ -37,7 +37,7 @@ internal static class Program
             {
                 RevisionWorker.SelfTest();
                 RevisionComparison.SelfTest();
-                Console.WriteLine("Revision comparison self-test passed (synthetic samples only; no benchmark executed).");
+                Console.WriteLine("Revision comparison self-test passed (synthetic samples and tiny scenario encode checks; no benchmark executed).");
                 return 0;
             }
             if (args.SequenceEqual(["--self-test-workloads"]))

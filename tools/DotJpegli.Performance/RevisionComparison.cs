@@ -111,7 +111,8 @@ internal static class RevisionComparison
             });
             ValidateIdentities(baseline.Identity, current.Identity, options.BaselineRevision, options.CurrentRevision,
                 requireNarrow: Environment.GetEnvironmentVariable("DOTNET_EnableAVX512") == "0",
-                requireWide: Environment.GetEnvironmentVariable("DOTJPEGLI_REQUIRE_WIDE_SIMD") == "1");
+                requireWide: Environment.GetEnvironmentVariable("DOTJPEGLI_REQUIRE_WIDE_SIMD") == "1",
+                requireMultipleCpus: options.Scenario == "parallel-two");
 
             foreach ((string id, string category, string sourcePath, Parity.PpmImage image) in Program.ReadCorpus(options.Corpus)
                 .Where(source => selection.Images.Contains(source.Id, StringComparer.Ordinal)))
@@ -397,7 +398,8 @@ internal static class RevisionComparison
     }
 
     internal static void ValidateIdentities(RevisionWorker.Identity baseline, RevisionWorker.Identity current,
-        string baselineRevision, string currentRevision, bool requireNarrow = false, bool requireWide = false)
+        string baselineRevision, string currentRevision, bool requireNarrow = false, bool requireWide = false,
+        bool requireMultipleCpus = false)
     {
         foreach ((RevisionWorker.Identity identity, string expected) in new[] { (baseline, baselineRevision), (current, currentRevision) })
         {
@@ -411,11 +413,11 @@ internal static class RevisionComparison
             JsonElement environment = identity.Environment;
             if (environment.ValueKind != JsonValueKind.Object || HostFields.Any(field => !environment.TryGetProperty(field, out _))
                 || !environment.TryGetProperty("affinity", out JsonElement affinity)
-                || affinity.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(affinity.GetString())
-                || affinity.GetString()!.Any(character => character is < '0' or > '9')
+                || affinity.ValueKind != JsonValueKind.String
+                || !AffinityMatchesPolicy(environment, affinity.GetString(), requireMultipleCpus)
                 || !environment.TryGetProperty("instrumentation", out JsonElement instrumentation) || instrumentation.ValueKind != JsonValueKind.Null)
             {
-                throw new InvalidDataException("Workers must be uninstrumented and pinned to one CPU.");
+                throw new InvalidDataException("Workers must be uninstrumented with a valid affinity matching the scenario CPU policy.");
             }
 
             if (requireNarrow && (environment.GetProperty("vector256").ValueKind != JsonValueKind.True
@@ -434,6 +436,46 @@ internal static class RevisionComparison
         {
             throw new InvalidDataException("Workers must use identical runner bytes, CPU, runtime, SIMD capabilities and encoding environment.");
         }
+    }
+
+    private static bool AffinityMatchesPolicy(JsonElement environment, string? affinity, bool multiple)
+    {
+        if (string.IsNullOrEmpty(affinity)
+            || environment.GetProperty("logicalProcessors").ValueKind != JsonValueKind.Number
+            || !environment.GetProperty("logicalProcessors").TryGetInt32(out int processors) || processors < 1)
+        {
+            return false;
+        }
+        ReadOnlySpan<char> text = affinity.AsSpan();
+        long count = 0;
+        int previous = -1;
+        foreach (Range range in text.Split(','))
+        {
+            ReadOnlySpan<char> part = text[range];
+            int dash = part.IndexOf('-');
+            int first, last;
+            if (dash < 0)
+            {
+                if (!int.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out first))
+                {
+                    return false;
+                }
+                last = first;
+            }
+            else if (!int.TryParse(part[..dash], NumberStyles.None, CultureInfo.InvariantCulture, out first)
+                || !int.TryParse(part[(dash + 1)..], NumberStyles.None, CultureInfo.InvariantCulture, out last)
+                || last <= first)
+            {
+                return false;
+            }
+            if (first <= previous)
+            {
+                return false;
+            }
+            count += (long)last - first + 1;
+            previous = last;
+        }
+        return multiple ? count >= 2 && processors >= 2 && count >= processors : count == 1 && processors == 1;
     }
 
     internal static KernelComparison.Analysis Analyze(Quartet[] quartets, int iterations, Policy policy, int comparisonIndex)
@@ -533,6 +575,7 @@ internal static class RevisionComparison
         Dictionary<string, object?> environmentFields = HostFields.ToDictionary(field => field, _ => (object?)null, StringComparer.Ordinal);
         environmentFields["cpu"] = "Synthetic CPU";
         environmentFields["affinity"] = "0";
+        environmentFields["logicalProcessors"] = 1;
         environmentFields["vector256"] = true;
         environmentFields["vector512"] = false;
         environmentFields["vectorFloatWidth"] = 8;
@@ -540,6 +583,31 @@ internal static class RevisionComparison
         var baseline = new RevisionWorker.Identity(hash, hash, baselineRevision, environment, "1.0.0+" + baselineRevision);
         var current = new RevisionWorker.Identity(new string('b', 64), hash, currentRevision, environment, "1.0.0+" + currentRevision);
         ValidateIdentities(baseline, current, baselineRevision, currentRevision, requireNarrow: true);
+        var multiFields = new Dictionary<string, object?>(environmentFields, StringComparer.Ordinal)
+        {
+            ["affinity"] = "0-1,4",
+            ["logicalProcessors"] = 3
+        };
+        JsonElement multiEnvironment = JsonSerializer.SerializeToElement(multiFields);
+        ValidateIdentities(baseline with { Environment = multiEnvironment }, current with { Environment = multiEnvironment },
+            baselineRevision, currentRevision, requireMultipleCpus: true);
+        Reject(() => ValidateIdentities(baseline with { Environment = multiEnvironment }, current with { Environment = multiEnvironment },
+            baselineRevision, currentRevision));
+        Reject(() => ValidateIdentities(baseline, current, baselineRevision, currentRevision, requireMultipleCpus: true));
+        foreach (string malformedAffinity in new[] { "", "0-", "2-1", "0-1,1-2", "-1", "1,,2", "1-1", "2147483648", "0-1x" })
+        {
+            var invalidFields = new Dictionary<string, object?>(multiFields, StringComparer.Ordinal) { ["affinity"] = malformedAffinity };
+            JsonElement invalidEnvironment = JsonSerializer.SerializeToElement(invalidFields);
+            Reject(() => ValidateIdentities(baseline with { Environment = invalidEnvironment }, current with { Environment = invalidEnvironment },
+                baselineRevision, currentRevision, requireMultipleCpus: true));
+        }
+        foreach (object? processors in new object?[] { 0, 1, -1, 4, "3", null })
+        {
+            var invalidFields = new Dictionary<string, object?>(multiFields, StringComparer.Ordinal) { ["logicalProcessors"] = processors };
+            JsonElement invalidEnvironment = JsonSerializer.SerializeToElement(invalidFields);
+            Reject(() => ValidateIdentities(baseline with { Environment = invalidEnvironment }, current with { Environment = invalidEnvironment },
+                baselineRevision, currentRevision, requireMultipleCpus: true));
+        }
         Reject(() => ValidateIdentities(baseline, current, baselineRevision, currentRevision, requireWide: true));
         var wideFields = new Dictionary<string, object?>(environmentFields, StringComparer.Ordinal) { ["vector512"] = true };
         JsonElement wideEnvironment = JsonSerializer.SerializeToElement(wideFields);
