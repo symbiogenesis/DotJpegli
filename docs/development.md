@@ -51,7 +51,11 @@ regressions establish numerical parity and fallback distributions; latency and
 memory effects are unmeasured.
 
 Eight-lane SIMD batches adaptive modulation across neighboring blocks while
-preserving each block's addition order. Complete converted-plane blocks combine
+preserving each block's addition order. Its mask, log/power approximations and
+final strength calculation also retain one block per vector lane, using exact
+division and the original polynomial order. Exceptional inputs and unsafe
+exponent ranges use the scalar finalization; reciprocal diagnostics retain
+their original calls and counters. Complete converted-plane blocks combine
 DCT, prepared quantization, AC validation and zigzag ordering without a final
 float transpose or intermediate coefficient buffer. Four-lane SIMD also
 quantizes the two transposed DCT panels directly, staging only 64 shorts before

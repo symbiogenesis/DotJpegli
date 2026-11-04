@@ -335,18 +335,10 @@ internal sealed class AdaptiveQuantization : IDisposable
                 for (; blockX <= this.BlocksWide - 8; blockX += 8)
                 {
                     this.ModulateEightBlocks<TDivision>(blockX * 8, 5 + (blockY * 8), modulationRows, modulationValues);
-                    for (int block = 0; block < 8; block++)
-                    {
-                        int x = (blockX + block) * 2;
-                        float value = this.fuzzy[this.preStride + x] + this.fuzzy[this.preStride + x + 1]
-                            + this.fuzzy[x] + this.fuzzy[x + 1];
-                        value = ComputeMask<TDivision>(value, this.aqRationalDiagnostics);
-                        value = modulationValues[block] + value;
-                        value = (-0.15526878023684174f * InvLog2E * FastLog2<TDivision>(modulationValues[8 + block], this.aqRationalDiagnostics)) + value;
-                        float field = (FastPow2<TDivision>(value * 1.442695041f, this.aqRationalDiagnostics) * mul) + add;
-                        strengths[(blockY * this.BlocksWide) + blockX + block] = MathF.Max(0f,
-                            Divide<TDivision>(0.6f, field, AqRationalSite.Strength, this.aqRationalDiagnostics) - 1f);
-                    }
+                    FinalizeEightBlocks<TDivision>(this.fuzzy.AsSpan(this.preStride + (blockX * 2), 16),
+                        this.fuzzy.AsSpan(blockX * 2, 16), modulationValues, mul, add,
+                        strengths.Slice((blockY * this.BlocksWide) + blockX, 8), useVector: true,
+                        this.aqRationalDiagnostics);
                 }
             }
 #endif
@@ -712,6 +704,125 @@ internal sealed class AdaptiveQuantization : IDisposable
     }
 
 #if !NETSTANDARD2_1
+    // The scalar alternative retains the original eight independent block
+    // expressions for exact comparisons and exceptional-value propagation.
+    internal static void FinalizeEightBlocks(ReadOnlySpan<float> lowerFuzzy, ReadOnlySpan<float> upperFuzzy,
+        ReadOnlySpan<float> modulation, float mul, float add, Span<float> strengths, bool useVector)
+        => FinalizeEightBlocks<OriginalDivision>(lowerFuzzy, upperFuzzy, modulation, mul, add, strengths,
+            useVector, null);
+
+    private static void FinalizeEightBlocks<TDivision>(ReadOnlySpan<float> lowerFuzzy, ReadOnlySpan<float> upperFuzzy,
+        ReadOnlySpan<float> modulation, float mul, float add, Span<float> strengths, bool useVector,
+        AqRationalDiagnostics? diagnostics)
+        where TDivision : struct
+    {
+        // CertifiedDivision retains its original scalar calls and diagnostic
+        // accounting. The ordinary path uses exact vector division, without
+        // reciprocal approximations or reassociating any block's expression.
+        if (useVector && typeof(TDivision) == typeof(OriginalDivision)
+            && TryFinalizeEightBlocks(lowerFuzzy, upperFuzzy, modulation, mul, add, strengths))
+        {
+            return;
+        }
+        for (int block = 0; block < 8; block++)
+        {
+            int x = block * 2;
+            float value = lowerFuzzy[x] + lowerFuzzy[x + 1] + upperFuzzy[x] + upperFuzzy[x + 1];
+            value = ComputeMask<TDivision>(value, diagnostics);
+            value = modulation[block] + value;
+            value = (-0.15526878023684174f * InvLog2E * FastLog2<TDivision>(modulation[8 + block], diagnostics)) + value;
+            float field = (FastPow2<TDivision>(value * 1.442695041f, diagnostics) * mul) + add;
+            strengths[block] = MathF.Max(0f,
+                Divide<TDivision>(0.6f, field, AqRationalSite.Strength, diagnostics) - 1f);
+        }
+    }
+
+    private static bool TryFinalizeEightBlocks(ReadOnlySpan<float> lowerFuzzy, ReadOnlySpan<float> upperFuzzy,
+        ReadOnlySpan<float> modulation, float mul, float add, Span<float> strengths)
+    {
+        DeinterleaveFuzzy(lowerFuzzy, out Vector256<float> lowerEven, out Vector256<float> lowerOdd);
+        DeinterleaveFuzzy(upperFuzzy, out Vector256<float> upperEven, out Vector256<float> upperOdd);
+        Vector256<float> value = lowerEven + lowerOdd + upperEven + upperOdd;
+        var hf = Vector256.Create(modulation[..8]);
+        var ratio = Vector256.Create(modulation.Slice(8, 8));
+        var infinity = Vector256.Create(float.PositiveInfinity);
+        Vector256<float> valid = Vector256.LessThan(Vector256.Abs(value), infinity)
+            & Vector256.LessThan(Vector256.Abs(hf), infinity)
+            & Vector256.GreaterThan(ratio, Vector256<float>.Zero)
+            & Vector256.LessThan(ratio, infinity);
+        if (valid.ExtractMostSignificantBits() != 255 || !float.IsFinite(mul) || !float.IsFinite(add))
+        {
+            return false;
+        }
+
+        var v = Vector256.Max(value * Vector256.Create(0.74760422233706747f), Vector256.Create(1e-3f));
+        Vector256<float> v2 = Vector256.Create(1f) / (v + Vector256.Create(305.04035728311436f));
+        Vector256<float> v3 = Vector256.Create(1f) / ((v * v) + Vector256.Create(2.1925739705298404f));
+        Vector256<float> v4 = Vector256.Create(1f) / ((v * v) + Vector256.Create(0.25f * 2.1925739705298404f));
+        value = Vector256.Create(-0.74174993f) + ((Vector256.Create(3.2353257320940401f) * v4)
+            + ((Vector256.Create(12.906028311180409f) * v2) + (Vector256.Create(5.0220313103171232f) * v3)));
+        value = hf + value;
+        value = (Vector256.Create(-0.15526878023684174f * InvLog2E) * FastLog2Vector(ratio)) + value;
+        value *= Vector256.Create(1.442695041f);
+        // Keep exceptional float-to-int conversions and exponent wraparound on
+        // the original path, as well as any NaN payload or signed-zero corner.
+        if (!Vector256.GreaterThanOrEqualAll(value, Vector256.Create(-126f))
+            || !Vector256.LessThanAll(value, Vector256.Create(127f)))
+        {
+            return false;
+        }
+        Vector256<float> field = (FastPow2Vector(value) * Vector256.Create(mul)) + Vector256.Create(add);
+        if (!Vector256.LessThanAll(Vector256.Abs(field), infinity))
+        {
+            return false;
+        }
+        Vector256<float> strength = (Vector256.Create(0.6f) / field) - Vector256.Create(1f);
+        // MathF.Max(0, -0) returns positive zero. Selecting strictly positive
+        // strengths preserves that rule on every portable vector backend.
+        Vector256.ConditionalSelect(Vector256.GreaterThan(strength, Vector256<float>.Zero),
+            strength, Vector256<float>.Zero).CopyTo(strengths);
+        return true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void DeinterleaveFuzzy(ReadOnlySpan<float> values,
+        out Vector256<float> even, out Vector256<float> odd)
+    {
+        var first = Vector256.Create(values[..8]);
+        var second = Vector256.Create(values.Slice(8, 8));
+        var evens = Vector256.Create(0, 2, 4, 6, 0, 2, 4, 6);
+        var odds = Vector256.Create(1, 3, 5, 7, 1, 3, 5, 7);
+        even = Vector256.Create(Vector256.Shuffle(first, evens).GetLower(), Vector256.Shuffle(second, evens).GetLower());
+        odd = Vector256.Create(Vector256.Shuffle(first, odds).GetLower(), Vector256.Shuffle(second, odds).GetLower());
+    }
+
+    private static Vector256<float> FastLog2Vector(Vector256<float> value)
+    {
+        Vector256<int> bits = value.AsInt32();
+        var exponent = Vector256.ShiftRightArithmetic(bits - Vector256.Create(0x3f2aaaab), 23);
+        Vector256<float> mantissa = (bits - Vector256.ShiftLeft(exponent, 23)).AsSingle() - Vector256.Create(1f);
+        Vector256<float> numerator = (((Vector256.Create(0.74245873327820566f) * mantissa) + Vector256.Create(1.4287160470083755f))
+            * mantissa) - Vector256.Create(1.8503833400518310e-6f);
+        Vector256<float> denominator = (((Vector256.Create(0.17409343003366853f) * mantissa) + Vector256.Create(1.0096718572241148f))
+            * mantissa) + Vector256.Create(0.99032814277590719f);
+        return (numerator / denominator) + Vector256.ConvertToSingle(exponent);
+    }
+
+    private static Vector256<float> FastPow2Vector(Vector256<float> value)
+    {
+        var floor = Vector256.Floor(value);
+        Vector256<float> exponent = Vector256.ShiftLeft(Vector256.ConvertToInt32(floor) + Vector256.Create(127), 23).AsSingle();
+        Vector256<float> fraction = value - floor;
+        Vector256<float> numerator = fraction + Vector256.Create(1.01749063e1f);
+        numerator = (numerator * fraction) + Vector256.Create(4.88687798e1f);
+        numerator = (numerator * fraction) + Vector256.Create(9.85506591e1f);
+        numerator *= exponent;
+        Vector256<float> denominator = (fraction * Vector256.Create(2.10242958e-1f)) - Vector256.Create(2.22328856e-2f);
+        denominator = (denominator * fraction) - Vector256.Create(1.94414990e1f);
+        denominator = (denominator * fraction) + Vector256.Create(9.85506633e1f);
+        return numerator / denominator;
+    }
+
     private void ModulateEightBlocks<TDivision>(int x, int y, Span<Vector256<float>> rows, Span<float> output)
         where TDivision : struct
     {
