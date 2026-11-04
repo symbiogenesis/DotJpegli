@@ -468,13 +468,13 @@ jobs:
         run: dotnet tools/DotJpegli.Parity/bin/Release/net11.0/DotJpegli.Parity.dll --search-huffman-orderings --input "${{ runner.temp }}/parity-corpus/kodim01.ppm" --output "${{ runner.temp }}/followup-research/huffman" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --distance 1 --sampling 420 --progression 2
       - name: Search cross-block DC candidates
         if: always()
-        run: dotnet tools/DotJpegli.Parity/bin/Release/net11.0/DotJpegli.Parity.dll --search-dc-trellis --input "${{ runner.temp }}/parity-corpus/low-contrast.ppm" --output "${{ runner.temp }}/followup-research/dc" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --sampling 420
+        run: dotnet tools/DotJpegli.Parity/bin/Release/net11.0/DotJpegli.Parity.dll --search-dc-trellis --input "${{ runner.temp }}/parity-corpus/kodim01.ppm" --output "${{ runner.temp }}/followup-research/dc" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --sampling 420
       - name: Search image-specific Huffman feedback
         if: always()
-        run: dotnet tools/DotJpegli.Parity/bin/Release/net11.0/DotJpegli.Parity.dll --search-huffman-feedback --input "${{ runner.temp }}/parity-corpus/low-noise.ppm" --output "${{ runner.temp }}/followup-research/feedback" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --sampling 420
+        run: dotnet tools/DotJpegli.Parity/bin/Release/net11.0/DotJpegli.Parity.dll --search-huffman-feedback --input "${{ runner.temp }}/parity-corpus/kodim01.ppm" --output "${{ runner.temp }}/followup-research/feedback" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --sampling 420
       - name: Search reconstruction-aware chroma and saturated-edge candidates
         if: always()
-        run: dotnet tools/DotJpegli.Parity/bin/Release/net11.0/DotJpegli.Parity.dll --search-color-preprocessing --input "${{ runner.temp }}/parity-corpus/low-contrast.ppm" --output "${{ runner.temp }}/followup-research/color" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --distance 1 --sampling 420
+        run: dotnet tools/DotJpegli.Parity/bin/Release/net11.0/DotJpegli.Parity.dll --search-color-preprocessing --input "${{ runner.temp }}/parity-corpus/kodim01.ppm" --output "${{ runner.temp }}/followup-research/color" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --distance 1 --sampling 420
       - name: Retain all controls candidates and quality decisions
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
