@@ -2,6 +2,7 @@ namespace DotJpegli.Performance;
 
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using DotJpegli.Parity;
@@ -18,9 +19,9 @@ internal static class RevisionWorker
         JsonElement Environment, string AssemblyInformationalVersion);
     internal sealed record Measurement(double NsPerEncode, long AllocatedBytes, int Gen0Collections,
         int Gen1Collections, int Gen2Collections, string JpegSha256, long JpegBytes, bool SourceIcc = false,
-        string? SourceIccProfileSha256 = null);
+        string? SourceIccProfileSha256 = null, string Scenario = "ordinary");
     internal sealed record Request(string Kind, string? Input = null, int Sampling = 0, int Progression = 0,
-        float Distance = 0, int Iterations = 0, int Warmups = 0, bool SourceIcc = false);
+        float Distance = 0, int Iterations = 0, int Warmups = 0, bool SourceIcc = false, string Scenario = "ordinary");
     internal sealed record Response(string Kind, Identity? Identity = null, Measurement? Measurement = null,
         string? Error = null);
 
@@ -64,7 +65,7 @@ internal static class RevisionWorker
 
                 previous = request;
                 await Respond(new("measurement", Measurement: Measure(image!, settings!, expected!,
-                    request.Iterations, request.Warmups)));
+                    request.Iterations, request.Warmups, request.Scenario)));
             }
 
             return 0;
@@ -79,19 +80,34 @@ internal static class RevisionWorker
 
     private static bool SameInputAndSettings(Request first, Request second)
         => first.Input == second.Input && first.Sampling == second.Sampling && first.Progression == second.Progression
-            && first.Distance == second.Distance && first.SourceIcc == second.SourceIcc;
+            && first.Distance == second.Distance && first.SourceIcc == second.SourceIcc && first.Scenario == second.Scenario;
 
-    private static JpegliEncoderOptions CreateSettings(Request request) => new()
+    private static JpegliEncoderOptions CreateSettings(Request request)
     {
-        ColorSpace = JpegColorSpace.YCbCr,
-        Distance = request.Distance,
-        ProgressiveLevel = request.Progression,
-        Subsampling = request.Sampling == 444 ? ChromaSubsampling.None : ChromaSubsampling.Quarter,
-        OptimizeHuffmanTables = true,
-        AdaptiveQuantization = true,
-        ForceBaseline = true,
-        MaxDegreeOfParallelism = 1,
-        SourceIccProfile = request.SourceIcc ? JpegliIccProfiles.CreateDisplayP3Profile() : ReadOnlyMemory<byte>.Empty
+        var options = new JpegliEncoderOptions
+        {
+            ColorSpace = JpegColorSpace.YCbCr,
+            Distance = request.Distance,
+            ProgressiveLevel = request.Progression,
+            Subsampling = request.Sampling == 444 ? ChromaSubsampling.None : ChromaSubsampling.Quarter,
+            OptimizeHuffmanTables = true,
+            AdaptiveQuantization = true,
+            ForceBaseline = true,
+            MaxDegreeOfParallelism = 1,
+            SourceIccProfile = request.SourceIcc ? JpegliIccProfiles.CreateDisplayP3Profile() : ReadOnlyMemory<byte>.Empty
+        };
+        return request.Scenario == "ordinary" ? options : ApplyScenario(options, request.Scenario);
+    }
+
+    // Keep references to newer optional APIs out of the released-version JIT
+    // path. The identical worker must still load the historical 1.0.0 encoder.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static JpegliEncoderOptions ApplyScenario(JpegliEncoderOptions options, string scenario) => scenario switch
+    {
+        "smoothing" => options with { SmoothingFactor = 50 },
+        "xyb" => options with { ColorSpace = JpegColorSpace.Xyb },
+        "cache-constrained" => options with { MaxCacheBytes = 4L * 1024 * 1024 },
+        _ => throw new InvalidDataException("Unknown revision-worker scenario.")
     };
 
     private static void Validate(Request request)
@@ -99,14 +115,16 @@ internal static class RevisionWorker
         if (request.Kind != "measure" || string.IsNullOrWhiteSpace(request.Input)
             || !Path.IsPathFullyQualified(request.Input) || request.Sampling is not (444 or 420)
             || request.Progression is not (0 or 2) || request.Distance is not (1 or 4)
-            || request.Iterations is < 1 or > 100 || request.Warmups is < 0 or > 100)
+            || request.Iterations is < 1 or > 100 || request.Warmups is < 0 or > 100
+            || request.Scenario is not ("ordinary" or "smoothing" or "xyb" or "cache-constrained")
+            || (request.SourceIcc && request.Scenario != "ordinary"))
         {
             throw new InvalidDataException("Invalid revision-worker measurement request.");
         }
     }
 
     private static Measurement Measure(PpmImage image, JpegliEncoderOptions settings, byte[] expected,
-        int iterations, int warmups)
+        int iterations, int warmups, string scenario)
     {
         for (int index = 0; index < warmups; index++)
         {
@@ -128,13 +146,14 @@ internal static class RevisionWorker
         return new(ticks * (1_000_000_000.0 / Stopwatch.Frequency) / iterations, allocatedBytes,
             GC.CollectionCount(0) - gen0, GC.CollectionCount(1) - gen1, GC.CollectionCount(2) - gen2,
             Convert.ToHexStringLower(SHA256.HashData(expected)), expected.LongLength, !settings.SourceIccProfile.IsEmpty,
-            settings.SourceIccProfile.IsEmpty ? null : Convert.ToHexStringLower(SHA256.HashData(settings.SourceIccProfile.Span)));
+            settings.SourceIccProfile.IsEmpty ? null : Convert.ToHexStringLower(SHA256.HashData(settings.SourceIccProfile.Span)), scenario);
     }
 
-    internal static void ValidateMeasurementMode(Measurement measurement, bool sourceIcc)
+    internal static void ValidateMeasurementMode(Measurement measurement, bool sourceIcc, string scenario = "ordinary")
     {
         string? expectedProfile = sourceIcc ? Convert.ToHexStringLower(SHA256.HashData(JpegliIccProfiles.CreateDisplayP3Profile())) : null;
-        if (measurement.SourceIcc != sourceIcc || measurement.SourceIccProfileSha256 != expectedProfile)
+        if (measurement.SourceIcc != sourceIcc || measurement.SourceIccProfileSha256 != expectedProfile
+            || measurement.Scenario != scenario)
         {
             throw new InvalidDataException("Revision-worker measurement color conversion or source profile does not match its request.");
         }
@@ -196,6 +215,24 @@ internal static class RevisionWorker
             throw new InvalidDataException("Revision-worker measurement response round trip failed.");
         }
         ValidateMeasurementMode(measurement, sourceIcc: false);
+        foreach (string scenario in new[] { "smoothing", "xyb", "cache-constrained" })
+        {
+            Request scenarioRequest = request with { Scenario = scenario };
+            Validate(scenarioRequest);
+            if (SameInputAndSettings(request, scenarioRequest)
+                || JsonSerializer.Deserialize<Request>(JsonSerializer.Serialize(scenarioRequest)) != scenarioRequest)
+            {
+                throw new InvalidDataException("Revision-worker scenario settings must remain distinct and round-trip.");
+            }
+            JpegliEncoderOptions selected = CreateSettings(scenarioRequest);
+            if ((scenario == "smoothing" && selected.SmoothingFactor != 50)
+                || (scenario == "xyb" && selected.ColorSpace != JpegColorSpace.Xyb)
+                || (scenario == "cache-constrained" && selected.MaxCacheBytes != 4L * 1024 * 1024))
+            {
+                throw new InvalidDataException("Revision-worker scenario was not applied.");
+            }
+            ValidateMeasurementMode(measurement with { Scenario = scenario }, sourceIcc: false, scenario);
+        }
         Measurement iccMeasurement = measurement with
         {
             SourceIcc = true,
@@ -219,7 +256,8 @@ internal static class RevisionWorker
         {
             request with { Kind = "unknown" }, request with { Input = "relative.ppm" },
             request with { Sampling = 422 }, request with { Progression = 1 }, request with { Distance = float.NaN },
-            request with { Iterations = 0 }, request with { Iterations = 101 }, request with { Warmups = -1 }
+            request with { Iterations = 0 }, request with { Iterations = 101 }, request with { Warmups = -1 },
+            request with { Scenario = "unknown" }, request with { Scenario = "xyb", SourceIcc = true }
         })
         {
             try
@@ -293,19 +331,19 @@ internal sealed class RevisionWorkerClient : IAsyncDisposable
     }
 
     internal async Task<RevisionWorker.Measurement> Measure(string input, int sampling, int progression,
-        float distance, int iterations, int warmups, bool sourceIcc = false)
+        float distance, int iterations, int warmups, bool sourceIcc = false, string scenario = "ordinary")
     {
         ObjectDisposedException.ThrowIf(this.disposed, this);
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(10));
         try
         {
-            await this.Write(new("measure", input, sampling, progression, distance, iterations, warmups, sourceIcc), timeout.Token);
+            await this.Write(new("measure", input, sampling, progression, distance, iterations, warmups, sourceIcc, scenario), timeout.Token);
             RevisionWorker.Response response = await this.Read(timeout.Token);
             if (response.Kind != "measurement" || response.Measurement is not { } measurement)
             {
                 throw new InvalidDataException("Revision worker returned an unexpected response.");
             }
-            RevisionWorker.ValidateMeasurementMode(measurement, sourceIcc);
+            RevisionWorker.ValidateMeasurementMode(measurement, sourceIcc, scenario);
             return measurement;
         }
         catch (OperationCanceledException error)

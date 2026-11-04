@@ -29,14 +29,15 @@ internal static class RevisionComparison
     ];
 
     private sealed record Settings(string BaselineRunner, string BaselineRevision, string CurrentRevision,
-        string Corpus, string Output, DiagnosticSelection Selection, bool ReleaseRegression, bool SourceIcc);
+        string Corpus, string Output, DiagnosticSelection Selection, bool ReleaseRegression, bool SourceIcc,
+        string Scenario = "ordinary");
     internal sealed record Leg(int Position, string Variant, RevisionWorker.Measurement Measurement);
     internal sealed record Quartet(int Block, string Order, Leg[] Legs);
     private sealed record Attempt(int Number, string RawFile, KernelComparison.Analysis Analysis);
     private sealed record Result(string Id, string Category, int Width, int Height, int Sampling,
         int ProgressiveLevel, float Distance, int Iterations, string BaselineJpegSha256,
         string CurrentJpegSha256, Quartet[] Quartets, KernelComparison.Analysis Analysis,
-        int SelectedAttempt, Attempt[] Attempts, bool SourceIcc);
+        int SelectedAttempt, Attempt[] Attempts, bool SourceIcc, string Scenario = "ordinary");
 
     internal static async Task<int> Run(string[] args)
     {
@@ -80,8 +81,9 @@ internal static class RevisionComparison
                 githubRunId = Environment.GetEnvironmentVariable("GITHUB_RUN_ID"),
                 baseline = baseline.Identity,
                 current = current.Identity,
+                options.Scenario,
                 sourceIcc = options.SourceIcc,
-                colorConversion = ColorConversion(options.SourceIcc),
+                colorConversion = ColorConversion(options.SourceIcc, options.Scenario),
                 sourceIccProfileSha256 = options.SourceIcc ? Hash(JpegliIccProfiles.CreateDisplayP3Profile()) : null,
                 corpusManifestSha256 = HashFile(Path.Combine(AppContext.BaseDirectory, "corpus.json")),
                 selection,
@@ -145,7 +147,8 @@ internal static class RevisionComparison
                                     {
                                         bool isBaseline = order[position] == 'A';
                                         RevisionWorker.Measurement measured = await (isBaseline ? baseline : current).Measure(
-                                            input, sampling, progression, distance, iterations, selection.Policy.Warmups, options.SourceIcc);
+                                            input, sampling, progression, distance, iterations, selection.Policy.Warmups,
+                                            options.SourceIcc, options.Scenario);
                                         legs[position] = new(position, isBaseline ? "baseline" : "current", measured);
                                     }
 
@@ -196,7 +199,8 @@ internal static class RevisionComparison
                             string baselineHash = raw[0].Legs.First(leg => leg.Variant == "baseline").Measurement.JpegSha256;
                             string currentHash = raw[0].Legs.First(leg => leg.Variant == "current").Measurement.JpegSha256;
                             results.Add(new(id, category, image.Width, image.Height, sampling, progression, distance,
-                                iterations, baselineHash, currentHash, raw, analysis, attempts.Count, attempts.ToArray(), options.SourceIcc));
+                                iterations, baselineHash, currentHash, raw, analysis, attempts.Count, attempts.ToArray(),
+                                options.SourceIcc, options.Scenario));
                             await WriteJson(output, "cases.json", results);
                             await WriteJson(output, "progress.json", new
                             {
@@ -238,7 +242,7 @@ internal static class RevisionComparison
                 baselineRevision = options.BaselineRevision,
                 currentRevision = options.CurrentRevision,
                 sourceIcc = options.SourceIcc,
-                colorConversion = ColorConversion(options.SourceIcc),
+                colorConversion = ColorConversion(options.SourceIcc, options.Scenario),
                 regressions,
                 comparisons = results.Count,
                 expectedComparisons = selection.ExpectedCases,
@@ -249,7 +253,8 @@ internal static class RevisionComparison
                 inconclusiveComparisons = results.Count(result => result.Analysis.InvalidReasons.Length == 0 && result.Analysis.EvidencePreference == "inconclusive"),
                 invalidReasons = invalid
             });
-            await File.WriteAllTextAsync(Path.Combine(output, "report.md"), Report(results, invalid, options.ReleaseRegression, options.SourceIcc));
+            await File.WriteAllTextAsync(Path.Combine(output, "report.md"),
+                "Scenario: " + options.Scenario + "\n\n" + Report(results, invalid, options.ReleaseRegression, options.SourceIcc, options.Scenario));
             return ExitCode(valid, options.ReleaseRegression, regressions.Length);
         }
         catch (Exception error) when (error is ArgumentException or InvalidDataException or IOException
@@ -329,6 +334,12 @@ internal static class RevisionComparison
             throw new ArgumentException("Baseline runner and corpus must exist.");
         }
 
+        string scenario = values.Remove("--scenario", out string? selectedScenario) ? selectedScenario : "ordinary";
+        if (scenario is not ("ordinary" or "smoothing" or "xyb" or "cache-constrained")
+            || (scenario != "ordinary" && (releaseRegression || sourceIcc)))
+        {
+            throw new ArgumentException("Scenario must be ordinary, smoothing, xyb or cache-constrained, without release or source-ICC overrides.");
+        }
         DiagnosticSelection selection;
         if (releaseRegression)
         {
@@ -351,7 +362,7 @@ internal static class RevisionComparison
             throw new ArgumentException("Revision comparisons require four or six balanced quartets.");
         }
 
-        return new(runner, baseline, current, corpus, output, selection, releaseRegression, sourceIcc);
+        return new(runner, baseline, current, corpus, output, selection, releaseRegression, sourceIcc, scenario);
     }
 
     private static bool IsRegression(KernelComparison.Analysis analysis)
@@ -440,7 +451,7 @@ internal static class RevisionComparison
         {
             invalid.Add("Baseline and current must produce identical deterministic JPEG bytes in every leg.");
         }
-        if (measurements.Select(measurement => (measurement.SourceIcc, measurement.SourceIccProfileSha256)).Distinct().Count() > 1)
+        if (measurements.Select(measurement => (measurement.SourceIcc, measurement.SourceIccProfileSha256, measurement.Scenario)).Distinct().Count() > 1)
         {
             invalid.Add("All revision-worker legs must use the same source ICC conversion mode.");
         }
@@ -463,14 +474,17 @@ internal static class RevisionComparison
         => await File.WriteAllTextAsync(Path.Combine(output, name), JsonSerializer.Serialize(value, JsonOptions));
     private static string Metric(double? value) => value?.ToString("F6", CultureInfo.InvariantCulture) ?? "n/a";
     private static string Label(Result result) => FormattableString.Invariant($"{result.Id}/{result.Sampling}/p{result.ProgressiveLevel}/d{result.Distance}");
-    private static string ColorConversion(bool sourceIcc) => sourceIcc
+    private static string ColorConversion(bool sourceIcc, string scenario = "ordinary") => scenario == "xyb"
+        ? "Raw byte sRGB to XYB without a source ICC transform"
+        : sourceIcc
         ? "RGB8 Display P3 source ICC to built-in sRGB destination, then YCbCr; profile parsing and conversion included in every encode"
         : "RGB8 to YCbCr without source ICC conversion";
 
-    private static string Report(IReadOnlyList<Result> results, string[] invalid, bool releaseRegression, bool sourceIcc)
+    private static string Report(IReadOnlyList<Result> results, string[] invalid, bool releaseRegression, bool sourceIcc,
+        string scenario = "ordinary")
     {
         var report = new StringBuilder("# Interleaved revision comparison\n\n");
-        _ = report.AppendLine("Color conversion: " + ColorConversion(sourceIcc) + ".\n");
+        _ = report.AppendLine("Color conversion: " + ColorConversion(sourceIcc, scenario) + ".\n");
         _ = report.AppendLine("Persistent baseline and current workers run serially as balanced ABBA/BAAB quartets with identical fixed iterations, warmups, runtime, CPU affinity, encoding policy, inputs and JPEG hashes. Startup and IPC are outside encode timing. Ratios below1 favor current. Allocations are mean bytes per encode; retained rental capacity and peak working memory are separate measurements.");
         _ = report.AppendLine("\nMAD, repeated-leg drift, p90/p10 minority-state drift and order bias guard the timing evidence. Invalid rows retain raw measurements and cannot support a speed claim. Valid rows remain inconclusive unless every quartet differs by more than 0.5% in the same direction. This comparison has no native parity verdict.");
         if (releaseRegression)
@@ -643,6 +657,13 @@ internal static class RevisionComparison
         Check(options.Selection.Policy.Blocks == 6 && options.Selection.Policy.MinimumIterations == 20
             && options.Selection.Policy.MaximumIterations == 20 && !options.SourceIcc, "Revision comparison defaults changed.");
         Settings managedColor = Parse([.. arguments, "--source-icc"]);
+        foreach (string scenario in new[] { "smoothing", "xyb", "cache-constrained" })
+        {
+            Check(Parse([.. arguments, "--scenario", scenario]).Scenario == scenario,
+                "Explicit revision scenarios must be retained.");
+            Reject(() => Parse([.. arguments, "--scenario", scenario, "--source-icc"]));
+        }
+        Reject(() => Parse([.. arguments, "--scenario", "unknown"]));
         Check(managedColor.SourceIcc && !managedColor.ReleaseRegression
             && managedColor.Selection.ExpectedCases == options.Selection.ExpectedCases,
             "Source ICC diagnostics must preserve the existing selected matrix.");
