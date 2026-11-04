@@ -49,6 +49,16 @@ public sealed class SourceIccColorManagementTests
     [InlineData(1, 2)]
     public void SharedAndDistinctRgbCurvesRetainTheirChannelExponents(int greenCurve, int blueCurve)
     {
+        byte[] profile = RgbCurveProfile(greenCurve, blueCurve);
+        byte[] linear = JpegliIccProfiles.CreateLinearSrgbProfile();
+        AssertConversion(Transform(profile, linear), 0.2f, 0.4f, 0.6f,
+            Math.Pow(0.2f, 2), Math.Pow(0.4f, greenCurve + 2), Math.Pow(0.6f, blueCurve + 2), 0.000001);
+        AssertConversion(Transform(linear, profile), 0.2f, 0.4f, 0.6f,
+            Math.Pow(0.2f, 0.5), Math.Pow(0.4f, 1d / (greenCurve + 2)), Math.Pow(0.6f, 1d / (blueCurve + 2)), 0.000001);
+    }
+
+    private static byte[] RgbCurveProfile(int greenCurve, int blueCurve)
+    {
         byte[] shared = JpegliIccProfiles.CreateGammaSrgbProfile(2);
         byte[] profile = new byte[shared.Length + 32];
         shared.CopyTo(profile, 0);
@@ -73,11 +83,80 @@ public sealed class SourceIccColorManagementTests
             }
         }
 
-        byte[] linear = JpegliIccProfiles.CreateLinearSrgbProfile();
-        AssertConversion(Transform(profile, linear), 0.2f, 0.4f, 0.6f,
-            Math.Pow(0.2f, 2), Math.Pow(0.4f, greenCurve + 2), Math.Pow(0.6f, blueCurve + 2), 0.000001);
-        AssertConversion(Transform(linear, profile), 0.2f, 0.4f, 0.6f,
-            Math.Pow(0.2f, 0.5), Math.Pow(0.4f, 1d / (greenCurve + 2)), Math.Pow(0.6f, 1d / (blueCurve + 2)), 0.000001);
+        return profile;
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    public void PreparedByteCurvesMatchOriginalFloatConversionForEveryChannelValue(int kind)
+    {
+        bool gray = kind is >= 4 and <= 6;
+        byte[] source = kind switch
+        {
+            0 => JpegliIccProfiles.CreateDisplayP3Profile(),
+            1 => JpegliIccProfiles.CreateLinearSrgbProfile(),
+            2 => JpegliIccProfiles.CreateGammaSrgbProfile(2.2),
+            3 => RgbCurveProfile(1, 2),
+            4 => ParametricGrayProfile(4, 1.75, 0.75, 0.125, 0.25, 0.25, 0.0625, 0.03125),
+            5 => SampledGrayProfile(0, 16384, 65535),
+            6 => JpegliIccProfiles.CreateSrgbGrayscaleProfile(),
+            _ => LutProfile("mft2", false, 4)
+        };
+        if (kind == 6)
+        {
+            "Lab "u8.CopyTo(source.AsSpan(20));
+        }
+        byte[] destination = gray ? JpegliIccProfiles.CreateSrgbGrayscaleProfile() : JpegliIccProfiles.CreateSrgbProfile();
+        IccColorTransform original = Transform(source, destination, gray, gray);
+        IccColorTransform prepared = original.WithByteInput();
+        for (int value = 0; value < 256; value++)
+        {
+            byte red = (byte)value, green = (byte)(255 - value), blue = (byte)((value * 73) & 255);
+            original.Convert((float)(red * (1.0 / 255.0)), (float)(green * (1.0 / 255.0)),
+                (float)(blue * (1.0 / 255.0)), out float expectedRed, out float expectedGreen, out float expectedBlue);
+            prepared.ConvertByte(red, green, blue, out float actualRed, out float actualGreen, out float actualBlue);
+            Assert.Equal(BitConverter.SingleToInt32Bits(expectedRed), BitConverter.SingleToInt32Bits(actualRed));
+            Assert.Equal(BitConverter.SingleToInt32Bits(expectedGreen), BitConverter.SingleToInt32Bits(actualGreen));
+            Assert.Equal(BitConverter.SingleToInt32Bits(expectedBlue), BitConverter.SingleToInt32Bits(actualBlue));
+        }
+    }
+
+    [Theory]
+    [InlineData(PixelComponentLayout.Rgb, JpegColorSpace.YCbCr)]
+    [InlineData(PixelComponentLayout.Bgr, JpegColorSpace.YCbCr)]
+    [InlineData(PixelComponentLayout.Rgba, JpegColorSpace.Rgb)]
+    [InlineData(PixelComponentLayout.Bgra, JpegColorSpace.Xyb)]
+    [InlineData(PixelComponentLayout.Gray, JpegColorSpace.Grayscale)]
+    [InlineData(PixelComponentLayout.Gray, JpegColorSpace.Rgb)]
+    public void ByteColorManagementMatchesNormalizedFloatJpegWithAndWithoutPlaneCache(
+        PixelComponentLayout layout, JpegColorSpace colorSpace)
+    {
+        const int width = 19, height = 17;
+        int stride = (width * Components(layout)) + 7;
+        byte[] pixels = (byte[])Source(0, width, height, layout, stride);
+        float[] normalized = pixels.Select(value => (float)(value * (1.0 / 255.0))).ToArray();
+        var options = new JpegliEncoderOptions
+        {
+            SourceIccProfile = layout == PixelComponentLayout.Gray ? JpegliIccProfiles.CreateSrgbGrayscaleProfile()
+                : JpegliIccProfiles.CreateDisplayP3Profile(),
+            ColorSpace = colorSpace,
+            Progressive = true,
+            ProgressiveRefinementBits = 2,
+            RestartInterval = 2
+        };
+        foreach (long budget in new[] { 0L, 192L * 1024 * 1024 })
+        {
+            JpegliEncoderOptions selected = options with { MaxCacheBytes = budget };
+            byte[] expected = Encode(normalized, width, height, layout, selected, stride);
+            Assert.Equal(expected, Encode(pixels, width, height, layout, selected, stride));
+        }
     }
 
     [Theory]
@@ -305,6 +384,30 @@ public sealed class SourceIccColorManagementTests
         {
             double expected = Math.Clamp((sample - offset) / 0.5, 0, 1);
             AssertConversion(transform, sample, sample, sample, expected, expected, expected, 0.000001);
+        }
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void PreparedDestinationJoinPreservesExactPiecewiseInverseAtAdjacentFloats(int function)
+    {
+        double offset = function == 4 ? 0.125 : 0;
+        byte[] destination = function == 3 ? ParametricGrayProfile(3, 2, 1, 0, 0.5, 0.5)
+            : ParametricGrayProfile(4, 2, 1, 0, 0.5, 0.5, offset, offset);
+        IccColorTransform transform = Transform(JpegliIccProfiles.CreateLinearSrgbGrayscaleProfile(), destination, true, true);
+        float join = (float)(0.25 + offset);
+        foreach (float sample in new[] { 0f, (float)offset, float.BitDecrement(join), join,
+            float.BitIncrement(join), 0.75f, 1f })
+        {
+            // Both branches meet at x=1/2: y=x/2+offset below it,
+            // and y=x*x+offset above it. These coefficients are exact in ICC.
+            double value = Math.Clamp((double)sample, offset, 1);
+            float expected = (float)(value < join ? (value - offset) * 2 : Math.Sqrt(value - offset));
+            transform.Convert(sample, sample, sample, out float red, out float green, out float blue);
+            Assert.Equal(BitConverter.SingleToInt32Bits(expected), BitConverter.SingleToInt32Bits(red));
+            Assert.Equal(BitConverter.SingleToInt32Bits(expected), BitConverter.SingleToInt32Bits(green));
+            Assert.Equal(BitConverter.SingleToInt32Bits(expected), BitConverter.SingleToInt32Bits(blue));
         }
     }
 

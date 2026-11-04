@@ -96,6 +96,15 @@ Independent bit regressions cover nonintegral gamma across all five types,
 clipped endpoints and adjacent floats at a nonrepresentable branch threshold.
 Source-ICC latency remains unmeasured.
 
+Validated destination curves also retain their exact piecewise inverse joins,
+removing repeated evaluation of a constant power at each output sample. Byte
+input with at least 256 pixels prepares exact source-curve tables for matrix/XYZ
+and grayscale profiles. Tables use the existing rounded float normalization and
+share storage for shared curves; Lab/LUT profiles and other precisions retain
+direct evaluation. Focused regressions compare every byte value, inverse join
+boundaries and complete cached/uncached JPEG output. These changes preserve the
+destination inverse arithmetic rather than interpolating continuous outputs.
+
 The scalar DCT specializes the same fixed eight- and four-point stages as the
 vector path. It keeps the recursive port's arithmetic and fused multiply-adds
 while avoiding recursive calls and per-stage scratch spans. A retained recursive

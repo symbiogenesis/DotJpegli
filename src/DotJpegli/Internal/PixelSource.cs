@@ -129,7 +129,15 @@ internal readonly ref struct PixelSource
     internal PixelSource WithPreflightedColorPlanes(int width, int height, int stride,
         EncoderCacheBudget? cacheBudget, CancellationToken cancellationToken)
     {
-        PixelSource converted = this.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true);
+        cancellationToken.ThrowIfCancellationRequested();
+        PixelSource source = this;
+        // Amortize a maximum of 256 evaluations per distinct source curve.
+        // Tiny images retain direct conversion without preparing unused entries.
+        if (this.sourceType == SourceType.Byte && this.colorTransform is { } transform && (long)width * height >= 256)
+        {
+            source = new PixelSource(this, this.colorSpace, colorTransform: transform.WithByteInput());
+        }
+        PixelSource converted = source.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true);
         try
         {
             for (int row = converted.ConvertedRows; row < height; row++)
@@ -898,10 +906,7 @@ internal readonly ref struct PixelSource
         }
         if (this.colorTransform is not null)
         {
-            float red = this.ReadNormalizedComponent(offset + (this.IsGrayscaleInput ? 0 : this.bgr ? 2 : 0));
-            float green = this.IsGrayscaleInput ? red : this.ReadNormalizedComponent(offset + 1);
-            float blue = this.IsGrayscaleInput ? red : this.ReadNormalizedComponent(offset + (this.bgr ? 0 : 2));
-            this.colorTransform.Convert(red, green, blue, out red, out green, out blue);
+            this.ReadManagedRgb(offset, out float red, out float green, out float blue);
             if (this.IsXyb)
             {
                 XybColorConversion.SrgbToScaledXyb(red, green, blue, out float scaledX, out float scaledY, out float scaledB);
@@ -965,10 +970,17 @@ internal readonly ref struct PixelSource
     {
         if (this.colorTransform is not null || (this.IsXyb && !this.xyb))
         {
-            float red = this.ReadNormalizedComponent(offset + (this.IsGrayscaleInput ? 0 : this.bgr ? 2 : 0));
-            float green = this.IsGrayscaleInput ? red : this.ReadNormalizedComponent(offset + 1);
-            float blue = this.IsGrayscaleInput ? red : this.ReadNormalizedComponent(offset + (this.bgr ? 0 : 2));
-            this.colorTransform?.Convert(red, green, blue, out red, out green, out blue);
+            float red, green, blue;
+            if (this.colorTransform is not null)
+            {
+                this.ReadManagedRgb(offset, out red, out green, out blue);
+            }
+            else
+            {
+                red = this.ReadNormalizedComponent(offset + (this.IsGrayscaleInput ? 0 : this.bgr ? 2 : 0));
+                green = this.IsGrayscaleInput ? red : this.ReadNormalizedComponent(offset + 1);
+                blue = this.IsGrayscaleInput ? red : this.ReadNormalizedComponent(offset + (this.bgr ? 0 : 2));
+            }
 
             if (this.IsXyb)
             {
@@ -1118,6 +1130,25 @@ internal readonly ref struct PixelSource
         SourceType.Float => this.floats[offset],
         _ => this.floats[offset]
     };
+
+    private void ReadManagedRgb(int offset, out float red, out float green, out float blue)
+    {
+        int redOffset = offset + (this.IsGrayscaleInput ? 0 : this.bgr ? 2 : 0);
+        int blueOffset = offset + (this.bgr ? 0 : 2);
+        if (this.sourceType == SourceType.Byte)
+        {
+            byte first = this.bytes[redOffset];
+            this.colorTransform!.ConvertByte(first, this.IsGrayscaleInput ? first : this.bytes[offset + 1],
+                this.IsGrayscaleInput ? first : this.bytes[blueOffset], out red, out green, out blue);
+        }
+        else
+        {
+            red = this.ReadNormalizedComponent(redOffset);
+            green = this.IsGrayscaleInput ? red : this.ReadNormalizedComponent(offset + 1);
+            blue = this.IsGrayscaleInput ? red : this.ReadNormalizedComponent(blueOffset);
+            this.colorTransform!.Convert(red, green, blue, out red, out green, out blue);
+        }
+    }
 
     private static int GetComponentCount(PixelComponentLayout layout) => layout switch
     {

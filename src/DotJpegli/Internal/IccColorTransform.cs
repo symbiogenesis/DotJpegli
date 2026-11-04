@@ -14,12 +14,15 @@ internal sealed class IccColorTransform
     private readonly ProfileTransform source;
     private readonly ProfileTransform destination;
     private readonly Triple absoluteScale;
+    private readonly ByteInputTransform? byteInput;
 
-    private IccColorTransform(ProfileTransform source, ProfileTransform destination, Triple absoluteScale)
+    private IccColorTransform(ProfileTransform source, ProfileTransform destination, Triple absoluteScale,
+        ByteInputTransform? byteInput = null)
     {
         this.source = source;
         this.destination = destination;
         this.absoluteScale = absoluteScale;
+        this.byteInput = byteInput;
     }
 
     internal static IccColorTransform Create(ReadOnlySpan<byte> sourceProfile,
@@ -48,6 +51,30 @@ internal sealed class IccColorTransform
         return new(inputTransform, outputTransform, scale);
     }
 
+    // A bounded exact lookup is useful only for byte input. Other precisions
+    // and source pipelines continue through their original curve evaluation.
+    internal IccColorTransform WithByteInput()
+    {
+        if (this.byteInput is not null)
+        {
+            return this;
+        }
+        ByteInputTransform? prepared = this.source.PrepareByteInput();
+        return prepared is null ? this : new(this.source, this.destination, this.absoluteScale, prepared);
+    }
+
+    internal void ConvertByte(byte red, byte green, byte blue,
+        out float outputRed, out float outputGreen, out float outputBlue)
+    {
+        if (this.byteInput is null)
+        {
+            this.Convert((float)(red * (1.0 / 255.0)), (float)(green * (1.0 / 255.0)),
+                (float)(blue * (1.0 / 255.0)), out outputRed, out outputGreen, out outputBlue);
+            return;
+        }
+        this.ConvertFromXyz(this.byteInput.ToXyz(red, green, blue), out outputRed, out outputGreen, out outputBlue);
+    }
+
     [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
         Justification = "The component samples originate from the public Encode pixels argument.")]
     internal void Convert(float red, float green, float blue,
@@ -58,7 +85,12 @@ internal sealed class IccColorTransform
             throw new ArgumentException("ICC conversion requires finite normalized samples.", "pixels");
         }
 
-        Triple xyz = this.source.ToXyz(new(Clamp(red), Clamp(green), Clamp(blue)));
+        this.ConvertFromXyz(this.source.ToXyz(new(Clamp(red), Clamp(green), Clamp(blue))),
+            out outputRed, out outputGreen, out outputBlue);
+    }
+
+    private void ConvertFromXyz(Triple xyz, out float outputRed, out float outputGreen, out float outputBlue)
+    {
         xyz = new(xyz.X * this.absoluteScale.X, xyz.Y * this.absoluteScale.Y, xyz.Z * this.absoluteScale.Z);
         EnsureFinite(xyz);
         Triple result = this.destination.FromXyz(xyz);
@@ -82,10 +114,62 @@ internal sealed class IccColorTransform
 
     private readonly record struct Triple(double X, double Y, double Z);
 
+    private sealed class ByteInputTransform(bool grayscale, Matrix? matrix, double[][] curves)
+    {
+        internal Triple ToXyz(byte red, byte green, byte blue)
+        {
+            double first = curves[0][red];
+            return grayscale ? new(D50X * first, first, D50Z * first)
+                : matrix!.Apply(new(first, curves[1][green], curves[2][blue]), false);
+        }
+    }
+
     private sealed class ProfileTransform(bool grayscale, bool lab, Curve[]? curves,
         Matrix? matrix, Pipeline? pipeline, bool legacyLab,
         Triple inverseMinimum = default, Triple inverseMaximum = default)
     {
+        internal ByteInputTransform? PrepareByteInput()
+        {
+            if (pipeline is not null || lab)
+            {
+                return null;
+            }
+
+            Curve[] sourceCurves = curves!;
+            double[][] tables = new double[sourceCurves.Length][];
+            for (int channel = 0; channel < sourceCurves.Length; channel++)
+            {
+                int shared = 0;
+                while (shared < channel && !ReferenceEquals(sourceCurves[shared], sourceCurves[channel]))
+                {
+                    shared++;
+                }
+                if (shared < channel)
+                {
+                    tables[channel] = tables[shared];
+                    continue;
+                }
+                double[] values = new double[256];
+                try
+                {
+                    for (int value = 0; value < values.Length; value++)
+                    {
+                        // Normalize to float first, exactly as PixelSource does.
+                        // Evaluating at value/255 in double would change bits.
+                        values[value] = sourceCurves[channel].Apply((float)(value * (1.0 / 255.0)));
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    // Unused input values must not introduce an earlier error.
+                    // Original conversion still validates the actual samples.
+                    return null;
+                }
+                tables[channel] = values;
+            }
+            return new(grayscale, matrix, tables);
+        }
+
         internal Triple ToXyz(Triple device)
         {
             if (pipeline is not null)
@@ -697,6 +781,10 @@ internal sealed class IccColorTransform
         private readonly string parameter;
         private readonly double inverseExponent;
         private readonly double powerStart;
+        // Written only while preparing a validated destination transform,
+        // before its privately owned curves can be used by any conversion.
+        private double lowerJoin;
+        private double upperJoin;
 
         internal Curve(int function, double[] values, string parameter = "SourceIccProfile")
         {
@@ -784,6 +872,12 @@ internal sealed class IccColorTransform
             {
                 throw new ArgumentException("The destination ICC curve has no usable inverse.", parameter);
             }
+            if (!this.table && this.function >= 3 && this.values[4] is > 0 and <= 1)
+            {
+                double offset = this.function == 4 ? this.values[6] : 0;
+                this.lowerJoin = Clamp((this.values[3] * this.values[4]) + offset);
+                this.upperJoin = this.Apply(this.values[4]);
+            }
             return (minimum, maximum);
         }
 
@@ -851,24 +945,23 @@ internal sealed class IccColorTransform
 
             if (d > 0)
             {
-                double lowerJoin = Clamp((this.values[3] * d) + f), upperJoin = this.Apply(d);
                 // A clipped terminal plateau may start in the linear segment and
                 // continue through the join. Annex F chooses its first x.
-                if (y == 1 && lowerJoin == 1)
+                if (y == 1 && this.lowerJoin == 1)
                 {
                     return Clamp((y - f) / this.values[3]);
                 }
 
-                if (y < upperJoin)
+                if (y < this.upperJoin)
                 {
                     // Fixed-point curve coefficients can produce a discontinuous
                     // join. In its gap choose the nearest attainable curve value.
                     // Preserve a lower-side choice through the float output API:
                     // the preceding double would round back to the upper branch.
                     double preceding = StandardFloatingPoint.BitDecrement((float)d);
-                    if (y >= lowerJoin)
+                    if (y >= this.lowerJoin)
                     {
-                        return y - lowerJoin <= upperJoin - y ? preceding : d;
+                        return y - this.lowerJoin <= this.upperJoin - y ? preceding : d;
                     }
 
                     return this.values[3] > 0 ? Clamp(Math.Min(preceding, (y - f) / this.values[3])) : preceding;
