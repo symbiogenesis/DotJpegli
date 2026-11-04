@@ -6,8 +6,14 @@ namespace DotJpegli.Internal;
 /// <summary>Feeds independent progressive AC scans from one traversal per component.</summary>
 internal static class ProgressiveAcCollector
 {
-    internal static bool ShouldFuse(IReadOnlyList<JpegScan> scans)
+    internal static bool ShouldFuse(IReadOnlyList<JpegScan> scans, QuantizedImage? quantizedImage = null)
     {
+        // A complete cache removes repeated block preparation already. Keep the
+        // established scan-major path there, without allocating per-scan states.
+        if (quantizedImage?.IsComplete == true)
+        {
+            return false;
+        }
         // A single AC scan already prepares each component block only once.
         Span<int> acScanCounts = stackalloc int[3];
         acScanCounts.Clear();

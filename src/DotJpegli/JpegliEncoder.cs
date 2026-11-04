@@ -680,7 +680,7 @@ public static class JpegliEncoder
         }
 
         long[][][] acFrequencies = new long[scans.Length][][];
-        bool fuseProgressiveAc = options.Progressive && ProgressiveAcCollector.ShouldFuse(scans);
+        bool fuseProgressiveAc = options.Progressive && ProgressiveAcCollector.ShouldFuse(scans, quantizedImage);
         // These placeholder arrays are not read during frequency collection.
         var emptyTables = new HuffmanTable[componentCount];
         for (int scanIndex = 0; scanIndex < scans.Length; scanIndex++)
@@ -702,7 +702,7 @@ public static class JpegliEncoder
                 }
             }
 
-            // Progressive AC scans share one component-raster traversal below.
+            // Uncached progressive AC blocks share one component-raster traversal below.
             // DC scans keep their own possibly interleaved MCU traversal.
             if (fuseProgressiveAc && scan.SpectralStart > 0)
             {

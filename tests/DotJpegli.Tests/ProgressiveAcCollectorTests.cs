@@ -66,6 +66,7 @@ public sealed class ProgressiveAcCollectorTests
         }
         QuantizedImage? actualCache = cacheMode == 2 ? full : partial;
         JpegScan[] scans = Script(components);
+        Assert.Equal(cacheMode != 2, ProgressiveAcCollector.ShouldFuse(scans, actualCache));
         foreach (bool restarts in new[] { false, true })
         {
             int[] intervals = Enumerable.Range(0, components).Select(component => restarts ? 2 + component : 0).ToArray();
