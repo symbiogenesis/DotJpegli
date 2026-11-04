@@ -10,7 +10,7 @@ internal sealed record PpmImage(int Width, int Height, byte[] Pixels)
     public static PpmImage Read(byte[] data)
     {
         int position = 0;
-        string Token()
+        ReadOnlySpan<byte> Token()
         {
             while (position < data.Length)
             {
@@ -38,9 +38,9 @@ internal sealed record PpmImage(int Width, int Height, byte[] Pixels)
                 throw new InvalidDataException("Missing PPM header token.");
             }
 
-            return Encoding.ASCII.GetString(data, start, position - start);
+            return data.AsSpan(start, position - start);
         }
-        if (Token() != "P6")
+        if (!Token().SequenceEqual("P6"u8))
         {
             throw new InvalidDataException("Corpus must contain binary RGB P6 PPM files.");
         }
@@ -51,7 +51,7 @@ internal sealed record PpmImage(int Width, int Height, byte[] Pixels)
             throw new InvalidDataException("Invalid PPM dimensions.");
         }
 
-        if (Token() != "255")
+        if (!Token().SequenceEqual("255"u8))
         {
             throw new InvalidDataException("PPM sample range must be 0..255.");
         }
