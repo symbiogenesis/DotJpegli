@@ -785,6 +785,7 @@ internal sealed class IccColorTransform
         // before its privately owned curves can be used by any conversion.
         private double lowerJoin;
         private double upperJoin;
+        private SampledCurveIndex? inverseIndex;
 
         internal Curve(int function, double[] values, string parameter = "SourceIccProfile")
         {
@@ -878,6 +879,10 @@ internal sealed class IccColorTransform
                 this.lowerJoin = Clamp((this.values[3] * this.values[4]) + offset);
                 this.upperJoin = this.Apply(this.values[4]);
             }
+            if (this.table)
+            {
+                this.inverseIndex = SampledCurveIndex.TryCreate(this.values, cancellationToken);
+            }
             return (minimum, maximum);
         }
 
@@ -889,6 +894,11 @@ internal sealed class IccColorTransform
                 // Find the first entry >= y. Exact flats use the highest x,
                 // except a terminal flat uses its lowest x (ICC Annex F.1).
                 int low = 0, high = this.values.Length;
+                if (this.inverseIndex is { } index)
+                {
+                    index.GetRange(this.values, y, out low, out high);
+                }
+                int rangeEnd = high;
                 while (low < high)
                 {
                     int middle = low + ((high - low) / 2);
@@ -909,7 +919,7 @@ internal sealed class IccColorTransform
                         return (double)upper / (this.values.Length - 1);
                     }
 
-                    high = this.values.Length;
+                    high = rangeEnd;
                     while (low < high)
                     {
                         int middle = low + ((high - low) / 2);
@@ -969,6 +979,87 @@ internal sealed class IccColorTransform
             }
             return Clamp(Math.Max(d, (Math.Pow(Math.Max(0, y - e), this.inverseExponent) - this.values[2]) / this.values[1]));
         }
+    }
+
+    // A bounded value grid narrows exact predecessor searches. Inspired by
+    // Cadenas, Recursive Grid Indexing (2026), doi:10.1002/spe.70091; this is a
+    // conservative single-level index with binary-search fallback, not RGI's
+    // recursive algorithm. No paper implementation is incorporated here.
+    internal sealed class SampledCurveIndex
+    {
+        private const int Cells = 256;
+        private const int MaximumCellEntries = 32;
+        private readonly double minimum;
+        private readonly double scale;
+        private readonly int[] starts;
+
+        private SampledCurveIndex(double minimum, double scale, int[] starts)
+        {
+            this.minimum = minimum;
+            this.scale = scale;
+            this.starts = starts;
+        }
+
+        // Called only after destination monotonicity and endpoint validation.
+        // Bound both preparation and storage; small or clustered curves keep
+        // their original search without retaining any additional heap storage.
+        internal static SampledCurveIndex? TryCreate(double[] values, CancellationToken cancellationToken)
+        {
+            if (values.Length is < 512 or > Cells * MaximumCellEntries)
+            {
+                return null;
+            }
+            double minimum = values[0];
+            double scale = Cells / (values[^1] - minimum);
+            if (!double.IsFinite(scale) || scale <= 0)
+            {
+                return null;
+            }
+            Span<int> counts = stackalloc int[Cells];
+            counts.Clear();
+            for (int index = 0; index < values.Length; index++)
+            {
+                if ((index & 1023) == 0)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                int cell = Cell(values[index], minimum, scale);
+                if (++counts[cell] > MaximumCellEntries)
+                {
+                    return null;
+                }
+            }
+            int[] starts = new int[Cells + 1];
+            for (int cell = 0; cell < Cells; cell++)
+            {
+                starts[cell + 1] = starts[cell] + counts[cell];
+            }
+            return new(minimum, scale, starts);
+        }
+
+        internal void GetRange(double[] values, double value, out int low, out int high)
+        {
+            if (double.IsFinite(value))
+            {
+                int cell = Cell(value, this.minimum, this.scale);
+                low = this.starts[cell];
+                // Include the first entry in the following cell: it may be the
+                // first knot above a query that follows this cell's last knot.
+                high = Math.Min(this.starts[cell + 1] + 1, values.Length);
+                // Certify both strict boundaries with original values. This
+                // includes complete plateau runs and guards grid roundoff.
+                if ((low == 0 || values[low - 1] < value) &&
+                    (high == values.Length || values[high] > value))
+                {
+                    return;
+                }
+            }
+            low = 0;
+            high = values.Length;
+        }
+
+        private static int Cell(double value, double minimum, double scale)
+            => Math.Clamp((int)((value - minimum) * scale), 0, Cells - 1);
     }
 
     private sealed class Matrix(double[] values)
