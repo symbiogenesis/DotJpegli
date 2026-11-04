@@ -36,7 +36,12 @@ internal sealed class PooledOutputStream : Stream
             return this.buffer.AsSpan(0, this.count).ToArray();
         }
 
+        // Every byte is copied below before this owned result can escape.
+#if NETSTANDARD2_1
         byte[] result = new byte[this.count];
+#else
+        byte[] result = GC.AllocateUninitializedArray<byte>(this.count);
+#endif
         int offset = 0;
         foreach (byte[] segment in this.completed)
         {

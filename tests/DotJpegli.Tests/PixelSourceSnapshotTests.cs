@@ -6,12 +6,14 @@ using Xunit;
 public sealed class PixelSourceSnapshotTests
 {
     [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    public void RawSnapshotOwnsSamplesAndPreservesPrecisionAndLayout(int precision)
+    [InlineData(0, 19, 3)]
+    [InlineData(1, 19, 3)]
+    [InlineData(2, 19, 3)]
+    [InlineData(0, 257, 91)]
+    [InlineData(1, 257, 91)]
+    [InlineData(2, 257, 91)]
+    public void RawSnapshotOwnsSamplesAndPreservesPrecisionAndLayout(int precision, int width, int height)
     {
-        const int width = 19, height = 3;
         foreach (PixelComponentLayout layout in Enum.GetValues<PixelComponentLayout>())
         {
             int stride = (width * SimdSampleFixtures.Channels(layout)) + 7;

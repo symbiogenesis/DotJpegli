@@ -787,7 +787,12 @@ internal readonly ref struct PixelSource
         private static T[] Copy<T>(ReadOnlySpan<T> source, int length, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            // A complete copy is returned only after every element is initialized.
+#if NETSTANDARD2_1
             var copy = new T[length];
+#else
+            T[] copy = GC.AllocateUninitializedArray<T>(length);
+#endif
             for (int offset = 0; offset < length; offset += Math.Min(65536, length - offset))
             {
                 cancellationToken.ThrowIfCancellationRequested();
