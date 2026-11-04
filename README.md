@@ -21,8 +21,7 @@ profiles and metadata.
 The library is implemented entirely in managed .NET, with no native dependencies,
 P/Invoke, unsafe code or runtime NuGet dependencies.
 
-**NativeAOT and trimming are supported on .NET 10 and .NET 11**, with
-[deployment checks in CI](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/development.md#trimming-and-nativeaot).
+NativeAOT and trimming are fully supported on .NET 10 and .NET 11.
 
 ## Photograph comparison
 
