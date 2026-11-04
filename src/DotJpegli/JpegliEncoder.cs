@@ -691,9 +691,16 @@ public static class JpegliEncoder
                 }
             }
 
-            EntropyTokens? scanTokens = tokenScans?[scanIndex];
+            // Progressive AC scans share one component-raster traversal below.
+            // DC scans keep their own possibly interleaved MCU traversal.
+            if (options.Progressive && scan.SpectralStart > 0)
+            {
+                continue;
+            }
+
+            EntropyTokens scanTokens = tokenScans[scanIndex];
             // DC refinement has no histogram, but its raw bits can be replayed.
-            if (scan.SpectralEnd == 0 && scan.SuccessiveHigh != 0 && scanTokens?.TryBeginRecording() != true)
+            if (scan.SpectralEnd == 0 && scan.SuccessiveHigh != 0 && !scanTokens.TryBeginRecording())
             {
                 continue;
             }
@@ -715,6 +722,12 @@ public static class JpegliEncoder
                     scan, options.Progressive, aggregateEobRuns: true, cancellationToken, contextByComponent: true,
                     quantizedImage: quantizedImage, entropyTokens: scanTokens);
             }
+        }
+        if (options.Progressive)
+        {
+            ProgressiveAcCollector.Collect(pixels, width, height, stride, sampling, tables, distance,
+                options.SmoothingFactor, adaptive, adaptiveMultipliers, scans, acFrequencies,
+                tokenScans, componentRestartIntervals, quantizedImage, cancellationToken);
         }
         var plan = HuffmanCodingPlan.Create(scans, dcFrequencies, acFrequencies,
             options.Progressive, options.ForceBaseline, options.HuffmanTableLimit, options.HuffmanSymbolOrder);
