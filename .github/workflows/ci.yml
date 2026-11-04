@@ -367,8 +367,8 @@ jobs:
       BASELINE_REVISION: 4dd88ecb53c92b6f1087c0238cc8a50cbd1de166
       DOTNET_TieredCompilation: '0'
       # Exercise the eight-lane AQ schedule even on wide-SIMD x64 runners.
-      DOTNET_EnableAVX512F: '0'
-      DOTNET_EnableAVX512: '0'
+      DOTNET_EnableAVX512F: ${{ matrix.architecture == 'X64' && '0' || '1' }}
+      DOTNET_EnableAVX512: ${{ matrix.architecture == 'X64' && '0' || '1' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
