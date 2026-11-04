@@ -335,11 +335,12 @@ internal static class RevisionComparison
         }
 
         string scenario = values.Remove("--scenario", out string? selectedScenario) ? selectedScenario : "ordinary";
-        if (scenario is not ("ordinary" or "smoothing" or "xyb" or "cache-constrained")
+        if (scenario is not ("ordinary" or "smoothing" or "xyb" or "cache-constrained" or "sampled-icc" or "parallel-two")
             || (scenario != "ordinary" && (releaseRegression || sourceIcc)))
         {
-            throw new ArgumentException("Scenario must be ordinary, smoothing, xyb or cache-constrained, without release or source-ICC overrides.");
+            throw new ArgumentException("Unknown scenario or unsupported release/source-ICC override.");
         }
+        sourceIcc |= scenario == "sampled-icc";
         DiagnosticSelection selection;
         if (releaseRegression)
         {
@@ -451,7 +452,8 @@ internal static class RevisionComparison
         {
             invalid.Add("Baseline and current must produce identical deterministic JPEG bytes in every leg.");
         }
-        if (measurements.Select(measurement => (measurement.SourceIcc, measurement.SourceIccProfileSha256, measurement.Scenario)).Distinct().Count() > 1)
+        if (measurements.Select(measurement => (measurement.SourceIcc, measurement.SourceIccProfileSha256,
+                measurement.Scenario, measurement.TargetIccProfileSha256)).Distinct().Count() > 1)
         {
             invalid.Add("All revision-worker legs must use the same source ICC conversion mode.");
         }
@@ -474,8 +476,9 @@ internal static class RevisionComparison
         => await File.WriteAllTextAsync(Path.Combine(output, name), JsonSerializer.Serialize(value, JsonOptions));
     private static string Metric(double? value) => value?.ToString("F6", CultureInfo.InvariantCulture) ?? "n/a";
     private static string Label(Result result) => FormattableString.Invariant($"{result.Id}/{result.Sampling}/p{result.ProgressiveLevel}/d{result.Distance}");
-    private static string ColorConversion(bool sourceIcc, string scenario = "ordinary") => scenario == "xyb"
-        ? "Raw byte sRGB to XYB without a source ICC transform"
+    private static string ColorConversion(bool sourceIcc, string scenario = "ordinary") => scenario == "sampled-icc"
+        ? "Display P3 source ICC to a shared 1025-knot sampled destination TRC"
+        : scenario == "xyb" ? "Raw byte sRGB to XYB without a source ICC transform"
         : sourceIcc
         ? "RGB8 Display P3 source ICC to built-in sRGB destination, then YCbCr; profile parsing and conversion included in every encode"
         : "RGB8 to YCbCr without source ICC conversion";
@@ -657,7 +660,7 @@ internal static class RevisionComparison
         Check(options.Selection.Policy.Blocks == 6 && options.Selection.Policy.MinimumIterations == 20
             && options.Selection.Policy.MaximumIterations == 20 && !options.SourceIcc, "Revision comparison defaults changed.");
         Settings managedColor = Parse([.. arguments, "--source-icc"]);
-        foreach (string scenario in new[] { "smoothing", "xyb", "cache-constrained" })
+        foreach (string scenario in new[] { "smoothing", "xyb", "cache-constrained", "sampled-icc", "parallel-two" })
         {
             Check(Parse([.. arguments, "--scenario", scenario]).Scenario == scenario,
                 "Explicit revision scenarios must be retained.");

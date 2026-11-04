@@ -19,7 +19,7 @@ internal static class RevisionWorker
         JsonElement Environment, string AssemblyInformationalVersion);
     internal sealed record Measurement(double NsPerEncode, long AllocatedBytes, int Gen0Collections,
         int Gen1Collections, int Gen2Collections, string JpegSha256, long JpegBytes, bool SourceIcc = false,
-        string? SourceIccProfileSha256 = null, string Scenario = "ordinary");
+        string? SourceIccProfileSha256 = null, string Scenario = "ordinary", string? TargetIccProfileSha256 = null);
     internal sealed record Request(string Kind, string? Input = null, int Sampling = 0, int Progression = 0,
         float Distance = 0, int Iterations = 0, int Warmups = 0, bool SourceIcc = false, string Scenario = "ordinary");
     internal sealed record Response(string Kind, Identity? Identity = null, Measurement? Measurement = null,
@@ -54,6 +54,10 @@ internal static class RevisionWorker
                 }
 
                 Validate(request);
+                if (request.Scenario == "parallel-two" && Environment.ProcessorCount < 2)
+                {
+                    throw new InvalidDataException("Parallel revision measurements require at least two available CPUs.");
+                }
                 // Keep the input, immutable settings and expected JPEG alive between legs.
                 // Parsing, image I/O and first-use preparation are outside the timer.
                 if (previous is null || !SameInputAndSettings(previous, request))
@@ -107,6 +111,8 @@ internal static class RevisionWorker
         "smoothing" => options with { SmoothingFactor = 50 },
         "xyb" => options with { ColorSpace = JpegColorSpace.Xyb },
         "cache-constrained" => options with { MaxCacheBytes = 4L * 1024 * 1024 },
+        "sampled-icc" => options with { IccProfile = SampledIccScenario.CreateProfile() },
+        "parallel-two" => options with { MaxDegreeOfParallelism = 2 },
         _ => throw new InvalidDataException("Unknown revision-worker scenario.")
     };
 
@@ -116,8 +122,9 @@ internal static class RevisionWorker
             || !Path.IsPathFullyQualified(request.Input) || request.Sampling is not (444 or 420)
             || request.Progression is not (0 or 2) || request.Distance is not (1 or 4)
             || request.Iterations is < 1 or > 100 || request.Warmups is < 0 or > 100
-            || request.Scenario is not ("ordinary" or "smoothing" or "xyb" or "cache-constrained")
-            || (request.SourceIcc && request.Scenario != "ordinary"))
+            || request.Scenario is not ("ordinary" or "smoothing" or "xyb" or "cache-constrained" or "sampled-icc" or "parallel-two")
+            || (request.SourceIcc && request.Scenario is not ("ordinary" or "sampled-icc"))
+            || (request.Scenario == "sampled-icc" && !request.SourceIcc))
         {
             throw new InvalidDataException("Invalid revision-worker measurement request.");
         }
@@ -146,14 +153,16 @@ internal static class RevisionWorker
         return new(ticks * (1_000_000_000.0 / Stopwatch.Frequency) / iterations, allocatedBytes,
             GC.CollectionCount(0) - gen0, GC.CollectionCount(1) - gen1, GC.CollectionCount(2) - gen2,
             Convert.ToHexStringLower(SHA256.HashData(expected)), expected.LongLength, !settings.SourceIccProfile.IsEmpty,
-            settings.SourceIccProfile.IsEmpty ? null : Convert.ToHexStringLower(SHA256.HashData(settings.SourceIccProfile.Span)), scenario);
+            settings.SourceIccProfile.IsEmpty ? null : Convert.ToHexStringLower(SHA256.HashData(settings.SourceIccProfile.Span)),
+            scenario, settings.IccProfile.IsEmpty ? null : Convert.ToHexStringLower(SHA256.HashData(settings.IccProfile.Span)));
     }
 
     internal static void ValidateMeasurementMode(Measurement measurement, bool sourceIcc, string scenario = "ordinary")
     {
         string? expectedProfile = sourceIcc ? Convert.ToHexStringLower(SHA256.HashData(JpegliIccProfiles.CreateDisplayP3Profile())) : null;
+        string? expectedTarget = scenario == "sampled-icc" ? Convert.ToHexStringLower(SHA256.HashData(SampledIccScenario.CreateProfile())) : null;
         if (measurement.SourceIcc != sourceIcc || measurement.SourceIccProfileSha256 != expectedProfile
-            || measurement.Scenario != scenario)
+            || measurement.Scenario != scenario || measurement.TargetIccProfileSha256 != expectedTarget)
         {
             throw new InvalidDataException("Revision-worker measurement color conversion or source profile does not match its request.");
         }
@@ -215,9 +224,11 @@ internal static class RevisionWorker
             throw new InvalidDataException("Revision-worker measurement response round trip failed.");
         }
         ValidateMeasurementMode(measurement, sourceIcc: false);
-        foreach (string scenario in new[] { "smoothing", "xyb", "cache-constrained" })
+        SampledIccScenario.SelfTest();
+        foreach (string scenario in new[] { "smoothing", "xyb", "cache-constrained", "sampled-icc", "parallel-two" })
         {
-            Request scenarioRequest = request with { Scenario = scenario };
+            bool sampled = scenario == "sampled-icc";
+            Request scenarioRequest = request with { Scenario = scenario, SourceIcc = sampled };
             Validate(scenarioRequest);
             if (SameInputAndSettings(request, scenarioRequest)
                 || JsonSerializer.Deserialize<Request>(JsonSerializer.Serialize(scenarioRequest)) != scenarioRequest)
@@ -227,11 +238,19 @@ internal static class RevisionWorker
             JpegliEncoderOptions selected = CreateSettings(scenarioRequest);
             if ((scenario == "smoothing" && selected.SmoothingFactor != 50)
                 || (scenario == "xyb" && selected.ColorSpace != JpegColorSpace.Xyb)
-                || (scenario == "cache-constrained" && selected.MaxCacheBytes != 4L * 1024 * 1024))
+                || (scenario == "cache-constrained" && selected.MaxCacheBytes != 4L * 1024 * 1024)
+                || (sampled && (selected.IccProfile.IsEmpty || selected.SourceIccProfile.IsEmpty))
+                || (scenario == "parallel-two" && selected.MaxDegreeOfParallelism != 2))
             {
                 throw new InvalidDataException("Revision-worker scenario was not applied.");
             }
-            ValidateMeasurementMode(measurement with { Scenario = scenario }, sourceIcc: false, scenario);
+            ValidateMeasurementMode(measurement with
+            {
+                Scenario = scenario,
+                SourceIcc = sampled,
+                SourceIccProfileSha256 = sampled ? Convert.ToHexStringLower(SHA256.HashData(selected.SourceIccProfile.Span)) : null,
+                TargetIccProfileSha256 = sampled ? Convert.ToHexStringLower(SHA256.HashData(selected.IccProfile.Span)) : null
+            }, sampled, scenario);
         }
         Measurement iccMeasurement = measurement with
         {
@@ -257,7 +276,8 @@ internal static class RevisionWorker
             request with { Kind = "unknown" }, request with { Input = "relative.ppm" },
             request with { Sampling = 422 }, request with { Progression = 1 }, request with { Distance = float.NaN },
             request with { Iterations = 0 }, request with { Iterations = 101 }, request with { Warmups = -1 },
-            request with { Scenario = "unknown" }, request with { Scenario = "xyb", SourceIcc = true }
+            request with { Scenario = "unknown" }, request with { Scenario = "xyb", SourceIcc = true },
+            request with { Scenario = "sampled-icc", SourceIcc = false }
         })
         {
             try

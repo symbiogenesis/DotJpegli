@@ -361,7 +361,7 @@ jobs:
             architecture: ARM64
             framework: net11.0
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 25
+    timeout-minutes: 45
     env:
       # Fixed pre-batch source: isolate these changes from earlier optimizations.
       BASELINE_REVISION: b2fa25da8fdbe601daf145b93f297fcf01a5caa1
@@ -413,10 +413,16 @@ jobs:
         run: |
           cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
           status=0
-          for scenario in smoothing xyb cache-constrained; do
+          for scenario in smoothing xyb cache-constrained sampled-icc; do
             taskset -c "$cpu" dotnet tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll --compare-revisions --scenario "$scenario" --baseline-runner "${{ runner.temp }}/encoder-batch-baseline-worker/DotJpegli.Performance.dll" --baseline-revision "$BASELINE_REVISION" --current-revision "${{ github.sha }}" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/encoder-batch/$scenario" --images kodim01 --distances 1,4 --samplings 444,420 --progressions 0,2 --blocks 6 --iterations 20 --warmups 5 || status=$?
           done
           exit "$status"
+      - name: Interleave two-worker encodes with multiple available CPUs (CI only)
+        if: always() && (steps.ordinary.outcome == 'success' || steps.ordinary.outcome == 'failure')
+        run: |
+          test "$(nproc)" -ge 2
+          cpu_set=$(awk '/^Cpus_allowed_list:/ { print $2 }' /proc/self/status)
+          taskset -c "$cpu_set" dotnet tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll --compare-revisions --scenario parallel-two --baseline-runner "${{ runner.temp }}/encoder-batch-baseline-worker/DotJpegli.Performance.dll" --baseline-revision "$BASELINE_REVISION" --current-revision "${{ github.sha }}" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/encoder-batch/parallel-two" --images kodim01 --distances 1,4 --samplings 444,420 --progressions 0,2 --blocks 6 --iterations 20 --warmups 5
       - name: Retain batch comparisons and affected-kernel tests
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -430,7 +436,7 @@ jobs:
       - name: Publish both batch comparison reports
         if: always()
         run: |
-          for comparison in ordinary source-icc smoothing xyb cache-constrained; do
+          for comparison in ordinary source-icc smoothing xyb cache-constrained sampled-icc parallel-two; do
             if [[ -f "${{ runner.temp }}/encoder-batch/$comparison/report.md" ]]; then
               cat "${{ runner.temp }}/encoder-batch/$comparison/report.md" >> "$GITHUB_STEP_SUMMARY"
             fi
