@@ -53,8 +53,10 @@ memory effects are unmeasured.
 Eight-lane SIMD batches adaptive modulation across neighboring blocks while
 preserving each block's addition order. Complete converted-plane blocks combine
 DCT, prepared quantization, AC validation and zigzag ordering without a final
-float transpose or intermediate coefficient buffer. Other vector widths use
-separate operations. The .NET 11 target uses portable `Zip`/`Unzip`/`Concat`
+float transpose or intermediate coefficient buffer. Four-lane SIMD also
+quantizes the two transposed DCT panels directly, staging only 64 shorts before
+zigzag ordering. Invalid coefficients use the original separate operations
+before writing caller output. The .NET 11 target uses portable `Zip`/`Unzip`/`Concat`
 for DCT transposes and adjacent-pair downsampling; .NET 10 uses portable lane
 assembly. No CPU-specific intrinsics are used. Smoothing and nonlinear
 RGB-to-XYB conversion use scalar paths. These implementation choices do not

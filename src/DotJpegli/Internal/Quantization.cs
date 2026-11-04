@@ -782,6 +782,82 @@ internal static class Quantization
         return Vector128.Narrow(integers.GetLower(), integers.GetUpper());
     }
 
+    // Quantize four vertical frequencies for all eight horizontal frequencies.
+    // Output is private transposed scratch, never caller-visible until both
+    // panels pass validation. The false result requests the strict fallback.
+    internal static bool QuantizeTransposedFourRows(Vector128<float> r0, Vector128<float> r1,
+        Vector128<float> r2, Vector128<float> r3, Vector128<float> r4, Vector128<float> r5,
+        Vector128<float> r6, Vector128<float> r7, PreparedTable table, TransposedTable transposed,
+        float adaptiveStrength, int firstVerticalFrequency, Span<short> output)
+    {
+        Guard.ThrowIfNull(table);
+        if (firstVerticalFrequency is not (0 or 4))
+        {
+            throw new ArgumentOutOfRangeException(nameof(firstVerticalFrequency));
+        }
+
+        if (output.Length < 64)
+        {
+            throw new ArgumentException("A quantized block requires 64 values.", nameof(output));
+        }
+
+        bool adaptive = table.AdaptiveQuantization;
+        if (adaptive && (!float.IsFinite(adaptiveStrength) || adaptiveStrength < 0f))
+        {
+            return false;
+        }
+
+        ReadOnlySpan<float> divisors = transposed.Divisors[firstVerticalFrequency..];
+        ReadOnlySpan<float> multipliers = adaptive ? transposed.Multipliers[firstVerticalFrequency..] : default;
+        bool valid = true;
+        QuantizeTransposedFourLaneRow(r0, divisors[..4], adaptive ? multipliers[..4] : default,
+            table.AcOffset, adaptiveStrength, adaptive, firstVerticalFrequency == 0, ref valid).CopyTo(output.Slice(firstVerticalFrequency, 4));
+        QuantizeTransposedFourLaneRow(r1, divisors.Slice(8, 4), adaptive ? multipliers.Slice(8, 4) : default,
+            table.AcOffset, adaptiveStrength, adaptive, false, ref valid).CopyTo(output.Slice(8 + firstVerticalFrequency, 4));
+        QuantizeTransposedFourLaneRow(r2, divisors.Slice(16, 4), adaptive ? multipliers.Slice(16, 4) : default,
+            table.AcOffset, adaptiveStrength, adaptive, false, ref valid).CopyTo(output.Slice(16 + firstVerticalFrequency, 4));
+        QuantizeTransposedFourLaneRow(r3, divisors.Slice(24, 4), adaptive ? multipliers.Slice(24, 4) : default,
+            table.AcOffset, adaptiveStrength, adaptive, false, ref valid).CopyTo(output.Slice(24 + firstVerticalFrequency, 4));
+        QuantizeTransposedFourLaneRow(r4, divisors.Slice(32, 4), adaptive ? multipliers.Slice(32, 4) : default,
+            table.AcOffset, adaptiveStrength, adaptive, false, ref valid).CopyTo(output.Slice(32 + firstVerticalFrequency, 4));
+        QuantizeTransposedFourLaneRow(r5, divisors.Slice(40, 4), adaptive ? multipliers.Slice(40, 4) : default,
+            table.AcOffset, adaptiveStrength, adaptive, false, ref valid).CopyTo(output.Slice(40 + firstVerticalFrequency, 4));
+        QuantizeTransposedFourLaneRow(r6, divisors.Slice(48, 4), adaptive ? multipliers.Slice(48, 4) : default,
+            table.AcOffset, adaptiveStrength, adaptive, false, ref valid).CopyTo(output.Slice(48 + firstVerticalFrequency, 4));
+        QuantizeTransposedFourLaneRow(r7, divisors.Slice(56, 4), adaptive ? multipliers.Slice(56, 4) : default,
+            table.AcOffset, adaptiveStrength, adaptive, false, ref valid).CopyTo(output.Slice(56 + firstVerticalFrequency, 4));
+        return valid;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector64<short> QuantizeTransposedFourLaneRow(Vector128<float> coefficients,
+        ReadOnlySpan<float> divisors, ReadOnlySpan<float> multipliers, float acOffset, float adaptiveStrength,
+        bool adaptive, bool dc, ref bool valid)
+    {
+        valid &= Vector128.LessThanOrEqualAll(Vector128.Abs(coefficients), Vector128.Create(float.MaxValue));
+        Vector128<float> values = coefficients / Vector128.Create(divisors);
+        float dcValue = dc ? values.GetElement(0) : 0f;
+        var threshold = Vector128.Create(acOffset);
+        if (adaptive)
+        {
+            threshold += Vector128.Create(adaptiveStrength) * Vector128.Create(multipliers);
+        }
+
+        values = Vector128.ConditionalSelect(Vector128.LessThan(Vector128.Abs(values), threshold),
+            Vector128<float>.Zero, Vector128.Round(values));
+        if (dc)
+        {
+            float dcThreshold = adaptive ? adaptiveStrength * multipliers[0] : 0f;
+            float roundedDc = MathF.Abs(dcValue) < dcThreshold ? 0f
+                : MathF.Round(dcValue, MidpointRounding.AwayFromZero);
+            values = values.WithElement(0, Math.Clamp(roundedDc, short.MinValue, short.MaxValue));
+        }
+
+        Vector128<float> acValues = dc ? values.WithElement(0, 0f) : values;
+        valid &= Vector128.LessThanOrEqualAll(Vector128.Abs(acValues), Vector128.Create(1023f));
+        return Vector128.Narrow(Vector128.ConvertToInt32(values), Vector128<int>.Zero).GetLower();
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool CanSuppressTransposedAcRow(Vector256<float> magnitudes, Vector256<float> divisors,
         Vector256<float> thresholds, float acOffset)

@@ -148,6 +148,12 @@ internal static class ForwardDct
                 return;
             }
         }
+        else if (zigZagOrdered && Vector.IsHardwareAccelerated && Vector<float>.Count == 4
+            && (!table.AdaptiveQuantization || (float.IsFinite(adaptiveStrength) && adaptiveStrength >= 0f))
+            && TryTransformQuantizeFourLane(samples, stride, centerInput, table, output, adaptiveStrength))
+        {
+            return;
+        }
 #endif
         TransformQuantizeFallback(samples, stride, centerInput, table, output, adaptiveStrength, zigZagOrdered);
     }
@@ -336,14 +342,95 @@ internal static class ForwardDct
         TransformFourRows(ref a4, ref a5, ref a6, ref a7, ref b4, ref b5, ref b6, ref b7, coefficients.Slice(32, 32));
     }
 
+    private static bool TryTransformQuantizeFourLane(ReadOnlySpan<float> samples, int stride, bool centerInput,
+        Quantization.PreparedTable table, Span<short> output, float adaptiveStrength)
+    {
+        // Retain the four-column DCT schedule. Quantize its two transposed
+        // frequency panels before their final float transpose and stores.
+        Vector<float> a0 = new(samples[..4]);
+        Vector<float> a1 = new(samples.Slice(stride, 4));
+        Vector<float> a2 = new(samples.Slice(2 * stride, 4));
+        Vector<float> a3 = new(samples.Slice(3 * stride, 4));
+        Vector<float> a4 = new(samples.Slice(4 * stride, 4));
+        Vector<float> a5 = new(samples.Slice(5 * stride, 4));
+        Vector<float> a6 = new(samples.Slice(6 * stride, 4));
+        Vector<float> a7 = new(samples.Slice(7 * stride, 4));
+        Vector<float> b0 = new(samples.Slice(4, 4));
+        Vector<float> b1 = new(samples.Slice(stride + 4, 4));
+        Vector<float> b2 = new(samples.Slice((2 * stride) + 4, 4));
+        Vector<float> b3 = new(samples.Slice((3 * stride) + 4, 4));
+        Vector<float> b4 = new(samples.Slice((4 * stride) + 4, 4));
+        Vector<float> b5 = new(samples.Slice((5 * stride) + 4, 4));
+        Vector<float> b6 = new(samples.Slice((6 * stride) + 4, 4));
+        Vector<float> b7 = new(samples.Slice((7 * stride) + 4, 4));
+        if (centerInput)
+        {
+            var center = new Vector<float>(128f);
+            a0 -= center;
+            b0 -= center;
+            a1 -= center;
+            b1 -= center;
+            a2 -= center;
+            b2 -= center;
+            a3 -= center;
+            b3 -= center;
+            a4 -= center;
+            b4 -= center;
+            a5 -= center;
+            b5 -= center;
+            a6 -= center;
+            b6 -= center;
+            a7 -= center;
+            b7 -= center;
+        }
+        TransformRecursiveVector(ref a0, ref a1, ref a2, ref a3, ref a4, ref a5, ref a6, ref a7);
+        TransformRecursiveVector(ref b0, ref b1, ref b2, ref b3, ref b4, ref b5, ref b6, ref b7);
+        var scale = new Vector<float>(0.125f);
+        a0 *= scale;
+        b0 *= scale;
+        a1 *= scale;
+        b1 *= scale;
+        a2 *= scale;
+        b2 *= scale;
+        a3 *= scale;
+        b3 *= scale;
+        a4 *= scale;
+        b4 *= scale;
+        a5 *= scale;
+        b5 *= scale;
+        a6 *= scale;
+        b6 *= scale;
+        a7 *= scale;
+        b7 *= scale;
+
+        // Staging shorts bounds live vector storage and keeps caller output
+        // untouched if a coefficient requires the strict original fallback.
+        Span<short> quantized = stackalloc short[64];
+        Quantization.TransposedTable transposed = table.GetTransposed();
+        TransformFourRowsTransposed(ref a0, ref a1, ref a2, ref a3, ref b0, ref b1, ref b2, ref b3);
+        bool valid = Quantization.QuantizeTransposedFourRows(a0.AsVector128(), a1.AsVector128(), a2.AsVector128(), a3.AsVector128(),
+            b0.AsVector128(), b1.AsVector128(), b2.AsVector128(), b3.AsVector128(), table, transposed, adaptiveStrength, 0, quantized);
+        TransformFourRowsTransposed(ref a4, ref a5, ref a6, ref a7, ref b4, ref b5, ref b6, ref b7);
+        valid &= Quantization.QuantizeTransposedFourRows(a4.AsVector128(), a5.AsVector128(), a6.AsVector128(), a7.AsVector128(),
+            b4.AsVector128(), b5.AsVector128(), b6.AsVector128(), b7.AsVector128(), table, transposed, adaptiveStrength, 4, quantized);
+        if (!valid)
+        {
+            return false;
+        }
+
+        Quantization.StoreTransposedZigZag128(Vector128.Create(quantized[..8]), Vector128.Create(quantized.Slice(8, 8)),
+            Vector128.Create(quantized.Slice(16, 8)), Vector128.Create(quantized.Slice(24, 8)),
+            Vector128.Create(quantized.Slice(32, 8)), Vector128.Create(quantized.Slice(40, 8)),
+            Vector128.Create(quantized.Slice(48, 8)), Vector128.Create(quantized.Slice(56, 8)), output, table.NarrowZigZagKernel);
+        return true;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void TransformFourRows(ref Vector<float> a0, ref Vector<float> a1,
         ref Vector<float> a2, ref Vector<float> a3, ref Vector<float> b0, ref Vector<float> b1,
         ref Vector<float> b2, ref Vector<float> b3, Span<float> coefficients)
     {
-        TransposeFourRows(ref a0, ref a1, ref a2, ref a3);
-        TransposeFourRows(ref b0, ref b1, ref b2, ref b3);
-        TransformRecursiveVector(ref a0, ref a1, ref a2, ref a3, ref b0, ref b1, ref b2, ref b3);
+        TransformFourRowsTransposed(ref a0, ref a1, ref a2, ref a3, ref b0, ref b1, ref b2, ref b3);
         TransposeFourRows(ref a0, ref a1, ref a2, ref a3);
         TransposeFourRows(ref b0, ref b1, ref b2, ref b3);
         a0.CopyTo(coefficients[..4]);
@@ -354,6 +441,16 @@ internal static class ForwardDct
         b2.CopyTo(coefficients.Slice(20, 4));
         a3.CopyTo(coefficients.Slice(24, 4));
         b3.CopyTo(coefficients.Slice(28, 4));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TransformFourRowsTransposed(ref Vector<float> a0, ref Vector<float> a1,
+        ref Vector<float> a2, ref Vector<float> a3, ref Vector<float> b0, ref Vector<float> b1,
+        ref Vector<float> b2, ref Vector<float> b3)
+    {
+        TransposeFourRows(ref a0, ref a1, ref a2, ref a3);
+        TransposeFourRows(ref b0, ref b1, ref b2, ref b3);
+        TransformRecursiveVector(ref a0, ref a1, ref a2, ref a3, ref b0, ref b1, ref b2, ref b3);
     }
 
     private static void TransformEightLane(ReadOnlySpan<float> samples, int stride, bool centerInput,

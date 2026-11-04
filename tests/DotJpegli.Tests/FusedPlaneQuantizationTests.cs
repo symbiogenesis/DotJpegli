@@ -453,6 +453,8 @@ public sealed class FusedPlaneQuantizationTests
                 short[] output = Enumerable.Repeat((short)-23456, 72).ToArray();
                 Assert.False(TryTransposed(coefficients, table, 0, output));
                 Assert.All(output, item => Assert.Equal((short)-23456, item));
+                Assert.False(TryFourLaneTransposed(coefficients, table, 0, output));
+                Assert.All(output, item => Assert.Equal((short)-23456, item));
             }
         }
     }
@@ -505,6 +507,54 @@ public sealed class FusedPlaneQuantizationTests
         Assert.True(TryTransposed(coefficients, table, strength, actual));
         Assert.Equal(expected, actual[..64]);
         Assert.All(actual[64..], value => Assert.Equal((short)-23456, value));
+        Array.Fill(actual, (short)-23456);
+        Assert.True(TryFourLaneTransposed(coefficients, table, strength, actual));
+        Assert.Equal(expected, actual[..64]);
+        Assert.All(actual[64..], value => Assert.Equal((short)-23456, value));
+    }
+
+    [Fact]
+    public void FourLaneQuantizationRejectsInvalidAdaptiveStrengthBeforeWritingScratch()
+    {
+        var table = Quantization.PreparedTable.Create(Enumerable.Repeat((ushort)3, 64).ToArray(), 0, 1f,
+            adaptiveQuantization: true, adaptiveMultipliers: Enumerable.Repeat(0.5f, 64).ToArray());
+        foreach (float strength in new[] { -1f, float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+        {
+            short[] scratch = Enumerable.Repeat((short)-23456, 72).ToArray();
+            foreach (int firstVerticalFrequency in new[] { 0, 4 })
+            {
+                Assert.False(Quantization.QuantizeTransposedFourRows(Vector128<float>.Zero, Vector128<float>.Zero,
+                    Vector128<float>.Zero, Vector128<float>.Zero, Vector128<float>.Zero, Vector128<float>.Zero,
+                    Vector128<float>.Zero, Vector128<float>.Zero, table, table.GetTransposed(), strength, firstVerticalFrequency, scratch));
+                Assert.All(scratch, value => Assert.Equal((short)-23456, value));
+            }
+        }
+    }
+
+    private static bool TryFourLaneTransposed(float[] coefficients, Quantization.PreparedTable table, float strength, Span<short> output)
+    {
+        float[] transposed = Enumerable.Range(0, 64).Select(index => coefficients[(index % 8 * 8) + (index / 8)]).ToArray();
+        short[] scratch = Enumerable.Repeat((short)-23456, 72).ToArray();
+        bool valid = true;
+        foreach (int offset in new[] { 0, 4 })
+        {
+            valid &= Quantization.QuantizeTransposedFourRows(Vector128.Create(transposed.AsSpan(offset, 4)),
+                Vector128.Create(transposed.AsSpan(offset + 8, 4)), Vector128.Create(transposed.AsSpan(offset + 16, 4)),
+                Vector128.Create(transposed.AsSpan(offset + 24, 4)), Vector128.Create(transposed.AsSpan(offset + 32, 4)),
+                Vector128.Create(transposed.AsSpan(offset + 40, 4)), Vector128.Create(transposed.AsSpan(offset + 48, 4)),
+                Vector128.Create(transposed.AsSpan(offset + 56, 4)), table, table.GetTransposed(), strength, offset, scratch);
+        }
+
+        Assert.All(scratch[64..], value => Assert.Equal((short)-23456, value));
+        if (valid)
+        {
+            Quantization.StoreTransposedZigZag128Original(Vector128.Create(scratch.AsSpan(0, 8)), Vector128.Create(scratch.AsSpan(8, 8)),
+                Vector128.Create(scratch.AsSpan(16, 8)), Vector128.Create(scratch.AsSpan(24, 8)),
+                Vector128.Create(scratch.AsSpan(32, 8)), Vector128.Create(scratch.AsSpan(40, 8)),
+                Vector128.Create(scratch.AsSpan(48, 8)), Vector128.Create(scratch.AsSpan(56, 8)), output);
+        }
+
+        return valid;
     }
 
     private static bool TryTransposed(float[] coefficients, Quantization.PreparedTable table, float strength, Span<short> output)
