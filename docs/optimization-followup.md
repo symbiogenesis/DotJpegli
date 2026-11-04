@@ -34,10 +34,11 @@ ready. Raw invalid timing cases remain retained and no thresholds are relaxed.
 ## Exact implementation choices
 
 Progressive AC histogram/token collection now visits each component block once
-when a component participates in multiple AC scans, feeding its independent
-spectral/refinement states. Simple one-AC-scan components retain the established
-scan traversal. DC traversal keeps
-its original ordering. AC token rentals interleave in component, block and scan
+when coefficients are uncached or partially cached and a component participates
+in multiple AC scans, feeding its independent spectral/refinement states.
+Complete coefficient caches and simple one-AC-scan components retain the
+established scan-major traversal. DC traversal keeps
+its original ordering. Fused AC token rentals interleave in component, block and scan
 order, replacing the previous whole-scan admission priority; the one shared cap
 still charges actual rentals. Abandoned token streams are recomputed during
 emission. This changes which scans fit, without changing their encoded symbols.
@@ -55,6 +56,9 @@ not its full recursive structure. Eligible destination sampled curves have
 integer payload plus object overhead. Small, strongly clustered or otherwise
 ineligible curves retain binary search. Exact comparisons, interpolation and
 terminal/nonterminal plateau rules remain unchanged.
+Indexed sampled inversion is isolated in a non-inlined helper so its search
+locals do not enter the parametric inverse's generated frame. Parametric power,
+clipping and piecewise arithmetic retain their original order.
 
 Raw byte-input XYB conversion uses a lazy 256-float table generated using the
 same runtime normalization and transfer operations. First use computes the
@@ -82,6 +86,10 @@ Actual token staging rentals are capped at 4 MiB across at most 32 slots;
 oversized or abandoned chunks are recollected before histogram merge. This is
 separate from existing parallel token replay.
 
+Default canonical Huffman table planning retains a noncapturing projection.
+Optional symbol reordering has a separate non-inlined helper, avoiding the
+captured ordering state introduced into ordinary planning by the initial batch.
+
 ## Output-changing research
 
 The [offline tool guide](../tools/DotJpegli.Parity/README.md#follow-up-compression-experiments)
@@ -100,7 +108,7 @@ advisor reports its own uncalibrated score and never changes explicit sampling;
 it does not reproduce Google's classifier or inherit the speedup reported by
 its [September 2026 implementation](https://chromium.googlesource.com/webm/libwebp/+/4bd9edc46fbaf09d71952f411042c7c32c34572b).
 
-## Planned hosted measurement
+## Hosted comparison and corrective validation
 
 The automatic push run compares ordinary, smoothing, byte-XYB, constrained-cache
 and source-ICC encodes against pre-batch revision
@@ -114,6 +122,60 @@ does not establish cold-start benefits.
 The two-worker revision scenario uses at least two available CPUs and records
 the shared affinity. Single-worker scenarios remain pinned to one CPU. This
 avoids treating oversubscribed one-CPU execution as a parallel speed comparison.
+
+The first [automatic comparison run, 41769154898](https://github.com/symbiogenesis/DotJpegli/actions/runs/41769154898)
+tested `4c2b2abe` against `b2fa25da`. Each cell below gives timing-valid cases
+over measured cases, followed by the geometric mean of those cases' primary
+paired-median current/baseline latency ratios. Each case used six balanced
+ABBA/BAAB quartets. Ratios below one favor the batch; invalid rows remain in the
+artifacts and do not support latency claims.
+
+| Scenario | x64 .NET 10 | x64 .NET 11 | ARM64 .NET 10 | ARM64 .NET 11 |
+| --- | ---: | ---: | ---: | ---: |
+| Ordinary | 47/64; 0.9960 | 55/64; 0.9897 | 60/64; 1.0084 | 59/64; 1.0027 |
+| Source ICC | 3/4; 0.9951 | 4/4; 0.9964 | 4/4; 1.0058 | 4/4; 1.0129 |
+| Smoothing | 2/8; 0.1426 | 8/8; 0.1436 | 8/8; 0.2084 | 8/8; 0.2012 |
+| Constrained cache | 6/8; 0.3913 | 7/8; 0.4519 | 8/8; 0.4799 | 8/8; 0.4827 |
+| Sampled ICC | 7/8; 0.8285 | 8/8; 0.8709 | 8/8; 0.7541 | 8/8; 0.7208 |
+
+This produced 368 of 432 requested rows: 322 timing-valid and 46 timing-invalid.
+All 368 baseline/current JPEG hash pairs and all 8832 measured leg hashes
+matched. XYB produced no rows because its worker omitted the required output
+ICC profile. The two-worker mode produced no rows because the identity guard
+still required one CPU. Those 64 missing rows are harness failures, separate
+from timing invalidity. Neither mode has CI1 performance evidence.
+
+The x64 .NET 10 host was an AMD EPYC 9V45; x64 .NET 11 used an AMD EPYC 7763.
+Both used eight float lanes with 256-bit acceleration and 512-bit acceleration
+disabled. ARM64 reported implementer `0x41`, part `0xd49`, four float lanes and
+128-bit acceleration. Runtimes were .NET 10.0.14 and .NET 11.0.0-rc.3.26522.148.
+Hosts were matched within each revision pair; differences between cells do not
+isolate framework effects.
+
+All 26 valid smoothing cases and all 31 valid sampled-ICC cases consistently
+favored the batch. All 16 constrained-cache progressive cases were valid and
+consistently faster, with ratios 0.1713-0.3813 and 15,994-16,983 fewer allocated
+bytes per encode. Ordinary allocation medians across measured rows increased
+by 625-679 bytes per encode; sampled-ICC medians increased by 1758-1805 bytes.
+These warm allocation counters include timing-invalid rows and exclude initial
+static-table preparation, retained pool capacity and peak working memory.
+
+Regressions remain part of the evidence: ARM64 ordinary progressive cases
+consistently favored the baseline in 18 .NET 10 cases and 12 .NET 11 cases.
+All four ARM64 .NET 11 source-ICC cases favored the baseline, with ratios
+1.0123-1.0143. One x64 .NET 11 constrained-cache sequential case also favored
+the baseline at 1.0106. This is selected managed-revision evidence; it establishes
+no global or Google-native speed superiority.
+
+The corrective batch restores scan-major collection for complete coefficient
+caches, isolates indexed sampled inversion from parametric curves and removes
+the default Huffman planning closure. It also supplies the XYB profile, checks
+actual frame sampling and permits multiple CPUs only for the two-worker mode.
+XYB uses explicit numeric 4:4:4/4:2:0 component factors; conventional 4:2:0
+subsamples XYB's Y component and therefore disables AQ under the existing policy.
+Tiny actual-encode self-tests now check every scenario's front door, frame and
+sampling without clocks. Correctness checks passed, but recovery from the
+regressions and preservation of the gains await a new full paired CI matrix.
 
 Local Release builds passed for all three library targets and both tool targets.
 Focused checks passed on Windows ARM64: 117 new-feature cases on .NET 10,

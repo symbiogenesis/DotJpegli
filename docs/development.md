@@ -62,8 +62,9 @@ quantizes the two transposed DCT panels directly, staging only 64 shorts before
 zigzag ordering. Invalid coefficients use the original separate operations
 before writing caller output. The .NET 11 target uses portable `Zip`/`Unzip`/`Concat`
 for DCT transposes and adjacent-pair downsampling; .NET 10 uses portable lane
-assembly. No CPU-specific intrinsics are used. Smoothing and nonlinear
-RGB-to-XYB conversion use scalar paths. These implementation choices do not
+assembly. No CPU-specific intrinsics are used. Smoothing uses ordered portable
+vector neighborhood sums; RGB-to-XYB's opsin stage remains scalar, with exact
+transfer values reused for raw byte input. These implementation choices do not
 establish speed parity; see the [performance measurements and protocol](performance-parity.md).
 
 Scalar AQ modulation computes high-frequency and gamma sums in one traversal
@@ -89,8 +90,8 @@ every converted pixel. The values belong to each prepared transform; shared
 identity curves remain immutable. Validation still evaluates the upper endpoint
 before the lower endpoint, and inverse interpolation and parametric arithmetic
 are unchanged. Focused regressions check output bits at clipping boundaries and
-sampled-curve plateaus. Source-ICC workload measurements are still needed to
-establish the latency effect.
+sampled-curve plateaus. Later follow-up measurements do not isolate this earlier
+endpoint preparation change.
 
 Parametric ICC curves also retain the exact reciprocal gamma and, for types 1
 and 2, the power-branch threshold computed from their stored coefficients.
@@ -98,7 +99,8 @@ These immutable values replace the same divisions in per-pixel evaluation;
 power calls, clipping, validation and all other arithmetic retain their order.
 Independent bit regressions cover nonintegral gamma across all five types,
 clipped endpoints and adjacent floats at a nonrepresentable branch threshold.
-Source-ICC latency remains unmeasured.
+These earlier parametric preparations were already present in the follow-up
+comparison's baseline; that comparison does not isolate their latency effect.
 
 Validated destination curves also retain their exact piecewise inverse joins,
 removing repeated evaluation of a constant power at each output sample. Byte
@@ -221,12 +223,28 @@ peak working memory for every image.
 The [follow-up optimization batch](optimization-followup.md) adds exact indexed
 ICC inversion, byte-XYB transfer preparation, smoothing halo reuse and joint
 cache admission. Progressive components with repeated AC scans collect their
-independent scan states in one block traversal; DC stays separate. Their AC
-token rentals interleave in component/block/script order under the shared cap.
+independent scan states in one block traversal only with absent or partial
+coefficient caches. Complete caches retain the original scan-major traversal;
+DC stays separate. Fused AC token rentals interleave in component/block/script
+order under the shared cap.
 Eligible parallel baseline encodes use bounded quantized rows, while other
 complete-cache baseline scans can collect private histograms and tokens in
 parallel before ordered merge. The follow-up guide records eligibility,
 allocation tradeoffs and the separately gated offline compression experiments.
+
+The first [paired follow-up CI run](https://github.com/symbiogenesis/DotJpegli/actions/runs/41769154898)
+compared `4c2b2abe` with pre-batch `b2fa25da`: 368 of 432 requested rows were
+produced, 322 passed timing guards, and every measured JPEG hash matched.
+Smoothing, sampled ICC inversion and constrained-cache progressive cases showed
+gains on their valid selected workloads; ordinary ARM64 progressive and source-ICC
+cases retained consistent regressions. XYB and two-worker coverage was missing
+because of separate harness configuration guards. The
+[follow-up evidence table](optimization-followup.md#hosted-comparison-and-corrective-validation)
+retains scenario ratios, invalid counts, allocation tradeoffs and hardware scope.
+Corrective changes keep complete caches on the original traversal, put sampled
+inverse searches in a non-inlined helper and isolate optional Huffman symbol
+reordering from noncapturing default table planning. Correctness checks passed;
+their performance effects await the corrective paired matrix.
 
 With `MaxDegreeOfParallelism` greater than one, complete cached-token scans can
 replay independent segments at caller-requested restart boundaries in parallel.
