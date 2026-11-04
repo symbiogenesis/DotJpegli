@@ -15,6 +15,7 @@ internal sealed class EncoderCacheBudget
     internal const long DefaultMaximumBytes = 192L * 1024 * 1024;
     private readonly EncoderCacheDiagnostics? diagnostics;
     private long rentedBytes;
+    private long withheldBytes;
 
     internal EncoderCacheBudget(long maximumBytes, EncoderCacheDiagnostics? diagnostics = null)
     {
@@ -24,7 +25,18 @@ internal sealed class EncoderCacheBudget
     }
 
     internal long MaximumBytes { get; }
-    internal long AvailableBytes => this.MaximumBytes - this.rentedBytes;
+    internal long AvailableBytes => this.MaximumBytes - this.rentedBytes - this.withheldBytes;
+
+    // Planning excludes capacity from sample admission without pretending that
+    // an array was rented. Release it before the coefficient cache is created.
+    internal void Withhold(long bytes)
+    {
+        if (bytes < 0 || bytes > this.MaximumBytes - this.rentedBytes)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bytes));
+        }
+        this.withheldBytes = bytes;
+    }
 
     internal void RecordConvertedRows(int cachedRows, int totalRows)
         => this.diagnostics?.RecordConvertedRows(cachedRows, totalRows);

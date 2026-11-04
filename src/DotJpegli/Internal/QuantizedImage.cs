@@ -266,7 +266,33 @@ internal sealed class QuantizedImage : IDisposable
     }
 
     // Plans only capacity; no pixels, coefficients or image-sized arrays are read.
-    internal static long PlannedBytes(int[] widths, int[] heights, int mcuRows,
+    internal static long PlanFullCacheReservation(int width, int height, JpegSamplingFactors sampling,
+        int componentCount, long availableBytes)
+    {
+        // The ordinary 192 MiB budget already admits both 64 MiB caches.
+        // Reserve only complete coefficient storage under constrained budgets;
+        // partial-cache priorities still use the existing streaming fallback.
+        if (availableBytes is <= 0 or >= 2 * MaximumBytes)
+        {
+            return 0;
+        }
+        Span<int> widths = stackalloc int[componentCount];
+        Span<int> heights = stackalloc int[componentCount];
+        for (int component = 0; component < componentCount; component++)
+        {
+            JpegComponentSampling factor = sampling[component];
+            widths[component] = (int)((((long)width * factor.Horizontal) + (8 * sampling.MaxHorizontal) - 1)
+                / (8 * sampling.MaxHorizontal));
+            heights[component] = (int)((((long)height * factor.Vertical) + (8 * sampling.MaxVertical) - 1)
+                / (8 * sampling.MaxVertical));
+        }
+        int mcuRows = (height + (sampling.MaxVertical * 8) - 1) / (sampling.MaxVertical * 8);
+        long bytes = Math.Min(PlannedBytes(widths, heights, mcuRows, sampling, segmented: false),
+            PlannedBytes(widths, heights, mcuRows, sampling, segmented: true));
+        return bytes <= Math.Min(availableBytes, MaximumBytes) ? bytes : 0;
+    }
+
+    internal static long PlannedBytes(ReadOnlySpan<int> widths, ReadOnlySpan<int> heights, int mcuRows,
         JpegSamplingFactors sampling, bool segmented)
     {
         long bytes = 0;

@@ -352,9 +352,19 @@ public static class JpegliEncoder
         }
         int workerLimit = options.MaxDegreeOfParallelism == -1
             ? Environment.ProcessorCount : options.MaxDegreeOfParallelism;
-        pixels = sampling.Is420 && options.SmoothingFactor == 0 && options.OptimizeHuffmanTables
-            ? pixels.WithConverted420Planes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true)
-            : pixels.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true);
+        long coefficientReservation = options.Progressive
+            ? QuantizedImage.PlanFullCacheReservation(width, height, sampling, componentCount, cacheBudget.AvailableBytes) : 0;
+        cacheBudget.Withhold(coefficientReservation);
+        try
+        {
+            pixels = sampling.Is420 && options.SmoothingFactor == 0 && options.OptimizeHuffmanTables
+                ? pixels.WithConverted420Planes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true)
+                : pixels.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true);
+        }
+        finally
+        {
+            cacheBudget.Withhold(0);
+        }
         using IDisposable? convertedStorage = preflightStorage is null ? pixels.ConvertedStorage : null;
         if (workerLimit > 1 && ParallelDctRows.ShouldCreate(width, height, sampling, grayscale))
         {
