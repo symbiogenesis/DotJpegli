@@ -47,9 +47,10 @@ replace the same-host interleaved released-version regression protocol.
 - Exact locally regenerated [chart values](charts/metrics.json), [compression](charts/compression.svg), [wall time](charts/wall-time.svg) and [allocations](charts/allocations.svg).
 
 Charts were regenerated from this run's matching performance and quality data,
-and all four files match the hosted chart artifact byte for byte. The current
-README copies match these retained files. Local work only copied and analyzed
-existing CI evidence; no benchmark ran locally.
+and all four files match the hosted chart artifact byte for byte. These files
+supplied the README charts before the
+[75230a0 refresh](../2026-11-03-75230a0/README.md). Local work only copied and
+analyzed existing CI evidence; no benchmark ran locally.
 
 Compression summarizes photograph group means at matched PSNR and SSIM. The
 largest absolute group difference, rounded up to the next 0.001%, is ≤0.002%.

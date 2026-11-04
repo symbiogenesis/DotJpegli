@@ -1,4 +1,4 @@
-# Latest complete native measurements at 0104778
+# Complete native measurements at 0104778
 
 [Automatic CI run 41695349570](https://github.com/symbiogenesis/DotJpegli/actions/runs/41695349570)
 measured revision `0104778b2691cf3e61d7dbac280457f383d9bc0c` on November 3,
@@ -11,9 +11,11 @@ the evidence; its group mean cannot establish timing acceptance.
 
 The same job's quality/compression comparison step succeeded. The latency and
 chart-generation steps failed; the retained [job outcomes](full/job.json) do
-not claim that the overall workflow passed. The README charts therefore remain
-the preceding complete valid [b07eb5d snapshot](../2026-11-03-b07eb5d/README.md).
-No native chart was regenerated from this invalid run.
+not claim that the overall workflow passed. This run did not replace the
+preceding complete valid [b07eb5d snapshot](../2026-11-03-b07eb5d/README.md)
+in the README charts. No native chart was regenerated from this invalid run.
+The later valid [75230a0 snapshot](../2026-11-03-75230a0/README.md) supplies
+the current README charts.
 
 | Corpus | Sampling | Sequential mean / worst | Progressive level 2 mean / worst |
 | --- | --- | ---: | ---: |

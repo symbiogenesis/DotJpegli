@@ -130,11 +130,11 @@ for coverage.
 ## Performance
 
 Compare DotJpegli with **native Google Jpegli** on all 24 Kodak photographs.
-The charts retain the last complete valid snapshot, measured **November 3, 2026**
-at revision `b07eb5d` in
-[CI run 41690962313](https://github.com/symbiogenesis/DotJpegli/actions/runs/41690962313),
-before the later cache changes. Compression and time differences are relative
-to native; zero means equal file size or encoding time.
+The charts use the complete valid measurements from **November 3, 2026**
+(America/Chicago; November 4 UTC) at revision `75230a0` in
+[CI run 41752676723](https://github.com/symbiogenesis/DotJpegli/actions/runs/41752676723).
+Compression and time differences are relative to native; zero means equal file
+size or encoding time.
 
 ### Compression efficiency
 
@@ -146,16 +146,10 @@ all four encoding modes at matched PSNR and SSIM.
 ### Encoding wall time
 
 On the measured AMD EPYC 7763 host, progressive photograph encoding used
-**7.0–9.8% less time** than native; sequential encoding used **18.0–24.1% more**.
+**10.1–10.6% less time** than native; sequential encoding used **15.7–18.1% more**.
 Left of zero means less time; right means more.
 
 ![Percentage encoding-time differences from native Google Jpegli, pairing Kodak photographs and deterministic controls for each encoding mode.](docs/images/performance/wall-time.svg)
-
-The newer [measurements at `0104778`](docs/performance-evidence/2026-11-03-0104778/README.md)
-show progressive photograph groups using **10.3–11.1% less time** than native
-and sequential 4:4:4 using **16.7% more**. One sequential 4:2:0 case fails the
-timing-noise guard, making that full comparison **invalid**. Separate runs do
-not isolate revision speedups.
 
 ### Managed allocations
 
@@ -166,13 +160,14 @@ and peak memory are outside this measurement.
 ![DotJpegli managed allocations in KiB per encode for Kodak photographs, grouped by sampling and sequential or progressive encoding.](docs/images/performance/allocations.svg)
 
 The charts use distances 1/4, both sampling modes, one worker and tiered
-compilation disabled. The [retained measurements](docs/performance-evidence/2026-11-03-b07eb5d/README.md),
+compilation disabled. The [retained measurements](docs/performance-evidence/2026-11-03-75230a0/README.md),
 [chart values](docs/images/performance/metrics.json) and [protocol](docs/performance-parity.md)
 cover all 256 cases, including eight deterministic controls. Full native
-performance parity remains unestablished.
+performance parity remains unestablished. Separate runs do not isolate revision
+speedups.
 
-Against released **1.0.0**, the [latest same-host comparison](docs/performance-evidence/2026-11-03-0104778/release/README.md)
-favors the current encoder in 1,310 of 1,536 selected cases, but 110 regress:
+Against released **1.0.0**, the [retained same-host comparison at `0104778`](docs/performance-evidence/2026-11-03-0104778/release/README.md)
+favors that revision in 1,310 of 1,536 selected cases, but 110 regress:
 **two of six release gates fail**, with a worst selected median of **14.64% more time**.
 Separate [large-image workload observations](docs/performance-evidence/2026-11-03-0104778-workloads/README.md)
 cover cache boundaries, memory and concurrency.

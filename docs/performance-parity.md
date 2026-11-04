@@ -25,10 +25,11 @@ conditioning on timing stability does not characterize all attempts' latency.
 
 ## Native comparison reference
 
-The [later complete native run at `0104778`](performance-evidence/2026-11-03-0104778/README.md)
+The [earlier complete native run at `0104778`](performance-evidence/2026-11-03-0104778/README.md)
 has an invalid timing verdict: one of 256 cases, `kodim13/420/p0/d1`, fails the
-managed relative-MAD guard. Its aggregate timings cannot replace the complete
-valid `b07eb5d` reference below or establish native performance parity.
+managed relative-MAD guard. Its aggregate timings cannot establish native
+performance parity. The current valid `75230a0` reference below includes all
+256 cases.
 
 The fixed acceptance matrix is complemented by an opt-in workload diagnostic.
 Include `[performance-workloads]` alongside `[full-parity]` in the settled main
@@ -62,37 +63,37 @@ establish a before/after speedup. The snapshot preserves noisy rows, memory
 observations and the added 256-warmup tiering scenario; it does not establish
 native parity or a release regression verdict.
 
-The complete 256-case comparison of revision
-`b07eb5d240c2be1f6b9aebac13d081fb50d740cd` in
-[hosted run 41690962313](https://github.com/symbiogenesis/DotJpegli/actions/runs/41690962313)
+The latest complete 256-case comparison of revision
+`75230a072dd31bda896e3ed2706aeb52ac968975` in
+[hosted run 41752676723](https://github.com/symbiogenesis/DotJpegli/actions/runs/41752676723)
 has valid measurements under the fixed protocol and matched settings, but **fails full performance
-parity**. Measurements were collected on November 3, 2026. The same run passes
-the complete quality/compression matrix. This reference precedes the later
-segmented/partial converted-plane change.
+parity**. Measurements were collected on November 3, 2026 (America/Chicago;
+November 4 UTC). The same run passes the complete quality/compression matrix
+and generates the README charts. This reference includes the later cache changes.
 
 | Corpus | Sampling | Sequential mean / worst | Progressive level 2 mean / worst |
 | --- | --- | ---: | ---: |
-| Kodak photographs | 4:4:4 | 1.241 / 1.582 | 0.930 / 1.018 |
-| Kodak photographs | 4:2:0 | 1.180 / 1.425 | 0.902 / 1.027 |
-| Deterministic controls | 4:4:4 | 1.256 / 1.612 | 1.118 / 1.389 |
-| Deterministic controls | 4:2:0 | 1.130 / 1.523 | 1.104 / 1.387 |
+| Kodak photographs | 4:4:4 | 1.181 / 1.383 | 0.899 / 0.977 |
+| Kodak photographs | 4:2:0 | 1.157 / 1.405 | 0.894 / 1.009 |
+| Deterministic controls | 4:4:4 | 1.224 / 1.815 | 1.104 / 1.531 |
+| Deterministic controls | 4:2:0 | 1.117 / 1.508 | 1.098 / 1.395 |
 
 Each mean is the geometric mean of managed/native median latency ratios across
 the group's images and both distances; worst is the largest case ratio.
-Lower is better. Photograph groups use 18.0–24.1% more time for sequential
-encoding and 7.0–9.8% less for progressive encoding. Both progressive photograph
+Lower is better. Photograph groups use 15.7–18.1% more time for sequential
+encoding and 10.1–10.6% less for progressive encoding. Both progressive photograph
 groups pass the group and individual bounds. The other six groups fail;
-the worst individual case is a 1.612267 ratio for sequential 4:4:4
-smooth-gradient at distance 1. Group averages cannot override individual failures.
+the worst individual case is a 1.814946 ratio for sequential 4:4:4
+smooth-gradient at distance 4. Group averages cannot override individual failures.
 
 This RGB8 to YCbCr comparison uses distances 1/4, adaptive quantization, optimized
 Huffman coding and one worker, on AMD EPYC 7763 x64 with .NET
 `11.0.0-rc.3.26522.148` and tiered compilation disabled.
-The [complete reference evidence](performance-evidence/2026-11-03-b07eb5d/README.md)
+The [complete reference evidence](performance-evidence/2026-11-03-75230a0/README.md)
 retains every case, failure, raw sample, host identity, setting, hash and native
 provenance. These measurements support lower group mean
 progressive photograph latency within this scope; full parity remains
-unestablished.
+unestablished. Separate workflow runs do not isolate the effect of source changes.
 
 ## Untimed compact coefficient storage study
 
