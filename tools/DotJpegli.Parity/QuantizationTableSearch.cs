@@ -204,10 +204,24 @@ internal static class QuantizationTableSearch
         }
         var costs =
             bandCosts.ToDictionary(cost => (cost.Group, cost.Band, cost.ScaleIndex));
+        // Every candidate selects from the same three scales for each table.
+        // Prepare their rounded AC values once while keeping candidate tables independent.
+        ushort[] scaledTables = new ushort[3 * 3 * 64];
+        for (int component = 0; component < 3; component++)
+        {
+            for (int scale = 0; scale < 3; scale++)
+            {
+                int offset = ((component * 3) + scale) * 64;
+                for (int natural = 1; natural < 64; natural++)
+                {
+                    scaledTables[offset + natural] = ScaleQuantizer(baseTables[component][natural], Scales[scale]);
+                }
+            }
+        }
         var candidates = new List<Candidate>(729);
         void Add(int code)
         {
-            int[] choices = new int[6];
+            Span<int> choices = stackalloc int[6];
             int remaining = code;
             for (int index = 5; index >= 0; index--)
             {
@@ -227,10 +241,11 @@ internal static class QuantizationTableSearch
                     rate += cost.RateCost;
                     for (int component = group == 0 ? 0 : 1; component < (group == 0 ? 1 : 3); component++)
                     {
+                        int offset = ((component * 3) + scale) * 64;
                         for (int position = first; position <= BandEnds[band]; position++)
                         {
                             int natural = JpegConstants.ZigZag[position];
-                            tables[component][natural] = ScaleQuantizer(baseTables[component][natural], Scales[scale]);
+                            tables[component][natural] = scaledTables[offset + natural];
                         }
                     }
                     first = BandEnds[band] + 1;
