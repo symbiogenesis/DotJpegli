@@ -72,8 +72,7 @@ public sealed class EncoderRateDistortionTests
             supported with { ForceBaseline = false },
             supported with { MaxDegreeOfParallelism = 2 },
             supported with { ColorSpace = JpegColorSpace.Rgb },
-            supported with { Subsampling = ChromaSubsampling.HalfHorizontal },
-            supported with { SequentialInterleaveComponents = false }
+            supported with { Subsampling = ChromaSubsampling.HalfHorizontal }
         ];
         foreach (JpegliEncoderOptions options in invalid)
         {

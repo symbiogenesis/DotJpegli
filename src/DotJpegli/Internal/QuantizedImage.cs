@@ -51,10 +51,18 @@ internal sealed class QuantizedImage : IDisposable
         double rateDistortionLambda = 0, RateDistortionDiagnostics? rateDistortionDiagnostics = null,
         long maximumBytes = MaximumBytes, bool allowPartial = false, EncoderCacheBudget? cacheBudget = null,
         ArrayPool<short>? pool = null, double dcTrellisLambda = 0,
-        DcTrellisDiagnostics? dcTrellisDiagnostics = null, int[]? dcRestartIntervals = null)
+        DcTrellisDiagnostics? dcTrellisDiagnostics = null, int[]? dcRestartIntervals = null,
+        bool rateDistortionHuffmanFeedback = false)
     {
         Guard.ThrowIfNegative(maximumBytes);
         cancellationToken.ThrowIfCancellationRequested();
+        if (rateDistortionHuffmanFeedback)
+        {
+            return CreateHuffmanFeedbackResearch(pixels, width, height, stride, sampling, tables, distance,
+                smoothingFactor, adaptive, adaptiveMultipliers, zigZagOrdered, narrowZigZagKernel,
+                rateDistortionLambda, rateDistortionDiagnostics, maximumBytes, cacheBudget, pool,
+                dcTrellisLambda, dcTrellisDiagnostics, dcRestartIntervals, cancellationToken);
+        }
         if (!double.IsFinite(dcTrellisLambda) || dcTrellisLambda < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(dcTrellisLambda));
@@ -240,6 +248,127 @@ internal sealed class QuantizedImage : IDisposable
         {
             image.Dispose();
             throw;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static QuantizedImage? CreateHuffmanFeedbackResearch(PixelSource pixels, int width, int height,
+        int stride, JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor,
+        AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, bool zigZagOrdered,
+        KernelPreference narrowZigZagKernel, double lambda, RateDistortionDiagnostics? diagnostics,
+        long maximumBytes, EncoderCacheBudget? cacheBudget, ArrayPool<short>? pool, double dcLambda,
+        DcTrellisDiagnostics? dcDiagnostics, int[]? restartIntervals, CancellationToken cancellationToken)
+    {
+        if (!double.IsFinite(lambda) || lambda <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(lambda));
+        }
+        if (restartIntervals is not null && (restartIntervals.Length != tables.Length
+            || restartIntervals.Any(interval => interval is < 0 or > 65535)))
+        {
+            throw new ArgumentException("Each component requires a valid restart interval.", nameof(restartIntervals));
+        }
+        QuantizedImage? image = Create(pixels, width, height, stride, sampling, tables, distance, smoothingFactor,
+            adaptive, adaptiveMultipliers, cancellationToken, zigZagOrdered, narrowZigZagKernel,
+            lambda, diagnostics, maximumBytes, allowPartial: false, cacheBudget: cacheBudget, pool: pool,
+            dcTrellisLambda: dcLambda, dcTrellisDiagnostics: dcDiagnostics, dcRestartIntervals: restartIntervals);
+        if (image is null)
+        {
+            return null;
+        }
+        try
+        {
+            int components = tables.Length;
+            JpegScan[] scans = Enumerable.Range(0, components).Select(component => new JpegScan([component])).ToArray();
+            long[][] dcFrequencies = new long[components][];
+            long[][][] acFrequencies = new long[components][][];
+            long histogramBlocks = 0;
+            for (int component = 0; component < components; component++)
+            {
+                dcFrequencies[component] = new long[256];
+                acFrequencies[component] = new long[components][];
+                for (int context = 0; context < components; context++)
+                {
+                    acFrequencies[component][context] = component == context ? new long[256] : [];
+                }
+                int predictor = 0, index = 0, interval = restartIntervals?[component] ?? 0;
+                for (int y = 0; y < image.cachedHeights[component]; y++)
+                {
+                    for (int x = 0; x < image.widths[component]; x++, index++)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (interval != 0 && index % interval == 0)
+                        {
+                            predictor = 0;
+                        }
+                        EntropyEncoder.AccumulateFrequencies(image.Block(component, x, y), ref predictor,
+                            dcFrequencies[component], acFrequencies[component][component],
+                            coefficientsValidated: true, zigZagOrdered: true);
+                        histogramBlocks++;
+                    }
+                }
+            }
+            // This is the same clustered, baseline-limited table plan as output;
+            // changing canonical symbol order cannot alter its per-symbol costs.
+            var coding = HuffmanCodingPlan.Create(scans, dcFrequencies, acFrequencies, progressive: false,
+                forceBaseline: true);
+            byte[][] codeLengths = Enumerable.Range(0, components)
+                .Select(component => RateDistortionQuantization.CodeLengths(coding.Scans[component].AcTables[component])).ToArray();
+            diagnostics?.RecordFeedbackModel(codeLengths, histogramBlocks);
+            Span<float> samples = stackalloc float[64];
+            for (int component = 0; component < components; component++)
+            {
+                JpegComponentSampling factor = sampling[component];
+                for (int y = 0; y < image.cachedHeights[component]; y++)
+                {
+                    for (int x = 0; x < image.widths[component]; x++)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        Downsampling.FillBlock(pixels, width, height, stride, component, x, y,
+                            sampling.MaxHorizontal, sampling.MaxVertical, factor.Horizontal, factor.Vertical,
+                            samples, smoothingFactor);
+                        RefineFeedbackBlock(samples, tables[component], image.Block(component, x, y), lambda,
+                            codeLengths[component], diagnostics);
+                    }
+                }
+            }
+            return image;
+        }
+        catch
+        {
+            image.Dispose();
+            throw;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void RefineFeedbackBlock(ReadOnlySpan<float> samples, ReadOnlySpan<ushort> table,
+        Span<short> quantized, double lambda, ReadOnlySpan<byte> codeLengths, RateDistortionDiagnostics? diagnostics)
+    {
+        Span<float> coefficients = stackalloc float[64];
+        Span<short> original = stackalloc short[64];
+        ForwardDct.Transform(samples, coefficients);
+        if (diagnostics is not null)
+        {
+            quantized.CopyTo(original);
+        }
+        int evaluations = RateDistortionQuantization.Optimize(coefficients, table, quantized, lambda, codeLengths);
+        if (diagnostics is not null)
+        {
+            int changes = 0;
+            double originalError = 0, selectedError = 0;
+            for (int position = 1; position < 64; position++)
+            {
+                changes += quantized[position] == original[position] ? 0 : 1;
+                int natural = JpegConstants.ZigZag[position];
+                double before = coefficients[natural] - ((double)original[position] * table[natural]);
+                double after = coefficients[natural] - ((double)quantized[position] * table[natural]);
+                originalError += before * before;
+                selectedError += after * after;
+            }
+            diagnostics.RecordFeedbackBlock(evaluations, changes,
+                RateDistortionQuantization.EstimateAcBits(original, codeLengths),
+                RateDistortionQuantization.EstimateAcBits(quantized, codeLengths), originalError, selectedError);
         }
     }
 

@@ -29,6 +29,7 @@ public sealed record JpegliEncoderOptions
     // The search tool supplies a fresh, exclusively owned sink for each encode.
     internal double RateDistortionLambda { get; init; }
     internal RateDistortionDiagnostics? RateDistortionDiagnostics { get; init; }
+    internal bool RateDistortionHuffmanFeedback { get; init; }
     internal double DcTrellisLambda { get; init; }
     internal DcTrellisDiagnostics? DcTrellisDiagnostics { get; init; }
 
@@ -621,7 +622,7 @@ public sealed record JpegliEncoderOptions
             || !this.AdaptiveQuantization || this.MaxDegreeOfParallelism != 1
             || this.ColorSpace != JpegColorSpace.YCbCr || this.ScanScript is not null
             || (this.ProgressiveLevel is int rdLevel ? rdLevel != 0 : this.Progressive)
-            || (!this.SequentialInterleaveComponents && this.DcTrellisLambda == 0) || this.SamplingFactors is not null
+            || this.SamplingFactors is not null
             || this.Subsampling is not (ChromaSubsampling.None or ChromaSubsampling.Quarter)))
         {
             throw new ArgumentException("Rate-distortion search requires baseline YCbCr, default 4:4:4 or 4:2:0 sampling, AQ, optimized Huffman coding and one worker.",
@@ -631,6 +632,12 @@ public sealed record JpegliEncoderOptions
         {
             throw new ArgumentException("DC trellis research requires noninterleaved sequential component scans and explicit restart intervals.",
                 nameof(this.DcTrellisLambda));
+        }
+        if (this.RateDistortionHuffmanFeedback && (this.RateDistortionLambda <= 0
+            || this.SequentialInterleaveComponents || this.HuffmanTableLimit != 0 || this.RestartRows != 0))
+        {
+            throw new ArgumentException("Huffman feedback requires positive AC lambda, default table clustering, noninterleaved baseline component scans and explicit restart intervals.",
+                nameof(this.RateDistortionHuffmanFeedback));
         }
         if (this.HuffmanTableLimit is not (0 or 1 or 2 or 4))
         {

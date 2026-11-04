@@ -658,7 +658,8 @@ public static class JpegliEncoder
             rateDistortionLambda: options.RateDistortionLambda, rateDistortionDiagnostics: options.RateDistortionDiagnostics,
             allowPartial: options.RateDistortionLambda == 0 && options.DcTrellisLambda == 0, cacheBudget: cacheBudget,
             dcTrellisLambda: options.DcTrellisLambda, dcTrellisDiagnostics: options.DcTrellisDiagnostics,
-            dcRestartIntervals: componentRestartIntervals);
+            dcRestartIntervals: componentRestartIntervals,
+            rateDistortionHuffmanFeedback: options.RateDistortionHuffmanFeedback);
         if ((options.RateDistortionLambda > 0 || options.DcTrellisLambda > 0) && quantizedImage is null)
         {
             throw new ArgumentException("The offline rate-distortion experiment requires a coefficient cache within its unchanged 64 MiB limit.",

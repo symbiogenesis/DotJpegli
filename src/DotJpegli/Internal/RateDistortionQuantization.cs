@@ -21,6 +21,12 @@ internal static class RateDistortionQuantization
     /// </remarks>
     internal static int Optimize(ReadOnlySpan<float> naturalCoefficients, ReadOnlySpan<ushort> table,
         Span<short> zigZagQuantized, double lambda, bool chroma)
+        => Optimize(naturalCoefficients, table, zigZagQuantized, lambda, chroma ? ChromaLengths : LumaLengths);
+
+    // The image-specific model can omit symbols; unavailable transitions are
+    // excluded while the original, encodable block remains a feasible control.
+    internal static int Optimize(ReadOnlySpan<float> naturalCoefficients, ReadOnlySpan<ushort> table,
+        Span<short> zigZagQuantized, double lambda, ReadOnlySpan<byte> codeLengths)
     {
         if (naturalCoefficients.Length < 64)
         {
@@ -31,6 +37,8 @@ internal static class RateDistortionQuantization
             throw new ArgumentException("A block requires 64 quantizers.", nameof(table));
         }
         ValidateQuantized(zigZagQuantized);
+        ValidateLengths(codeLengths);
+        _ = EstimateAcBitsValidated(zigZagQuantized, codeLengths);
         if (double.IsNaN(lambda) || double.IsInfinity(lambda) || lambda < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(lambda));
@@ -47,7 +55,7 @@ internal static class RateDistortionQuantization
             }
         }
 
-        ReadOnlySpan<byte> lengths = chroma ? ChromaLengths : LumaLengths;
+        ReadOnlySpan<byte> lengths = codeLengths;
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
         Span<double> costs = stackalloc double[64], nextCosts = stackalloc double[64];
         Span<int> changes = stackalloc int[64], nextChanges = stackalloc int[64];
@@ -96,6 +104,10 @@ internal static class RateDistortionQuantization
                     short value = candidates[candidate];
                     int nextRun = value == 0 ? run + 1 : 0;
                     int bits = value == 0 ? 0 : NonzeroBits(value, run, lengths);
+                    if (bits == int.MaxValue)
+                    {
+                        continue;
+                    }
                     double cost = costs[run] + distortions[candidate] + (bits * rateScale);
                     int changed = changes[run] + (value == original ? 0 : 1);
                     evaluations++;
@@ -120,6 +132,10 @@ internal static class RateDistortionQuantization
         int bestChanges = int.MaxValue, bestRun = 0;
         for (int run = 0; run < 64; run++)
         {
+            if (run != 0 && lengths[0] == 0)
+            {
+                continue;
+            }
             double cost = costs[run] + (run == 0 ? 0 : lengths[0] * rateScale);
             if (cost < bestCost || (cost == bestCost && changes[run] < bestChanges))
             {
@@ -139,9 +155,17 @@ internal static class RateDistortionQuantization
 
     /// <summary>Returns standard-table AC symbol and amplitude bits before stuffing and padding.</summary>
     internal static int EstimateAcBits(ReadOnlySpan<short> zigZagQuantized, bool chroma)
+        => EstimateAcBits(zigZagQuantized, chroma ? ChromaLengths : LumaLengths);
+
+    internal static int EstimateAcBits(ReadOnlySpan<short> zigZagQuantized, ReadOnlySpan<byte> codeLengths)
     {
         ValidateQuantized(zigZagQuantized);
-        ReadOnlySpan<byte> lengths = chroma ? ChromaLengths : LumaLengths;
+        ValidateLengths(codeLengths);
+        return EstimateAcBitsValidated(zigZagQuantized, codeLengths);
+    }
+
+    private static int EstimateAcBitsValidated(ReadOnlySpan<short> zigZagQuantized, ReadOnlySpan<byte> lengths)
+    {
         int bits = 0, run = 0;
         for (int position = 1; position < 64; position++)
         {
@@ -152,9 +176,18 @@ internal static class RateDistortionQuantization
             }
             else
             {
-                bits += NonzeroBits(value, run, lengths);
+                int nonzeroBits = NonzeroBits(value, run, lengths);
+                if (nonzeroBits == int.MaxValue)
+                {
+                    throw new ArgumentException("The supplied table cannot encode the original AC block.", nameof(lengths));
+                }
+                bits += nonzeroBits;
                 run = 0;
             }
+        }
+        if (run != 0 && lengths[0] == 0)
+        {
+            throw new ArgumentException("The supplied table cannot encode the original block's end-of-block symbol.", nameof(lengths));
         }
         return bits + (run == 0 ? 0 : lengths[0]);
     }
@@ -162,22 +195,42 @@ internal static class RateDistortionQuantization
     private static int NonzeroBits(short value, int run, ReadOnlySpan<byte> lengths)
     {
         int category = 32 - BitOperations.LeadingZeroCount((uint)Math.Abs((int)value));
-        return (run / 16 * lengths[0xf0]) + lengths[((run % 16) << 4) | category] + category;
+        int symbol = ((run % 16) << 4) | category;
+        return lengths[symbol] == 0 || (run >= 16 && lengths[0xf0] == 0) ? int.MaxValue
+            : (run / 16 * lengths[0xf0]) + lengths[symbol] + category;
     }
 
     private static byte[] CreateLengths(bool chroma)
+        => CodeLengths(HuffmanTable.CreateDefault(isAc: true, chroma));
+
+    internal static byte[] CodeLengths(HuffmanTable table)
     {
-        var standard = HuffmanTable.CreateDefault(isAc: true, chroma);
+        Guard.ThrowIfNull(table);
         byte[] lengths = new byte[256];
         int symbol = 0;
         for (int length = 1; length <= 16; length++)
         {
-            for (int count = 0; count < standard.Counts[length - 1]; count++)
+            for (int count = 0; count < table.Counts[length - 1]; count++)
             {
-                lengths[standard.Symbols[symbol++]] = (byte)length;
+                lengths[table.Symbols[symbol++]] = (byte)length;
             }
         }
         return lengths;
+    }
+
+    private static void ValidateLengths(ReadOnlySpan<byte> codeLengths)
+    {
+        if (codeLengths.Length != 256)
+        {
+            throw new ArgumentException("AC code lengths require 256 symbols.", nameof(codeLengths));
+        }
+        foreach (byte length in codeLengths)
+        {
+            if (length > 16)
+            {
+                throw new ArgumentException("Huffman code lengths cannot exceed sixteen bits.", nameof(codeLengths));
+            }
+        }
     }
 
     private static void ValidateQuantized(ReadOnlySpan<short> zigZagQuantized)
