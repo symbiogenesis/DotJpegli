@@ -182,7 +182,7 @@ public sealed class IptcMetadata
             if (entry.Record is >= 2 and <= 6 && !(entry.Record == 2 &&
                 (IsBinaryDataset(entry.Number) || entry.Number == dataset)))
             {
-                _ = DecodeText(entry.Value.Span, utf8);
+                ValidateText(entry.Value.Span, utf8);
             }
         }
 
@@ -226,15 +226,9 @@ public sealed class IptcMetadata
 
     private static string DecodeText(ReadOnlySpan<byte> value, bool utf8)
     {
-        ValidateCharacterSetControls(value);
-
+        ValidateTextBytes(value, utf8);
         if (!utf8)
         {
-            if (!Ascii.IsValid(value))
-            {
-                throw new InvalidOperationException("Undesignated non-ASCII IPTC text has an ambiguous legacy encoding.");
-            }
-
             return Encoding.ASCII.GetString(value);
         }
         try
@@ -244,6 +238,31 @@ public sealed class IptcMetadata
         catch (DecoderFallbackException error)
         {
             throw new InvalidOperationException("IPTC text does not match its UTF-8 designation.", error);
+        }
+    }
+
+    private static void ValidateText(ReadOnlySpan<byte> value, bool utf8)
+    {
+        ValidateTextBytes(value, utf8);
+        if (utf8)
+        {
+            try
+            {
+                _ = Utf8.GetCharCount(value);
+            }
+            catch (DecoderFallbackException error)
+            {
+                throw new InvalidOperationException("IPTC text does not match its UTF-8 designation.", error);
+            }
+        }
+    }
+
+    private static void ValidateTextBytes(ReadOnlySpan<byte> value, bool utf8)
+    {
+        ValidateCharacterSetControls(value);
+        if (!utf8 && !Ascii.IsValid(value))
+        {
+            throw new InvalidOperationException("Undesignated non-ASCII IPTC text has an ambiguous legacy encoding.");
         }
     }
 
