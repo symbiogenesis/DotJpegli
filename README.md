@@ -21,6 +21,9 @@ profiles and metadata.
 The library is implemented entirely in managed .NET, with no native dependencies,
 P/Invoke, unsafe code or runtime NuGet dependencies.
 
+**NativeAOT and trimming are supported on .NET 10 and .NET 11**, with
+[deployment checks in CI](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/development.md#trimming-and-nativeaot).
+
 ## Photograph comparison
 
 Fine clouds of dust, saturated colour and thousands of stars make Webb's
@@ -150,33 +153,6 @@ JpegliEncoder.Encode(output, rgbPixels, width: 1, height: 1, options: new()
 The stream overload avoids retaining the complete encoded JPEG in a returned
 byte array. See [compression and scan options](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/compression.md)
 for quality, sampling and progression controls.
-
-## Compatibility and deployment
-
-| Target | Implementation and deployment |
-| --- | --- |
-| .NET Standard 2.1 | The same public encoding and metadata APIs, with scalar DCT and quantization paths. |
-| .NET 10 | Portable SIMD acceleration; compatible with trimming and NativeAOT. |
-| .NET 11 | Newer portable SIMD APIs; compatible with trimming and NativeAOT. |
-
-To publish an application that references DotJpegli, select its target framework
-and runtime identifier. For example, publish a .NET 10 application for Linux x64
-with trimming or NativeAOT:
-
-```sh
-dotnet publish path/to/YourApp.csproj -c Release -f net10.0 -r linux-x64 --self-contained true -p:PublishTrimmed=true
-dotnet publish path/to/YourApp.csproj -c Release -f net10.0 -r linux-x64 -p:PublishAot=true
-```
-
-Use `net11.0` for a .NET 11 application and the RID for your deployment platform.
-NativeAOT requires the platform's
-[native build tools](https://learn.microsoft.com/dotnet/core/deploying/native-aot/#prerequisites).
-DotJpegli requires no additional linker descriptors or preservation attributes.
-
-CI publishes and runs trimmed and NativeAOT consumers on Windows and Linux x64
-for both .NET targets. Linker and AOT analyzer warnings fail validation. See
-[deployment validation](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/development.md#trimming-and-nativeaot)
-for coverage.
 
 ## Performance
 
