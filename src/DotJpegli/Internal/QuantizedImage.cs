@@ -50,10 +50,22 @@ internal sealed class QuantizedImage : IDisposable
         bool zigZagOrdered = false, KernelPreference narrowZigZagKernel = KernelPreference.Automatic,
         double rateDistortionLambda = 0, RateDistortionDiagnostics? rateDistortionDiagnostics = null,
         long maximumBytes = MaximumBytes, bool allowPartial = false, EncoderCacheBudget? cacheBudget = null,
-        ArrayPool<short>? pool = null)
+        ArrayPool<short>? pool = null, double dcTrellisLambda = 0,
+        DcTrellisDiagnostics? dcTrellisDiagnostics = null, int[]? dcRestartIntervals = null)
     {
         Guard.ThrowIfNegative(maximumBytes);
         cancellationToken.ThrowIfCancellationRequested();
+        if (!double.IsFinite(dcTrellisLambda) || dcTrellisLambda < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(dcTrellisLambda));
+        }
+        if (dcTrellisLambda > 0)
+        {
+            return CreateDcResearch(pixels, width, height, stride, sampling, tables, distance, smoothingFactor,
+                adaptive, adaptiveMultipliers, zigZagOrdered, narrowZigZagKernel,
+                rateDistortionLambda, rateDistortionDiagnostics, maximumBytes, cacheBudget, pool,
+                dcTrellisLambda, dcTrellisDiagnostics, dcRestartIntervals, cancellationToken);
+        }
         if (!double.IsFinite(rateDistortionLambda) || rateDistortionLambda < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(rateDistortionLambda));
@@ -228,6 +240,111 @@ internal sealed class QuantizedImage : IDisposable
         {
             image.Dispose();
             throw;
+        }
+    }
+
+    // A second transform pass obtains real floating DC targets without changing
+    // the ordinary fused preparation loop's locals, stack frame or scheduling.
+    // This research path supports complete component-raster sequential scans.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static QuantizedImage? CreateDcResearch(PixelSource pixels, int width, int height, int stride,
+        JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor,
+        AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
+        bool zigZagOrdered, KernelPreference narrowZigZagKernel, double rateDistortionLambda,
+        RateDistortionDiagnostics? rateDistortionDiagnostics, long maximumBytes, EncoderCacheBudget? cacheBudget,
+        ArrayPool<short>? pool, double lambda, DcTrellisDiagnostics? diagnostics, int[]? restartIntervals,
+        CancellationToken cancellationToken)
+    {
+        if (!zigZagOrdered)
+        {
+            throw new ArgumentException("DC research requires zigzag-ordered cache blocks.", nameof(zigZagOrdered));
+        }
+        if (restartIntervals is not null && (restartIntervals.Length != tables.Length
+            || restartIntervals.Any(interval => interval is < 0 or > 65535)))
+        {
+            throw new ArgumentException("Each component requires a valid restart interval.", nameof(restartIntervals));
+        }
+        int maximumBlocks = 0;
+        for (int component = 0; component < tables.Length; component++)
+        {
+            JpegComponentSampling factor = sampling[component];
+            long columns = (((long)width * factor.Horizontal) + (8 * sampling.MaxHorizontal) - 1) / (8 * sampling.MaxHorizontal);
+            long rows = (((long)height * factor.Vertical) + (8 * sampling.MaxVertical) - 1) / (8 * sampling.MaxVertical);
+            long count = columns * rows;
+            if (count > DcRateDistortionQuantization.MaximumBlocks)
+            {
+                return null;
+            }
+            maximumBlocks = Math.Max(maximumBlocks, (int)count);
+        }
+        // Reused float targets, short DC output, bool resets, and the optimizer's
+        // three byte backpointers. Account the peak even with no shared budget.
+        long scratchBytes = (long)maximumBlocks * (sizeof(float) + sizeof(short) + sizeof(bool) + 3);
+        long available = Math.Min(Math.Min(maximumBytes, MaximumBytes), cacheBudget?.AvailableBytes ?? long.MaxValue);
+        if (scratchBytes > available || (cacheBudget is not null
+            && !cacheBudget.TryReserve(scratchBytes, EncoderCacheKind.QuantizedCoefficients)))
+        {
+            return null;
+        }
+        QuantizedImage? image = null;
+        try
+        {
+            image = Create(pixels, width, height, stride, sampling, tables, distance, smoothingFactor,
+                adaptive, adaptiveMultipliers, cancellationToken, zigZagOrdered, narrowZigZagKernel,
+                rateDistortionLambda, rateDistortionDiagnostics, maximumBytes: available - scratchBytes,
+                allowPartial: false, cacheBudget: cacheBudget, pool: pool);
+            if (image is null)
+            {
+                return null;
+            }
+            float[] source = new float[maximumBlocks];
+            short[] dc = new short[maximumBlocks];
+            bool[] resets = new bool[maximumBlocks];
+            Span<float> samples = stackalloc float[64], coefficients = stackalloc float[64];
+            for (int component = 0; component < tables.Length; component++)
+            {
+                JpegComponentSampling factor = sampling[component];
+                int count = image.widths[component] * image.cachedHeights[component];
+                int interval = restartIntervals?[component] ?? 0;
+                int index = 0;
+                for (int y = 0; y < image.cachedHeights[component]; y++)
+                {
+                    for (int x = 0; x < image.widths[component]; x++, index++)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        Downsampling.FillBlock(pixels, width, height, stride, component, x, y,
+                            sampling.MaxHorizontal, sampling.MaxVertical, factor.Horizontal, factor.Vertical,
+                            samples, smoothingFactor);
+                        ForwardDct.Transform(samples, coefficients);
+                        source[index] = coefficients[0];
+                        dc[index] = image.Block(component, x, y)[0];
+                        resets[index] = interval != 0 && index % interval == 0;
+                    }
+                }
+                DcRateDistortionQuantization.Diagnostics result = DcRateDistortionQuantization.Optimize(
+                    source.AsSpan(0, count), tables[component][0], dc.AsSpan(0, count),
+                    DcRateDistortionQuantization.StandardCodeLengths(component != 0), resets.AsSpan(0, count),
+                    lambda, cancellationToken);
+                diagnostics?.RecordChain(count, result);
+                index = 0;
+                for (int y = 0; y < image.cachedHeights[component]; y++)
+                {
+                    for (int x = 0; x < image.widths[component]; x++)
+                    {
+                        image.Block(component, x, y)[0] = dc[index++];
+                    }
+                }
+            }
+            return image;
+        }
+        catch
+        {
+            image?.Dispose();
+            throw;
+        }
+        finally
+        {
+            cacheBudget?.Release(scratchBytes, EncoderCacheKind.QuantizedCoefficients);
         }
     }
 

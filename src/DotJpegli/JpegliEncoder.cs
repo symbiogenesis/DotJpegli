@@ -651,12 +651,15 @@ public static class JpegliEncoder
 #if !NETSTANDARD2_1
         cacheSequential = Vector256.IsHardwareAccelerated && !Vector512.IsHardwareAccelerated;
 #endif
-        using QuantizedImage? quantizedImage = streamSequential && !cacheSequential && options.RateDistortionLambda == 0 ? null : QuantizedImage.Create(pixels, width, height, stride,
+        using QuantizedImage? quantizedImage = streamSequential && !cacheSequential
+            && options.RateDistortionLambda == 0 && options.DcTrellisLambda == 0 ? null : QuantizedImage.Create(pixels, width, height, stride,
             sampling, tables, distance, options.SmoothingFactor, adaptive, adaptiveMultipliers, cancellationToken,
             zigZagOrdered: true, narrowZigZagKernel: options.NarrowZigZagKernel,
             rateDistortionLambda: options.RateDistortionLambda, rateDistortionDiagnostics: options.RateDistortionDiagnostics,
-            allowPartial: options.RateDistortionLambda == 0, cacheBudget: cacheBudget);
-        if (options.RateDistortionLambda > 0 && quantizedImage is null)
+            allowPartial: options.RateDistortionLambda == 0 && options.DcTrellisLambda == 0, cacheBudget: cacheBudget,
+            dcTrellisLambda: options.DcTrellisLambda, dcTrellisDiagnostics: options.DcTrellisDiagnostics,
+            dcRestartIntervals: componentRestartIntervals);
+        if ((options.RateDistortionLambda > 0 || options.DcTrellisLambda > 0) && quantizedImage is null)
         {
             throw new ArgumentException("The offline rate-distortion experiment requires a coefficient cache within its unchanged 64 MiB limit.",
                 nameof(options));

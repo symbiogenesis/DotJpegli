@@ -29,6 +29,10 @@ internal static class Program
             {
                 return HuffmanOrderingSearchCommand.Run(args[1..]);
             }
+            if (args.Length > 0 && args[0] == "--search-dc-trellis")
+            {
+                return DcTrellisSearchCommand.Run(args[1..]);
+            }
             if (args.Length > 0 && args[0] == "--search-quantization-tables")
             {
                 return QuantizationTableSearchCommand.Run(args[1..]);
