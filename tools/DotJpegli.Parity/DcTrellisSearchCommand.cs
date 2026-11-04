@@ -51,6 +51,10 @@ internal static class DcTrellisSearchCommand
     internal static int Run(RateDistortionSearchCommand.SearchOptions options, Func<byte[], PpmImage> decode, object decoderIdentity)
     {
         ValidatePaths(options);
+        if (new FileInfo(options.Input).Length > 16L * 1024 * 1024)
+        {
+            throw new ArgumentException("The bounded experiment accepts PPM files up to 16 MiB including their header.", nameof(options));
+        }
         byte[] input = File.ReadAllBytes(options.Input);
         var image = PpmImage.Read(input);
         DcTrellisSearch.SearchResult result = DcTrellisSearch.Search(image, options.Subsampling, decode);
