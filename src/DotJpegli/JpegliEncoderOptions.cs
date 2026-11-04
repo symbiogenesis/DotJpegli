@@ -23,6 +23,7 @@ public sealed record JpegliEncoderOptions
     // Offline scan search can constrain histogram clustering independently for
     // DC and AC tables. Zero retains the normal cost/slot-redefinition policy.
     internal int HuffmanTableLimit { get; init; }
+    internal HuffmanSymbolOrder HuffmanSymbolOrder { get; init; }
 
     // Explicit offline baseline experiment only. Zero keeps the default path.
     // The search tool supplies a fresh, exclusively owned sink for each encode.

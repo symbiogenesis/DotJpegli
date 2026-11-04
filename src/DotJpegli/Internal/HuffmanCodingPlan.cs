@@ -33,7 +33,7 @@ internal sealed class HuffmanCodingPlan
 
     internal static HuffmanCodingPlan Create(IReadOnlyList<JpegScan> scans,
         long[][] dcFrequencies, long[][][] acFrequencies, bool progressive, bool forceBaseline,
-        int tableLimit = 0)
+        int tableLimit = 0, HuffmanSymbolOrder symbolOrder = HuffmanSymbolOrder.Canonical)
     {
         if (tableLimit is not (0 or 1 or 2 or 4))
         {
@@ -68,8 +68,8 @@ internal sealed class HuffmanCodingPlan
             }
         }
         Clusters ac = Cluster(acContexts, limitToBaseline, tableLimit);
-        HuffmanTable[] dcTables = dc.Histograms.Select(histogram => HuffmanTable.CreateOptimized(histogram)).ToArray();
-        HuffmanTable[] acTables = ac.Histograms.Select(histogram => HuffmanTable.CreateOptimized(histogram)).ToArray();
+        HuffmanTable[] dcTables = dc.Histograms.Select(histogram => CreateTable(histogram, symbolOrder)).ToArray();
+        HuffmanTable[] acTables = ac.Histograms.Select(histogram => CreateTable(histogram, symbolOrder)).ToArray();
         HuffmanTable unused = UnusedTable.Value;
         int nextAcDefinition = Math.Min(4, acTables.Length);
         var firstDefinitions = new List<Definition>(dcTables.Length + nextAcDefinition);
@@ -212,4 +212,10 @@ internal sealed class HuffmanCodingPlan
 
     private static float Cost(ReadOnlySpan<long> frequencies)
         => HuffmanTable.EstimateOptimizedCost(frequencies);
+
+    private static HuffmanTable CreateTable(long[] histogram, HuffmanSymbolOrder order)
+    {
+        var table = HuffmanTable.CreateOptimized(histogram);
+        return order == HuffmanSymbolOrder.Canonical ? table : HuffmanSymbolOrdering.Reorder(table, histogram, order);
+    }
 }

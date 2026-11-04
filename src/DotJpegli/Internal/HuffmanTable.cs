@@ -32,6 +32,34 @@ internal sealed class HuffmanTable
 
     public byte[] Symbols { get; }
 
+    // Retain every symbol's code length and the reserved padding code space.
+    // A new immutable table receives independent canonical codes/replay caches.
+    internal HuffmanTable ReorderWithinLengths(ReadOnlySpan<byte> symbols)
+    {
+        if (symbols.Length != this.Symbols.Length)
+        {
+            throw new ArgumentException("A reordered table must contain the same symbols.", nameof(symbols));
+        }
+        Span<bool> seen = stackalloc bool[256];
+        seen.Clear();
+        int offset = 0;
+        for (int length = 1; length <= 16; length++)
+        {
+            int end = offset + this.Counts[length - 1];
+            for (; offset < end; offset++)
+            {
+                byte symbol = symbols[offset];
+                if (seen[symbol] || this.lengths[symbol] != length)
+                {
+                    throw new ArgumentException("Symbols may move only within their original code length.", nameof(symbols));
+                }
+                seen[symbol] = true;
+            }
+        }
+        return symbols.SequenceEqual(this.Symbols) ? this
+            : new HuffmanTable((byte[])this.Counts.Clone(), symbols.ToArray());
+    }
+
     private HuffmanTable(byte[] counts, byte[] symbols)
     {
         this.Counts = counts;

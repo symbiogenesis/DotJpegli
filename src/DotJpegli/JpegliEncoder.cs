@@ -707,7 +707,7 @@ public static class JpegliEncoder
             }
         }
         var plan = HuffmanCodingPlan.Create(scans, dcFrequencies, acFrequencies,
-            options.Progressive, options.ForceBaseline, options.HuffmanTableLimit);
+            options.Progressive, options.ForceBaseline, options.HuffmanTableLimit, options.HuffmanSymbolOrder);
         cancellationToken.ThrowIfCancellationRequested();
         JpegMarkerWriter.WriteHeaders(output, width, height, sampling, tables, quantizationSelectors,
             emptyTables, emptyTables, options, extendedXmp, cancellationToken, rgb: pixels.IsRgb,
