@@ -718,7 +718,7 @@ public static class JpegliEncoder
 
             int interval = scan.Components.Count == 1
                 ? componentRestartIntervals[scan.Components[0]] : interleavedRestartInterval;
-            if (!options.Progressive && quantizedImage is not null
+            if (!options.Progressive && workerLimit > 1 && quantizedImage is not null
                 && ParallelBaselineCollector.TryCollect(quantizedImage, width, height, sampling, scan,
                     interval, workerLimit, dcFrequencies, acFrequencies[scanIndex], scanTokens, cancellationToken))
             {
