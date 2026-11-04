@@ -189,3 +189,45 @@ The same workflow runs the full fixed native quality/performance matrix and
 bounded native-decoder compression searches. Full suites and benchmarks are
 CI-only. Performance acceptance and timing validity are separate outcomes;
 neither exact output tests nor synthetic statistics prove a latency gain.
+
+## Corrective CI compression results
+
+The [corrective automatic run, 41772797925](https://github.com/symbiogenesis/DotJpegli/actions/runs/41772797925)
+tested revision `744f7bead7b9ba982b2f2127f1d2714fcc82def9`. All four bounded
+searches completed on `kodim01`, a 768x512 RGB8 image, with explicit 4:2:0
+sampling and a distance-1 control. Color candidates also tested distances 0.8
+and 1.25. Huffman ordering used progressive level 2; the other searches used
+sequential output, with separate component scans for DC and feedback.
+Each search compares with its own unchanged managed control. The pinned native
+decoder `031a0077f5799a6041004267fc12b956c1f52a20` supplies the common RGB8
+decode with fancy upsampling and `JDCT_ISLOW`; it is not a native-encoder size
+comparison.
+
+| Search | Complete candidates | Control / winner bytes | Result on this image |
+| --- | ---: | ---: | --- |
+| Equal-length Huffman ordering | 4 | 126953 / 126948 | Frequency-descending order saved 5 bytes (0.00394%); all decoded pixels matched the control |
+| DC chain trellis | 5 | 130250 / 130250 | Control retained; all four modified candidates failed all three quality floors |
+| Image-specific AC Huffman feedback | 7 | 130250 / 130250 | Control retained; all six standard/feedback candidates failed all three quality floors |
+| Color preprocessing | 15 | 130524 / 130500 | `overshoot-d1-w1` saved 24 bytes (0.01839%) and met all three measured quality floors |
+
+The DC candidates saved 75-519 bytes before quality filtering. Even the smallest
+DC change lost 0.001158 dB RGB PSNR and reduced local luma SSIM and the multiscale
+structural score. Feedback reduced complete size further than its paired
+standard-RDOQ candidates, but did not preserve the control quality: at lambda 16,
+feedback saved 14830 bytes (11.39%) while losing 1.216 dB RGB PSNR and both
+structural scores. These smaller files were rejected, not accepted compression
+gains.
+
+All 15 color trials completed; no hypothesis was rejected before encoding or
+by coefficient preflight. The selected overshoot increased RGB PSNR by
+0.001070 dB, local luma SSIM by approximately 2.03e-8 and the multiscale score
+by 1.70e-7. Half-weight overshoot saved 20 bytes but failed the local SSIM floor.
+Distance-1 reconstruction candidates improved RGB PSNR by 0.077-0.100 dB but
+added 802-1182 bytes, so neither was selected. All distance-1.25 variants failed
+the three control floors.
+
+The artifact retains every trial's sizes, hashes and quality decisions; all
+four downloaded winner files matched their reported lengths and SHA-256 hashes.
+These 31 complete encodes/decodes establish only the stated single-image
+results. No timings were collected, and the tiny accepted savings do not
+establish a general compression improvement or human-quality equivalence.
