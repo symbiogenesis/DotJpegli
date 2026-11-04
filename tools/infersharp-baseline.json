@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "analyzer": "InferSharp v1.5",
+  "reviewedRevision": "10a8eb6735716a1ef58a9016e280cb4eb81d7191",
+  "sources": {
+    "src/DotJpegli/JpegliEncoder.cs": "6aea44df4e341b8f13132c13d64894a6a70555984db4f80140f4261d221111fe",
+    "src/DotJpegli/Internal/EntropyTokenScans.cs": "8336f7873416cd6dd5ec32da48acc7682443dbd50601de44703ec73b9fba7adb",
+    "src/DotJpegli/Internal/EntropyTokens.cs": "360279f792468c984eb55854902ad2689014f06366e63cb38f85c6178729adf0"
+  },
+  "targets": {
+    "netstandard2.1": [
+      {
+        "ruleId": "PULSE_RESOURCE_LEAK",
+        "path": "src/DotJpegli/JpegliEncoder.cs",
+        "line": 818,
+        "fingerprint": "fc366196d7d9e7b27dc6612348351c03",
+        "reason": "False positive reviewed from InferSharp run 41786726520: EncodeOptimizedScans owns tokenScans in a using declaration spanning all collection, replay and output. The generated finally disposes EntropyTokenScans on normal completion, cancellation and output failure; its Dispose releases every scan, and EntropyTokens.Dispose returns all pooled segments and refunds their budget idempotently. Construction rents no arrays. EncoderTokenBudgetTests verifies zero outstanding cache bytes after cancellation and destination failure. The net10.0 and net11.0 analyses report no finding."
+      }
+    ],
+    "net10.0": [],
+    "net11.0": []
+  }
+}

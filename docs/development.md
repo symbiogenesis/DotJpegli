@@ -774,13 +774,19 @@ skips unsupported IL, so `tools/assert-infersharp.ps1` rejects findings, invalid
 reports, missing coverage and empty translations. Partial translation remains
 visible in the log and summary; a successful run covers only translated code.
 
-No findings are suppressed by default. If a finding requires an exception,
-review its trace and source first. The validator accepts an optional
-`-BaselinePath` and `-TargetFramework` for a reviewed v1 baseline in the same
-format as JetDatabaseWriter: analyzer version, reviewed commit, normalized
-source SHA-256 hashes and per-target rule/path/line/fingerprint identities with
-reasons. It rejects changed sources, new findings and stale exceptions. Add
-the baseline and those arguments to the workflow only after that review.
+The workflow uses [a reviewed baseline](../tools/infersharp-baseline.json) for
+one `netstandard2.1` resource-leak false positive: `EncodeOptimizedScans` owns
+`EntropyTokenScans` in a `using` declaration that disposes every scan on normal
+and exceptional exits. The baseline records the reviewed trace and source;
+focused regressions verify cache release after cancellation and output failure.
+The `net10.0` and `net11.0` exception lists are empty.
+
+The validator's `-BaselinePath` and `-TargetFramework` arguments select a
+reviewed v1 baseline in the same format as JetDatabaseWriter: analyzer version,
+reviewed commit, normalized source SHA-256 hashes and per-target
+rule/path/line/fingerprint identities with reasons. It rejects changed reviewed
+sources, new findings and stale exceptions. Review the trace and affected
+ownership code before updating an exception or its source hashes.
 
 Run the focused report-validator regressions with PowerShell 7.6 or newer:
 

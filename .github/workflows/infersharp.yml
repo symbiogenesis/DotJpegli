@@ -79,4 +79,4 @@ jobs:
         shell: pwsh
         run: |
           Get-Content -LiteralPath .artifacts/infersharp/report.txt
-          ./tools/assert-infersharp.ps1 -ReportPath .artifacts/infersharp/report.sarif -TranslationLogPath .artifacts/infersharp/analysis.log | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          ./tools/assert-infersharp.ps1 -ReportPath .artifacts/infersharp/report.sarif -TranslationLogPath .artifacts/infersharp/analysis.log -BaselinePath tools/infersharp-baseline.json -TargetFramework '${{ matrix.tf }}' | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append

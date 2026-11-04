@@ -1,5 +1,6 @@
 namespace DotJpegli.Tests;
 
+using DotJpegli.Internal;
 using Xunit;
 
 public sealed class EncoderTokenBudgetTests
@@ -37,6 +38,7 @@ public sealed class EncoderTokenBudgetTests
         byte[] pixels = Pattern(width, height);
         JpegliEncoderOptions options = Options(4) with { EntropyTokenBudgetBytes = budget };
         byte[] expected = Encode(pixels, width, height, options);
+        var canceledDiagnostics = new EncoderCacheDiagnostics();
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         using var canceledDestination = new MemoryStream();
         using var canceledOutput = new ObservedStream(canceledDestination, () =>
@@ -47,13 +49,17 @@ public sealed class EncoderTokenBudgetTests
             }
         });
         OperationCanceledException canceled = Assert.Throws<OperationCanceledException>(() =>
-            JpegliEncoder.Encode(canceledOutput, pixels, width, height, options: options,
+            JpegliEncoder.Encode(canceledOutput, pixels, width, height,
+                options: options with { CacheDiagnostics = canceledDiagnostics },
                 cancellationToken: cancellation.Token));
         Assert.Equal(cancellation.Token, canceled.CancellationToken);
         Assert.True(canceledOutput.CanWrite);
         AssertPrefix(expected, canceledDestination);
+        Assert.Equal(budget > 0, canceledDiagnostics.EntropyTokenPeakBytes > 0);
+        Assert.Equal(0, canceledDiagnostics.CurrentBytes);
 
         var failure = new IOException("Injected shared-token-budget destination failure.");
+        var failedDiagnostics = new EncoderCacheDiagnostics();
         using var failedDestination = new MemoryStream();
         using var failedOutput = new ObservedStream(failedDestination, () =>
         {
@@ -63,9 +69,12 @@ public sealed class EncoderTokenBudgetTests
             }
         });
         Assert.Same(failure, Assert.Throws<IOException>(() => JpegliEncoder.Encode(failedOutput, pixels,
-            width, height, options: options, cancellationToken: TestContext.Current.CancellationToken)));
+            width, height, options: options with { CacheDiagnostics = failedDiagnostics },
+            cancellationToken: TestContext.Current.CancellationToken)));
         Assert.True(failedOutput.CanWrite);
         AssertPrefix(expected, failedDestination);
+        Assert.Equal(budget > 0, failedDiagnostics.EntropyTokenPeakBytes > 0);
+        Assert.Equal(0, failedDiagnostics.CurrentBytes);
         Assert.Equal(expected, Encode(pixels, width, height, options));
     }
 
