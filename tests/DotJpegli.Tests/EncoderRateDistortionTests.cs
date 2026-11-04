@@ -43,6 +43,7 @@ public sealed class EncoderRateDistortionTests
         Assert.Equal(blocks, diagnostics.Blocks);
         Assert.Equal(changed, diagnostics.ChangedCoefficients);
         Assert.True(diagnostics.CandidateEvaluations >= blocks * 63);
+        Assert.Equal(jpeg, Encode(input, width, height, search with { RateDistortionDiagnostics = null }));
         // The uncached-token emission path must use the same searched coefficient
         // cache as the histogram pass, including restarts and padded dummy blocks.
         Assert.Equal(jpeg, Encode(input, width, height, search with

@@ -246,17 +246,23 @@ internal sealed class QuantizedImage : IDisposable
         Quantization.QuantizePrepared(coefficients, quantizer, natural, adaptiveStrength: strength);
         EntropyEncoder.ValidateAc(natural);
         ZigZagOrdering.Reorder(natural, quantized);
-        quantized.CopyTo(original);
-        int evaluations = RateDistortionQuantization.Optimize(coefficients, table, quantized, lambda, chroma);
-        int changes = 0;
-        for (int coefficient = 1; coefficient < 64; coefficient++)
+        if (diagnostics is not null)
         {
-            if (quantized[coefficient] != original[coefficient])
-            {
-                changes++;
-            }
+            quantized.CopyTo(original);
         }
-        diagnostics?.RecordBlock(evaluations, changes);
+        int evaluations = RateDistortionQuantization.Optimize(coefficients, table, quantized, lambda, chroma);
+        if (diagnostics is not null)
+        {
+            int changes = 0;
+            for (int coefficient = 1; coefficient < 64; coefficient++)
+            {
+                if (quantized[coefficient] != original[coefficient])
+                {
+                    changes++;
+                }
+            }
+            diagnostics.RecordBlock(evaluations, changes);
+        }
     }
 
     // Plans only capacity; no pixels, coefficients or image-sized arrays are read.
