@@ -4,6 +4,8 @@
 
 namespace DotJpegli.Internal;
 
+using System.Runtime.CompilerServices;
+
 // Port of HistogramCost, ClusterJpegHistograms and OptimizeHuffmanCodes in
 // google/jpegli lib/jpegli/entropy_coding.cc at revision
 // 031a0077f5799a6041004267fc12b956c1f52a20. Histograms, rather than image-sized
@@ -68,8 +70,8 @@ internal sealed class HuffmanCodingPlan
             }
         }
         Clusters ac = Cluster(acContexts, limitToBaseline, tableLimit);
-        HuffmanTable[] dcTables = dc.Histograms.Select(histogram => CreateTable(histogram, symbolOrder)).ToArray();
-        HuffmanTable[] acTables = ac.Histograms.Select(histogram => CreateTable(histogram, symbolOrder)).ToArray();
+        HuffmanTable[] dcTables = CreateTables(dc.Histograms, symbolOrder);
+        HuffmanTable[] acTables = CreateTables(ac.Histograms, symbolOrder);
         HuffmanTable unused = UnusedTable.Value;
         int nextAcDefinition = Math.Min(4, acTables.Length);
         var firstDefinitions = new List<Definition>(dcTables.Length + nextAcDefinition);
@@ -213,9 +215,23 @@ internal sealed class HuffmanCodingPlan
     private static float Cost(ReadOnlySpan<long> frequencies)
         => HuffmanTable.EstimateOptimizedCost(frequencies);
 
-    private static HuffmanTable CreateTable(long[] histogram, HuffmanSymbolOrder order)
+    // The ordinary path retains the cached noncapturing selector. Capturing the
+    // research preference here would allocate a display class on every encode.
+    private static HuffmanTable[] CreateTables(List<long[]> histograms, HuffmanSymbolOrder order)
+        => order == HuffmanSymbolOrder.Canonical
+            ? histograms.Select(static histogram => HuffmanTable.CreateOptimized(histogram)).ToArray()
+            : CreateReorderedTables(histograms, order);
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static HuffmanTable[] CreateReorderedTables(List<long[]> histograms, HuffmanSymbolOrder order)
     {
-        var table = HuffmanTable.CreateOptimized(histogram);
-        return order == HuffmanSymbolOrder.Canonical ? table : HuffmanSymbolOrdering.Reorder(table, histogram, order);
+        var tables = new HuffmanTable[histograms.Count];
+        for (int index = 0; index < tables.Length; index++)
+        {
+            long[] histogram = histograms[index];
+            var table = HuffmanTable.CreateOptimized(histogram);
+            tables[index] = HuffmanSymbolOrdering.Reorder(table, histogram, order);
+        }
+        return tables;
     }
 }
