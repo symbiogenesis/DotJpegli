@@ -17,10 +17,10 @@ passed on November 3, 2026, testing revision
 `b07eb5d240c2be1f6b9aebac13d081fb50d740cd`, before the later partial converted-plane
 change. This result establishes quality/compression parity for that measured revision.
 
-The complete comparison also passes for revision `75230a0` in
-[CI run 41752676723](https://github.com/symbiogenesis/DotJpegli/actions/runs/41752676723),
+The complete comparison also passes for revision `744f7be` in
+[CI run 41772797925](https://github.com/symbiogenesis/DotJpegli/actions/runs/41772797925),
 measured on November 3, 2026 (America/Chicago; November 4 UTC). Its
-[retained summary](performance-evidence/2026-11-03-75230a0/quality/summary.json)
+[retained summary](performance-evidence/2026-11-03-744f7be/quality/summary.json)
 records the latest encoder identity. Raw cases, matched-rate and matched-quality
 results, and source hashes match the retained `b07eb5d` evidence byte for byte,
 so the bounds and counts below also apply to this revision.

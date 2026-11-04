@@ -23,18 +23,18 @@
     <line x1="718.00" y1="108" x2="718.00" y2="284" stroke="var(--grid)"/>
     <text x="718.00" y="308" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">200</text>
     <text x="32.00" y="131" font-size="17" fill="var(--ink)" font-weight="500" text-anchor="start">Sequential · 4:4:4</text>
-    <rect x="278.00" y="116" width="265.69" height="18" rx="3" fill="var(--teal)"/>
-    <text x="848.00" y="131" font-size="19" fill="var(--ink)" font-weight="600" text-anchor="end">120.8</text>
+    <rect x="278.00" y="116" width="265.45" height="18" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="131" font-size="19" fill="var(--ink)" font-weight="600" text-anchor="end">120.7</text>
     <text x="32.00" y="177" font-size="17" fill="var(--ink)" font-weight="500" text-anchor="start">Sequential · 4:2:0</text>
-    <rect x="278.00" y="162" width="241.09" height="18" rx="3" fill="var(--teal)"/>
-    <text x="848.00" y="177" font-size="19" fill="var(--ink)" font-weight="600" text-anchor="end">109.6</text>
+    <rect x="278.00" y="162" width="240.83" height="18" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="177" font-size="19" fill="var(--ink)" font-weight="600" text-anchor="end">109.5</text>
     <text x="32.00" y="223" font-size="17" fill="var(--ink)" font-weight="500" text-anchor="start">Progressive · 4:4:4</text>
-    <rect x="278.00" y="208" width="370.60" height="18" rx="3" fill="var(--teal)"/>
+    <rect x="278.00" y="208" width="370.66" height="18" rx="3" fill="var(--teal)"/>
     <text x="848.00" y="223" font-size="19" fill="var(--ink)" font-weight="600" text-anchor="end">168.5</text>
     <text x="32.00" y="269" font-size="17" fill="var(--ink)" font-weight="500" text-anchor="start">Progressive · 4:2:0</text>
-    <rect x="278.00" y="254" width="342.96" height="18" rx="3" fill="var(--teal)"/>
+    <rect x="278.00" y="254" width="343.00" height="18" rx="3" fill="var(--teal)"/>
     <text x="848.00" y="269" font-size="19" fill="var(--ink)" font-weight="600" text-anchor="end">155.9</text>
     <text x="32.00" y="340" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">Includes JPEG output · native allocations and peak memory were not measured</text>
-    <text x="32.00" y="370" font-size="12" fill="var(--muted)" font-weight="400" text-anchor="start">2026-11-04 UTC · revision 75230a0 · run 41752676723</text>
+    <text x="32.00" y="370" font-size="12" fill="var(--muted)" font-weight="400" text-anchor="start">2026-11-04 UTC · revision 744f7be · run 41772797925</text>
   </g>
 </svg>

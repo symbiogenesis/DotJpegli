@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "performance": {
-    "revision": "75230a072dd31bda896e3ed2706aeb52ac968975",
-    "run": "41752676723",
+    "revision": "744f7bead7b9ba982b2f2127f1d2714fcc82def9",
+    "run": "41772797925",
     "dateUtc": "2026-11-04"
   },
   "quality": {
-    "revision": "75230a072dd31bda896e3ed2706aeb52ac968975",
-    "run": "41752676723",
+    "revision": "744f7bead7b9ba982b2f2127f1d2714fcc82def9",
+    "run": "41772797925",
     "dateUtc": "2026-11-04"
   },
   "upstreamRevision": "031a0077f5799a6041004267fc12b956c1f52a20",
@@ -18,49 +18,49 @@
       "category": "natural",
       "label": "Sequential \u00B7 4:4:4",
       "metric": "DotJpegli / native",
-      "value": 1.18075919715406
+      "value": 1.0833116963541585
     },
     {
       "category": "natural",
       "label": "Sequential \u00B7 4:2:0",
       "metric": "DotJpegli / native",
-      "value": 1.1573991753623483
+      "value": 1.037252514339202
     },
     {
       "category": "natural",
       "label": "Progressive \u00B7 4:4:4",
       "metric": "DotJpegli / native",
-      "value": 0.8987261892610903
+      "value": 0.8385153667209869
     },
     {
       "category": "natural",
       "label": "Progressive \u00B7 4:2:0",
       "metric": "DotJpegli / native",
-      "value": 0.8936890637445456
+      "value": 0.8137843417531812
     },
     {
       "category": "controlled",
       "label": "Sequential \u00B7 4:4:4",
       "metric": "DotJpegli / native",
-      "value": 1.2238924990906215
+      "value": 1.0539102477614388
     },
     {
       "category": "controlled",
       "label": "Sequential \u00B7 4:2:0",
       "metric": "DotJpegli / native",
-      "value": 1.1174422853360468
+      "value": 0.9946890044336604
     },
     {
       "category": "controlled",
       "label": "Progressive \u00B7 4:4:4",
       "metric": "DotJpegli / native",
-      "value": 1.104169579830204
+      "value": 0.9667920539858595
     },
     {
       "category": "controlled",
       "label": "Progressive \u00B7 4:2:0",
       "metric": "DotJpegli / native",
-      "value": 1.09832928136693
+      "value": 0.9539417673340451
     }
   ],
   "compression": [
@@ -118,28 +118,28 @@
       "category": "natural",
       "label": "Sequential \u00B7 4:4:4",
       "metric": "DotJpegli managed KiB / encode",
-      "value": 120.77044898604954
+      "value": 120.65790960915615
     },
     {
       "category": "natural",
       "label": "Sequential \u00B7 4:2:0",
       "metric": "DotJpegli managed KiB / encode",
-      "value": 109.58460773241734
+      "value": 109.47031197893251
     },
     {
       "category": "natural",
       "label": "Progressive \u00B7 4:4:4",
       "metric": "DotJpegli managed KiB / encode",
-      "value": 168.45584276679423
+      "value": 168.48052804129463
     },
     {
       "category": "natural",
       "label": "Progressive \u00B7 4:2:0",
       "metric": "DotJpegli managed KiB / encode",
-      "value": 155.89054419101322
+      "value": 155.91095299847566
     }
   ],
-  "worstCaseWallTimeRatio": 1.8149459168949205,
+  "worstCaseWallTimeRatio": 1.4453299650200406,
   "worstMatchedQualitySizeRatio": 1.0008705105946347,
   "allocationMethod": "Arithmetic mean across cases of mean block allocatedManagedBytes / case iterations / 1024; managed only; includes returned JPEG; excludes retained pool capacity and peak memory"
 }

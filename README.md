@@ -131,8 +131,8 @@ for coverage.
 
 Compare DotJpegli with **native Google Jpegli** on all 24 Kodak photographs.
 The charts use the complete valid measurements from **November 3, 2026**
-(America/Chicago; November 4 UTC) at revision `75230a0` in
-[CI run 41752676723](https://github.com/symbiogenesis/DotJpegli/actions/runs/41752676723).
+(America/Chicago; November 4 UTC) at revision `744f7be` in
+[CI run 41772797925](https://github.com/symbiogenesis/DotJpegli/actions/runs/41772797925).
 Compression and time differences are relative to native; zero means equal file
 size or encoding time.
 
@@ -145,8 +145,8 @@ all four encoding modes at matched PSNR and SSIM.
 
 ### Encoding wall time
 
-On the measured AMD EPYC 7763 host, progressive photograph encoding used
-**10.1–10.6% less time** than native; sequential encoding used **15.7–18.1% more**.
+On the measured Intel Xeon Platinum 8573C host, progressive photograph encoding used
+**16.1–18.6% less time** than native; sequential encoding used **3.7–8.3% more**.
 Left of zero means less time; right means more.
 
 ![Percentage encoding-time differences from native Google Jpegli, pairing Kodak photographs and deterministic controls for each encoding mode.](docs/images/performance/wall-time.svg)
@@ -160,7 +160,7 @@ and peak memory are outside this measurement.
 ![DotJpegli managed allocations in KiB per encode for Kodak photographs, grouped by sampling and sequential or progressive encoding.](docs/images/performance/allocations.svg)
 
 The charts use distances 1/4, both sampling modes, one worker and tiered
-compilation disabled. The [retained measurements](docs/performance-evidence/2026-11-03-75230a0/README.md),
+compilation disabled. The [retained measurements](docs/performance-evidence/2026-11-03-744f7be/README.md),
 [chart values](docs/images/performance/metrics.json) and [protocol](docs/performance-parity.md)
 cover all 256 cases, including eight deterministic controls. Full native
 performance parity remains unestablished. Separate runs do not isolate revision

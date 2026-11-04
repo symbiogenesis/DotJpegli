@@ -28,7 +28,7 @@ conditioning on timing stability does not characterize all attempts' latency.
 The [earlier complete native run at `0104778`](performance-evidence/2026-11-03-0104778/README.md)
 has an invalid timing verdict: one of 256 cases, `kodim13/420/p0/d1`, fails the
 managed relative-MAD guard. Its aggregate timings cannot establish native
-performance parity. The current valid `75230a0` reference below includes all
+performance parity. The current valid `744f7be` reference below includes all
 256 cases.
 
 The fixed acceptance matrix is complemented by an opt-in workload diagnostic.
@@ -64,8 +64,8 @@ observations and the added 256-warmup tiering scenario; it does not establish
 native parity or a release regression verdict.
 
 The latest complete 256-case comparison of revision
-`75230a072dd31bda896e3ed2706aeb52ac968975` in
-[hosted run 41752676723](https://github.com/symbiogenesis/DotJpegli/actions/runs/41752676723)
+`744f7bead7b9ba982b2f2127f1d2714fcc82def9` in
+[hosted run 41772797925](https://github.com/symbiogenesis/DotJpegli/actions/runs/41772797925)
 has valid measurements under the fixed protocol and matched settings, but **fails full performance
 parity**. Measurements were collected on November 3, 2026 (America/Chicago;
 November 4 UTC). The same run passes the complete quality/compression matrix
@@ -73,23 +73,24 @@ and generates the README charts. This reference includes the later cache changes
 
 | Corpus | Sampling | Sequential mean / worst | Progressive level 2 mean / worst |
 | --- | --- | ---: | ---: |
-| Kodak photographs | 4:4:4 | 1.181 / 1.383 | 0.899 / 0.977 |
-| Kodak photographs | 4:2:0 | 1.157 / 1.405 | 0.894 / 1.009 |
-| Deterministic controls | 4:4:4 | 1.224 / 1.815 | 1.104 / 1.531 |
-| Deterministic controls | 4:2:0 | 1.117 / 1.508 | 1.098 / 1.395 |
+| Kodak photographs | 4:4:4 | 1.083 / 1.445 | 0.839 / 0.978 |
+| Kodak photographs | 4:2:0 | 1.037 / 1.291 | 0.814 / 0.965 |
+| Deterministic controls | 4:4:4 | 1.054 / 1.405 | 0.967 / 1.360 |
+| Deterministic controls | 4:2:0 | 0.995 / 1.422 | 0.954 / 1.393 |
 
 Each mean is the geometric mean of managed/native median latency ratios across
 the group's images and both distances; worst is the largest case ratio.
-Lower is better. Photograph groups use 15.7–18.1% more time for sequential
-encoding and 10.1–10.6% less for progressive encoding. Both progressive photograph
-groups pass the group and individual bounds. The other six groups fail;
-the worst individual case is a 1.814946 ratio for sequential 4:4:4
-smooth-gradient at distance 4. Group averages cannot override individual failures.
+Lower is better. Photograph groups use 3.7–8.3% more time for sequential
+encoding and 16.1–18.6% less for progressive encoding. Both progressive photograph
+groups pass the group and individual bounds. The other six groups fail, and
+66 cases exceed the individual bound. The worst individual case is a 1.445330
+ratio for sequential 4:4:4 Kodak02 at distance 4. Group averages cannot override
+individual failures.
 
 This RGB8 to YCbCr comparison uses distances 1/4, adaptive quantization, optimized
-Huffman coding and one worker, on AMD EPYC 7763 x64 with .NET
-`11.0.0-rc.3.26522.148` and tiered compilation disabled.
-The [complete reference evidence](performance-evidence/2026-11-03-75230a0/README.md)
+Huffman coding and one worker, on Intel Xeon Platinum 8573C x64 with .NET
+`11.0.0-rc.3.26522.148`, accelerated Vector512 and tiered compilation disabled.
+The [complete reference evidence](performance-evidence/2026-11-03-744f7be/README.md)
 retains every case, failure, raw sample, host identity, setting, hash and native
 provenance. These measurements support lower group mean
 progressive photograph latency within this scope; full parity remains
