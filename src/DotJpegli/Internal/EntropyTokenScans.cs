@@ -5,9 +5,10 @@ using System.Buffers;
 /// <summary>Shares one fixed token budget across every scan and owns their rentals.</summary>
 internal sealed class EntropyTokenScans : IDisposable
 {
-    // Histogram collection visits scans in script order. Earlier scans retain
-    // their complete sequences first; abandoning one refunds its rentals for
-    // later scans. The budget has one encode owner and needs no synchronization.
+    // One encode collects tokens synchronously: DC scans in script order, then
+    // progressive AC scans in component/block order with script-ordered states.
+    // Abandoning a scan refunds its rentals for subsequent collection. The
+    // shared actual-rental budget has one owner and needs no synchronization.
     private readonly EntropyTokens[] scans;
 
     internal EntropyTokenScans(int count, long maximumBytes = EntropyTokenBudget.DefaultMaximumBytes, ArrayPool<uint>? pool = null,
