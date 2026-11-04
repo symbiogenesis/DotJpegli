@@ -108,20 +108,19 @@ internal sealed class QuantizedImage : IDisposable
             }
         }
 
-        int[] cachedHeights = new int[heights.Length];
         for (int component = 0; component < heights.Length; component++)
         {
-            cachedHeights[component] = Math.Min(heights[component], cachedMcuRows * sampling[component].Vertical);
+            heights[component] = Math.Min(heights[component], cachedMcuRows * sampling[component].Vertical);
         }
 
-        var image = new QuantizedImage(widths, cachedHeights, cachedMcuRows, mcuHeight,
+        var image = new QuantizedImage(widths, heights, cachedMcuRows, mcuHeight,
             cachedMcuRows == totalMcuRows, segmented, zigZagOrdered, pool ?? ArrayPool<short>.Shared, cacheBudget);
         try
         {
             var quantizers = new Quantization.PreparedTable[tables.Length];
             for (int component = 0; component < tables.Length; component++)
             {
-                int length = checked(widths[component] * cachedHeights[component] * 64);
+                int length = checked(widths[component] * heights[component] * 64);
                 if (!image.AllocateComponent(component, length, available, cancellationToken))
                 {
                     image.Dispose();
@@ -156,7 +155,7 @@ internal sealed class QuantizedImage : IDisposable
                     }
 
                     int firstRow = top / (vertical * 8) * factor.Vertical;
-                    for (int row = 0; row < factor.Vertical && firstRow + row < cachedHeights[component]; row++)
+                    for (int row = 0; row < factor.Vertical && firstRow + row < heights[component]; row++)
                     {
                         int y = firstRow + row;
                         ReadOnlySpan<float> rowPlane = plane;
