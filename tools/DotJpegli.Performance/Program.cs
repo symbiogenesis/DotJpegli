@@ -64,6 +64,10 @@ internal static class Program
                 return await CoefficientCacheAnalysis.Run(args);
             }
             RequireCi();
+            if (args.Contains("--allocation-evidence", StringComparer.Ordinal))
+            {
+                return await AllocationEvidence.Run(args.Where(argument => argument != "--allocation-evidence").ToArray());
+            }
             if (args.Contains("--ac-reciprocal-experiment", StringComparer.Ordinal))
             {
                 return await AcReciprocalCommand.Run(args);
@@ -446,7 +450,7 @@ internal static class Program
         return new(samples[0].GetDouble(), bytes);
     }
 
-    private static async Task<string> Native(string executable, string workingDirectory, string output, params string[] args)
+    internal static async Task<string> Native(string executable, string workingDirectory, string output, params string[] args)
     {
         var start = new ProcessStartInfo(executable)
         {

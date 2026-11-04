@@ -15,6 +15,7 @@ Directory in which to write the SVG charts and their numeric source data.
 param(
     [Parameter(Mandatory, ParameterSetName = 'Generate')][ValidateNotNullOrEmpty()][string] $Performance,
     [Parameter(Mandatory, ParameterSetName = 'Generate')][ValidateNotNullOrEmpty()][string] $Quality,
+    [Parameter(ParameterSetName = 'Generate')][ValidateNotNullOrEmpty()][string] $Allocations,
     [Parameter(Mandatory, ParameterSetName = 'Generate')][ValidateNotNullOrEmpty()][string] $Output,
     [Parameter(Mandatory, ParameterSetName = 'SelfTest')][switch] $SelfTest
 )
@@ -26,5 +27,6 @@ if ($SelfTest) {
     $commandArguments += '--self-test'
 } else {
     $commandArguments += @('--performance', $Performance, '--quality', $Quality, '--output', $Output)
+    if ($Allocations) { $commandArguments += @('--allocations', $Allocations) }
 }
 & (Join-Path $PSScriptRoot 'Invoke-Automation.ps1') -CommandArguments $commandArguments

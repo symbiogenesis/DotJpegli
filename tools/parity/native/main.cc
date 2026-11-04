@@ -16,6 +16,9 @@
 
 #include "lib/jpegli/decode.h"
 #include "lib/jpegli/encode.h"
+#ifdef JPEGLI_ALLOCATION_PROBE
+#include "allocation_probe.h"
+#endif
 
 namespace {
 using File = std::unique_ptr<FILE, int (*)(FILE*)>;
@@ -258,6 +261,41 @@ void VerifyJpeg(const MemoryJpeg& output, const std::vector<unsigned char>& expe
     }
 }
 
+#ifdef JPEGLI_ALLOCATION_PROBE
+void Allocations(char** argv) {
+    const Image image = ReadPpm(argv[2]);
+    const EncodeSettings settings = ParseSettings(argv[3], argv[4], argv[5]);
+    std::vector<unsigned char> expected;
+    for (int warmup = 0; warmup < 5; ++warmup) {
+        MemoryJpeg output = EncodeMemory(image, settings);
+        if (warmup == 0) expected.assign(output.bytes.get(), output.bytes.get() + output.size);
+        else VerifyJpeg(output, expected);
+    }
+    allocation_probe::Sample samples[3];
+    for (int index = 0; index < 3; ++index) {
+        allocation_probe::Begin();
+        MemoryJpeg output = EncodeMemory(image, settings);
+        samples[index] = allocation_probe::End();
+        VerifyJpeg(output, expected);
+    }
+    File output = OpenFile(argv[6], "wb");
+    if (std::fwrite(expected.data(), 1, expected.size(), output.get()) != expected.size() ||
+            std::fclose(output.release()) != 0) throw std::runtime_error("Failed writing allocation JPEG");
+    std::cout << std::setprecision(17)
+              << "{\"encoder\":\"native-jpegli\",\"upstreamPin\":\"" << JPEGLI_PIN
+              << "\",\"width\":" << image.width << ",\"height\":" << image.height
+              << ",\"distance\":" << settings.distance << ",\"sampling\":\"" << settings.sampling
+              << "\",\"progressiveLevel\":" << settings.progressive
+              << ",\"warmups\":5,\"bytes\":" << expected.size()
+              << ",\"method\":\"gnu-linker-wrap-and-cxx-new\",\"samples\":[";
+    for (int index = 0; index < 3; ++index) {
+        if (index != 0) std::cout << ',';
+        std::cout << "{\"allocatedBytes\":" << samples[index].bytes << ",\"allocationCalls\":" << samples[index].calls << '}';
+    }
+    std::cout << "]}\n";
+}
+#endif
+
 void Benchmark(int argc, char** argv) {
     const Image image = ReadPpm(argv[2]);
     const EncodeSettings settings = ParseSettings(argv[3], argv[4], argv[5]);
@@ -367,6 +405,13 @@ int main(int argc, char** argv) {
     try {
         if (argc == 2 && std::string(argv[1]) == "version") {
             std::cout << JPEGLI_PIN << '\n';
+#ifdef JPEGLI_ALLOCATION_PROBE
+        } else if (argc == 2 && std::string(argv[1]) == "allocation-self-test") {
+            allocation_probe::SelfTest();
+            std::cout << "Native allocation wrappers and scope self-test passed (synthetic requests; no encodes).\n";
+        } else if (argc == 7 && std::string(argv[1]) == "allocations") {
+            Allocations(argv);
+#endif
         } else if (argc == 9 && std::string(argv[1]) == "encode") {
             Encode(argv);
         } else if (argc == 4 && std::string(argv[1]) == "decode") {

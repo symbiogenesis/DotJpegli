@@ -49,6 +49,16 @@ internal static class NativeReferenceCommand
         {
             throw new InvalidDataException("Native reference executable hash mismatch.");
         }
+
+        if (metadata.TryGetProperty("allocationProbeSha256", out JsonElement probeHash) && probeHash.ValueKind != JsonValueKind.Null)
+        {
+            string probe = Path.Combine(directory, "jpegli-allocation-native");
+            if (!File.Exists(probe) || probeHash.ValueKind != JsonValueKind.String ||
+                !string.Equals(Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(probe))), probeHash.GetString(), StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("Native allocation probe is missing or its hash mismatches provenance.");
+            }
+        }
     }
 
     private static void SelfTest()
@@ -74,6 +84,16 @@ internal static class NativeReferenceCommand
             Reject("Native reference provenance does not match the unmodified pinned source.");
             WriteMetadata(Revision, true, hash.ToUpperInvariant());
             Reject("Native reference executable hash mismatch.");
+            WriteMetadata(Revision, true, hash);
+            string probe = Path.Combine(directory, "jpegli-allocation-native");
+            File.WriteAllText(probe, "synthetic allocation binary");
+            string probeHash = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(probe)));
+            File.WriteAllText(metadata, JsonSerializer.Serialize(new { revision = Revision, sourceUnmodified = true, executableSha256 = hash, allocationProbeSha256 = probeHash }));
+            Verify(directory);
+            File.AppendAllText(probe, "changed");
+            Reject("Native allocation probe is missing or its hash mismatches provenance.");
+            File.Delete(probe);
+            Reject("Native allocation probe is missing or its hash mismatches provenance.");
             WriteMetadata(Revision, true, hash);
             string release = Path.Combine(directory, "Release");
             _ = Directory.CreateDirectory(release);

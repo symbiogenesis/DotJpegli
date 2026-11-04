@@ -63,6 +63,16 @@ internal static class SelfTest
         Reject(() => Program.ParseNativeSample(nativeFixture.Replace("\"threads\":1,", "", StringComparison.Ordinal), 768, 512, 1, 444, 2, 3, policy));
         Reject(() => Program.ParseNativeSample(nativeFixture, 768, 512, 1, 420, 2, 3, policy));
 
+        const string allocationFixture = /*lang=json,strict*/ """
+            {"encoder":"native-jpegli","upstreamPin":"031a0077f5799a6041004267fc12b956c1f52a20","width":768,"height":512,
+            "distance":1,"sampling":"444","progressiveLevel":2,"warmups":5,"bytes":12345,"method":"gnu-linker-wrap-and-cxx-new",
+            "samples":[{"allocatedBytes":20000,"allocationCalls":7},{"allocatedBytes":21000,"allocationCalls":8},{"allocatedBytes":22000,"allocationCalls":9}]}
+            """;
+        Assert(AllocationEvidence.ParseNative(allocationFixture, 768, 512, 444, 2, 1, 12345).SequenceEqual([20000L, 21000, 22000]), "Native allocation contract parsing failed.");
+        Reject(() => AllocationEvidence.ParseNative(allocationFixture, 768, 512, 420, 2, 1, 12345));
+        Reject(() => AllocationEvidence.ParseNative(allocationFixture.Replace("20000", "100", StringComparison.Ordinal), 768, 512, 444, 2, 1, 12345));
+        Reject(() => AllocationEvidence.ParseNative(allocationFixture.Replace("\"allocationCalls\":7", "\"allocationCalls\":0", StringComparison.Ordinal), 768, 512, 444, 2, 1, 12345));
+
         List<CaseResult> cases = Corpus(1);
         Evaluation passing = Evidence.Evaluate(cases, policy);
         Assert(passing.Valid && passing.Passed && passing.Groups.Length == 8 && cases.Count == 256, "Complete in-bound evidence must pass.");

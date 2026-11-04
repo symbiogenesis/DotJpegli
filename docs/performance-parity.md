@@ -362,3 +362,16 @@ This scope measures single-image steady-state encoding latency. It excludes
 cold startup, decoding, parallel scaling, batch throughput, allocation/memory
 parity, other architectures and untested encoder options. A successful result
 would establish parity only for the measured corpus, settings, host and bounds.
+
+README allocation bars use a separate untimed CI observation over all 24 Kodak
+photographs, distances 1/4, sampling 444/420 and progression 0/2. Three samples
+follow five warmups; complete encode lifecycles include returned JPEG storage
+and exclude prepared RGB input. DotJpegli reports precise managed GC allocated
+bytes (including object headers/alignment). Official Google C++ jpegli reports
+successful requested heap bytes through a separate GNU linker allocation probe,
+including full realloc requests; native allocator metadata/slack is excluded.
+Private libc internal allocations are outside those wrapped entry points.
+These are allocation traffic observations, with different accounting domains;
+retained pools and peak memory remain separate quantities. Probe output must
+equal ordinary native output, and all source, encoder, runner and probe hashes
+are retained. See the [allocation protocol](../tools/DotJpegli.Performance/README.md#untimed-managednative-allocation-observations).

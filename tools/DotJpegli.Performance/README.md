@@ -497,3 +497,35 @@ samples. It does not encode images or read clocks and is not a benchmark.
 Both net10.0 and net11.0 are built. The workflow defaults to net11.0; its
 `framework=net10.0` input selects the compatible build for a targeted diagnostic.
 The net11.0 build uses portable Zip/Unzip/Concat APIs automatically.
+
+## Untimed managed/native allocation observations
+
+The `Managed and Google C++ jpegli allocations` CI job runs a separate command:
+
+```text
+dotnet DotJpegli.Performance.dll --allocation-evidence --native /absolute/jpegli-parity-native --corpus /absolute/corpus --output /absolute/allocation-evidence
+```
+
+It requires CI and disabled tiered compilation, performs no timing/calibration,
+and covers all 192 Kodak photograph configurations: 24 images, distances 1/4,
+sampling 444/420 and progression 0/2. Five warmups precede three observed complete
+encodes. Prepared RGB input is excluded and returned JPEG storage is included.
+Managed values are precise process-wide GC allocation deltas, including object
+headers/alignment; native values are successful heap byte requests recorded by
+the separate [GNU linker probe](../parity/native/README.md#untimed-native-allocations),
+including repeated destination growth and full realloc requests. Native allocator
+metadata/slack is excluded. Neither value measures retained capacity or peak
+memory, and their different accounting domains are identified in the chart.
+
+Each case retains raw allocation samples, source and JPEG hashes, dimensions and
+settings. The instrumented native JPEG must equal the ordinary reference's JPEG;
+managed/native structures must match. Summary metadata records revision, run,
+runtime/host, corpus manifest and all runner/encoder/probe executable hashes.
+An interrupted run remains incomplete. This observation establishes no latency
+acceptance verdict and never replaces the uninstrumented timing measurements.
+
+To render both allocation series while keeping existing complete timing and
+quality observations, supply `-Allocations` to `tools/update-performance-charts.ps1`.
+The generator validates all 192 cases and the same photograph hashes, then
+averages the three observations per case and all 48 cases per encoding mode.
+The allocation observation's own date, revision and run are shown on its chart.

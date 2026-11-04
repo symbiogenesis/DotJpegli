@@ -47,17 +47,33 @@ internal static class PerformanceChartsCommand
             qualityRun == performanceIdentity.Run ? performanceIdentity.DateUtc : null);
         Row[] timeRows = TimeRows(performance, cases);
         Row[] sizeRows = SizeRows(matches);
-        Row[] allocationRows = AllocationRows(cases);
+        JsonNode? allocationSummary = null;
+        Identity allocationIdentity = performanceIdentity;
+        Row[] allocationRows;
+        if (args.Has("allocations"))
+        {
+            string allocationDirectory = args.Get("allocations");
+            allocationSummary = Read(Path.Combine(allocationDirectory, "summary.json"));
+            JsonNode[] allocationCases = Items(Read(Path.Combine(allocationDirectory, "cases.json")));
+            ValidateAllocations(allocationSummary, allocationCases, Items(Read(Path.Combine(performanceDirectory, "sources.json"))), Text(performance["upstreamPin"]));
+            allocationIdentity = new(Text(allocationSummary["testedRevision"]), Text(allocationSummary["githubRunId"]),
+                DateTimeOffset.Parse(Text(allocationSummary["startedAtUtc"]), CultureInfo.InvariantCulture).UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+            allocationRows = AllocationRows(allocationCases, independent: true);
+        }
+        else
+        {
+            allocationRows = AllocationRows(cases);
+        }
         double worstTimeRatio = cases.Max(item => Number(item["medianRatio"]));
         double worstSizeRatio = matches.Max(item => Positive(item["sizeRatio"], "Matched-quality size ratio"));
         string output = args.Get("output");
         _ = Directory.CreateDirectory(output);
         File.WriteAllText(Path.Combine(output, "wall-time.svg"), WallTime(timeRows, performanceIdentity, worstTimeRatio, True(performance["passed"])));
         File.WriteAllText(Path.Combine(output, "compression.svg"), Compression(sizeRows, qualityIdentity, worstSizeRatio));
-        File.WriteAllText(Path.Combine(output, "allocations.svg"), Allocations(allocationRows, performanceIdentity));
+        File.WriteAllText(Path.Combine(output, "allocations.svg"), Allocations(allocationRows, allocationIdentity));
         string metrics = JsonSerializer.Serialize(new
         {
-            schemaVersion = 1,
+            schemaVersion = 2,
             performance = performanceIdentity,
             quality = qualityIdentity,
             upstreamRevision = Text(performance["upstreamPin"]),
@@ -66,9 +82,11 @@ internal static class PerformanceChartsCommand
             wallTime = timeRows,
             compression = sizeRows,
             allocations = allocationRows,
+            allocationObservation = allocationSummary,
             worstCaseWallTimeRatio = worstTimeRatio,
             worstMatchedQualitySizeRatio = worstSizeRatio,
-            allocationMethod = "Arithmetic mean across cases of mean block allocatedManagedBytes / case iterations / 1024; managed only; includes returned JPEG; excludes retained pool capacity and peak memory",
+            allocationMethod = allocationSummary is null ? "Arithmetic mean across cases of mean block allocatedManagedBytes / case iterations / 1024; managed only; includes returned JPEG; excludes retained pool capacity and peak memory" :
+                "Arithmetic mean across Kodak cases of three untimed samples / 1024. DotJpegli: managed GC allocated bytes, including object headers/alignment. Google C++ jpegli: requested heap bytes at wrapped allocation APIs and C++ new, counting full realloc requests; native allocator overhead excluded. Both include returned JPEG; prepared input, retained capacity and peak memory excluded. Independent allocation observation identity retained.",
         }, MetricsOptions);
         File.WriteAllText(Path.Combine(output, "metrics.json"), metrics + "\n");
         Console.WriteLine(metrics);
@@ -190,9 +208,55 @@ internal static class PerformanceChartsCommand
         return rows.ToArray();
     }
 
-    private static Row[] AllocationRows(JsonNode[] cases) => Modes.Select(mode => new Row("natural", mode.Label, "DotJpegli managed KiB / encode",
-        Select(cases, "natural", mode.Sampling, mode.Progression, "progressiveLevel").Average(item =>
-            Items(item["blocks"]).Average(block => Number(block["allocatedManagedBytes"]) / Number(item["iterations"])) / 1024))).ToArray();
+    private static Row[] AllocationRows(JsonNode[] cases, bool independent = false)
+    {
+        List<Row> rows = [];
+        foreach ((int sampling, int progression, string label) in Modes)
+        {
+            JsonNode[] selected = Select(cases, "natural", sampling, progression, "progressiveLevel");
+            double managed = independent ? selected.Average(item => Items(item["managedAllocatedBytes"]).Average(Number)) :
+                selected.Average(item => Items(item["blocks"]).Average(block => Number(block["allocatedManagedBytes"]) / Number(item["iterations"])));
+            rows.Add(new("natural", label, "DotJpegli managed KiB / encode", managed / 1024));
+            if (independent)
+            {
+                rows.Add(new("natural", label, "Google C++ jpegli heap KiB / encode", selected.Average(item => Items(item["nativeAllocatedBytes"]).Average(Number)) / 1024));
+            }
+        }
+
+        return rows.ToArray();
+    }
+
+    private static void ValidateAllocations(JsonNode summary, JsonNode[] cases, JsonNode[] performanceSources, string upstreamPin)
+    {
+        Require(Number(summary["schemaVersion"]) == 1 && True(summary["complete"]) && Number(summary["cases"]) == 192 &&
+            Number(summary["expectedCases"]) == 192 && cases.Length == 192 && Text(summary["upstreamPin"]) == upstreamPin &&
+            Number(summary["warmups"]) == 5 && Number(summary["samplesPerCase"]) == 3, "Expected complete pinned untimed allocation observations.");
+        foreach (string field in new[] { "testedRevision", "githubRunId", "managedEncoderSha256", "nativeExecutableSha256", "allocationProbeSha256" })
+        {
+            Require(!string.IsNullOrWhiteSpace(Text(summary[field])), "Missing allocation observation identity.");
+        }
+
+        HashSet<string> keys = [];
+        foreach (JsonNode item in cases)
+        {
+            string id = Text(item["id"]);
+            double sampling = Number(item["sampling"]), progression = Number(item["progressiveLevel"]), distance = Number(item["distance"]);
+            Require(Text(item["category"]) == "natural" && sampling is 444 or 420 && progression is 0 or 2 && distance is 1 or 4 &&
+                keys.Add(string.Create(CultureInfo.InvariantCulture, $"{id}/{sampling}/{progression}/{distance}")), "Unexpected or duplicate allocation case.");
+            JsonNode source = performanceSources.Single(source => Text(source["id"]) == id);
+            Require(Text(item["ppmSha256"]) == Text(source["ppmSha256"]) && Number(item["width"]) == Number(source["width"]) &&
+                Number(item["height"]) == Number(source["height"]), "Allocation photograph differs from the latency corpus.");
+            foreach ((string field, string output) in new[] { ("managedAllocatedBytes", "managedBytes"), ("nativeAllocatedBytes", "nativeBytes") })
+            {
+                JsonNode[] samples = Items(item[field]);
+                Require(samples.Length == 3 && samples.All(sample => Integer(sample) && Number(sample) >= Positive(item[output], "JPEG output bytes")), "Invalid or incomplete allocation samples.");
+            }
+        }
+
+        Require(cases.CountBy(item => Text(item["id"])).All(group => group.Value == 8) &&
+            cases.Select(item => Text(item["id"])).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).SequenceEqual(
+                Enumerable.Range(1, 24).Select(index => string.Create(CultureInfo.InvariantCulture, $"kodim{index:00}"))), "Allocation observations must cover every Kodak photograph.");
+    }
 
     private static string WallTime(Row[] rows, Identity identity, double worst, bool passed)
     {
@@ -262,6 +326,43 @@ internal static class PerformanceChartsCommand
 
     private static string Allocations(Row[] rows, Identity identity)
     {
+        if (rows.Length == 8)
+        {
+            StringBuilder comparison = Start("Allocations per encode", "Arithmetic mean allocation traffic for 24 Kodak photographs. DotJpegli bars measure managed GC allocated bytes including headers/alignment; Google C++ jpegli bars measure requested heap bytes, including full realloc requests. Both include returned JPEG. Native allocator overhead, retained capacity and peak memory are excluded. Separate untimed allocation probe, with identical output verified against the uninstrumented reference.", 548);
+            TextAt(comparison, 32, 46, "Allocations per encode", 26, Ink, "650");
+            TextAt(comparison, 32, 76, "KiB per encode · 24 photographs · lower is better", 16);
+            Rectangle(comparison, 32, 99, 14, 14, Teal);
+            TextAt(comparison, 54, 112, "DotJpegli · managed GC bytes", 14, Ink);
+            Rectangle(comparison, 380, 99, 14, 14, Amber);
+            TextAt(comparison, 402, 112, "Google C++ jpegli · requested heap bytes", 14, Ink);
+            const int comparisonLeft = 278, comparisonWidth = 440;
+            double comparisonMaximum = Math.Max(50, Math.Ceiling(rows.Max(row => row.Value) / 500) * 500);
+            for (int index = 0; index <= 4; index++)
+            {
+                double x = comparisonLeft + (comparisonWidth * index / 4d);
+                Line(comparison, x, 138, x, 422);
+                TextAt(comparison, x, 447, (comparisonMaximum * index / 4).ToString("0.#", CultureInfo.InvariantCulture), 13, anchor: "middle");
+            }
+
+            for (int index = 0; index < 4; index++)
+            {
+                int y = 162 + (index * 70);
+                TextAt(comparison, 32, y + 13, rows[index * 2].Label, 17, Ink, "500");
+                for (int encoder = 0; encoder < 2; encoder++)
+                {
+                    double value = rows[(index * 2) + encoder].Value;
+                    int barY = y - 9 + (encoder * 25);
+                    Rectangle(comparison, comparisonLeft, barY, comparisonWidth * value / comparisonMaximum, 17, encoder == 0 ? Teal : Amber);
+                    TextAt(comparison, 848, barY + 14, FormattableString.Invariant($"{value:F1}"), 17, Ink, "600", "end");
+                }
+            }
+
+            TextAt(comparison, 32, 480, "Includes returned JPEG · warmed encoders · prepared input excluded", 14);
+            TextAt(comparison, 32, 502, "Native allocator overhead, retained capacity and peak memory excluded", 14);
+            Footer(comparison, identity, 531);
+            return Finish(comparison);
+        }
+
         StringBuilder svg = Start("Managed allocations", "Average managed allocations per complete encode in KiB for 24 Kodak photographs. Bars start at zero. Includes the returned JPEG; native allocations, retained pool capacity and peak memory were not measured.", 386);
         TextAt(svg, 32, 46, "Managed allocations", 26, Ink, "650");
         TextAt(svg, 32, 76, "KiB per encode · DotJpegli only · lower is better", 16);
@@ -387,6 +488,57 @@ internal static class PerformanceChartsCommand
         }
 
         ValidateCoverage(coverage.ToArray(), "id", "progressiveLevel", [1, 4]);
+        JsonNode[] allocationCases = coverage.Where(item => Text(item["category"]) == "natural").Select(item => item.DeepClone()).ToArray();
+        JsonNode[] sources = allocationCases.DistinctBy(item => Text(item["id"])).Select(item => (JsonNode)new JsonObject
+        {
+            ["id"] = Text(item["id"]),
+            ["ppmSha256"] = "synthetic-input",
+            ["width"] = 768,
+            ["height"] = 512,
+        }).ToArray();
+        foreach (JsonNode item in allocationCases)
+        {
+            item["ppmSha256"] = "synthetic-input";
+            item["width"] = 768;
+            item["height"] = 512;
+            item["managedBytes"] = 100;
+            item["nativeBytes"] = 100;
+            item["managedAllocatedBytes"] = new JsonArray(1024, 2048, 3072);
+            item["nativeAllocatedBytes"] = new JsonArray(4096, 8192, 12288);
+        }
+
+        var allocationSummary = new JsonObject
+        {
+            ["schemaVersion"] = 1,
+            ["complete"] = true,
+            ["cases"] = 192,
+            ["expectedCases"] = 192,
+            ["upstreamPin"] = "synthetic-pin",
+            ["warmups"] = 5,
+            ["samplesPerCase"] = 3,
+            ["testedRevision"] = "synthetic-revision",
+            ["githubRunId"] = "synthetic-run",
+            ["managedEncoderSha256"] = "managed",
+            ["nativeExecutableSha256"] = "native",
+            ["allocationProbeSha256"] = "probe",
+        };
+        ValidateAllocations(allocationSummary, allocationCases, sources, "synthetic-pin");
+        Row[] independentRows = AllocationRows(allocationCases, independent: true);
+        Require(independentRows.Length == 8, "Both encoders must appear in every allocation mode.");
+        for (int index = 0; index < independentRows.Length; index++)
+        {
+            Close(independentRows[index].Value, index % 2 == 0 ? 2 : 8);
+        }
+
+        Rejected(() => ValidateAllocations(allocationSummary, allocationCases.Skip(1).ToArray(), sources, "synthetic-pin"), "Incomplete allocation observations were accepted.");
+        allocationCases[0]["nativeAllocatedBytes"]![0] = 0;
+        Rejected(() => ValidateAllocations(allocationSummary, allocationCases, sources, "synthetic-pin"), "Allocations smaller than returned JPEG were accepted.");
+        allocationCases[0]["nativeAllocatedBytes"]![0] = 4096;
+        allocationCases[0]["ppmSha256"] = "wrong-input";
+        Rejected(() => ValidateAllocations(allocationSummary, allocationCases, sources, "synthetic-pin"), "Mismatched allocation photographs were accepted.");
+        string allocationSvg = Allocations(independentRows, new Identity("synthetic-revision", "synthetic-run", "2026-11-03"));
+        _ = System.Xml.Linq.XDocument.Parse(allocationSvg);
+        Require(allocationSvg.Contains("Google C++ jpegli", StringComparison.Ordinal) && allocationSvg.Contains("DotJpegli", StringComparison.Ordinal), "Allocation chart encoder labels are missing.");
         Rejected(() => ValidateCoverage(coverage.Skip(1).ToArray(), "id", "progressiveLevel", [1, 4]), "Incomplete coverage was accepted.");
         coverage[0] = coverage[1].DeepClone();
         Rejected(() => ValidateCoverage(coverage.ToArray(), "id", "progressiveLevel", [1, 4]), "Duplicate coverage was accepted.");

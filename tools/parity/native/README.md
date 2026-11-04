@@ -69,3 +69,33 @@ Optional `OUTPUT.jpg` retains the validated stream for structure/size checks;
 writing it happens after all timing. Any encoder warning, suspended scanline,
 changed output or output write failure makes the command fail. No benchmark
 should be executed locally, including calibration or a smoke invocation.
+
+## Untimed native allocations
+
+On Linux, the same build also produces `jpegli-allocation-native`. This separate
+executable links the unmodified pinned `jpegli-static` library, GNU linker
+wrappers for `malloc`, `calloc`, `realloc`, `aligned_alloc`, `posix_memalign` and
+`memalign`, and replacement C++ `new` entry points. The ordinary timing
+executable contains none of these wrappers.
+
+```text
+jpegli-allocation-native allocation-self-test
+jpegli-allocation-native allocations INPUT.ppm DISTANCE 444|420 LEVEL OUTPUT.jpg
+```
+
+The self-test makes synthetic requests through actual allocator symbols in a
+separate translation unit, checking routing, sizes and disabled observation
+scope. It performs no encodes or timing and may run locally. The `allocations`
+command is used only by CI: five warmups precede three untimed complete
+`EncodeMemory` calls. Counting starts before create/configure and ends after
+finish/destroy. Input loading, reference copies, verification, output-buffer
+free and file I/O happen outside observation. Every result must match the
+warmup; the managed observer additionally checks the probe JPEG byte for byte
+against output from the ordinary native executable.
+
+Reported bytes are successful requested heap bytes, including the complete
+size of each `realloc` request and returned JPEG storage. They exclude native
+allocator metadata/slack and private allocations inside dynamically linked
+libc. Encoder and dependency static-object allocation calls and C++ containers
+are observed. The result is allocation traffic, not retained or peak memory.
+The executable hash is recorded and verified alongside native provenance.

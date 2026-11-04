@@ -41,3 +41,15 @@ target_compile_features(jpegli-parity-native PRIVATE cxx_std_17)
 target_include_directories(jpegli-parity-native PRIVATE "${JPEGLI_SOURCE_DIR}")
 target_compile_definitions(jpegli-parity-native PRIVATE JPEGLI_PIN="${JPEGLI_PIN}")
 target_link_libraries(jpegli-parity-native PRIVATE jpegli-static)
+
+# Keep all allocation instrumentation out of the latency reference executable.
+# GNU ld wrapping observes allocation API calls from unmodified static objects.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_executable(jpegli-allocation-native main.cc allocation_probe.cc allocation_probe_fixture.cc)
+    target_compile_features(jpegli-allocation-native PRIVATE cxx_std_17)
+    target_include_directories(jpegli-allocation-native PRIVATE "${JPEGLI_SOURCE_DIR}")
+    target_compile_definitions(jpegli-allocation-native PRIVATE JPEGLI_PIN="${JPEGLI_PIN}" JPEGLI_ALLOCATION_PROBE=1)
+    target_link_options(jpegli-allocation-native PRIVATE
+        "-Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=aligned_alloc,--wrap=posix_memalign,--wrap=memalign")
+    target_link_libraries(jpegli-allocation-native PRIVATE jpegli-static)
+endif()

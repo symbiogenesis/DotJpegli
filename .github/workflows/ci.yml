@@ -308,6 +308,7 @@ jobs:
         with:
           path: |
             ${{ runner.temp }}/parity-native/jpegli-parity-native
+            ${{ runner.temp }}/parity-native/jpegli-allocation-native
             ${{ runner.temp }}/parity-native/provenance.json
           key: jpegli-native-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.identity }}-031a0077f5799a6041004267fc12b956c1f52a20-${{ hashFiles('tools/parity/native/**', 'tools/parity/build-upstream.ps1') }}
       - name: Build unchanged pinned upstream reference
@@ -317,6 +318,8 @@ jobs:
       - name: Verify cached native identity
         run: |
           chmod +x "${{ runner.temp }}/parity-native/jpegli-parity-native"
+          chmod +x "${{ runner.temp }}/parity-native/jpegli-allocation-native"
+          "${{ runner.temp }}/parity-native/jpegli-allocation-native" allocation-self-test
           test "$("${{ runner.temp }}/parity-native/jpegli-parity-native" version)" = 031a0077f5799a6041004267fc12b956c1f52a20
           pwsh -NoProfile -File tools/parity/build-upstream.ps1 -VerifyOnly -BuildDirectory "${{ runner.temp }}/parity-native"
       - name: Restore pinned lossless photographic corpus
@@ -335,9 +338,49 @@ jobs:
           name: parity-reference-${{ runner.arch }}-${{ github.sha }}
           path: |
             ${{ runner.temp }}/parity-native/jpegli-parity-native
+            ${{ runner.temp }}/parity-native/jpegli-allocation-native
             ${{ runner.temp }}/parity-native/provenance.json
             ${{ runner.temp }}/parity-corpus/
           retention-days: 7
+          if-no-files-found: error
+
+  allocation-evidence:
+    name: Managed and Google C++ jpegli allocations
+    needs: native-reference
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: parity-reference-X64-${{ github.sha }}
+          path: ${{ runner.temp }}
+      - name: Verify unmodified native reference and allocation probe
+        shell: pwsh
+        run: |
+          chmod +x "${{ runner.temp }}/parity-native/jpegli-parity-native" "${{ runner.temp }}/parity-native/jpegli-allocation-native"
+          ./tools/parity/build-upstream.ps1 -VerifyOnly -BuildDirectory "${{ runner.temp }}/parity-native"
+      - name: Build allocation observer
+        run: |
+          dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
+          dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release -f net11.0 --no-restore
+      - name: Observe complete Kodak allocation traffic without timing (CI only)
+        env:
+          DOTNET_TieredCompilation: '0'
+        run: dotnet run --project tools/DotJpegli.Performance -c Release -f net11.0 --no-build -- --allocation-evidence --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/allocation-evidence"
+      - name: Retain allocation observations and native provenance
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: allocation-evidence-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/allocation-evidence/
+            ${{ runner.temp }}/parity-native/provenance.json
+            ${{ runner.temp }}/parity-corpus/corpus.json
+          retention-days: 30
           if-no-files-found: error
 
   encoder-comparison:

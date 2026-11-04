@@ -36,12 +36,17 @@
     <None Include="../../LICENSE;../../LICENSE.jpegli;../../THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" Pack="true" PackagePath="" />
   </ItemGroup>
 
-  <!-- Keep GitHub's centered header, but omit its HTML wrapper on NuGet. -->
-  <Target Name="GenerateNuGetReadme" BeforeTargets="_GetPackageFiles">
+  <!-- NuGet needs absolute asset/document URLs and does not render the centered wrapper. -->
+  <Target Name="GenerateNuGetReadme" BeforeTargets="_GetPackageFiles" DependsOnTargets="InitializeSourceControlInformation">
     <PropertyGroup>
       <_NuGetReadmePath>$(IntermediateOutputPath)nuget/README.md</_NuGetReadmePath>
+      <_NuGetReadmeRevision>$(RepositoryCommit)</_NuGetReadmeRevision>
+      <_NuGetReadmeRevision Condition="'$(_NuGetReadmeRevision)' == ''">$(SourceRevisionId)</_NuGetReadmeRevision>
+      <_NuGetReadmeRevision Condition="'$(_NuGetReadmeRevision)' == ''">main</_NuGetReadmeRevision>
       <_NuGetReadmeContent>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/../../README.md'))</_NuGetReadmeContent>
       <_NuGetReadmeContent>$([System.Text.RegularExpressions.Regex]::Replace('$(_NuGetReadmeContent)', '(?m)^&lt;(?:div align="center"|/div)&gt;\r?\n(?:\r?\n)?', ''))</_NuGetReadmeContent>
+      <_NuGetReadmeContent>$([System.Text.RegularExpressions.Regex]::Replace('$(_NuGetReadmeContent)', '(!\[[^\]]*\]\()(?=docs/)', '${1}https://raw.githubusercontent.com/symbiogenesis/DotJpegli/$(_NuGetReadmeRevision)/'))</_NuGetReadmeContent>
+      <_NuGetReadmeContent>$([System.Text.RegularExpressions.Regex]::Replace('$(_NuGetReadmeContent)', '(?&lt;!!)(\[[^\]]*\]\()(?=docs/)', '${1}https://github.com/symbiogenesis/DotJpegli/blob/$(_NuGetReadmeRevision)/'))</_NuGetReadmeContent>
     </PropertyGroup>
     <MakeDir Directories="$(IntermediateOutputPath)nuget" />
     <WriteLinesToFile File="$(_NuGetReadmePath)" Lines="$([MSBuild]::Escape($(_NuGetReadmeContent)))" Overwrite="true" WriteOnlyWhenDifferent="true" />

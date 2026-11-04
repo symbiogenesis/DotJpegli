@@ -93,6 +93,11 @@ try {
     if ($Generator) { $configure += @('-G', $Generator) }
     & $cmake @configure
     & $cmake --build $BuildDirectory --config Release --target jpegli-parity-native --parallel $Parallelism
+    $allocationProbe = Join-Path $BuildDirectory 'jpegli-allocation-native'
+    if ($IsLinux) {
+        & $cmake --build $BuildDirectory --config Release --target jpegli-allocation-native --parallel $Parallelism
+        & $allocationProbe allocation-self-test
+    }
     & $git -C $SourceDirectory diff --quiet --ignore-submodules=none HEAD --
 
     $executable = Get-NativeExecutable $BuildDirectory
@@ -115,6 +120,8 @@ try {
         compiler = $compilerDescription
         executable = $executable
         executableSha256 = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash.ToLowerInvariant()
+        allocationProbeSha256 = $IsLinux ? (Get-FileHash -LiteralPath $allocationProbe -Algorithm SHA256).Hash.ToLowerInvariant() : $null
+        allocationProbe = $IsLinux ? 'Separate untimed GNU linker-wrap malloc/calloc/realloc/aligned_alloc/posix_memalign/memalign plus C++ new; successful requested bytes including full realloc requests; single encode thread' : $null
         encode = 'RGB uint8 -> YCbCr; force_baseline=true; explicit 444/420, distance, progressive level, optimized Huffman and AQ; no smoothing/restarts; JFIF 1.01 1x1 aspect'
         decode = 'same pinned jpegli decoder for both streams; full-size RGB uint8; JDCT_ISLOW; fancy upsampling; no ICC transform'
         benchmark = 'same encode settings with AQ and optimized Huffman; fresh jpegli_mem_dest lifecycle through destroy; sum per-encode steady_clock intervals; process/file IO, warmups, verification and returned-buffer free excluded'
