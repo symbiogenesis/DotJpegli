@@ -8,6 +8,8 @@ Reads complete performance and quality evidence; never runs benchmarks.
 Directory containing the full performance summary, cases and run identity.
 .PARAMETER Quality
 Directory containing the full quality/compression summary and matched-quality data.
+.PARAMETER Allocations
+Optional directory containing a complete independent managed/native allocation observation.
 .PARAMETER Output
 Directory in which to write the SVG charts and their numeric source data.
 #>

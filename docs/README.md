@@ -13,5 +13,6 @@ Start with the [project overview](../README.md) for setup and a minimal encoding
 | [Publishing releases](publishing.md) | NuGet trusted publishing, GitHub release downloads, CI artifact previews and retries. |
 | [Quality and compression parity](quality-compression-parity.md) | Pinned matched-corpus comparison, metrics, acceptance bounds and hosted evidence. |
 | [Performance parity](performance-parity.md) | Current measurement scope, matched encoding latency, fixed acceptance bounds and CI diagnostics. |
+| [Photograph comparison](photo-comparison.md) | Licensed high-resolution source, seven encoder outputs, file sizes, quality scores and reproduction instructions. |
 
 [upstream.json](upstream.json) records source provenance, managed extensions and validation scope.

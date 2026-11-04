@@ -41,7 +41,7 @@ internal static class Program
                     PerformanceEvidenceCommand.Run(options);
                     break;
                 case "performance-charts":
-                    options.Validate(["performance", "quality", "output"], ["self-test"]);
+                    options.Validate(["performance", "quality", "allocations", "output"], ["self-test"]);
                     PerformanceChartsCommand.Run(options);
                     break;
                 default:

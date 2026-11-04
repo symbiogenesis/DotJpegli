@@ -6,6 +6,25 @@ The managed port and original DotJpegli code are copyright (c) 2026 Edward Mille
 licensed under [BSD-3-Clause](LICENSE). The main license also retains the upstream
 copyright notice for adapted portions.
 
+## README photograph and derived comparison images
+
+The photograph files in `docs/images/comparison/` are separately licensed under
+[Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/),
+as stated in the [ESA/Webb image-use policy](https://esawebb.org/copyright/).
+They are not covered by the BSD license for DotJpegli's code.
+
+- Title: NIRCam Image of the “Cosmic Cliffs” in Carina (`weic2205a`).
+- Credit: **NASA, ESA, CSA, and STScI**.
+- Source and caption: https://esawebb.org/images/weic2205a/
+- Official lossless 4000 × 2317 TIFF: https://esawebb.org/media/archives/images/publicationtiff/weic2205a.tif
+- Changes: resized to 2400 × 1390; metadata removed; encoded in PNG, JPEG, WebP,
+  AVIF and JPEG XL; corresponding details cropped and labelled in a lossless PNG
+  comparison sheet. No endorsement is implied.
+
+The [comparison record](docs/photo-comparison.md) and
+[machine-readable provenance](docs/images/comparison/comparison.json) retain the
+source hash, settings, output hashes and exact credit.
+
 ## Jpegli
 
 DotJpegli adapts selected encoder routines and supporting data directly from Google's Jpegli source,

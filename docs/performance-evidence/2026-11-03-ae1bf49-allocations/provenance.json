@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "testedRevision": "ae1bf49b847507aa7912ad98156aca057745ac16",
+  "runUrl": "https://github.com/symbiogenesis/DotJpegli/actions/runs/41781968920",
+  "artifactId": 13299686857,
+  "archiveDigest": "GitHub-reported archive digest is retained in artifact.json; retained-file hashes below are calculated locally.",
+  "chartInputs": {
+    "allocation": "summary.json and cases.json in this directory",
+    "latencyAndQuality": "../2026-11-03-744f7be (unchanged complete valid latency and passing quality evidence)"
+  },
+  "chartGeneratorSources": [
+    {
+      "file": "tools/DotJpegli.Automation/Program.cs",
+      "sha256": "f781e87863f2a1fb748674a26726202d9906ac38b29e2d8861a36c8615d29549"
+    },
+    {
+      "file": "tools/DotJpegli.Automation/Arguments.cs",
+      "sha256": "64c6b3352b86a1b49c60b449555d49d6f03de4fb0341662dc074bc68c3210f81"
+    },
+    {
+      "file": "tools/DotJpegli.Automation/PerformanceChartsCommand.cs",
+      "sha256": "5c1004f2d92d098b6942cda7e6ffcb8543f697a4a2570b4e01f94182c2e83d6a"
+    },
+    {
+      "file": "tools/DotJpegli.Automation/PerformanceJson.cs",
+      "sha256": "dd64b4d8a23454b35ac991e5fd9cac1c574f2daa215ff4d13a1dca8e0e588be9"
+    }
+  ],
+  "retainedFiles": [
+    {
+      "file": "artifact.json",
+      "bytes": 737,
+      "sha256": "9a191f8f407c4a2277598141f66076fc191bdbff34946276a25104c06fa269f7"
+    },
+    {
+      "file": "cases.json",
+      "bytes": 129757,
+      "sha256": "7828ead4e93a55c8fd48c0b1e42a3063291acbd2a45cc90685b0bb0400fa45f2"
+    },
+    {
+      "file": "charts/allocations.svg",
+      "bytes": 5477,
+      "sha256": "d550c99fc5691797b517f295fe3f53ecb616f18df199513ab643a5d756db12ce"
+    },
+    {
+      "file": "charts/compression.svg",
+      "bytes": 2462,
+      "sha256": "1f16b93c37c1a559d11588c7443034d5d7a94ffe2cbdeb97f4ec82002065b98a"
+    },
+    {
+      "file": "charts/metrics.json",
+      "bytes": 7416,
+      "sha256": "7430484d8bd1202643f651f28f9ea525df894a302de1f8b0b465d0cf9d42bab3"
+    },
+    {
+      "file": "charts/wall-time.svg",
+      "bytes": 6836,
+      "sha256": "4baef5f21016c0ff80472b8431afb5c7a54b7e8fd5287d615fb396faa3954431"
+    },
+    {
+      "file": "corpus.json",
+      "bytes": 6436,
+      "sha256": "6a529b1ae279c7f89998eb1f89f58237a5c1507ef53f502d71ea429d188dd8a5"
+    },
+    {
+      "file": "jobs.json",
+      "bytes": 8924,
+      "sha256": "8bcd0e587debd3df449ec323d13d3b4024140223fd77fdcdca642fad32ee2b1f"
+    },
+    {
+      "file": "native-provenance.json",
+      "bytes": 1895,
+      "sha256": "6bb84caa898638bf810afa8528573dd7e62b72dd8f00d1ad6462d3a10978acef"
+    },
+    {
+      "file": "run.json",
+      "bytes": 285,
+      "sha256": "82259f446b324438dc56449c0cd777bcadd3a9ba9865475dfeebcd33c9454a92"
+    },
+    {
+      "file": "summary.json",
+      "bytes": 2358,
+      "sha256": "9f7bfb3690b6214eb6c643f8cc274215d65ab8079b3c7ae99abb2f3fb40aa74c"
+    }
+  ]
+}

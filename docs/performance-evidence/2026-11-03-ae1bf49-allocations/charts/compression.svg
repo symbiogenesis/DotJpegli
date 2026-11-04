@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="264" viewBox="0 0 880 264" role="img" aria-labelledby="title desc">
+  <title id="title">JPEG file size at matched quality</title>
+  <desc id="desc">Maximum absolute percentage difference in JPEG file size versus native Google Jpegli among photograph group means at matched PSNR and SSIM, rounded up to 0.001 percentage points. Geometric means across 24 Kodak photographs, with five matched-quality anchors per image and metric. The worst individual matched-quality overhead, including controls, is shown separately.</desc>
+  <style>
+    :root { color-scheme: light dark; --bg: #ffffff; --ink: #1f2937; --muted: #576575; --grid: #e5eaf0; --baseline: #8996a6; --teal: #0b766e; --amber: #a25212; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0d1117; --ink: #e6edf3; --muted: #a3b1c2; --grid: #252e3a; --baseline: #738399; --teal: #5cdbca; --amber: #f2b36f; }
+    }
+    text { font-variant-numeric: tabular-nums; }
+  </style>
+  <rect width="880" height="264" rx="12" fill="var(--bg)"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="32.00" y="46" font-size="26" fill="var(--ink)" font-weight="650" text-anchor="start">JPEG file size</text>
+    <text x="32.00" y="76" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Compared with native Google Jpegli at matched quality</text>
+    <text x="32.00" y="144" font-size="40" fill="var(--teal)" font-weight="650" text-anchor="start">≤0.002%</text>
+    <text x="280.00" y="124" font-size="19" fill="var(--ink)" font-weight="500" text-anchor="start">file-size difference on photographs</text>
+    <text x="280.00" y="151" font-size="15" fill="var(--muted)" font-weight="400" text-anchor="start">Across all four encoding modes · matched PSNR and SSIM</text>
+    <line x1="32.00" y1="180" x2="848.00" y2="180" stroke="var(--grid)"/>
+    <text x="32.00" y="207" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">24 photos · five anchors per image and metric · bound on group means</text>
+    <text x="32.00" y="230" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">Full quality matrix passed · worst size overhead: 0.0871% (including controls)</text>
+    <text x="32.00" y="250" font-size="12" fill="var(--muted)" font-weight="400" text-anchor="start">2026-11-04 UTC · revision 744f7be · run 41772797925</text>
+  </g>
+</svg>

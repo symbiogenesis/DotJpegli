@@ -1,0 +1,266 @@
+[
+  {
+    "check_run_url": "https://api.github.com/repos/symbiogenesis/DotJpegli/check-runs/126415348597",
+    "completed_at": "2026-11-04T05:54:12Z",
+    "conclusion": "success",
+    "created_at": "2026-11-04T05:53:11Z",
+    "head_branch": "main",
+    "head_sha": "ae1bf49b847507aa7912ad98156aca057745ac16",
+    "html_url": "https://github.com/symbiogenesis/DotJpegli/actions/runs/41781968920/job/126415348597",
+    "id": 126415348597,
+    "labels": [
+      "ubuntu-latest"
+    ],
+    "name": "native-reference (ubuntu-latest)",
+    "node_id": "CR_kwDOVGQB588AAAAdbvEjdQ",
+    "run_attempt": 1,
+    "run_id": 41781968920,
+    "run_url": "https://api.github.com/repos/symbiogenesis/DotJpegli/actions/runs/41781968920",
+    "runner_group_id": 0,
+    "runner_group_name": "GitHub Actions",
+    "runner_id": 1000022904,
+    "runner_name": "GitHub Actions 1000022904",
+    "started_at": "2026-11-04T05:53:13Z",
+    "status": "completed",
+    "steps": [
+      {
+        "completed_at": "2026-11-04T05:53:16Z",
+        "conclusion": "success",
+        "name": "Set up job",
+        "number": 1,
+        "started_at": "2026-11-04T05:53:14Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:53:18Z",
+        "conclusion": "success",
+        "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "number": 2,
+        "started_at": "2026-11-04T05:53:16Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:53:23Z",
+        "conclusion": "success",
+        "name": "Setup .NET for compiled automation",
+        "number": 3,
+        "started_at": "2026-11-04T05:53:18Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:53:24Z",
+        "conclusion": "success",
+        "name": "Identify native cache toolchain",
+        "number": 4,
+        "started_at": "2026-11-04T05:53:23Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:53:24Z",
+        "conclusion": "success",
+        "name": "Restore pinned native executable and provenance",
+        "number": 5,
+        "started_at": "2026-11-04T05:53:24Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:53:59Z",
+        "conclusion": "success",
+        "name": "Build unchanged pinned upstream reference",
+        "number": 6,
+        "started_at": "2026-11-04T05:53:24Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:54:04Z",
+        "conclusion": "success",
+        "name": "Verify cached native identity",
+        "number": 7,
+        "started_at": "2026-11-04T05:53:59Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:54:05Z",
+        "conclusion": "success",
+        "name": "Restore pinned lossless photographic corpus",
+        "number": 8,
+        "started_at": "2026-11-04T05:54:04Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:54:05Z",
+        "conclusion": "skipped",
+        "name": "Prepare hash-pinned lossless photographic corpus",
+        "number": 9,
+        "started_at": "2026-11-04T05:54:05Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:54:08Z",
+        "conclusion": "success",
+        "name": "Share reference and corpus with comparison job",
+        "number": 10,
+        "started_at": "2026-11-04T05:54:05Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:54:08Z",
+        "conclusion": "success",
+        "name": "Post Restore pinned lossless photographic corpus",
+        "number": 17,
+        "started_at": "2026-11-04T05:54:08Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:54:09Z",
+        "conclusion": "success",
+        "name": "Post Restore pinned native executable and provenance",
+        "number": 18,
+        "started_at": "2026-11-04T05:54:08Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:54:09Z",
+        "conclusion": "success",
+        "name": "Post Setup .NET for compiled automation",
+        "number": 19,
+        "started_at": "2026-11-04T05:54:09Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:54:09Z",
+        "conclusion": "success",
+        "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "number": 20,
+        "started_at": "2026-11-04T05:54:09Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:54:09Z",
+        "conclusion": "success",
+        "name": "Complete job",
+        "number": 21,
+        "started_at": "2026-11-04T05:54:09Z",
+        "status": "completed"
+      }
+    ],
+    "url": "https://api.github.com/repos/symbiogenesis/DotJpegli/actions/jobs/126415348597",
+    "workflow_name": "CI"
+  },
+  {
+    "check_run_url": "https://api.github.com/repos/symbiogenesis/DotJpegli/check-runs/126415675235",
+    "completed_at": "2026-11-04T05:55:18Z",
+    "conclusion": "success",
+    "created_at": "2026-11-04T05:54:12Z",
+    "head_branch": "main",
+    "head_sha": "ae1bf49b847507aa7912ad98156aca057745ac16",
+    "html_url": "https://github.com/symbiogenesis/DotJpegli/actions/runs/41781968920/job/126415675235",
+    "id": 126415675235,
+    "labels": [
+      "ubuntu-latest"
+    ],
+    "name": "Managed and Google C++ jpegli allocations",
+    "node_id": "CR_kwDOVGQB588AAAAdbvYfYw",
+    "run_attempt": 1,
+    "run_id": 41781968920,
+    "run_url": "https://api.github.com/repos/symbiogenesis/DotJpegli/actions/runs/41781968920",
+    "runner_group_id": 0,
+    "runner_group_name": "GitHub Actions",
+    "runner_id": 1000022919,
+    "runner_name": "GitHub Actions 1000022919",
+    "started_at": "2026-11-04T05:54:15Z",
+    "status": "completed",
+    "steps": [
+      {
+        "completed_at": "2026-11-04T05:54:17Z",
+        "conclusion": "success",
+        "name": "Set up job",
+        "number": 1,
+        "started_at": "2026-11-04T05:54:16Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:54:19Z",
+        "conclusion": "success",
+        "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "number": 2,
+        "started_at": "2026-11-04T05:54:17Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:54:27Z",
+        "conclusion": "success",
+        "name": "Run actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68",
+        "number": 3,
+        "started_at": "2026-11-04T05:54:19Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:54:29Z",
+        "conclusion": "success",
+        "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+        "number": 4,
+        "started_at": "2026-11-04T05:54:27Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:54:38Z",
+        "conclusion": "success",
+        "name": "Verify unmodified native reference and allocation probe",
+        "number": 5,
+        "started_at": "2026-11-04T05:54:29Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:54:57Z",
+        "conclusion": "success",
+        "name": "Build allocation observer",
+        "number": 6,
+        "started_at": "2026-11-04T05:54:38Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:55:12Z",
+        "conclusion": "success",
+        "name": "Observe complete Kodak allocation traffic without timing (CI only)",
+        "number": 7,
+        "started_at": "2026-11-04T05:54:57Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:55:15Z",
+        "conclusion": "success",
+        "name": "Retain allocation observations and native provenance",
+        "number": 8,
+        "started_at": "2026-11-04T05:55:12Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:55:15Z",
+        "conclusion": "success",
+        "name": "Post Run actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68",
+        "number": 15,
+        "started_at": "2026-11-04T05:55:15Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:55:16Z",
+        "conclusion": "success",
+        "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "number": 16,
+        "started_at": "2026-11-04T05:55:15Z",
+        "status": "completed"
+      },
+      {
+        "completed_at": "2026-11-04T05:55:16Z",
+        "conclusion": "success",
+        "name": "Complete job",
+        "number": 17,
+        "started_at": "2026-11-04T05:55:16Z",
+        "status": "completed"
+      }
+    ],
+    "url": "https://api.github.com/repos/symbiogenesis/DotJpegli/actions/jobs/126415675235",
+    "workflow_name": "CI"
+  }
+]

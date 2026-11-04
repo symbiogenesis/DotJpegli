@@ -1,0 +1,16 @@
+Cosmic Cliffs photograph and derived images
+
+Credit: NASA, ESA, CSA, and STScI
+Source: https://esawebb.org/images/weic2205a/
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+Image-use policy: https://esawebb.org/copyright/
+
+The photograph assets in this directory are separately licensed from the
+repository's BSD-licensed code. Changes: resized from the official lossless
+4000 x 2317 TIFF to 2400 x 1390, metadata removed, encoded as PNG/JPEG/WebP/
+AVIF/JPEG XL, and cropped/labelled for detail-comparison.png. No endorsement
+by the credited organizations is implied.
+
+See ../../photo-comparison.md and comparison.json for exact provenance,
+encoder settings, byte counts and SHA256 hashes.

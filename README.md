@@ -10,7 +10,7 @@
 [![.NET Standard 2.1 · .NET 10 · .NET 11](https://img.shields.io/badge/.NET-Standard_2.1_%7C_10_%7C_11-512BD4)](https://github.com/symbiogenesis/DotJpegli/blob/main/src/DotJpegli/DotJpegli.csproj)
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE)
 
-[Quick start](#quick-start) · [Features](#features) · [Performance](#performance) · [Documentation](#documentation)
+[Photograph comparison](#photograph-comparison) · [Quick start](#quick-start) · [Features](#features) · [Performance](#performance) · [Documentation](#documentation)
 
 </div>
 
@@ -21,6 +21,50 @@ profiles and metadata.
 
 The library is implemented entirely in managed .NET, with no native dependencies,
 P/Invoke, unsafe code or runtime NuGet dependencies.
+
+## Photograph comparison
+
+Fine clouds of dust, saturated colour and thousands of stars make Webb's
+**Cosmic Cliffs** a demanding subject. Open the **2400 × 1390** source photograph
+to inspect its full detail:
+
+[![James Webb Space Telescope photograph of the Cosmic Cliffs: glowing amber clouds, blue starlight and intricate filaments in the Carina Nebula.](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/source.png)](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/source.png)
+
+**Photograph: NASA, ESA, CSA, and STScI — [ESA/Webb source](https://esawebb.org/images/weic2205a/),
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).** Resized from the
+official lossless TIFF; the comparison images are re-encoded and the detail
+panels are cropped.
+
+Every encoder receives the same RGB pixels. Links open the complete files;
+sizes include headers and metadata. SSIMULACRA2 measures each decoded image
+against the source; higher scores indicate closer agreement with that metric.
+
+| Encoder / source | Settings | File size | SSIMULACRA2 |
+| --- | --- | ---: | ---: |
+| [Source PNG](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/source.png) | Lossless common input | 4,437,354 bytes · 4333.4 KiB | 100.00 |
+| **[DotJpegli 2.0.0](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/dotjpegli.jpg)** | Distance 1, 4:2:0, progressive level 2 | **723,938 bytes · 707.0 KiB** | **80.49** |
+| [Google's C++ jpegli](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/google-jpegli.jpg) | Distance 1, 4:2:0, progressive level 2 | 723,938 bytes · 707.0 KiB | 80.49 |
+| [mozjpeg 4.1.1](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/mozjpeg.jpg) | Quality 90, 4:2:0, progressive, trellis | 726,330 bytes · 709.3 KiB | 78.92 |
+| [libjpeg-turbo 3.2.0](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/libjpeg-turbo.jpg) | Quality 90, 4:2:0, progressive | 822,647 bytes · 803.4 KiB | 80.41 |
+| [WebP 1.6.0](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/webp.webp) | Quality 90, method 6 | 640,770 bytes · 625.8 KiB | 82.28 |
+| [AVIF · libavif 1.4.2 / libaom 3.14.1](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/avif.avif) | Quality 90, speed 6, 8-bit 4:2:0 | 837,683 bytes · 818.0 KiB | 86.85 |
+| [JPEG XL · libjxl 0.12.0](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/jpeg-xl.jxl) | Distance 1, effort 7 | 759,353 bytes · 741.6 KiB | 88.02 |
+
+These are selected high-quality settings for one photograph. Quality scales
+differ across codecs, and these outputs are **not matched perceptual quality**.
+JPEG XL and AVIF retain more detail according to this metric at the settings
+shown. DotJpegli and Google's jpegli have equal file sizes here; their bytes
+and decoded pixels differ slightly. JPEG XL requires a compatible viewer.
+
+The following lossless sheet shows the same **480 × 300** detail from every
+image, with one source pixel per image pixel. Open it at full size to compare
+star edges, wispy dust and colour transitions:
+
+[![Pixel-for-pixel source and encoded detail crops for DotJpegli, Google jpegli, mozjpeg, libjpeg-turbo, WebP, AVIF and JPEG XL, each labelled with its complete file size. Credit: NASA, ESA, CSA, and STScI; CC BY 4.0.](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/detail-comparison.png)](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/detail-comparison.png)
+
+See the [source, exact settings, hashes and reproduction instructions](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/photo-comparison.md).
+Google also published a separate [human-rater study of jpegli, mozjpeg and libjpeg-turbo](https://arxiv.org/abs/2403.18589);
+the example above is generated for this repository.
 
 ## Features
 
@@ -46,7 +90,15 @@ See the [CLI guide](docs/cli.md) for installation, options and local publishing.
 
 ## Quick start
 
-### Reference the project
+### Install the package
+
+```sh
+dotnet add package DotJpegli --version 2.0.0
+```
+
+The package supports .NET Standard 2.1, .NET 10 and .NET 11.
+
+### Build from source
 
 Building from source requires **.NET SDK `11.0.100-rc.3.26522.148`**, pinned in
 [`global.json`](https://github.com/symbiogenesis/DotJpegli/blob/main/global.json)
@@ -130,7 +182,7 @@ for coverage.
 ## Performance
 
 Compare DotJpegli with **native Google Jpegli** on all 24 Kodak photographs.
-The charts use the complete valid measurements from **November 3, 2026**
+The compression and timing charts use the complete valid measurements from **November 3, 2026**
 (America/Chicago; November 4 UTC) at revision `744f7be` in
 [CI run 41772797925](https://github.com/symbiogenesis/DotJpegli/actions/runs/41772797925).
 Compression and time differences are relative to native; zero means equal file
@@ -151,16 +203,24 @@ Left of zero means less time; right means more.
 
 ![Percentage encoding-time differences from native Google Jpegli, pairing Kodak photographs and deterministic controls for each encoding mode.](docs/images/performance/wall-time.svg)
 
-### Managed allocations
+### Allocations per encode
 
-Each bar shows average managed allocations per complete encode, including the
-returned JPEG. Native allocations were not measured. Retained pool capacity
-and peak memory are outside this measurement.
+Compare **DotJpegli managed GC allocations** with **official Google C++ jpegli
+heap requests** per complete encode, including the returned JPEG. The separate
+[CI allocation observation](docs/performance-evidence/2026-11-03-ae1bf49-allocations/README.md)
+covers all 24 Kodak photographs at both distances and all four encoding modes:
+192 configurations, with three samples after five warmups.
 
-![DotJpegli managed allocations in KiB per encode for Kodak photographs, grouped by sampling and sequential or progressive encoding.](docs/images/performance/allocations.svg)
+GC allocation bytes include object headers and alignment; native bars count
+successful requested heap bytes, including full reallocation requests, and
+exclude native allocator metadata and slack. Prepared input, retained pool
+capacity and peak memory are outside this measurement. The instrumented native
+encoder must produce exactly the same JPEG as the ordinary native reference.
 
-The charts use distances 1/4, both sampling modes, one worker and tiered
-compilation disabled. The [retained measurements](docs/performance-evidence/2026-11-03-744f7be/README.md),
+![DotJpegli managed GC allocation bytes and official Google C++ jpegli requested heap bytes in KiB per encode, grouped by sampling and sequential or progressive encoding.](docs/images/performance/allocations.svg)
+
+The compression and timing charts use distances 1/4, both sampling modes, one
+worker and tiered compilation disabled. The [retained measurements](docs/performance-evidence/2026-11-03-744f7be/README.md),
 [chart values](docs/images/performance/metrics.json) and [protocol](docs/performance-parity.md)
 cover all 256 cases, including eight deterministic controls. Full native
 performance parity remains unestablished. Separate runs do not isolate revision
@@ -206,3 +266,7 @@ See the [upstream license](https://github.com/symbiogenesis/DotJpegli/blob/main/
 and [third-party notices](https://github.com/symbiogenesis/DotJpegli/blob/main/THIRD-PARTY-NOTICES.md)
 for attribution. The [upstream manifest](https://github.com/symbiogenesis/DotJpegli/blob/main/docs/upstream.json)
 records the pinned source revision.
+
+The photograph and its derivatives are separately licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), with the full credit
+and source given in the comparison above.

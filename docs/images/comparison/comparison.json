@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Untimed single-photograph illustration; selected settings are not matched perceptual quality and do not rank encoders universally.",
+  "managedSourceRevision": "d010c0fed7799639fdd4e56fcde8f367aab0bc96",
+  "managedLibrarySha256": "fe2d65f86de93877b741acae7ce9834835a42ffca422134d3f38e405bdfea72e",
+  "source": {
+    "title": "NIRCam Image of the Cosmic Cliffs in Carina",
+    "page": "https://esawebb.org/images/weic2205a/",
+    "download": "https://esawebb.org/media/archives/images/publicationtiff/weic2205a.tif",
+    "sha256": "145becf8e9ca2c35473d102da19a34786185bc5da947367db75dc78a0c323e71",
+    "bytes": 11715498,
+    "dimensions": [
+      4000,
+      2317
+    ],
+    "profile": "IEC 61966-2.1 Default RGB colour space - sRGB",
+    "credit": "NASA, ESA, CSA, and STScI",
+    "license": "https://creativecommons.org/licenses/by/4.0/",
+    "licensePolicy": "https://esawebb.org/copyright/"
+  },
+  "preparation": {
+    "pillow": "13.0.0",
+    "dimensions": [
+      2400,
+      1390
+    ],
+    "method": "sRGB RGB8 TIFF samples; Pillow Lanczos resize to 2400x1390; strip metadata and ICC (sRGB assumed); lossless PNG level 9 and binary P6 PPM share identical RGB samples",
+    "rgbSha256": "688de119c0181fc8c90f7167a453720257cebe1fb44c9ef32295cbf6d6f1b75c"
+  },
+  "measurement": {
+    "size": "Complete on-disk file length including all headers and metadata; KiB = bytes / 1024",
+    "quality": "SSIMULACRA2 from official libjxl 0.12.0 (4128790), common source PNG vs full-size decoded RGB PNG; JPEGs decoded by Pillow/libjpeg-turbo; AVIF by avifdec/dav1d; JPEG XL by djxl",
+    "crop": [
+      850,
+      420,
+      1330,
+      720
+    ],
+    "timingsCollected": false,
+    "host": "Windows-11-10.0.26300-SP0"
+  },
+  "tools": {
+    "dotjpegli": {
+      "file": "encode-readme-photo.cs",
+      "sha256": "42a6e338732b4b0fa6b5e344511fb80d581dc2febfb068ba6e60fa368118d74f"
+    },
+    "jpegli": {
+      "file": "jpegli-parity-native.exe",
+      "sha256": "86f8b83bf9b91e0c235629d19d0b188c0f3c40bcccd7ae787e3597a80b27207b"
+    },
+    "mozjpeg": {
+      "file": "cjpeg-static.exe",
+      "sha256": "ddce5a608556aa0efe41e20f14c042d1ff10d1ff542e19e08d25c8f71e40107e"
+    },
+    "cjxl": {
+      "file": "cjxl.exe",
+      "sha256": "e2262d72f4c1028fd3fbe420d85e6e35210df06956a5521b692a92c4f0e0d8da"
+    },
+    "djxl": {
+      "file": "djxl.exe",
+      "sha256": "6970ce73de51e046b39bd5f28fc7bc5da64e9f6505c11194319f43d8849d2bf4"
+    },
+    "avifenc": {
+      "file": "avifenc.exe",
+      "sha256": "42312321ed9f715987cb3623292eaedc778970b45efb9b1de62ce795f61991a0"
+    },
+    "avifdec": {
+      "file": "avifdec.exe",
+      "sha256": "a03664ddffb9d847eb484af6ceeffce96e03d641da5c577d26662487dee689f2"
+    },
+    "ssimulacra2": {
+      "file": "ssimulacra2.exe",
+      "sha256": "997c49d196bbb05e91d278013ec22637d9b09e944e16514077234a0ee058db38"
+    }
+  },
+  "versionBanners": {
+    "mozjpeg": "mozjpeg version 4.1.1 (build 20261103)",
+    "libavif": "Version: 1.4.2 (dav1d [dec]:1.5.3-0-gb546257, aom [enc]:3.14.1)\nlibyuv : available (1924)",
+    "libjxl": "cjxl v0.12.0 4128790 [_AVX2_,SSE4,SSE2] {Clang 22.1.3}\nCopyright (c) the JPEG XL Project"
+  },
+  "results": [
+    {
+      "encoder": "Source PNG",
+      "file": "source.png",
+      "bytes": 4437354,
+      "sha256": "472d545fd3d7821bbbf2d524812a684292646a245a873f2cf4becfb2fe7f2b4a",
+      "ssimulacra2": 100.0
+    },
+    {
+      "encoder": "DotJpegli",
+      "version": "2.0.0",
+      "settings": "distance 1, 4:2:0, progressive level 2, AQ and optimized Huffman, one worker",
+      "file": "dotjpegli.jpg",
+      "bytes": 723938,
+      "sha256": "95b2b4ee3744f7c52abb8af540923183527d95dd85db12b2b273138ebdbe99e6",
+      "ssimulacra2": 80.48803004
+    },
+    {
+      "encoder": "Google jpegli",
+      "version": "031a0077f5799a6041004267fc12b956c1f52a20",
+      "settings": "distance 1, 4:2:0, progressive level 2, AQ and optimized Huffman",
+      "file": "google-jpegli.jpg",
+      "bytes": 723938,
+      "sha256": "ee7e1b5d9f7b01922a03418c93886a797c693945994d7a50a699f04a4c79e530",
+      "ssimulacra2": 80.48901455
+    },
+    {
+      "encoder": "mozjpeg",
+      "version": "4.1.1",
+      "settings": "quality 90, 4:2:0, progressive, optimized Huffman, default trellis",
+      "file": "mozjpeg.jpg",
+      "bytes": 726330,
+      "sha256": "190719a304aa229940d65bc62f81fa08d903f95a81cb6f994f8a84bfb5935063",
+      "ssimulacra2": 78.92255952
+    },
+    {
+      "encoder": "libjpeg-turbo",
+      "version": "3.2.0",
+      "settings": "quality 90, 4:2:0, progressive, optimized Huffman (Pillow)",
+      "file": "libjpeg-turbo.jpg",
+      "bytes": 822647,
+      "sha256": "b12a1cc0f4fd469e6f24c795d67c35ea585fc53707ae71cfc9086b58a7d10e4a",
+      "ssimulacra2": 80.4092311
+    },
+    {
+      "encoder": "WebP",
+      "version": "1.6.0",
+      "settings": "quality 90, method 6 (Pillow)",
+      "file": "webp.webp",
+      "bytes": 640770,
+      "sha256": "16b026484a80a292c9322c64378518aee967d1ccd5eb7dfb6bda35de422747cb",
+      "ssimulacra2": 82.27540298
+    },
+    {
+      "encoder": "AVIF",
+      "version": "libavif 1.4.2 / libaom 3.14.1",
+      "settings": "quality 90, speed 6, libaom, 8-bit 4:2:0 full-range BT.601, sRGB primaries/transfer, one worker",
+      "file": "avif.avif",
+      "bytes": 837683,
+      "sha256": "8db8634269385e49defab6e12998165d422d18d6aa0e974df14a6843c4788c3b",
+      "ssimulacra2": 86.85294398
+    },
+    {
+      "encoder": "JPEG XL",
+      "version": "libjxl 0.12.0 (4128790)",
+      "settings": "distance 1, effort 7, one worker",
+      "file": "jpeg-xl.jxl",
+      "bytes": 759353,
+      "sha256": "91e9b84ee1bb650c3e4b6878984bb8eee59f7b499f9bf9318d06bc7a65c23c68",
+      "ssimulacra2": 88.02475945
+    }
+  ],
+  "assets": [
+    {
+      "file": "detail-comparison.png",
+      "bytes": 1881733,
+      "sha256": "49650fa0a1142ae780cbf5041f82258aae0ce540d56eba0d78530908f37fcc7a"
+    }
+  ]
+}
