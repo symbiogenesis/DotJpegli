@@ -238,6 +238,31 @@ report eight float lanes, accelerated 256-bit SIMD and disabled 512-bit SIMD.
 This exercises narrow ordering even when the host supports AVX-512. Both
 selections belong to the single planned automatic run.
 
+## Encoder optimization batch comparisons
+
+`[compare-encoder]` in a main push compares the encoder with fixed pre-batch
+revision `4dd88ecb53c92b6f1087c0238cc8a50cbd1de166` in the same automatic CI run.
+Four lanes cover .NET 10/11 on x64 with AVX-512 disabled and on ARM64. Each lane
+first runs focused numerical and source-ICC regressions, then builds the baseline
+with the same SDK and identical measurement worker.
+
+The ordinary selection contains Kodak01/13/19/23, smooth gradient, low noise,
+low contrast and tiny odd edges at distances 1/4, 444/420 and progression 0/2:
+64 cases. A second, serial selection adds `--source-icc` for Kodak01 at distance
+1, both samplings and progressions: four cases. That flag converts RGB24 input
+from the built-in Display-P3 profile to sRGB before YCbCr encoding. Profile and
+mode identities are retained, and both workers must report the requested mode.
+The fixed release-regression protocol rejects this flag.
+
+Both selections use six balanced quartets, five warmups and 20 encodes per leg
+(100 for tiny inputs), exact cross-revision JPEG hashes and the existing timing
+guards. There are no timing retries or removed rows. Reports and raw data are
+retained as `encoder-batch-<architecture>-<framework>-<revision>` alongside the
+focused test results. Invalid and inconclusive rows retain those classifications;
+the diagnostic does not establish native parity or a universal speed benefit.
+It can accompany `[full-parity]` and `[performance-workloads]` in one settled
+push. Reuse that automatic run rather than dispatching a second workflow.
+
 ## Bounded workload diagnostics
 
 `[performance-workloads]` in a main push requests additional x64 and ARM64

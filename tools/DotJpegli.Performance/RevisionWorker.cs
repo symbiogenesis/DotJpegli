@@ -17,9 +17,10 @@ internal static class RevisionWorker
     internal sealed record Identity(string EncoderSha256, string RunnerSha256, string TestedRevision,
         JsonElement Environment, string AssemblyInformationalVersion);
     internal sealed record Measurement(double NsPerEncode, long AllocatedBytes, int Gen0Collections,
-        int Gen1Collections, int Gen2Collections, string JpegSha256, long JpegBytes);
+        int Gen1Collections, int Gen2Collections, string JpegSha256, long JpegBytes, bool SourceIcc = false,
+        string? SourceIccProfileSha256 = null);
     internal sealed record Request(string Kind, string? Input = null, int Sampling = 0, int Progression = 0,
-        float Distance = 0, int Iterations = 0, int Warmups = 0);
+        float Distance = 0, int Iterations = 0, int Warmups = 0, bool SourceIcc = false);
     internal sealed record Response(string Kind, Identity? Identity = null, Measurement? Measurement = null,
         string? Error = null);
 
@@ -54,21 +55,10 @@ internal static class RevisionWorker
                 Validate(request);
                 // Keep the input, immutable settings and expected JPEG alive between legs.
                 // Parsing, image I/O and first-use preparation are outside the timer.
-                if (previous is null || request.Input != previous.Input || request.Sampling != previous.Sampling
-                    || request.Progression != previous.Progression || request.Distance != previous.Distance)
+                if (previous is null || !SameInputAndSettings(previous, request))
                 {
                     image = PpmImage.Read(request.Input!);
-                    settings = new()
-                    {
-                        ColorSpace = JpegColorSpace.YCbCr,
-                        Distance = request.Distance,
-                        ProgressiveLevel = request.Progression,
-                        Subsampling = request.Sampling == 444 ? ChromaSubsampling.None : ChromaSubsampling.Quarter,
-                        OptimizeHuffmanTables = true,
-                        AdaptiveQuantization = true,
-                        ForceBaseline = true,
-                        MaxDegreeOfParallelism = 1
-                    };
+                    settings = CreateSettings(request);
                     expected = Encode(image, settings);
                 }
 
@@ -86,6 +76,23 @@ internal static class RevisionWorker
             return 2;
         }
     }
+
+    private static bool SameInputAndSettings(Request first, Request second)
+        => first.Input == second.Input && first.Sampling == second.Sampling && first.Progression == second.Progression
+            && first.Distance == second.Distance && first.SourceIcc == second.SourceIcc;
+
+    private static JpegliEncoderOptions CreateSettings(Request request) => new()
+    {
+        ColorSpace = JpegColorSpace.YCbCr,
+        Distance = request.Distance,
+        ProgressiveLevel = request.Progression,
+        Subsampling = request.Sampling == 444 ? ChromaSubsampling.None : ChromaSubsampling.Quarter,
+        OptimizeHuffmanTables = true,
+        AdaptiveQuantization = true,
+        ForceBaseline = true,
+        MaxDegreeOfParallelism = 1,
+        SourceIccProfile = request.SourceIcc ? JpegliIccProfiles.CreateDisplayP3Profile() : ReadOnlyMemory<byte>.Empty
+    };
 
     private static void Validate(Request request)
     {
@@ -120,7 +127,17 @@ internal static class RevisionWorker
         long allocatedBytes = GC.GetTotalAllocatedBytes(precise: true) - allocated;
         return new(ticks * (1_000_000_000.0 / Stopwatch.Frequency) / iterations, allocatedBytes,
             GC.CollectionCount(0) - gen0, GC.CollectionCount(1) - gen1, GC.CollectionCount(2) - gen2,
-            Convert.ToHexStringLower(SHA256.HashData(expected)), expected.LongLength);
+            Convert.ToHexStringLower(SHA256.HashData(expected)), expected.LongLength, !settings.SourceIccProfile.IsEmpty,
+            settings.SourceIccProfile.IsEmpty ? null : Convert.ToHexStringLower(SHA256.HashData(settings.SourceIccProfile.Span)));
+    }
+
+    internal static void ValidateMeasurementMode(Measurement measurement, bool sourceIcc)
+    {
+        string? expectedProfile = sourceIcc ? Convert.ToHexStringLower(SHA256.HashData(JpegliIccProfiles.CreateDisplayP3Profile())) : null;
+        if (measurement.SourceIcc != sourceIcc || measurement.SourceIccProfileSha256 != expectedProfile)
+        {
+            throw new InvalidDataException("Revision-worker measurement color conversion or source profile does not match its request.");
+        }
     }
 
     private static byte[] Encode(PpmImage image, JpegliEncoderOptions settings)
@@ -154,12 +171,48 @@ internal static class RevisionWorker
         {
             throw new InvalidDataException("Revision-worker request round trip failed.");
         }
+        Request iccRequest = request with { SourceIcc = true };
+        Request iccRoundTrip = JsonSerializer.Deserialize<Request>(JsonSerializer.Serialize(iccRequest))!;
+        Validate(iccRoundTrip);
+        Request legacy = JsonSerializer.Deserialize<Request>("{\"Kind\":\"measure\",\"Input\":null}")!;
+        if (iccRoundTrip != iccRequest || legacy.SourceIcc
+            || SameInputAndSettings(request, iccRequest)
+            || !SameInputAndSettings(request, request with { Warmups = 10, Iterations = 100 }))
+        {
+            throw new InvalidDataException("Revision-worker color mode compatibility or settings reuse failed.");
+        }
+        JpegliEncoderOptions ordinary = CreateSettings(request), managed = CreateSettings(iccRequest);
+        if (!ordinary.SourceIccProfile.IsEmpty || managed.SourceIccProfile.IsEmpty || !managed.IccProfile.IsEmpty
+            || managed.ColorSpace != JpegColorSpace.YCbCr || managed.MaxDegreeOfParallelism != 1
+            || !managed.SourceIccProfile.Span.SequenceEqual(JpegliIccProfiles.CreateDisplayP3Profile()))
+        {
+            throw new InvalidDataException("Revision-worker source ICC policy changed.");
+        }
 
         var measurement = new Measurement(1_500_000, 4096, 1, 2, 3, new string('a', 64), 123);
         var response = new Response("measurement", Measurement: measurement);
         if (JsonSerializer.Deserialize<Response>(JsonSerializer.Serialize(response)) != response)
         {
             throw new InvalidDataException("Revision-worker measurement response round trip failed.");
+        }
+        ValidateMeasurementMode(measurement, sourceIcc: false);
+        Measurement iccMeasurement = measurement with
+        {
+            SourceIcc = true,
+            SourceIccProfileSha256 = Convert.ToHexStringLower(SHA256.HashData(managed.SourceIccProfile.Span))
+        };
+        ValidateMeasurementMode(iccMeasurement, sourceIcc: true);
+        foreach (Measurement mismatched in new[] { measurement, iccMeasurement with { SourceIccProfileSha256 = new string('b', 64) } })
+        {
+            try
+            {
+                ValidateMeasurementMode(mismatched, sourceIcc: true);
+                throw new InvalidOperationException("Revision-worker measurement accepted a mismatched color mode or source profile.");
+            }
+            catch (InvalidDataException)
+            {
+                // An old or mismatched worker must not silently measure another mode.
+            }
         }
 
         foreach (Request invalid in new Request[]
@@ -240,16 +293,20 @@ internal sealed class RevisionWorkerClient : IAsyncDisposable
     }
 
     internal async Task<RevisionWorker.Measurement> Measure(string input, int sampling, int progression,
-        float distance, int iterations, int warmups)
+        float distance, int iterations, int warmups, bool sourceIcc = false)
     {
         ObjectDisposedException.ThrowIf(this.disposed, this);
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(10));
         try
         {
-            await this.Write(new("measure", input, sampling, progression, distance, iterations, warmups), timeout.Token);
+            await this.Write(new("measure", input, sampling, progression, distance, iterations, warmups, sourceIcc), timeout.Token);
             RevisionWorker.Response response = await this.Read(timeout.Token);
-            return response.Kind == "measurement" && response.Measurement is { } measurement ? measurement
-                : throw new InvalidDataException("Revision worker returned an unexpected response.");
+            if (response.Kind != "measurement" || response.Measurement is not { } measurement)
+            {
+                throw new InvalidDataException("Revision worker returned an unexpected response.");
+            }
+            RevisionWorker.ValidateMeasurementMode(measurement, sourceIcc);
+            return measurement;
         }
         catch (OperationCanceledException error)
         {

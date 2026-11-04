@@ -340,6 +340,93 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  encoder-comparison:
+    name: Encoder batch (${{ matrix.architecture }}, ${{ matrix.framework }})
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[compare-encoder]')
+    needs: native-reference
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            architecture: X64
+            framework: net10.0
+          - runner: ubuntu-latest
+            architecture: X64
+            framework: net11.0
+          - runner: ubuntu-24.04-arm
+            architecture: ARM64
+            framework: net10.0
+          - runner: ubuntu-24.04-arm
+            architecture: ARM64
+            framework: net11.0
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    env:
+      # Fixed pre-batch source: isolate these changes from earlier optimizations.
+      BASELINE_REVISION: 4dd88ecb53c92b6f1087c0238cc8a50cbd1de166
+      DOTNET_TieredCompilation: '0'
+      # Exercise the eight-lane AQ schedule even on wide-SIMD x64 runners.
+      DOTNET_EnableAVX512F: '0'
+      DOTNET_EnableAVX512: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          dotnet-version: 10.0.403
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: parity-reference-X64-${{ github.sha }}
+          path: ${{ runner.temp }}
+      - name: Build current worker and verify affected kernels
+        run: |
+          dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
+          dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release -f ${{ matrix.framework }} --no-restore -p:SourceRevisionId="${{ github.sha }}"
+          dotnet tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll --self-test-revision-comparison
+          dotnet restore tests/DotJpegli.Tests/DotJpegli.Tests.csproj --locked-mode
+          dotnet build tests/DotJpegli.Tests/DotJpegli.Tests.csproj -c Release -f ${{ matrix.framework }} --no-restore
+          dotnet tests/DotJpegli.Tests/bin/Release/${{ matrix.framework }}/DotJpegli.Tests.dll -filterVSTest 'FullyQualifiedName~FusedPlaneQuantizationTests|FullyQualifiedName~FusedBlockPreparationTests|FullyQualifiedName~BatchedAdaptiveFinalizationTests|FullyQualifiedName~SimdAdaptiveQuantizationTests|FullyQualifiedName~SourceIccColorManagementTests' -result-xml "${{ runner.temp }}/encoder-batch-tests.xml" -noLogo
+      - name: Build pre-batch encoder with the identical worker
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASELINE_REVISION"
+          lane="${{ runner.temp }}/encoder-batch-baseline-source"
+          worker="${{ runner.temp }}/encoder-batch-baseline-worker"
+          mkdir -p "$lane" "$worker"
+          git archive "$BASELINE_REVISION" | tar -x -C "$lane"
+          dotnet restore "$lane/src/DotJpegli/DotJpegli.csproj" --locked-mode
+          dotnet build "$lane/src/DotJpegli/DotJpegli.csproj" -c Release -f ${{ matrix.framework }} --no-restore -p:SourceRevisionId="$BASELINE_REVISION"
+          cp "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/"* "$worker/"
+          cp "$lane/src/DotJpegli/bin/Release/${{ matrix.framework }}/DotJpegli.dll" "$worker/DotJpegli.dll"
+      - name: Interleave ordinary encodes against pre-batch source (CI only)
+        id: ordinary
+        run: |
+          cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
+          taskset -c "$cpu" dotnet tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll --compare-revisions --baseline-runner "${{ runner.temp }}/encoder-batch-baseline-worker/DotJpegli.Performance.dll" --baseline-revision "$BASELINE_REVISION" --current-revision "${{ github.sha }}" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/encoder-batch/ordinary" --images kodim01,kodim13,kodim19,kodim23,smooth-gradient,low-noise,low-contrast,tiny-odd-edges --distances 1,4 --samplings 444,420 --progressions 0,2 --blocks 6 --iterations 20 --warmups 5
+      - name: Interleave source ICC encodes against pre-batch source (CI only)
+        if: always() && (steps.ordinary.outcome == 'success' || steps.ordinary.outcome == 'failure')
+        run: |
+          cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
+          taskset -c "$cpu" dotnet tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll --compare-revisions --source-icc --baseline-runner "${{ runner.temp }}/encoder-batch-baseline-worker/DotJpegli.Performance.dll" --baseline-revision "$BASELINE_REVISION" --current-revision "${{ github.sha }}" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/encoder-batch/source-icc" --images kodim01 --distances 1 --samplings 444,420 --progressions 0,2 --blocks 6 --iterations 20 --warmups 5
+      - name: Retain batch comparisons and affected-kernel tests
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: encoder-batch-${{ matrix.architecture }}-${{ matrix.framework }}-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/encoder-batch/
+            ${{ runner.temp }}/encoder-batch-tests.xml
+          retention-days: 30
+          if-no-files-found: warn
+      - name: Publish both batch comparison reports
+        if: always()
+        run: |
+          for comparison in ordinary source-icc; do
+            if [[ -f "${{ runner.temp }}/encoder-batch/$comparison/report.md" ]]; then
+              cat "${{ runner.temp }}/encoder-batch/$comparison/report.md" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
   performance-workloads:
     if: (github.event_name == 'push' && contains(github.event.head_commit.message, '[performance-workloads]')) || (github.event_name == 'workflow_dispatch' && inputs.performance_workloads)
     needs: native-reference

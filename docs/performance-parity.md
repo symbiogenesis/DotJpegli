@@ -164,6 +164,17 @@ narrow coefficient ordering. These are selected-case diagnostics. The
 [runner guide](../tools/DotJpegli.Performance/README.md) describes their method
 and retained evidence. Ordinary pushes without either marker retain four cases.
 
+For the ICC and SIMD batch, `[compare-encoder]` adds same-host comparisons
+against fixed pre-batch source `4dd88ecb53c92b6f1087c0238cc8a50cbd1de166` on
+.NET 10/11 and x64/ARM64. It retains 64 ordinary configurations and four
+Display-P3 source-ICC configurations per lane, using unchanged balanced-quartet
+timing guards and exact JPEG hashes. x64 disables AVX-512 to exercise eight-lane
+AQ; ARM64 exercises the four-lane fused DCT. Focused kernel tests precede timing.
+These selected diagnostics do not replace native or released-version acceptance.
+The [runner guide](../tools/DotJpegli.Performance/README.md#encoder-optimization-batch-comparisons)
+records the full selection and limits. This marker can accompany `[full-parity]`
+and `[performance-workloads]` in the same automatic workflow.
+
 Include `[compare-kernels]` to collect interleaved forced-kernel and combined
 Automatic-policy comparisons on x64 and ARM64, for both .NET 10 and .NET 11, in
 the same automatic run. The selected photographs and controls include matching
