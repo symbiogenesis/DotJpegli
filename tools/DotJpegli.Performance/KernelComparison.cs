@@ -459,7 +459,7 @@ internal static class KernelComparison
             return invalid.Distinct().ToArray();
         }
 
-        if (quartets.GroupBy(block => block.Order).Any(group => group.Count() != policy.Blocks / 2))
+        if (quartets.CountBy(block => block.Order).Any(order => order.Value != policy.Blocks / 2))
         {
             invalid.Add("ABBA/BAAB orders are not balanced.");
         }

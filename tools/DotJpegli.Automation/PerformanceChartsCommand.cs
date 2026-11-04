@@ -120,10 +120,10 @@ internal static class PerformanceChartsCommand
             Require(True(group["passed"]), "A matched-quality group failed.");
             JsonNode[] selected = matches.Where(item => SameGroup(item, group, "progression") && Equal(item["metric"], group["metric"])).ToArray();
             JsonNode[] anchors = selected.Where(item => True(item["isAnchor"])).ToArray();
+            KeyValuePair<string, int>[] anchorCounts = anchors.CountBy(item => Text(item["image"])).ToArray();
             int images = Text(group["category"]) == "natural" ? 24 : 8;
             Require(selected.Length == Number(group["matchedTargets"]) && anchors.Length == images * 5 &&
-                anchors.GroupBy(item => Text(item["image"])).Count() == images &&
-                anchors.GroupBy(item => Text(item["image"])).All(items => items.Count() == 5), "Incomplete matched-quality anchors.");
+                anchorCounts.Length == images && anchorCounts.All(item => item.Value == 5), "Incomplete matched-quality anchors.");
             foreach (JsonNode match in selected)
             {
                 Close(Positive(match["managedBytes"], "Matched managed size") / Positive(match["nativeBytes"], "Matched native size"), Positive(match["sizeRatio"], "Matched size ratio"));
@@ -147,8 +147,8 @@ internal static class PerformanceChartsCommand
 
         foreach ((string category, int count) in new[] { ("natural", 24), ("controlled", 8) })
         {
-            IGrouping<string, JsonNode>[] images = cases.Where(item => Text(item["category"]) == category).GroupBy(item => Text(item[idField])).ToArray();
-            Require(images.Length == count && images.All(image => image.Count() == 4 * distances.Length), "Incomplete corpus coverage.");
+            KeyValuePair<string, int>[] images = cases.Where(item => Text(item["category"]) == category).CountBy(item => Text(item[idField])).ToArray();
+            Require(images.Length == count && images.All(image => image.Value == 4 * distances.Length), "Incomplete corpus coverage.");
             if (category == "natural")
             {
                 Require(images.Select(group => group.Key).Order(StringComparer.Ordinal).SequenceEqual(Enumerable.Range(1, 24).Select(index => string.Create(CultureInfo.InvariantCulture, $"kodim{index:00}"))), "Expected all 24 Kodak photographs.");
