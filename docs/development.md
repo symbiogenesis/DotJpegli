@@ -244,7 +244,17 @@ retains scenario ratios, invalid counts, allocation tradeoffs and hardware scope
 Corrective changes keep complete caches on the original traversal, put sampled
 inverse searches in a non-inlined helper and isolate optional Huffman symbol
 reordering from noncapturing default table planning. Correctness checks passed;
-their performance effects await the corrective paired matrix.
+the [corrective paired matrix](optimization-followup.md#corrective-ci-paired-comparison)
+then compared `744f7be` with `b2fa25da` on matched hosts within each pair. All
+432 requested rows were produced, 385 passed timing guards and every measured
+JPEG hash matched. Valid selected smoothing, byte-XYB, sampled-ICC and
+constrained-cache progressive workloads favored the batch, while ordinary
+x64 .NET 11 and ARM64 parallel-progressive regressions remain in the reports.
+Invalid x64 parallel rows limit coverage; aggregate gains do not establish
+uniform improvement. The later single-worker collector guard `1898828` passed
+focused correctness checks but is outside those measurements. Legacy floating
+workspace/layout effects remain unproven, and compression searches need a
+broader corpus before promotion.
 
 With `MaxDegreeOfParallelism` greater than one, complete cached-token scans can
 replay independent segments at caller-requested restart boundaries in parallel.

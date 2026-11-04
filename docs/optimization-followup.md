@@ -90,6 +90,15 @@ Default canonical Huffman table planning retains a noncapturing projection.
 Optional symbol reordering has a separate non-inlined helper, avoiding the
 captured ordering state introduced into ordinary planning by the initial batch.
 
+Single-worker encodes also reject optional parallel histogram collection at the
+call site. Release IL inspection found the collector's captured cancellation
+state was constructed before its own worker-count rejection. The call-site
+guard avoids entering that method; the parallel body is unchanged. This final
+cleanup (`1898828`) follows measured revision `744f7be`, so the paired timings
+below do not measure its effect. All three Release library builds, 122 focused
+parallel correctness cases and the formatter passed locally; no local benchmark
+was run.
+
 ## Output-changing research
 
 The [offline tool guide](../tools/DotJpegli.Parity/README.md#follow-up-compression-experiments)
@@ -174,8 +183,8 @@ actual frame sampling and permits multiple CPUs only for the two-worker mode.
 XYB uses explicit numeric 4:4:4/4:2:0 component factors; conventional 4:2:0
 subsamples XYB's Y component and therefore disables AQ under the existing policy.
 Tiny actual-encode self-tests now check every scenario's front door, frame and
-sampling without clocks. Correctness checks passed, but recovery from the
-regressions and preservation of the gains await a new full paired CI matrix.
+sampling without clocks. The following paired matrix measures revision
+`744f7be`; individual corrective changes were not isolated.
 
 Local Release builds passed for all three library targets and both tool targets.
 Focused checks passed on Windows ARM64: 117 new-feature cases on .NET 10,
@@ -189,6 +198,66 @@ The same workflow runs the full fixed native quality/performance matrix and
 bounded native-decoder compression searches. Full suites and benchmarks are
 CI-only. Performance acceptance and timing validity are separate outcomes;
 neither exact output tests nor synthetic statistics prove a latency gain.
+
+## Corrective CI paired comparison
+
+The [corrective run, 41772797925](https://github.com/symbiogenesis/DotJpegli/actions/runs/41772797925)
+compared `744f7be` with the same pre-batch source `b2fa25da`, rebuilt with the
+same worker and SDK. It produced all 432 requested rows: 385 timing-valid and
+47 timing-invalid. Every one of the 432 baseline/current JPEG hash pairs
+matched, and all 10,368 measured legs matched their expected case hashes.
+Each case retained its single complete attempt, including every invalid row.
+
+Cells give valid/total rows and the geometric mean of valid cases' primary
+paired-median current/baseline ratios. They use the same six-quartet method as
+CI1; below one favors `744f7be`.
+
+| Scenario | x64 .NET 10 | x64 .NET 11 | ARM64 .NET 10 | ARM64 .NET 11 |
+| --- | ---: | ---: | ---: | ---: |
+| Ordinary | 61/64; 0.9985 | 54/64; 1.0060 | 61/64; 0.9981 | 57/64; 0.9998 |
+| Source ICC | 3/4; 1.0009 | 4/4; 1.0079 | 4/4; 1.0012 | 4/4; 1.0002 |
+| Smoothing | 8/8; 0.1495 | 4/8; 0.1483 | 8/8; 0.2168 | 8/8; 0.2006 |
+| Byte XYB | 8/8; 0.6386 | 6/8; 0.6162 | 8/8; 0.6769 | 8/8; 0.6726 |
+| Constrained cache | 8/8; 0.5024 | 6/8; 0.6176 | 8/8; 0.4808 | 8/8; 0.4828 |
+| Sampled ICC | 3/8; 0.8785 | 7/8; 0.8646 | 8/8; 0.7686 | 8/8; 0.7309 |
+| Two workers | 1/8; 0.9978 | 6/8; 0.9250 | 8/8; 0.9196 | 8/8; 0.9436 |
+
+All 28 valid smoothing cases, 30 valid byte-XYB cases and 26 valid sampled-ICC
+cases consistently favored the batch. All 14 valid constrained-cache
+progressive cases also favored it, with ratios 0.1709-0.3764 and 17,116-18,139
+fewer allocated bytes per encode. Constrained sequential cases were all
+inconclusive. The aggregate constrained-cache ratios combine those different
+progressive and sequential outcomes.
+
+Parallel sequential output consistently favored the batch in all 11 valid
+cases, with ratios 0.7457-0.9234 and 32,500-34,868 fewer allocated bytes per
+encode. Coverage is narrower on x64: .NET 10 had only one valid parallel case,
+which was progressive and inconclusive; all four sequential cases were invalid.
+x64 .NET 11 had three valid sequential and three valid progressive cases, with
+the latter all inconclusive. Invalid cases supply no parallel speed claim.
+
+Residual regressions are retained. Ordinary x64 .NET 11 had seven consistent
+baseline preferences at ratios 1.0077-1.0124; ARM64 .NET 11 had two at
+1.0089-1.0094. Source ICC had one x64 .NET 11 baseline preference at 1.0084;
+all other valid source-ICC cases were inconclusive. Parallel progressive output
+favored the baseline in one ARM64 .NET 10 case at 1.0123 and all four ARM64
+.NET 11 cases at 1.0156-1.0246. The ARM64 parallel-progressive geometric means
+were 1.0061 and 1.0202. An aggregate gain must not hide these costs.
+
+Across all measured rows, ordinary allocation medians increased by 18-39 bytes
+per encode and sampled-ICC medians by 1138-1164 bytes. Allocation medians include
+timing-invalid rows; the counters measure warm allocation, not initial table
+preparation, retained pool capacity or peak working memory.
+
+Both x64 hosts reported AMD EPYC 7763 processors, eight float lanes and
+256-bit acceleration, with 512-bit acceleration disabled. ARM64 retained the
+recorded `0x41`/`0xd49` identity and four float lanes. Single-worker scenarios
+used affinity `0`; two-worker scenarios used `0-3` with four available CPUs.
+Baseline and current runtime/affinity identities matched within each pair.
+CI1 and CI2 used separate hosts: changes between their ratios do not isolate
+the corrective patches or framework effects. These results describe selected
+managed-revision pairs and establish no global native-encoder superiority.
+The later single-worker guard `1898828` remains outside these measurements.
 
 ## Corrective CI compression results
 
@@ -231,6 +300,8 @@ four downloaded winner files matched their reported lengths and SHA-256 hashes.
 These 31 complete encodes/decodes establish only the stated single-image
 results. No timings were collected, and the tiny accepted savings do not
 establish a general compression improvement or human-quality equivalence.
+Promotion of an output-changing search needs a broader photographic, line-art
+and chroma-edge corpus under the same decoder and control quality floors.
 
 ## Corrective CI correctness and native comparison
 
@@ -258,3 +329,10 @@ That native comparison used one CPU on an Intel Xeon Platinum 8573C with
 Its host differs from CI1. Cross-run ratio changes do not measure the corrective
 patches; only each same-host managed revision pair isolates the batch. The
 results do not establish global speed superiority over Google's encoder.
+
+## Remaining investigation
+
+The legacy floating-point parallel row workspace and its lazy preparation or
+object layout are candidates for investigating the progressive parallel costs.
+Their causal role is unproven. The current evidence does not justify a new
+hardware-specific threshold or a claim that those costs have been removed.
