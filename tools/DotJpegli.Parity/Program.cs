@@ -186,7 +186,11 @@ internal static class Program
     }
 
     private static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
-    private static string HashFile(string path) => Hash(File.ReadAllBytes(path));
+    private static string HashFile(string path)
+    {
+        using FileStream stream = File.OpenRead(path);
+        return Convert.ToHexStringLower(SHA256.HashData(stream));
+    }
     private static Task WriteJson<T>(string output, string name, T value) => File.WriteAllTextAsync(Path.Combine(output, name), JsonSerializer.Serialize(value, JsonOptions) + "\n");
 
     private static async Task<string> Native(string executable, string workingDirectory, string output, params string[] args)
