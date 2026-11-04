@@ -109,7 +109,16 @@ internal static class RevisionWorker
     private static JpegliEncoderOptions ApplyScenario(JpegliEncoderOptions options, string scenario) => scenario switch
     {
         "smoothing" => options with { SmoothingFactor = 50 },
-        "xyb" => options with { ColorSpace = JpegColorSpace.Xyb },
+        // Subsampling presets are ignored for RGB/XYB. Match the numeric labels
+        // explicitly: conventional 4:2:0 subsamples XYB's Y (component1), which
+        // disables AQ under the encoder's existing analysis-component policy.
+        "xyb" => options with
+        {
+            ColorSpace = JpegColorSpace.Xyb,
+            IccProfile = JpegliIccProfiles.CreateXybProfile(),
+            SamplingFactors = options.Subsampling == ChromaSubsampling.Quarter
+                ? new(new(2, 2), new(1, 1), new(1, 1)) : new(new(1, 1), new(1, 1), new(1, 1))
+        },
         "cache-constrained" => options with { MaxCacheBytes = 4L * 1024 * 1024 },
         "sampled-icc" => options with { IccProfile = SampledIccScenario.CreateProfile() },
         "parallel-two" => options with { MaxDegreeOfParallelism = 2 },
@@ -160,13 +169,18 @@ internal static class RevisionWorker
     internal static void ValidateMeasurementMode(Measurement measurement, bool sourceIcc, string scenario = "ordinary")
     {
         string? expectedProfile = sourceIcc ? Convert.ToHexStringLower(SHA256.HashData(JpegliIccProfiles.CreateDisplayP3Profile())) : null;
-        string? expectedTarget = scenario == "sampled-icc" ? Convert.ToHexStringLower(SHA256.HashData(SampledIccScenario.CreateProfile())) : null;
+        string? expectedTarget = scenario == "sampled-icc" ? Convert.ToHexStringLower(SHA256.HashData(SampledIccScenario.CreateProfile()))
+            : scenario == "xyb" ? XybProfileHash() : null;
         if (measurement.SourceIcc != sourceIcc || measurement.SourceIccProfileSha256 != expectedProfile
             || measurement.Scenario != scenario || measurement.TargetIccProfileSha256 != expectedTarget)
         {
             throw new InvalidDataException("Revision-worker measurement color conversion or source profile does not match its request.");
         }
     }
+
+    // Keep optional profile APIs out of the ordinary released-worker JIT path.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static string XybProfileHash() => Convert.ToHexStringLower(SHA256.HashData(JpegliIccProfiles.CreateXybProfile()));
 
     private static byte[] Encode(PpmImage image, JpegliEncoderOptions settings)
         => JpegliEncoder.Encode(image.Pixels, image.Width, image.Height, PixelLayout.Rgb24, settings);
@@ -225,32 +239,40 @@ internal static class RevisionWorker
         }
         ValidateMeasurementMode(measurement, sourceIcc: false);
         SampledIccScenario.SelfTest();
+        var tiny = new PpmImage(2, 2, [0, 0, 0, 255, 255, 255, 255, 0, 32, 17, 191, 251]);
+        CheckTinyEncode(tiny, ordinary);
+        CheckTinyEncode(tiny, managed);
         foreach (string scenario in new[] { "smoothing", "xyb", "cache-constrained", "sampled-icc", "parallel-two" })
         {
-            bool sampled = scenario == "sampled-icc";
-            Request scenarioRequest = request with { Scenario = scenario, SourceIcc = sampled };
-            Validate(scenarioRequest);
-            if (SameInputAndSettings(request, scenarioRequest)
-                || JsonSerializer.Deserialize<Request>(JsonSerializer.Serialize(scenarioRequest)) != scenarioRequest)
+            foreach (int sampling in new[] { 444, 420 })
             {
-                throw new InvalidDataException("Revision-worker scenario settings must remain distinct and round-trip.");
+                bool sampled = scenario == "sampled-icc";
+                Request scenarioRequest = request with { Scenario = scenario, SourceIcc = sampled, Sampling = sampling };
+                Validate(scenarioRequest);
+                if (SameInputAndSettings(request, scenarioRequest)
+                    || JsonSerializer.Deserialize<Request>(JsonSerializer.Serialize(scenarioRequest)) != scenarioRequest)
+                {
+                    throw new InvalidDataException("Revision-worker scenario settings must remain distinct and round-trip.");
+                }
+                JpegliEncoderOptions selected = CreateSettings(scenarioRequest);
+                if ((scenario == "smoothing" && selected.SmoothingFactor != 50)
+                    || (scenario == "xyb" && (selected.ColorSpace != JpegColorSpace.Xyb || !selected.SourceIccProfile.IsEmpty
+                        || !selected.IccProfile.Span.SequenceEqual(JpegliIccProfiles.CreateXybProfile())))
+                    || (scenario == "cache-constrained" && selected.MaxCacheBytes != 4L * 1024 * 1024)
+                    || (sampled && (selected.IccProfile.IsEmpty || selected.SourceIccProfile.IsEmpty))
+                    || (scenario == "parallel-two" && selected.MaxDegreeOfParallelism != 2))
+                {
+                    throw new InvalidDataException("Revision-worker scenario was not applied.");
+                }
+                ValidateMeasurementMode(measurement with
+                {
+                    Scenario = scenario,
+                    SourceIcc = sampled,
+                    SourceIccProfileSha256 = sampled ? Convert.ToHexStringLower(SHA256.HashData(selected.SourceIccProfile.Span)) : null,
+                    TargetIccProfileSha256 = selected.IccProfile.IsEmpty ? null : Convert.ToHexStringLower(SHA256.HashData(selected.IccProfile.Span))
+                }, sampled, scenario);
+                CheckTinyEncode(tiny, selected);
             }
-            JpegliEncoderOptions selected = CreateSettings(scenarioRequest);
-            if ((scenario == "smoothing" && selected.SmoothingFactor != 50)
-                || (scenario == "xyb" && selected.ColorSpace != JpegColorSpace.Xyb)
-                || (scenario == "cache-constrained" && selected.MaxCacheBytes != 4L * 1024 * 1024)
-                || (sampled && (selected.IccProfile.IsEmpty || selected.SourceIccProfile.IsEmpty))
-                || (scenario == "parallel-two" && selected.MaxDegreeOfParallelism != 2))
-            {
-                throw new InvalidDataException("Revision-worker scenario was not applied.");
-            }
-            ValidateMeasurementMode(measurement with
-            {
-                Scenario = scenario,
-                SourceIcc = sampled,
-                SourceIccProfileSha256 = sampled ? Convert.ToHexStringLower(SHA256.HashData(selected.SourceIccProfile.Span)) : null,
-                TargetIccProfileSha256 = sampled ? Convert.ToHexStringLower(SHA256.HashData(selected.IccProfile.Span)) : null
-            }, sampled, scenario);
         }
         Measurement iccMeasurement = measurement with
         {
@@ -291,6 +313,32 @@ internal static class RevisionWorker
 
             throw new InvalidDataException("Revision-worker accepted invalid synthetic input.");
         }
+        Console.WriteLine("Revision-worker scenario correctness checks passed (tiny encodes; no clocks).");
+    }
+
+    private static void CheckTinyEncode(PpmImage image, JpegliEncoderOptions settings)
+    {
+        byte[] jpeg = Encode(image, settings);
+        if (jpeg.Length < 4 || jpeg[0] != 0xff || jpeg[1] != 0xd8 || jpeg[^2] != 0xff || jpeg[^1] != 0xd9)
+        {
+            throw new InvalidDataException("A revision scenario did not produce a complete tiny JPEG.");
+        }
+        var structure = JpegStructure.Read(jpeg);
+        bool progressive = settings.ProgressiveLevel is { } level ? level > 0 : settings.Progressive;
+        if (structure.Width != image.Width || structure.Height != image.Height || structure.Components.Length != 3
+            || structure.FrameMarker != (progressive ? 0xc2 : 0xc0))
+        {
+            throw new InvalidDataException("A revision scenario did not retain its requested frame settings.");
+        }
+        for (int component = 0; component < 3; component++)
+        {
+            int expected = component == 0 && settings.Subsampling == ChromaSubsampling.Quarter ? 2 : 1;
+            if (structure.Components[component].HorizontalSampling != expected || structure.Components[component].VerticalSampling != expected)
+            {
+                throw new InvalidDataException("A revision scenario did not retain its requested numeric sampling factors.");
+            }
+        }
+        RequireSame(jpeg, Encode(image, settings));
     }
 }
 
