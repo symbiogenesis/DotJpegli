@@ -30,7 +30,7 @@ public sealed class ColorPreprocessingTests
         Assert.All(prepared.Pixels, value => Assert.True(float.IsFinite(value) && value is >= 0 and <= 1));
         Assert.Equal(original, image.Pixels);
         Assert.Null(ColorPreprocessing.Reconstruct420(new(3, 3, Enumerable.Repeat((byte)128, 27).ToArray()), 4, Cancellation));
-        Assert.Throws<ArgumentOutOfRangeException>(() => ColorPreprocessing.Reconstruct420(image, 5, Cancellation));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => ColorPreprocessing.Reconstruct420(image, 5, Cancellation));
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public sealed class ColorPreprocessingTests
             }
         }
         Assert.Null(ColorPreprocessing.Dering(new(3, 1, [128, 5, 17, 128, 5, 17, 128, 5, 17]), 2, Cancellation));
-        Assert.Throws<ArgumentOutOfRangeException>(() => ColorPreprocessing.Dering(new(1, 1, [0, 0, 0]), 4.01, Cancellation));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => ColorPreprocessing.Dering(new(1, 1, [0, 0, 0]), 4.01, Cancellation));
     }
 
     [Fact]
@@ -154,12 +154,12 @@ public sealed class ColorPreprocessingTests
     [Fact]
     public void BoundedSearchRejectsInvalidOrCanceledWorkBeforeDecoding()
     {
-        Assert.Throws<ArgumentException>(() => ColorPreprocessingSearch.Search(new(1025, 1, new byte[3075]), 1,
+        _ = Assert.Throws<ArgumentException>(() => ColorPreprocessingSearch.Search(new(1025, 1, new byte[3075]), 1,
             ChromaSubsampling.Quarter, _ => throw new InvalidOperationException(), Cancellation));
-        Assert.Throws<OperationCanceledException>(() => ColorPreprocessingSearch.Search(Pattern(3, 3), 1,
+        _ = Assert.Throws<OperationCanceledException>(() => ColorPreprocessingSearch.Search(Pattern(3, 3), 1,
             ChromaSubsampling.Quarter, _ => throw new InvalidOperationException(), new CancellationToken(true)));
-        Assert.Throws<ArgumentOutOfRangeException>(() => ColorPreprocessingSearch.GenerateCandidates(float.NaN, ChromaSubsampling.Quarter));
-        Assert.Throws<ArgumentOutOfRangeException>(() => ColorPreprocessingSearch.GenerateCandidates(1, ChromaSubsampling.HalfHorizontal));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => ColorPreprocessingSearch.GenerateCandidates(float.NaN, ChromaSubsampling.Quarter));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => ColorPreprocessingSearch.GenerateCandidates(1, ChromaSubsampling.HalfHorizontal));
     }
 
     [Fact]
@@ -196,7 +196,7 @@ public sealed class ColorPreprocessingTests
         {
             Pattern(9, 7).Write(input);
             var options = new ColorPreprocessingSearchCommand.SearchOptions(input, output, input, 1, ChromaSubsampling.Quarter);
-            Assert.Throws<InvalidDataException>(() => ColorPreprocessingSearchCommand.Run(options,
+            _ = Assert.Throws<InvalidDataException>(() => ColorPreprocessingSearchCommand.Run(options,
                 _ => throw new InvalidDataException("test failure"), new { decoder = "test" }));
             Assert.False(Directory.Exists(output));
             Assert.Equal(0, ColorPreprocessingSearchCommand.Run(options, Decode, new { decoder = "StbImageSharp test" }));
@@ -212,7 +212,7 @@ public sealed class ColorPreprocessingTests
                 trial => trial.GetProperty("candidate").GetProperty("id").GetString() == id);
             Assert.Equal(Hash(winner), selected.GetProperty("sha256").GetString());
             Assert.True(selected.GetProperty("eligible").GetBoolean());
-            Assert.Throws<ArgumentException>(() => ColorPreprocessingSearchCommand.Run(options, Decode, new { }));
+            _ = Assert.Throws<ArgumentException>(() => ColorPreprocessingSearchCommand.Run(options, Decode, new { }));
             Assert.Equal(winner, File.ReadAllBytes(Path.Combine(output, "winner.jpg")));
         }
         finally

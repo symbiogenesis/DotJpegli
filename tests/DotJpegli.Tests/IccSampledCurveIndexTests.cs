@@ -48,7 +48,7 @@ public sealed class IccSampledCurveIndexTests
     public void IndexPreparationObservesCancellation()
     {
         double[] values = Samples(1025, false).Select(value => value / 65535.0).ToArray();
-        Assert.Throws<OperationCanceledException>(() =>
+        _ = Assert.Throws<OperationCanceledException>(() =>
             IccColorTransform.SampledCurveIndex.TryCreate(values, new CancellationToken(true)));
     }
 

@@ -30,7 +30,7 @@ public sealed class HuffmanOrderingSearchCommandTests
         JsonElement selected = Assert.Single(trials, trial => trial.GetProperty("id").GetString() == winner);
         Assert.Equal(jpeg.Length, selected.GetProperty("trial").GetProperty("bytes").GetInt32());
         Assert.Equal(Convert.ToHexString(SHA256.HashData(jpeg)), selected.GetProperty("trial").GetProperty("sha256").GetString());
-        Assert.Single(trials.Select(trial => trial.GetProperty("trial").GetProperty("decodedPixelSha256").GetString()).Distinct());
+        _ = Assert.Single(trials.Select(trial => trial.GetProperty("trial").GetProperty("decodedPixelSha256").GetString()).Distinct());
         var image = PpmImage.Read(fixture.Input);
         HuffmanOrderingSearch.Candidate candidate = Assert.Single(HuffmanOrderingSearch.Candidates, item => item.Id == winner);
         Assert.Equal(jpeg, JpegliEncoder.Encode(image.Pixels, image.Width, image.Height, PixelLayout.Rgb24,

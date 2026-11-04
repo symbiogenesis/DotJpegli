@@ -70,7 +70,7 @@ public sealed class HuffmanOrderingSearchTests
         Assert.Equal(result.Trials.Sum(trial => trial.ScanCount), result.TotalScanCount);
         Assert.All(result.Trials.Skip(1), trial =>
             Assert.Equal(Convert.ToHexString(SHA256.HashData(jpeg)), trial.Sha256));
-        Assert.Single(result.Trials.Select(trial => trial.DecodedPixelSha256).Distinct());
+        _ = Assert.Single(result.Trials.Select(trial => trial.DecodedPixelSha256).Distinct());
     }
 
     [Fact]
