@@ -279,10 +279,16 @@ public sealed class XmpMetadata
                 attribute.Remove();
                 removed = true;
             }
-            foreach (XElement element in description.Elements(name).ToArray())
+            XNode? node = description.FirstNode;
+            while (node is not null)
             {
-                element.Remove();
-                removed = true;
+                XNode? next = node.NextNode;
+                if (node is XElement element && element.Name == name)
+                {
+                    element.Remove();
+                    removed = true;
+                }
+                node = next;
             }
         }
         return removed;

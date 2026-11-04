@@ -154,9 +154,11 @@ internal static class AutomaticXmpPartitioning
                     cancellationToken.ThrowIfCancellationRequested();
                     var standardDescription = new XElement(description.Name);
                     standardRdf.Add(standardDescription);
-                    foreach (XAttribute attribute in description.Attributes().ToArray())
+                    XAttribute? attribute = description.FirstAttribute;
+                    while (attribute is not null)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
+                        XAttribute? next = attribute.NextAttribute;
                         bool selected = selection.Contains(attribute.Name);
                         if (attribute.IsNamespaceDeclaration || attribute.Name.Namespace == Rdf ||
                             attribute.Name.Namespace == XNamespace.Xml || selected)
@@ -168,15 +170,19 @@ internal static class AutomaticXmpPartitioning
                         {
                             attribute.Remove();
                         }
+                        attribute = next;
                     }
-                    foreach (XElement property in description.Elements().ToArray())
+                    XNode? node = description.FirstNode;
+                    while (node is not null)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        if (selection.Contains(property.Name))
+                        XNode? next = node.NextNode;
+                        if (node is XElement property && selection.Contains(property.Name))
                         {
                             property.Remove();
                             standardDescription.Add(property);
                         }
+                        node = next;
                     }
                 }
             }
