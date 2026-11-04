@@ -647,11 +647,15 @@ public static class JpegliEncoder
         // keeps the fused transform out of the MCU traversal's live state.
         // Its existing pooled-storage budget still falls back to streaming for
         // large images. Wider SIMD, scalar and 128-bit paths keep streaming.
+        bool parallelSequential = !options.Progressive && scans.Length == 1 && componentCount == 3
+            && scans[0].Components.Count == 3 && options.SamplingFactors is null
+            && options.RateDistortionLambda == 0 && options.DcTrellisLambda == 0
+            && pixels.ParallelRows is { CanPrepareQuantizedRows: true };
         bool streamSequential = !options.Progressive && scans.Length == 1 && componentCount == 3
-            && scans[0].Components.Count == 3 && pixels.ParallelRows is null;
+            && scans[0].Components.Count == 3 && (pixels.ParallelRows is null || parallelSequential);
         bool cacheSequential = false;
 #if !NETSTANDARD2_1
-        cacheSequential = Vector256.IsHardwareAccelerated && !Vector512.IsHardwareAccelerated;
+        cacheSequential = !parallelSequential && Vector256.IsHardwareAccelerated && !Vector512.IsHardwareAccelerated;
 #endif
         using QuantizedImage? quantizedImage = streamSequential && !cacheSequential
             && options.RateDistortionLambda == 0 && options.DcTrellisLambda == 0 ? null : QuantizedImage.Create(pixels, width, height, stride,
@@ -721,10 +725,19 @@ public static class JpegliEncoder
             }
             if (streamSequential)
             {
-                ProcessSequentialInterleaved(pixels, width, height, stride, sampling, tables, distance,
-                    options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
-                    scanTokens, dcFrequencies, acFrequencies[scanIndex], cancellationToken,
-                    narrowZigZagKernel: options.NarrowZigZagKernel);
+                if (parallelSequential)
+                {
+                    ParallelSequentialEncoder.Process(pixels, width, height, stride, sampling, tables, distance,
+                        interval, adaptive, adaptiveMultipliers, scanTokens, dcFrequencies, acFrequencies[scanIndex],
+                        options.NarrowZigZagKernel, cancellationToken);
+                }
+                else
+                {
+                    ProcessSequentialInterleaved(pixels, width, height, stride, sampling, tables, distance,
+                        options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
+                        scanTokens, dcFrequencies, acFrequencies[scanIndex], cancellationToken,
+                        narrowZigZagKernel: options.NarrowZigZagKernel);
+                }
             }
             else
             {
@@ -774,9 +787,18 @@ public static class JpegliEncoder
             }
             else if (streamSequential)
             {
-                ProcessSequentialInterleaved(pixels, width, height, stride, sampling, tables, distance,
-                    options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
-                    null, null, null, cancellationToken, bits, coding, options.NarrowZigZagKernel);
+                if (parallelSequential)
+                {
+                    ParallelSequentialEncoder.Process(pixels, width, height, stride, sampling, tables, distance,
+                        interval, adaptive, adaptiveMultipliers, null, null, null,
+                        options.NarrowZigZagKernel, cancellationToken, bits, coding);
+                }
+                else
+                {
+                    ProcessSequentialInterleaved(pixels, width, height, stride, sampling, tables, distance,
+                        options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
+                        null, null, null, cancellationToken, bits, coding, options.NarrowZigZagKernel);
+                }
             }
             else
             {
