@@ -433,7 +433,8 @@ public sealed record JpegliEncoderOptions
     /// ProgressiveAcRefinementBits, nonzero ProgressiveRefinementBits, or
     /// ProgressiveInterleaveDc=false. Other encoding settings still apply.
     /// Final coefficients are unchanged; this does not promise upstream byte parity,
-    /// smaller files or faster encoding. Presets recompute coefficients per scan.
+    /// smaller files or faster encoding. Coefficient reuse and fused AC collection
+    /// retain bounded storage and streaming fallbacks.
     /// </summary>
     public int? ProgressiveLevel { get; init; }
 

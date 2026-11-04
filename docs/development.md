@@ -209,7 +209,7 @@ the available capacity; this later policy is separate from the historical study.
 Optimized Huffman encoding shares one 64 MiB entropy-token rental budget across
 all scans in an encode, additionally constrained by the shared `MaxCacheBytes`
 capacity across converted samples, coefficients and tokens. Scans acquire
-storage in script order, accounting for
+storage in deterministic order, accounting for
 actual pooled array lengths, so small DC scans can leave capacity for larger AC
 scans. Exhaustion abandons only the affected scan, returns its rentals and lets
 later scans use the refunded capacity. Emission replays complete sequences and
@@ -217,6 +217,16 @@ recomputes abandoned ones; successful replay releases that scan's storage early.
 Independent encodes own independent budgets. This policy preserves JPEG bytes
 but can change which scans are cached; it does not establish lower latency or
 peak working memory for every image.
+
+The [follow-up optimization batch](optimization-followup.md) adds exact indexed
+ICC inversion, byte-XYB transfer preparation, smoothing halo reuse and joint
+cache admission. Progressive components with repeated AC scans collect their
+independent scan states in one block traversal; DC stays separate. Their AC
+token rentals interleave in component/block/script order under the shared cap.
+Eligible parallel baseline encodes use bounded quantized rows, while other
+complete-cache baseline scans can collect private histograms and tokens in
+parallel before ordered merge. The follow-up guide records eligibility,
+allocation tradeoffs and the separately gated offline compression experiments.
 
 With `MaxDegreeOfParallelism` greater than one, complete cached-token scans can
 replay independent segments at caller-requested restart boundaries in parallel.

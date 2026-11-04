@@ -299,3 +299,56 @@ Focused correctness fixtures use `RateDistortionQuantizationTests`,
 `RateDistortionSearchCommandTests`. They compare against exhaustive block choices,
 independent entropy histograms, parsed JPEG coefficients and a managed decoder.
 Full suites and native-decoder corpus measurements remain CI-only.
+
+## Follow-up compression experiments
+
+Four additional commands expose bounded research without changing normal public
+encoder defaults. All use RGB8 P6 input of at most 1024x1024 pixels, a new output
+directory, and the pinned native wrapper as the common decoder. Corpus runs and
+all performance measurements remain CI-only. These commands report algorithmic
+work and quality decisions; they do not time encoding.
+
+```text
+dotnet DotJpegli.Parity.dll --search-huffman-orderings --input IMAGE.ppm --output NEW_DIRECTORY --native PINNED_DECODER --distance 1 --sampling 420 --progression 2
+dotnet DotJpegli.Parity.dll --search-dc-trellis --input IMAGE.ppm --output NEW_DIRECTORY --native PINNED_DECODER --sampling 420
+dotnet DotJpegli.Parity.dll --search-huffman-feedback --input IMAGE.ppm --output NEW_DIRECTORY --native PINNED_DECODER --sampling 420
+dotnet DotJpegli.Parity.dll --search-color-preprocessing --input IMAGE.ppm --output NEW_DIRECTORY --native PINNED_DECODER --distance 1 --sampling 420
+```
+
+Sampling is 444 or 420. Huffman ordering also accepts progression 0 or 2 and
+compares canonical, descending-frequency, ascending-frequency and reversed
+symbol orders within each code length. Every symbol retains its original length
+and coefficients remain unchanged. The command checks identical decoded RGB;
+focused tests also parse coefficients independently. Complete JPEG bytes,
+including stuffing and padding, decide the winner; the control wins size ties.
+
+DC trellis compares five noninterleaved baseline candidates at distance 1:
+weights 0, 1, 16, 256 and 4096. Each block's DC choices are its original value
+and adjacent representable values; restart-aware dynamic programming chooses
+the complete chain. AC remains fixed. At most 65,536 blocks per component are
+accepted, with temporary element storage charged within the unchanged 64 MiB
+coefficient cap. Reports include the additional transform pass and modeled cost.
+
+Huffman feedback compares seven noninterleaved baseline candidates: the unchanged
+control and paired standard/feedback AC searches at weights 16, 256 and 4096.
+Feedback builds the actual clustered image Huffman model and performs one extra
+coefficient pass. Missing symbols are unavailable choices. The second pass can
+move a coefficient another step toward zero; final encoding relearns tables.
+DC remains fixed. All model lengths and extra passes are retained.
+
+Color preprocessing compares at most fifteen candidates around the requested
+distance. Its optional chroma model keeps original Y and makes at most four
+damped reconstruction corrections for centered bilinear 4:2:0 upsampling.
+Its saturated-run candidate adds bounded component overshoot at 0/255 edges.
+Neither model replaces real decoded validation. Inapplicable or coefficient-limit
+candidates are rejected and retained in the report. A separate exact-bound
+chroma-edge advisor reports its own uncalibrated heuristic and never overrides
+explicit sampling. This is a research implementation, not an exact libsharpyuv
+port or a reproduction of Google's risk classifier.
+
+DC, feedback and color winners must meet the control's decoded RGB PSNR, local
+luma SSIM and multiscale structural scores, and reduce complete JPEG size. Equal
+sizes retain the earlier candidate. Outputs are `winner.jpg`, `search.json` and
+`report.md`; reports retain trials, hashes, quality rejections and operation
+counts. These finite metric floors do not establish human perceptual equivalence
+or a global compression optimum.
