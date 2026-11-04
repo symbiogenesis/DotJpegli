@@ -6,6 +6,21 @@ namespace DotJpegli.Internal;
 /// <summary>Feeds independent progressive AC scans from one traversal per component.</summary>
 internal static class ProgressiveAcCollector
 {
+    internal static bool ShouldFuse(IReadOnlyList<JpegScan> scans)
+    {
+        // A single AC scan already prepares each component block only once.
+        Span<int> acScanCounts = stackalloc int[3];
+        acScanCounts.Clear();
+        foreach (JpegScan scan in scans)
+        {
+            if (scan.SpectralStart > 0 && ++acScanCounts[scan.Components[0]] > 1)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     internal static void Collect(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor,
         AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, IReadOnlyList<JpegScan> scans,
@@ -20,7 +35,8 @@ internal static class ProgressiveAcCollector
         Span<short> quantized = stackalloc short[64];
         Span<short> ordered = stackalloc short[64];
         bool complete = quantizedImage?.IsComplete == true;
-        bool zigZagOrdered = quantizedImage?.IsZigZagOrdered == true;
+        // Without a cache, reorder once for all scans' ordered-coefficient paths.
+        bool zigZagOrdered = quantizedImage?.IsZigZagOrdered ?? true;
         Span<float> strengths = adaptive is null || complete ? default : adaptive.Strengths;
         int horizontal = sampling.MaxHorizontal, vertical = sampling.MaxVertical;
         for (int component = 0; component < tables.Length; component++)

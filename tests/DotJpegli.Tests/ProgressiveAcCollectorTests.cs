@@ -6,6 +6,19 @@ using Xunit;
 
 public sealed class ProgressiveAcCollectorTests
 {
+    [Fact]
+    public void FusionRequiresRepeatedAcScansForOneComponent()
+    {
+        JpegScan[] scans = [new([0, 1, 2], 0, 0), new([0], 1, 63), new([1], 1, 63), new([2], 1, 63)];
+        Assert.False(ProgressiveAcCollector.ShouldFuse([]));
+        Assert.False(ProgressiveAcCollector.ShouldFuse([new([0], 0, 0), new([0], 1, 63)]));
+        Assert.False(ProgressiveAcCollector.ShouldFuse(scans));
+        Assert.False(ProgressiveAcCollector.ShouldFuse([.. scans, new([0], 0, 0, 1, 0)]));
+        Assert.True(ProgressiveAcCollector.ShouldFuse([.. scans, new([2], 1, 63, 1, 0)]));
+        Assert.True(ProgressiveAcCollector.ShouldFuse(Script(1)));
+        Assert.True(ProgressiveAcCollector.ShouldFuse(Script(3)));
+    }
+
     [Theory]
     [InlineData(0, 0)]
     [InlineData(0, 1)]
@@ -16,6 +29,7 @@ public sealed class ProgressiveAcCollectorTests
     [InlineData(2, 0)]
     [InlineData(2, 1)]
     [InlineData(2, 2)]
+    [InlineData(3, 2)]
     public void BlockMajorCollectionMatchesIndependentScanMajorHistogramsAndReplay(int cacheMode, int configuration)
     {
         const int width = 67, height = 51;
@@ -40,10 +54,10 @@ public sealed class ProgressiveAcCollectorTests
         int[] heights = Enumerable.Range(0, components).Select(component =>
             ((height * sampling[component].Vertical) + (8 * sampling.MaxVertical) - 1) / (8 * sampling.MaxVertical)).ToArray();
         long partialBytes = QuantizedImage.PlannedBytes(widths, heights, 1, sampling, segmented: true);
-        using QuantizedImage? partial = cacheMode == 1 ? QuantizedImage.Create(source, width, height, stride,
+        using QuantizedImage? partial = cacheMode is 1 or 3 ? QuantizedImage.Create(source, width, height, stride,
             sampling, tables, 1f, 37, analysis, multipliers, TestContext.Current.CancellationToken,
-            zigZagOrdered: true, maximumBytes: partialBytes, allowPartial: true) : null;
-        if (cacheMode == 1)
+            zigZagOrdered: cacheMode != 3, maximumBytes: partialBytes, allowPartial: true) : null;
+        if (cacheMode is 1 or 3)
         {
             Assert.NotNull(partial);
             Assert.False(partial.IsComplete);
@@ -89,19 +103,22 @@ public sealed class ProgressiveAcCollectorTests
     }
 
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public void CompleteProgressiveJpegsMatchAcrossBudgetsScriptsAndWorkers(bool customScript, bool parallel)
+    [InlineData(0, false)]
+    [InlineData(0, true)]
+    [InlineData(1, false)]
+    [InlineData(1, true)]
+    [InlineData(2, false)]
+    [InlineData(2, true)]
+    public void CompleteProgressiveJpegsMatchAcrossBudgetsScriptsAndWorkers(int scriptMode, bool parallel)
     {
         int width = parallel ? 257 : 67, height = parallel ? 65 : 51;
         byte[] pixels = Pixels(width, height, 3);
         var options = new JpegliEncoderOptions
         {
             Quality = 90,
-            ProgressiveLevel = customScript ? null : 2,
-            ScanScript = customScript ? Script(3) : null,
+            Progressive = true,
+            ProgressiveLevel = scriptMode == 1 ? 2 : null,
+            ScanScript = scriptMode == 2 ? Script(3) : null,
             RestartRows = 1,
             MaxDegreeOfParallelism = parallel ? 4 : 1,
             SmoothingFactor = 37
