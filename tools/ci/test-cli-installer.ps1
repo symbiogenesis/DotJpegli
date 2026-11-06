@@ -202,7 +202,7 @@ if ($RuntimeIdentifier -eq 'osx-arm64') {
     $portableExecutable = Join-Path $extracted 'dotjpegli'
     $expectedHash = (Get-FileHash -LiteralPath $portableExecutable -Algorithm SHA256).Hash
     $binary = [IO.File]::ReadAllBytes($portableExecutable)
-    if ([BitConverter]::ToUInt32($binary, 0) -ne 0xcffaedfe -or [BitConverter]::ToUInt32($binary, 4) -ne 0x0100000c) {
+    if ([BitConverter]::ToUInt32($binary, 0) -ne 0xcffaedfeu -or [BitConverter]::ToUInt32($binary, 4) -ne 0x0100000cu) {
         throw 'The macOS executable does not match the ARM64 Mach-O architecture.'
     }
     & (Join-Path $PSScriptRoot 'test-cli.ps1') -ExecutablePath $portableExecutable `
@@ -293,7 +293,7 @@ if ((Test-Path -LiteralPath $installedExecutable) -or (Test-Path -LiteralPath $i
 
 # Verify RPM (.rpm) package install, execution and erase.
 try {
-    & sudo rpm -i --nodeps (Join-Path $release "$assetName.rpm")
+    & sudo rpm -i --nodeps --force-debian (Join-Path $release "$assetName.rpm")
     foreach ($name in $portableNotices) {
         if (-not (Test-Path -LiteralPath (Join-Path $installedDocDir $name) -PathType Leaf)) {
             throw "RPM package omitted documentation file $name."
@@ -305,7 +305,7 @@ try {
     & (Join-Path $PSScriptRoot 'test-cli.ps1') -ExecutablePath $installedExecutable `
         -OutputRoot (Join-Path $ArtifactRoot 'rpm-smoke') -ExpectedVersion $version
 } finally {
-    & sudo rpm -e dotjpegli
+    & sudo rpm -e --force-debian dotjpegli
 }
 if ((Test-Path -LiteralPath $installedExecutable) -or (Test-Path -LiteralPath $installedDocDir)) {
     throw 'RPM erase left CLI files behind.'
@@ -350,8 +350,8 @@ $appId = 'io.github.symbiogenesis.DotJpegli'
 $flatpakCheckRepo = Join-Path $ArtifactRoot 'flatpak-check-repo'
 $flatpakCheckout = Join-Path $ArtifactRoot 'flatpak-checkout'
 & ostree "--repo=$flatpakCheckRepo" init --mode=archive-z2
-& flatpak build-import-bundle $flatpakCheckRepo (Join-Path $release "$assetName.flatpak")
-& ostree "--repo=$flatpakCheckRepo" checkout "app/$appId/$flatpakArch/stable" $flatpakCheckout
+& flatpak build-import-bundle --no-gpg-verify $flatpakCheckRepo (Join-Path $release "$assetName.flatpak")
+& ostree "--repo=$flatpakCheckRepo" checkout --user-mode "app/$appId/$flatpakArch/stable" $flatpakCheckout
 $flatpakMetadata = Get-Content -LiteralPath (Join-Path $flatpakCheckout 'metadata') -Raw
 if (-not $flatpakMetadata.Contains("name=$appId", [StringComparison]::Ordinal) -or
     -not $flatpakMetadata.Contains('command=dotjpegli', [StringComparison]::Ordinal)) {

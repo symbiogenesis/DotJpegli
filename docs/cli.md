@@ -74,8 +74,8 @@ release.
 ### macOS (`osx-arm64`)
 
 - **Installer package (`DotJpegli.Cli-<version>-osx-arm64.pkg`)**: Installs
-  `/usr/local/bin/dotjpegli` and license files under `/usr/local/share/dotjpegli`
-  on Apple Silicon Macs:
+  `/usr/local/bin/dotjpegli` and license files under
+  `/usr/local/share/doc/dotjpegli` on Apple Silicon Macs:
 
   ```sh
   sudo installer -pkg DotJpegli.Cli-<version>-osx-arm64.pkg -target /
