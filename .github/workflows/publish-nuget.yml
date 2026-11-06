@@ -54,7 +54,7 @@ jobs:
           ' <<< "$runs")
           artifacts=$(gh api --paginate "repos/$REPOSITORY/actions/runs/$run_id/artifacts" --jq '.artifacts[]')
           artifact_id=$(jq -ser --arg sha "$REVISION" '
-            ["nuget-" + $sha, "cli-win-x64-" + $sha, "cli-win-arm64-" + $sha] as $names
+            ["nuget-" + $sha, "cli-win-x64-" + $sha, "cli-win-arm64-" + $sha, "cli-linux-x64-" + $sha, "cli-linux-arm64-" + $sha, "cli-osx-arm64-" + $sha] as $names
             | [ $names[] as $name
               | ([.[] | select(.name == $name and .expired == false)]
                 | sort_by(.id) | last
@@ -125,8 +125,14 @@ jobs:
             $stem = "DotJpegli.Cli-$env:EXPECTED_VERSION-$rid"
             $expectedNames += @("$stem.exe", "$stem.zip", "$stem.msi", "$stem-symbols.zip")
           }
+          foreach ($rid in @('linux-x64', 'linux-arm64')) {
+            $stem = "DotJpegli.Cli-$env:EXPECTED_VERSION-$rid"
+            $expectedNames += @("$stem.AppImage", "$stem.deb", "$stem.flatpak", "$stem.rpm", "$stem.tar.gz", "$stem-symbols.tar.gz")
+          }
+          $osxStem = "DotJpegli.Cli-$env:EXPECTED_VERSION-osx-arm64"
+          $expectedNames += @("$osxStem.pkg", "$osxStem.tar.gz", "$osxStem-symbols.tar.gz")
           $files = @(Get-ChildItem -LiteralPath $releaseRoot -File | Sort-Object Name)
-          if (@(Compare-Object -ReferenceObject $expectedNames -DifferenceObject @($files.Name)).Count -ne 0) {
+          if (@(Compare-Object -ReferenceObject $expectedNames -DifferenceObject @($files.Name) -CaseSensitive).Count -ne 0) {
             throw 'CI release files do not match the requested version and complete artifact set.'
           }
           $manifest = foreach ($file in $files) {
@@ -246,5 +252,5 @@ jobs:
           fi
           # Attach everything before publication, including on repositories with immutable releases.
           gh release edit "$tag" --target "$REVISION"
-          gh release upload "$tag" ./*.nupkg ./*.exe ./*.zip ./*.msi SHA256SUMS --clobber
+          gh release upload "$tag" ./*.nupkg ./*.exe ./*.zip ./*.msi ./*.tar.gz ./*.deb ./*.rpm ./*.AppImage ./*.flatpak ./*.pkg SHA256SUMS --clobber
           gh release edit "$tag" --draft=false --latest

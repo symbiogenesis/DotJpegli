@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+  <title>DotJpegli CLI (arm64)</title>
+  <organization>io.github.symbiogenesis</organization>
+  <options customize="never" require-scripts="false" hostArchitectures="arm64" />
+  <license file="LICENSE" mime-type="text/plain" />
+  <choices-outline>
+    <line choice="default">
+      <line choice="io.github.symbiogenesis.dotjpegli.cli" />
+    </line>
+  </choices-outline>
+  <choice id="default" />
+  <choice id="io.github.symbiogenesis.dotjpegli.cli" visible="false">
+    <pkg-ref id="io.github.symbiogenesis.dotjpegli.cli" />
+  </choice>
+  <pkg-ref id="io.github.symbiogenesis.dotjpegli.cli" version="__VERSION__" onConclusion="none">dotjpegli-component.pkg</pkg-ref>
+</installer-gui-script>

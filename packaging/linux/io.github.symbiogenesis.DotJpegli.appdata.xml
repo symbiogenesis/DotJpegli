@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="console-application">
+  <id>io.github.symbiogenesis.DotJpegli</id>
+  <name>DotJpegli</name>
+  <summary>Encode images as JPEG with DotJpegli</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>BSD-3-Clause</project_license>
+  <developer id="io.github.symbiogenesis">
+    <name>Edward Miller</name>
+  </developer>
+  <description>
+    <p>DotJpegli is a self-contained command-line JPEG encoder based on Google Jpegli, supporting baseline and progressive JPEG, perceptual distance or quality, and chroma subsampling.</p>
+  </description>
+  <url type="homepage">https://github.com/symbiogenesis/DotJpegli</url>
+  <provides>
+    <binary>dotjpegli</binary>
+  </provides>
+  <content_rating type="oars-1.1" />
+</component>

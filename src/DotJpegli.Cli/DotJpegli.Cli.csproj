@@ -37,7 +37,14 @@
     <Copy SourceFiles="@(_CliRuntimePack->'%(PackageDirectory)/LICENSE.TXT')" DestinationFiles="$(PublishDir)LICENSE.dotnet.txt" />
     <Copy SourceFiles="$(RuntimePackagePath)/THIRD-PARTY-NOTICES.TXT" DestinationFiles="$(PublishDir)THIRD-PARTY-NOTICES.dotnet.txt" />
   </Target>
-  <Target Name="NamePublicNativeSymbols" AfterTargets="_CopyAotSymbols" Condition="'$(PublishAot)' == 'true' and Exists('$(PublishDir)$(AssemblyName).pdb')">
-    <Move SourceFiles="$(PublishDir)$(AssemblyName).pdb" DestinationFiles="$(PublishDir)dotjpegli.pdb" />
+  <Target Name="NamePublicNativeSymbols" AfterTargets="_CopyAotSymbols" Condition="'$(PublishAot)' == 'true'">
+    <Move SourceFiles="$(PublishDir)$(AssemblyName).pdb" DestinationFiles="$(PublishDir)dotjpegli.pdb" Condition="Exists('$(PublishDir)$(AssemblyName).pdb')" />
+    <Move SourceFiles="$(PublishDir)$(AssemblyName).dbg" DestinationFiles="$(PublishDir)dotjpegli.dbg" Condition="Exists('$(PublishDir)$(AssemblyName).dbg')" />
+    <Move SourceFiles="$(PublishDir)$(AssemblyName).dSYM/Contents/Resources/DWARF/$(AssemblyName)" DestinationFiles="$(PublishDir)$(AssemblyName).dSYM/Contents/Resources/DWARF/dotjpegli" Condition="Exists('$(PublishDir)$(AssemblyName).dSYM/Contents/Resources/DWARF/$(AssemblyName)')" />
+    <ItemGroup Condition="Exists('$(PublishDir)$(AssemblyName).dSYM')">
+      <_CliDsymFiles Include="$(PublishDir)$(AssemblyName).dSYM/**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_CliDsymFiles)" DestinationFolder="$(PublishDir)dotjpegli.dSYM/%(RecursiveDir)" Condition="'@(_CliDsymFiles)' != ''" />
+    <RemoveDir Directories="$(PublishDir)$(AssemblyName).dSYM" Condition="Exists('$(PublishDir)$(AssemblyName).dSYM')" />
   </Target>
 </Project>

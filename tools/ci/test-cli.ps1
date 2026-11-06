@@ -3,7 +3,7 @@
 .SYNOPSIS
 Checks the published native CLI using small synthetic images and invalid inputs.
 .PARAMETER ExecutablePath
-Path to the published or installed dotjpegli.exe.
+Path to the published or installed dotjpegli executable.
 .PARAMETER OutputRoot
 Fresh directory for fixtures and encoded outputs.
 .PARAMETER ExpectedVersion
@@ -69,16 +69,32 @@ function Assert-JpegFrame([string] $Path, [byte] $FrameMarker) {
     throw 'Output has no JPEG frame.'
 }
 
-# A native PE must have no CLR runtime header; this rejects a managed apphost assembly.
 $binary = [IO.File]::ReadAllBytes($ExecutablePath)
-$peOffset = [BitConverter]::ToInt32($binary, 0x3c)
-if ($binary[0] -ne 77 -or $binary[1] -ne 90 -or
-    [BitConverter]::ToUInt32($binary, $peOffset) -ne 0x4550 -or
-    [BitConverter]::ToUInt16($binary, $peOffset + 24) -ne 0x20b -or
-    [BitConverter]::ToUInt32($binary, $peOffset + 24 + 112 + (14 * 8)) -ne 0) {
-    throw 'The release executable must be a native 64-bit PE with no CLR header.'
+if ($IsWindows) {
+    # A native PE must have no CLR runtime header; this rejects a managed apphost assembly.
+    $peOffset = [BitConverter]::ToInt32($binary, 0x3c)
+    if ($binary[0] -ne 77 -or $binary[1] -ne 90 -or
+        [BitConverter]::ToUInt32($binary, $peOffset) -ne 0x4550 -or
+        [BitConverter]::ToUInt16($binary, $peOffset + 24) -ne 0x20b -or
+        [BitConverter]::ToUInt32($binary, $peOffset + 24 + 112 + (14 * 8)) -ne 0) {
+        throw 'The release executable must be a native 64-bit PE with no CLR header.'
+    }
+} elseif ($IsLinux) {
+    if ($binary.Length -lt 64 -or $binary[0] -ne 0x7f -or $binary[1] -ne 0x45 -or
+        $binary[2] -ne 0x4c -or $binary[3] -ne 0x46 -or $binary[4] -ne 2 -or $binary[5] -ne 1 -or
+        ([BitConverter]::ToUInt16($binary, 16) -notin 2, 3) -or
+        ([BitConverter]::ToUInt16($binary, 18) -notin 0x3e, 0xb7)) {
+        throw 'The release executable must be a native 64-bit little-endian ELF executable.'
+    }
+} elseif ($IsMacOS) {
+    if ($binary.Length -lt 32 -or [BitConverter]::ToUInt32($binary, 0) -ne 0xcffaedfe -or
+        [BitConverter]::ToUInt32($binary, 4) -ne 0x0100000c -or
+        [BitConverter]::ToUInt32($binary, 12) -ne 2) {
+        throw 'The release executable must be a native 64-bit ARM64 Mach-O executable.'
+    }
 }
-foreach ($managedFile in @('dotjpegli.dll', 'dotjpegli.deps.json', 'dotjpegli.runtimeconfig.json')) {
+foreach ($managedFile in @('dotjpegli.dll', 'dotjpegli.deps.json', 'dotjpegli.runtimeconfig.json',
+        'DotJpegli.Cli.dll', 'DotJpegli.Cli.deps.json', 'DotJpegli.Cli.runtimeconfig.json')) {
     if (Test-Path -LiteralPath (Join-Path (Split-Path $ExecutablePath -Parent) $managedFile)) {
         throw "The native distribution unexpectedly contains $managedFile."
     }

@@ -51,9 +51,11 @@ to center the header on GitHub. Edit the root README rather than the generated c
    run; do not dispatch duplicate CI. The **Release NuGet package** job builds
    all three targets after tests and deployment checks, verifies package
    contents and repository provenance, and retains `nuget-<commit>` for 30 days.
-   The **NativeAOT CLI** jobs build and smoke-test Windows x64 and ARM64
-   executables, portable ZIPs, symbol ZIPs and MSI installers; they retain
-   `cli-win-x64-<commit>` and `cli-win-arm64-<commit>` for the same period.
+   The **NativeAOT CLI** jobs build, smoke-test and install-test the Windows
+   (`win-x64`, `win-arm64`), Linux (`linux-x64`, `linux-arm64`) and macOS
+   (`osx-arm64`) CLI packages; they retain `cli-win-x64-<commit>`,
+   `cli-win-arm64-<commit>`, `cli-linux-x64-<commit>`,
+   `cli-linux-arm64-<commit>` and `cli-osx-arm64-<commit>` for the same period.
 3. After the entire CI run succeeds, run
    [Publish release](https://github.com/symbiogenesis/DotJpegli/actions/workflows/publish-nuget.yml)
    on **main**, entering the exact version. Leave **publish** unchecked for a
@@ -79,11 +81,14 @@ and SDK Source Link support are retained, so a separate `.snupkg` is unnecessary
 Actions are pinned to immutable commits, publication jobs run serially, and
 duplicate package versions fail instead of being silently skipped.
 
-Each GitHub release contains the NuGet package, two standalone CLI EXEs, two
-portable CLI ZIPs, two MSI installers, two symbol ZIPs and `SHA256SUMS`.
-The EXE names include the release version and architecture; their bytes match
-the executables in the portable ZIPs and installers. See the [CLI guide](cli.md) for
-installation and signing status.
+Each GitHub release contains the NuGet package, Windows (`win-x64`, `win-arm64`)
+standalone EXEs, portable ZIPs, MSI installers and symbol ZIPs, Linux
+(`linux-x64`, `linux-arm64`) portable tarballs, symbol tarballs, `.deb` and
+`.rpm` packages, AppImages and Flatpak bundles, macOS (`osx-arm64`) portable
+tarball, symbol tarball and `.pkg` installer, plus `SHA256SUMS` (24 release
+downloads and the checksum manifest). Packaged executables match the bytes in
+the corresponding portable archive. See the [CLI guide](cli.md) for installation
+and signing status.
 
 ## Retries and failed checks
 

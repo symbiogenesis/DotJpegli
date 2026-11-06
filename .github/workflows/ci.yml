@@ -228,6 +228,12 @@ jobs:
             rid: win-x64
           - os: windows-11-arm
             rid: win-arm64
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+          - os: macos-latest
+            rid: osx-arm64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     defaults:
@@ -241,12 +247,19 @@ jobs:
         with:
           global-json-file: global.json
           dotnet-version: 10.0.403
-      - name: Publish trimmed NativeAOT executable and package MSI
+      - name: Install Linux packaging tools
+        if: startsWith(matrix.rid, 'linux-')
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends desktop-file-utils flatpak librsvg2-common ostree rpm squashfs-tools
+      - name: Publish trimmed NativeAOT executable and release packages
         run: ./tools/publish-cli.ps1 -RuntimeIdentifier '${{ matrix.rid }}' -OutputRoot (Join-Path $env:RUNNER_TEMP 'cli')
-      - name: Verify MSI installation, repair and uninstallation
+      - name: Verify CLI release archives, bundles and installers
         run: ./tools/ci/test-cli-installer.ps1 -ArtifactRoot (Join-Path $env:RUNNER_TEMP 'cli') -RuntimeIdentifier '${{ matrix.rid }}'
       - name: Retain installer diagnostics
-        if: always()
+        if: always() && startsWith(matrix.rid, 'win-')
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cli-diagnostics-${{ matrix.rid }}-${{ github.sha }}

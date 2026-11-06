@@ -72,7 +72,7 @@ internal static class CliApplication
         {
             string sourcePath = ResolveFileDirectory(Path.GetFullPath(inputPath));
             string destinationPath = ResolveFileDirectory(Path.GetFullPath(outputPath));
-            StringComparison pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            StringComparison pathComparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             var source = new FileInfo(sourcePath);
             FileSystemInfo? sourceTarget = (source.Attributes & FileAttributes.ReparsePoint) != 0 ? source.ResolveLinkTarget(returnFinalTarget: true) : null;
             if (string.Equals(sourcePath, destinationPath, pathComparison)

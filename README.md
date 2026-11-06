@@ -79,9 +79,11 @@ the example above is generated for this repository.
 
 ## Command-line encoder
 
-Download the self-contained NativeAOT `dotjpegli.exe` or Windows MSI from
-[Releases](https://github.com/symbiogenesis/DotJpegli/releases). Packages are
-available for x64 and ARM64 and do not require .NET to be installed.
+Download a self-contained NativeAOT `dotjpegli` package or portable archive from
+[Releases](https://github.com/symbiogenesis/DotJpegli/releases). Downloads are
+available for Windows (x64, ARM64: `.exe`, `.msi`, `.zip`), Linux (x64, ARM64:
+`.deb`, `.rpm`, `.AppImage`, `.flatpak`, `.tar.gz`) and macOS (ARM64: `.pkg`,
+`.tar.gz`), and do not require .NET to be installed.
 
 ```powershell
 dotjpegli encode input.png output.jpg --quality 90 --progressive

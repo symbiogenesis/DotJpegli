@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=DotJpegli
+GenericName=JPEG Encoder
+Comment=Encode images as JPEG with DotJpegli
+Exec=dotjpegli
+Icon=io.github.symbiogenesis.DotJpegli
+Terminal=true
+Categories=Graphics;2DGraphics;RasterGraphics;
+Keywords=jpeg;jpg;jpegli;encoder;image;compression;
