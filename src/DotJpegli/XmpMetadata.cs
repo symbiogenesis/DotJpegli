@@ -58,8 +58,7 @@ public sealed class XmpMetadata
             var parsed = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
             XElement? root = parsed.Root;
             XElement? parsedRdf = root?.Name == Rdf + "RDF" ? root
-                : root?.Name == Meta + "xmpmeta" && root.Elements().Count() == 1
-                    ? root.Element(Rdf + "RDF") : null;
+                : root?.Name == Meta + "xmpmeta" ? SingleChild(root, Rdf + "RDF") : null;
             if (parsedRdf is null || HasText(root!) || HasText(parsedRdf) || !parsedRdf.HasElements ||
                 parsedRdf.Elements().Any(element => element.Name != Rdf + "Description"))
             {
@@ -79,7 +78,7 @@ public sealed class XmpMetadata
             foreach (XElement element in root!.DescendantsAndSelf())
             {
                 hasExtendedLink |= element.Name == ExtendedLink || element.Attribute(ExtendedLink) is not null;
-                if (element.Nodes().OfType<XProcessingInstruction>().Any(instruction => instruction.Target == "xpacket"))
+                if (HasXPacketInstruction(element))
                 {
                     throw new ArgumentException("XMP packet instructions must be outside the XML root.", nameof(packet));
                 }
@@ -135,7 +134,7 @@ public sealed class XmpMetadata
     private void SetOwnedProperty(XElement value)
     {
         if (HasExtendedLink(value) ||
-            value.DescendantNodes().OfType<XProcessingInstruction>().Any(instruction => instruction.Target == "xpacket"))
+            value.DescendantNodes().Any(static node => node is XProcessingInstruction { Target: "xpacket" }))
         {
             throw new ArgumentException("Properties cannot introduce extended-XMP links or packet instructions.", nameof(value));
         }
@@ -237,7 +236,7 @@ public sealed class XmpMetadata
             return [];
         }
 
-        XElement? container = property.Elements().SingleOrDefault();
+        XElement? container = SingleChild(property);
         if (container is null || (container.Name != Rdf + "Bag" && container.Name != Rdf + "Seq") ||
             HasText(property) || HasText(container) || container.Elements().Any(element => element.Name != Rdf + "li"))
         {
@@ -362,9 +361,8 @@ public sealed class XmpMetadata
 
     private static XElement Alternative(XElement property)
     {
-        using IEnumerator<XElement> children = property.Elements().GetEnumerator();
-        XElement? alternative = children.MoveNext() ? children.Current : null;
-        if (alternative is null || children.MoveNext() || alternative.Name != Rdf + "Alt" || HasText(property) || HasText(alternative) ||
+        XElement? alternative = SingleChild(property, Rdf + "Alt");
+        if (alternative is null || HasText(property) || HasText(alternative) ||
             alternative.Elements().Any(element => element.Name != Rdf + "li" || element.Attribute(XNamespace.Xml + "lang") is null))
         {
             throw new InvalidOperationException("The XMP property is not an RDF language alternative.");
@@ -405,6 +403,48 @@ public sealed class XmpMetadata
         }
     }
 
-    private static bool HasText(XElement element) =>
-        element.Nodes().OfType<XText>().Any(text => !string.IsNullOrWhiteSpace(text.Value));
+    private static XElement? SingleChild(XElement parent, XName? expectedName = null)
+    {
+        XElement? found = null;
+        for (XNode? node = parent.FirstNode; node is not null; node = node.NextNode)
+        {
+            if (node is XElement child)
+            {
+                if (found is not null || (expectedName is not null && child.Name != expectedName))
+                {
+                    return null;
+                }
+
+                found = child;
+            }
+        }
+
+        return found;
+    }
+
+    private static bool HasXPacketInstruction(XElement element)
+    {
+        for (XNode? node = element.FirstNode; node is not null; node = node.NextNode)
+        {
+            if (node is XProcessingInstruction { Target: "xpacket" })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasText(XElement element)
+    {
+        for (XNode? node = element.FirstNode; node is not null; node = node.NextNode)
+        {
+            if (node is XText text && !text.Value.AsSpan().IsWhiteSpace())
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

@@ -125,9 +125,9 @@ public static class JpegliMetadata
         exif.SetUnsignedRational(ExifDirectory.Image, 0x011b, (uint)options.VerticalDensity, 1);
         exif.SetUnsignedShort(ExifDirectory.Image, 0x0128, resolutionUnit);
         xmp.SetSimpleProperty(new(TiffNamespace, "XResolution"),
-            options.HorizontalDensity.ToString(CultureInfo.InvariantCulture) + "/1");
+            FormattableString.Invariant($"{options.HorizontalDensity}/1"));
         xmp.SetSimpleProperty(new(TiffNamespace, "YResolution"),
-            options.VerticalDensity.ToString(CultureInfo.InvariantCulture) + "/1");
+            FormattableString.Invariant($"{options.VerticalDensity}/1"));
         SetNumber(xmp, TiffNamespace, "ResolutionUnit", resolutionUnit);
     }
 

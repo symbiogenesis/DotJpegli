@@ -125,7 +125,7 @@ public sealed class ExifMetadata
             ushort count = Read16(tiff[start..], littleEndian);
             int directoryBytes = 6 + (12 * count);
             _ = CheckedRange(tiff, offset, directoryBytes);
-            if (directoryRanges.Any(range => Overlaps(start, directoryBytes, range.Start, range.Length)))
+            if (OverlapsAny(directoryRanges, start, directoryBytes))
             {
                 throw Invalid("TIFF directories overlap.");
             }
@@ -216,7 +216,7 @@ public sealed class ExifMetadata
 
         foreach ((int start, int length) in valueRanges)
         {
-            if (directoryRanges.Any(range => Overlaps(start, length, range.Start, range.Length)))
+            if (OverlapsAny(directoryRanges, start, length))
             {
                 throw Invalid("A TIFF value overlaps a directory.");
             }
@@ -245,7 +245,8 @@ public sealed class ExifMetadata
             }
 
             int thumbnailStart = CheckedRange(tiff, thumbnailOffset, (int)thumbnailLength);
-            if (directoryRanges.Concat(valueRanges).Any(range => Overlaps(thumbnailStart, (int)thumbnailLength, range.Start, range.Length)))
+            if (OverlapsAny(directoryRanges, thumbnailStart, (int)thumbnailLength) ||
+                OverlapsAny(valueRanges, thumbnailStart, (int)thumbnailLength))
             {
                 throw Invalid("A JPEG thumbnail overlaps TIFF metadata.");
             }
@@ -467,11 +468,14 @@ public sealed class ExifMetadata
         }
 
         int dataStart = checked((int)total);
-        foreach (ExifEntry entry in directories.Values.SelectMany(entries => entries.Values))
+        foreach ((_, SortedDictionary<ushort, ExifEntry> entries) in orderedDirectories)
         {
-            if (entry.Value.Length > 4)
+            foreach (ExifEntry entry in entries.Values)
             {
-                total += entry.Value.Length + (entry.Value.Length & 1);
+                if (entry.Value.Length > 4)
+                {
+                    total += entry.Value.Length + (entry.Value.Length & 1);
+                }
             }
         }
 
@@ -609,6 +613,19 @@ public sealed class ExifMetadata
         }
 
         return (int)offset;
+    }
+
+    private static bool OverlapsAny(List<(int Start, int Length)> ranges, int start, int length)
+    {
+        foreach ((int rangeStart, int rangeLength) in ranges)
+        {
+            if (Overlaps(start, length, rangeStart, rangeLength))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool Overlaps(int firstStart, int firstLength, int secondStart, int secondLength)

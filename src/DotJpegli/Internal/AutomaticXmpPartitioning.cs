@@ -106,8 +106,7 @@ internal static class AutomaticXmpPartitioning
             var document = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
             XElement? root = document.Root;
             XElement? rdf = root?.Name == Rdf + "RDF" ? root
-                : root?.Name == Meta + "xmpmeta" && root.Elements().Count() == 1
-                    ? root.Element(Rdf + "RDF") : null;
+                : root?.Name == Meta + "xmpmeta" ? SingleChild(root, Rdf + "RDF") : null;
             if (rdf is null || HasNonWhitespaceText(root!) || HasNonWhitespaceText(rdf) || !rdf.HasElements ||
                 rdf.Elements().Any(element => element.Name != Rdf + "Description"))
             {
@@ -127,7 +126,7 @@ internal static class AutomaticXmpPartitioning
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (element.Name == Link || element.Attribute(Link) is not null ||
-                    element.Nodes().OfType<XProcessingInstruction>().Any(instruction => instruction.Target == "xpacket"))
+                    HasXPacketInstruction(element))
                 {
                     throw new ArgumentException(message, nameof(JpegliEncoderOptions.XmpPacket));
                 }
@@ -217,8 +216,50 @@ internal static class AutomaticXmpPartitioning
 
     private static XElement? GetRdf(XElement root) => root.Name == Rdf + "RDF" ? root : root.Element(Rdf + "RDF");
 
-    private static bool HasNonWhitespaceText(XElement element) =>
-        element.Nodes().OfType<XText>().Any(text => !string.IsNullOrWhiteSpace(text.Value));
+    private static XElement? SingleChild(XElement parent, XName expectedName)
+    {
+        XElement? found = null;
+        for (XNode? node = parent.FirstNode; node is not null; node = node.NextNode)
+        {
+            if (node is XElement child)
+            {
+                if (found is not null || child.Name != expectedName)
+                {
+                    return null;
+                }
+
+                found = child;
+            }
+        }
+
+        return found;
+    }
+
+    private static bool HasXPacketInstruction(XElement element)
+    {
+        for (XNode? node = element.FirstNode; node is not null; node = node.NextNode)
+        {
+            if (node is XProcessingInstruction { Target: "xpacket" })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasNonWhitespaceText(XElement element)
+    {
+        for (XNode? node = element.FirstNode; node is not null; node = node.NextNode)
+        {
+            if (node is XText text && !text.Value.AsSpan().IsWhiteSpace())
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private sealed class CancellableReader(string packet, CancellationToken cancellationToken) : StringReader(packet)
     {

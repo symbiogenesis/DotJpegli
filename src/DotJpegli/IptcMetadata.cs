@@ -16,7 +16,9 @@ using System.Text;
 public sealed class IptcMetadata
 {
     private static readonly UTF8Encoding Utf8 = new(false, true);
-    private static ReadOnlySpan<byte> Utf8Designation => [0x1b, 0x25, 0x47];
+    private static readonly ReadOnlyMemory<byte> Utf8DesignationMemory = "\x1b%G"u8.ToArray();
+    private static readonly ReadOnlyMemory<byte> DefaultRecordVersion = new byte[] { 0, 4 };
+    private static ReadOnlySpan<byte> Utf8Designation => "\x1b%G"u8;
     private readonly List<Dataset> datasets = [];
 
     /// <summary>Creates an empty collection of IPTC-IIM datasets.</summary>
@@ -101,7 +103,11 @@ public sealed class IptcMetadata
     public void SetValues(byte record, byte dataset, IReadOnlyList<ReadOnlyMemory<byte>> values)
     {
         Guard.ThrowIfNull(values);
-        Dataset[] replacements = values.Select(value => CreateDataset(record, dataset, value.Span)).ToArray();
+        var replacements = new Dataset[values.Count];
+        for (int valueIndex = 0; valueIndex < values.Count; valueIndex++)
+        {
+            replacements[valueIndex] = CreateDataset(record, dataset, values[valueIndex].Span);
+        }
         int index = this.datasets.FindIndex(entry => entry.Record == record && entry.Number == dataset);
         if (index < 0)
         {
@@ -169,8 +175,7 @@ public sealed class IptcMetadata
             // Strict encoding has already validated Unicode; only the IPTC
             // character-set controls need checking on these newly encoded bytes.
             ValidateCharacterSetControls(encoded[index].Span);
-            if (dataset is 80 or 116 or 120 && values[index].Any(character => char.IsControl(character) &&
-                !(dataset == 120 && character is '\r' or '\n')))
+            if (dataset is 80 or 116 or 120 && HasInvalidControlCharacter(values[index], dataset))
             {
                 throw new ArgumentException("This IPTC text field permits graphic characters and spaces; " +
                     "only Caption-Abstract also permits CR/LF.", nameof(values));
@@ -186,22 +191,35 @@ public sealed class IptcMetadata
             }
         }
 
-        if (!utf8 && this.datasets.Any(entry => entry.Record == 8))
+        if (!utf8 && this.datasets.Exists(static entry => entry.Record == 8))
         {
             throw new InvalidOperationException("Adding a character-set designation could relabel existing object-record data.");
         }
         // All copying and validation precede mutation so failed text edits are atomic.
         if (!utf8)
         {
-            this.SetValues(1, 90, [(ReadOnlyMemory<byte>)Utf8Designation.ToArray()]);
+            this.SetValues(1, 90, [Utf8DesignationMemory]);
         }
 
-        if (!this.datasets.Any(entry => entry.Record == 2 && entry.Number == 0))
+        if (!this.datasets.Exists(static entry => entry.Record == 2 && entry.Number == 0))
         {
-            this.SetValues(2, 0, [(ReadOnlyMemory<byte>)new byte[] { 0, 4 }]);
+            this.SetValues(2, 0, [DefaultRecordVersion]);
         }
 
         this.SetValues(2, dataset, encoded);
+    }
+
+    private static bool HasInvalidControlCharacter(string value, byte dataset)
+    {
+        foreach (char character in value)
+        {
+            if (char.IsControl(character) && !(dataset == 120 && character is '\r' or '\n'))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private bool GetTextEncoding()

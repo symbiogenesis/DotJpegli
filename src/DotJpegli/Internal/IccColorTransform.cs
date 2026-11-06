@@ -331,14 +331,9 @@ internal sealed class IccColorTransform
                 }
             }
             // Exact tag sharing is permitted. Partial overlaps are malformed.
-            Tag[] ranges = this.tags.Values.Distinct().OrderBy(tag => tag.Offset).ToArray();
-            for (int index = 1; index < ranges.Length; index++)
-            {
-                if ((long)ranges[index - 1].Offset + ranges[index - 1].Length > ranges[index].Offset)
-                {
-                    throw this.Error("ICC tag data partially overlap.");
-                }
-            }
+            var ranges = new Tag[this.tags.Count];
+            this.tags.Values.CopyTo(ranges, 0);
+            this.RejectPartialOverlap(ranges, "ICC tag data partially overlap.");
         }
 
         internal Triple ReadWhite()
@@ -356,10 +351,10 @@ internal sealed class IccColorTransform
         {
             this.cancellationToken.ThrowIfCancellationRequested();
             _ = this.ReadWhite();
-            string prefix = toPcs ? "A2B" : "B2A";
-            int number = intent == IccRenderingIntent.AbsoluteColorimetric ? 1 : (int)intent;
-            if (this.tags.TryGetValue(Sig(prefix + number), out Tag tag) ||
-                this.tags.TryGetValue(Sig(prefix + "0"), out tag))
+            uint baseSignature = toPcs ? Sig("A2B0") : Sig("B2A0");
+            uint number = intent == IccRenderingIntent.AbsoluteColorimetric ? 1u : (uint)intent;
+            if (this.tags.TryGetValue(baseSignature + number, out Tag tag) ||
+                this.tags.TryGetValue(baseSignature, out tag))
             {
                 if (!toPcs && this.IsCompatibilityDestination(tag))
                 {
@@ -491,14 +486,7 @@ internal sealed class IccColorTransform
             }
 
             Clut? clut = clutOffset == 0 ? null : this.ReadClut(tag, clutOffset, inputChannels, outputChannels, elements);
-            Tag[] ranges = elements.Distinct().OrderBy(element => element.Offset).ToArray();
-            for (int index = 1; index < ranges.Length; index++)
-            {
-                if ((long)ranges[index - 1].Offset + ranges[index - 1].Length > ranges[index].Offset)
-                {
-                    throw this.Error("ICC multi-function elements partially overlap.");
-                }
-            }
+            this.RejectPartialOverlap(elements.ToArray(), "ICC multi-function elements partially overlap.");
 
             return new(a, b, m, matrix, clut, toPcs ? PipelineKind.AToB : PipelineKind.BToA);
         }
@@ -533,7 +521,8 @@ internal sealed class IccColorTransform
             }
             int position = sixteenBit ? 52 : 48;
             Curve[] input = this.ReadTables(tag, ref position, inputChannels, inputEntries, sixteenBit ? 2 : 1);
-            int[] dimensions = Enumerable.Repeat(grid, inputChannels).ToArray();
+            int[] dimensions = new int[inputChannels];
+            Array.Fill(dimensions, grid);
             Clut clut = this.ReadClutData(tag, ref position, dimensions, outputChannels, sixteenBit ? 2 : 1);
             Curve[] output = this.ReadTables(tag, ref position, outputChannels, outputEntries, sixteenBit ? 2 : 1);
             return new(input, output, null, matrix, clut, PipelineKind.Legacy);
@@ -763,12 +752,33 @@ internal sealed class IccColorTransform
             }
         }
 
+        private void RejectPartialOverlap(Span<Tag> ranges, string message)
+        {
+            ranges.Sort();
+            for (int index = 1; index < ranges.Length; index++)
+            {
+                if (ranges[index] != ranges[index - 1] &&
+                    (long)ranges[index - 1].Offset + ranges[index - 1].Length > ranges[index].Offset)
+                {
+                    throw this.Error(message);
+                }
+            }
+        }
+
         private uint Signature(int offset) => this.UInt32(offset);
         private uint UInt32(int offset) => BinaryPrimitives.ReadUInt32BigEndian(this.bytes.AsSpan(offset, 4));
         private ushort UInt16(int offset) => BinaryPrimitives.ReadUInt16BigEndian(this.bytes.AsSpan(offset, 2));
         private double Fixed(int offset) => BinaryPrimitives.ReadInt32BigEndian(this.bytes.AsSpan(offset, 4)) / 65536.0;
         private ArgumentException Error(string message) => new(message, this.parameter);
-        private readonly record struct Tag(int Offset, int Length);
+
+        private readonly record struct Tag(int Offset, int Length) : IComparable<Tag>
+        {
+            public int CompareTo(Tag other)
+            {
+                int offsetComparison = this.Offset.CompareTo(other.Offset);
+                return offsetComparison != 0 ? offsetComparison : this.Length.CompareTo(other.Length);
+            }
+        }
     }
 
     private static uint Sig(string name) => ((uint)name[0] << 24) | ((uint)name[1] << 16) | ((uint)name[2] << 8) | name[3];
@@ -1098,9 +1108,12 @@ internal sealed class IccColorTransform
             double[] inverse = [((e * i) - (f * h)) / determinant, ((c * h) - (b * i)) / determinant, ((b * f) - (c * e)) / determinant,
                 ((f * g) - (d * i)) / determinant, ((a * i) - (c * g)) / determinant, ((c * d) - (a * f)) / determinant,
                 ((d * h) - (e * g)) / determinant, ((b * g) - (a * h)) / determinant, ((a * e) - (b * d)) / determinant, 0, 0, 0];
-            if (inverse.Any(value => !double.IsFinite(value)))
+            for (int index = 0; index < 9; index++)
             {
-                throw new ArgumentException("The destination ICC matrix inverse is non-finite.", parameter);
+                if (!double.IsFinite(inverse[index]))
+                {
+                    throw new ArgumentException("The destination ICC matrix inverse is non-finite.", parameter);
+                }
             }
 
             return new(inverse);
