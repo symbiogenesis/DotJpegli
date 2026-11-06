@@ -17,7 +17,7 @@ internal static class StandardMath
         double product = (double)x * y;
         double sum = product + z;
         float rounded = (float)sum;
-        if (double.IsNaN(sum) || double.IsInfinity(sum))
+        if (!double.IsFinite(sum))
         {
             return rounded;
         }

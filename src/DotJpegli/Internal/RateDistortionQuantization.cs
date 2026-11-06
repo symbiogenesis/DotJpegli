@@ -39,13 +39,13 @@ internal static class RateDistortionQuantization
         ValidateQuantized(zigZagQuantized);
         ValidateLengths(codeLengths);
         _ = EstimateAcBitsValidated(zigZagQuantized, codeLengths);
-        if (double.IsNaN(lambda) || double.IsInfinity(lambda) || lambda < 0)
+        if (!double.IsFinite(lambda) || lambda < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(lambda));
         }
         for (int index = 0; index < 64; index++)
         {
-            if (float.IsNaN(naturalCoefficients[index]) || float.IsInfinity(naturalCoefficients[index]))
+            if (!float.IsFinite(naturalCoefficients[index]))
             {
                 throw new ArgumentException("Coefficients must be finite.", nameof(naturalCoefficients));
             }
@@ -224,12 +224,9 @@ internal static class RateDistortionQuantization
         {
             throw new ArgumentException("AC code lengths require 256 symbols.", nameof(codeLengths));
         }
-        foreach (byte length in codeLengths)
+        if (codeLengths.ContainsAnyExceptInRange((byte)0, (byte)16))
         {
-            if (length > 16)
-            {
-                throw new ArgumentException("Huffman code lengths cannot exceed sixteen bits.", nameof(codeLengths));
-            }
+            throw new ArgumentException("Huffman code lengths cannot exceed sixteen bits.", nameof(codeLengths));
         }
     }
 
@@ -239,12 +236,9 @@ internal static class RateDistortionQuantization
         {
             throw new ArgumentException("A block requires 64 zigzag coefficients.", nameof(zigZagQuantized));
         }
-        for (int position = 1; position < 64; position++)
+        if (!EntropyEncoder.AcCoefficientsInRange(zigZagQuantized[..64]))
         {
-            if (zigZagQuantized[position] is < -1023 or > 1023)
-            {
-                throw new ArgumentException("Baseline AC coefficients must be between -1023 and 1023.", nameof(zigZagQuantized));
-            }
+            throw new ArgumentException("Baseline AC coefficients must be between -1023 and 1023.", nameof(zigZagQuantized));
         }
     }
 }

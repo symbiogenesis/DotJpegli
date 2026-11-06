@@ -7,11 +7,12 @@ internal static class StandardSpanExtensions
     internal static bool ContainsAny(this ReadOnlySpan<byte> span, byte first, byte second, byte third) =>
         span.IndexOfAny(first, second, third) >= 0;
 
-    internal static bool ContainsAnyExceptInRange(this ReadOnlySpan<ushort> span, ushort lowInclusive, ushort highInclusive)
+    internal static bool ContainsAnyExceptInRange<T>(this ReadOnlySpan<T> span, T lowInclusive, T highInclusive)
+        where T : IComparable<T>
     {
-        foreach (ushort value in span)
+        foreach (T value in span)
         {
-            if (value < lowInclusive || value > highInclusive)
+            if (value.CompareTo(lowInclusive) < 0 || value.CompareTo(highInclusive) > 0)
             {
                 return true;
             }
@@ -20,12 +21,13 @@ internal static class StandardSpanExtensions
         return false;
     }
 
-    internal static int Count(this ReadOnlySpan<short> span, short value)
+    internal static int Count<T>(this ReadOnlySpan<T> span, T value)
+        where T : IEquatable<T>
     {
         int count = 0;
-        foreach (short item in span)
+        foreach (T item in span)
         {
-            if (item == value)
+            if (item.Equals(value))
             {
                 count++;
             }
@@ -34,11 +36,12 @@ internal static class StandardSpanExtensions
         return count;
     }
 
-    internal static bool ContainsAnyInRange(this ReadOnlySpan<int> span, int lowInclusive, int highInclusive)
+    internal static bool ContainsAnyInRange<T>(this ReadOnlySpan<T> span, T lowInclusive, T highInclusive)
+        where T : IComparable<T>
     {
-        foreach (int value in span)
+        foreach (T value in span)
         {
-            if (value >= lowInclusive && value <= highInclusive)
+            if (value.CompareTo(lowInclusive) >= 0 && value.CompareTo(highInclusive) <= 0)
             {
                 return true;
             }
@@ -47,11 +50,12 @@ internal static class StandardSpanExtensions
         return false;
     }
 
-    internal static bool ContainsAnyInRange(this ReadOnlySpan<long> span, long lowInclusive, long highInclusive)
+    internal static bool ContainsAnyExcept<T>(this ReadOnlySpan<T> span, T value)
+        where T : IEquatable<T>
     {
-        foreach (long value in span)
+        foreach (T item in span)
         {
-            if (value >= lowInclusive && value <= highInclusive)
+            if (!item.Equals(value))
             {
                 return true;
             }
@@ -60,18 +64,9 @@ internal static class StandardSpanExtensions
         return false;
     }
 
-    internal static bool ContainsAnyExcept(this ReadOnlySpan<long> span, long value)
-    {
-        foreach (long item in span)
-        {
-            if (item != value)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    internal static void Sort<T>(this Span<T> span)
+        where T : IComparable<T> =>
+        span.Sort(static (left, right) => left.CompareTo(right));
 
     // Huffman construction sorts at most 257 nodes. Heap sort keeps its existing
     // span storage and the same comparison without a second temporary array.

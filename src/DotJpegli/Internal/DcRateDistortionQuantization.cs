@@ -58,14 +58,14 @@ internal static class DcRateDistortionQuantization
         {
             throw new ArgumentOutOfRangeException(nameof(quantizer));
         }
-        if (double.IsNaN(lambda) || double.IsInfinity(lambda) || lambda < 0)
+        if (!double.IsFinite(lambda) || lambda < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(lambda));
         }
         Validate(quantizedDc, codeLengths, resetBeforeBlock);
         foreach (float source in sourceDc)
         {
-            if (float.IsNaN(source) || float.IsInfinity(source))
+            if (!float.IsFinite(source))
             {
                 throw new ArgumentException("DC source coefficients must be finite.", nameof(sourceDc));
             }
@@ -177,12 +177,9 @@ internal static class DcRateDistortionQuantization
         {
             throw new ArgumentException("DC code lengths require categories zero through eleven.", nameof(codeLengths));
         }
-        foreach (byte length in codeLengths)
+        if (codeLengths.ContainsAnyExceptInRange((byte)0, (byte)16))
         {
-            if (length > 16)
-            {
-                throw new ArgumentException("Huffman code lengths cannot exceed sixteen bits.", nameof(codeLengths));
-            }
+            throw new ArgumentException("Huffman code lengths cannot exceed sixteen bits.", nameof(codeLengths));
         }
         int predictor = 0;
         for (int block = 0; block < quantizedDc.Length; block++)

@@ -327,7 +327,7 @@ internal sealed class QuantizedImage : IDisposable
             throw new ArgumentOutOfRangeException(nameof(lambda));
         }
         if (restartIntervals is not null && (restartIntervals.Length != tables.Length
-            || restartIntervals.Any(interval => interval is < 0 or > 65535)))
+            || restartIntervals.AsSpan().ContainsAnyExceptInRange(0, 65535)))
         {
             throw new ArgumentException("Each component requires a valid restart interval.", nameof(restartIntervals));
         }
@@ -452,7 +452,7 @@ internal sealed class QuantizedImage : IDisposable
             throw new ArgumentException("DC research requires zigzag-ordered cache blocks.", nameof(zigZagOrdered));
         }
         if (restartIntervals is not null && (restartIntervals.Length != tables.Length
-            || restartIntervals.Any(interval => interval is < 0 or > 65535)))
+            || restartIntervals.AsSpan().ContainsAnyExceptInRange(0, 65535)))
         {
             throw new ArgumentException("Each component requires a valid restart interval.", nameof(restartIntervals));
         }

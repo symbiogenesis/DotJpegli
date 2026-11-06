@@ -433,12 +433,9 @@ internal static class Quantization
                 throw new ArgumentException("Supply one quantization selector per component.", nameof(quantizationSelectors));
             }
 
-            foreach (int selector in quantizationSelectors)
+            if (quantizationSelectors.ContainsAnyExceptInRange(0, 2))
             {
-                if (selector is < 0 or > 2)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(quantizationSelectors));
-                }
+                throw new ArgumentOutOfRangeException(nameof(quantizationSelectors));
             }
         }
         ReadOnlySpan<float> inverseBase = GetInverseBaseQuantizers(cicpTransferFunction);

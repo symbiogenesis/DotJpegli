@@ -811,10 +811,15 @@ internal sealed class AdaptiveQuantization : IDisposable
     {
         var first = Vector256.Create(values[..8]);
         var second = Vector256.Create(values.Slice(8, 8));
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        even = Vector256.UnzipEven(first, second);
+        odd = Vector256.UnzipOdd(first, second);
+#else
         var evens = Vector256.Create(0, 2, 4, 6, 0, 2, 4, 6);
         var odds = Vector256.Create(1, 3, 5, 7, 1, 3, 5, 7);
         even = Vector256.Create(Vector256.Shuffle(first, evens).GetLower(), Vector256.Shuffle(second, evens).GetLower());
         odd = Vector256.Create(Vector256.Shuffle(first, odds).GetLower(), Vector256.Shuffle(second, odds).GetLower());
+#endif
     }
 
     private static Vector256<float> FastLog2Vector(Vector256<float> value)

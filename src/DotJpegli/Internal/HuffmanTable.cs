@@ -329,11 +329,7 @@ internal sealed class HuffmanTable
         nodes[0] = 1UL;
         // Integer keys sort first by weight, then by descending symbol. The
         // padding symbol has the smallest unit-weight key and is already first.
-#if NETSTANDARD2_1
-        nodes.Slice(1, symbols).Sort(static (left, right) => left.CompareTo(right));
-#else
         nodes.Slice(1, symbols).Sort();
-#endif
         for (int index = 1; index < leaves; index++)
         {
             nodes[index] >>= 9;
@@ -487,21 +483,6 @@ internal sealed class HuffmanTable
             throw new ArgumentException("A frequency table must have 256 entries.", nameof(frequencies));
         }
 
-#if NETSTANDARD2_1
-        bool narrow = true;
-        int symbols = 0;
-        for (int symbol = 0; symbol < frequencies.Length; symbol++)
-        {
-            long frequency = frequencies[symbol];
-            if (frequency < 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(frequencies), "Symbol frequencies cannot be negative.");
-            }
-
-            narrow &= frequency <= uint.MaxValue;
-            symbols += frequency == 0 ? 0 : 1;
-        }
-#else
         bool narrow = !frequencies.ContainsAnyExceptInRange(0L, uint.MaxValue);
         if (!narrow && frequencies.ContainsAnyInRange(long.MinValue, -1L))
         {
@@ -509,7 +490,6 @@ internal sealed class HuffmanTable
         }
 
         int symbols = frequencies.Length - frequencies.Count(0L);
-#endif
         int leaves = Math.Max(1, symbols) + 1;
         if (narrow)
         {
@@ -717,11 +697,7 @@ internal sealed class HuffmanTable
                 keys[index] = (leaf.Count << 9) | (uint)(256 - leaf.RightOrSymbol);
             }
 
-#if NETSTANDARD2_1
-            keys.Sort(static (left, right) => left.CompareTo(right));
-#else
             keys.Sort();
-#endif
             for (int index = 0; index < leaves.Length; index++)
             {
                 ulong key = keys[index];

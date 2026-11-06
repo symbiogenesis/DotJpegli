@@ -19,12 +19,9 @@ internal static class HuffmanSymbolOrdering
         {
             throw new ArgumentException("A frequency table requires 256 entries.", nameof(frequencies));
         }
-        foreach (long frequency in frequencies)
+        if (frequencies.ContainsAnyInRange(long.MinValue, -1L))
         {
-            if (frequency < 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(frequencies));
-            }
+            throw new ArgumentOutOfRangeException(nameof(frequencies));
         }
         if (order is not (HuffmanSymbolOrder.Canonical or HuffmanSymbolOrder.FrequencyDescending
             or HuffmanSymbolOrder.FrequencyAscending or HuffmanSymbolOrder.ReverseWithinLength))
