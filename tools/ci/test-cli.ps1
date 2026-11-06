@@ -87,7 +87,7 @@ if ($IsWindows) {
         throw 'The release executable must be a native 64-bit little-endian ELF executable.'
     }
 } elseif ($IsMacOS) {
-    if ($binary.Length -lt 32 -or [BitConverter]::ToUInt32($binary, 0) -ne 0xcffaedfeu -or
+    if ($binary.Length -lt 32 -or [BitConverter]::ToUInt32($binary, 0) -ne 0xfeedfacfu -or
         [BitConverter]::ToUInt32($binary, 4) -ne 0x0100000cu -or
         [BitConverter]::ToUInt32($binary, 12) -ne 2u) {
         throw 'The release executable must be a native 64-bit ARM64 Mach-O executable.'
