@@ -172,9 +172,10 @@ time** than native; sequential averaged **6.0–6.1% more**.
 
 ### Allocations per encode
 
-[Allocation measurements](docs/performance-evidence/2026-11-06-40a3074/README.md)
-compare managed GC allocations with native heap requests per encode, including
-the output JPEG. These do not measure peak memory.
+DotJpegli averaged **105.3–164.3 KiB** of managed GC allocations per encode,
+compared with **1,924.8–4,288.3 KiB** of native heap requests for Google Jpegli
+([measurements](docs/performance-evidence/2026-11-06-40a3074/README.md),
+including the output JPEG; not peak memory).
 
 ![DotJpegli managed GC allocation bytes and official Google C++ jpegli requested heap bytes in KiB per encode, grouped by sampling and sequential or progressive encoding.](docs/images/performance/allocations.svg)
 
