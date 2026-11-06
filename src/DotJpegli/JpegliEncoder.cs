@@ -832,69 +832,10 @@ public static class JpegliEncoder
         internal ReadOnlySpan<float> Plane2 { get; } = plane2;
     }
 
-    // Keep the coordinator's MCU counters, predictors and histogram references
-    // out of the DCT/quantizer's live register set. Scratch stays shared across
-    // blocks, and the source context is borrowed without copying its spans.
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    private static void PrepareSequentialBlock(in SequentialBlockSource source, int component,
-        int componentX, int componentY, float strength, Span<float> floatScratch, Span<short> shortScratch)
-    {
-        ref readonly SequentialComponent info = ref source.Components[component];
-        ReadOnlySpan<float> plane = info.UsePlane
-            ? component == 0 ? source.Plane0 : component == 1 ? source.Plane1 : source.Plane2 : default;
-        if (!plane.IsEmpty)
-        {
-            if ((componentX * 8) + 8 <= info.PlaneWidth && (componentY * 8) + 8 <= info.PlaneHeight)
-            {
-                ForwardDct.TransformQuantizePlane(plane, info.PlaneWidth, componentX * 8, componentY * 8,
-                    info.Quantizer, shortScratch.Slice(64, 64), strength);
-            }
-            else
-            {
-                ForwardDct.TransformQuantizePaddedPlane(plane, info.PlaneWidth, info.PlaneHeight,
-                    componentX * 8, componentY * 8, info.Quantizer, shortScratch.Slice(64, 64), strength);
-            }
-
-            return;
-        }
-        PrepareSequentialFallback(in source, component, componentX, componentY, strength, floatScratch, shortScratch);
-    }
+    private const int SequentialChunkBlocks = 64;
 
     // Segment lookup and raw readers have a separate frame so their extra
     // geometry and scratch do not enter the ordinary contiguous-plane path.
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    private static void PrepareSequentialFallback(in SequentialBlockSource source, int component,
-        int componentX, int componentY, float strength, Span<float> floatScratch, Span<short> shortScratch)
-    {
-        ref readonly SequentialComponent info = ref source.Components[component];
-        if (info.UsePlane)
-        {
-            bool compactChroma = component != 0
-                && (info.Horizontal != source.Horizontal || info.Vertical != source.Vertical);
-            ReadOnlySpan<float> plane = source.Pixels.GetConvertedPlaneSegment(component, componentY * 8, compactChroma,
-                out int planeWidth, out int planeHeight, out int planeY);
-            if (!plane.IsEmpty)
-            {
-                if ((componentX * 8) + 8 <= planeWidth && planeY + 8 <= planeHeight)
-                {
-                    ForwardDct.TransformQuantizePlane(plane, planeWidth, componentX * 8, planeY,
-                        info.Quantizer, shortScratch.Slice(64, 64), strength);
-                }
-                else
-                {
-                    ForwardDct.TransformQuantizePaddedPlane(plane, planeWidth, planeHeight,
-                        componentX * 8, planeY, info.Quantizer, shortScratch.Slice(64, 64), strength);
-                }
-                return;
-            }
-        }
-        Span<float> samples = floatScratch[..64];
-        Downsampling.FillBlock(source.Pixels, source.Width, source.Height, source.Stride, component,
-            componentX, componentY, source.Horizontal, source.Vertical, info.Horizontal, info.Vertical,
-            samples, source.SmoothingFactor);
-        ForwardDct.TransformQuantizeBlock(samples, info.Quantizer, shortScratch.Slice(64, 64), strength);
-    }
-
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static ulong PrepareSequentialFallbackWithMask(in SequentialBlockSource source, int component,
         int componentX, int componentY, float strength, Span<float> floatScratch, Span<short> destination)
@@ -926,11 +867,14 @@ public static class JpegliEncoder
             clearDcOnlyAc: false);
     }
 
+    // Prepare a horizontal strip of MCUs component-by-component into stack
+    // scratch so the DCT/quantizer keeps each component's plane and quantizer
+    // hot while all prepared blocks remain resident in L1d for MCU emission.
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    private static void PrepareSequentialRow(in SequentialBlockSource source, int mcuY,
-        ReadOnlySpan<int> rowBlockOffsets, AdaptiveQuantization? adaptive, ReadOnlySpan<float> strengths,
-        Span<float> floatScratch, Span<short> rowCoefficients, Span<ulong> rowMasks,
-        CancellationToken cancellationToken)
+    private static void PrepareSequentialChunk(in SequentialBlockSource source, int mcuY,
+        int chunkStartMcuX, int chunkMcus, ReadOnlySpan<int> chunkBlockOffsets,
+        AdaptiveQuantization? adaptive, ReadOnlySpan<float> strengths,
+        Span<float> floatScratch, Span<short> chunkCoefficients, Span<ulong> chunkMasks)
     {
         int horizontal = source.Horizontal;
         int strengthStride = adaptive?.BlocksWide ?? 0;
@@ -939,26 +883,30 @@ public static class JpegliEncoder
             ref readonly SequentialComponent info = ref source.Components[component];
             ReadOnlySpan<float> contiguousPlane = info.UsePlane
                 ? component == 0 ? source.Plane0 : component == 1 ? source.Plane1 : source.Plane2 : default;
+            int firstX = chunkStartMcuX * info.Horizontal;
             int firstY = mcuY * info.Vertical;
-            int componentBlockOffset = rowBlockOffsets[component];
+            int chunkColumns = chunkMcus * info.Horizontal;
+            int realColumns = Math.Min(chunkColumns, Math.Max(0, info.BlocksWide - firstX));
+            int componentBlockOffset = chunkBlockOffsets[component];
             for (int blockY = 0; blockY < info.Vertical; blockY++)
             {
                 int componentY = firstY + blockY;
-                if (componentY >= info.BlocksHigh)
+                if (componentY >= info.BlocksHigh || realColumns == 0)
                 {
                     break;
                 }
 
-                cancellationToken.ThrowIfCancellationRequested();
                 int strengthRow = blockY * strengthStride;
-                int rowBlockBase = componentBlockOffset + (blockY * info.BlocksWide);
+                int rowBlockBase = componentBlockOffset + (blockY * chunkColumns);
                 if (!contiguousPlane.IsEmpty)
                 {
                     int top = componentY * 8;
                     bool interiorY = top + 8 <= info.PlaneHeight;
-                    int interiorBlocksWide = interiorY ? info.PlaneWidth / 8 : 0;
-                    for (int componentX = 0; componentX < interiorBlocksWide; componentX++)
+                    int interiorColumns = interiorY
+                        ? Math.Clamp((info.PlaneWidth / 8) - firstX, 0, realColumns) : 0;
+                    for (int columnOffset = 0; columnOffset < interiorColumns; columnOffset++)
                     {
+                        int componentX = firstX + columnOffset;
                         float strength = 0f;
                         if (adaptive is not null)
                         {
@@ -968,15 +916,16 @@ public static class JpegliEncoder
                             strength = strengths[strengthRow + column];
                         }
 
-                        int blockIndex = rowBlockBase + componentX;
-                        rowMasks[blockIndex] = ForwardDct.TransformQuantizePlaneWithMask(
+                        int blockIndex = rowBlockBase + columnOffset;
+                        chunkMasks[blockIndex] = ForwardDct.TransformQuantizePlaneWithMask(
                             contiguousPlane, info.PlaneWidth, componentX * 8, top,
-                            info.Quantizer, rowCoefficients.Slice(blockIndex * 64, 64), strength,
+                            info.Quantizer, chunkCoefficients.Slice(blockIndex * 64, 64), strength,
                             clearDcOnlyAc: false);
                     }
 
-                    for (int componentX = interiorBlocksWide; componentX < info.BlocksWide; componentX++)
+                    for (int columnOffset = interiorColumns; columnOffset < realColumns; columnOffset++)
                     {
+                        int componentX = firstX + columnOffset;
                         float strength = 0f;
                         if (adaptive is not null)
                         {
@@ -986,18 +935,19 @@ public static class JpegliEncoder
                             strength = strengths[strengthRow + column];
                         }
 
-                        int blockIndex = rowBlockBase + componentX;
-                        rowMasks[blockIndex] = ForwardDct.TransformQuantizePaddedPlaneWithMask(
+                        int blockIndex = rowBlockBase + columnOffset;
+                        chunkMasks[blockIndex] = ForwardDct.TransformQuantizePaddedPlaneWithMask(
                             contiguousPlane, info.PlaneWidth, info.PlaneHeight, componentX * 8, top,
-                            info.Quantizer, rowCoefficients.Slice(blockIndex * 64, 64), strength,
+                            info.Quantizer, chunkCoefficients.Slice(blockIndex * 64, 64), strength,
                             clearDcOnlyAc: false);
                     }
 
                     continue;
                 }
 
-                for (int componentX = 0; componentX < info.BlocksWide; componentX++)
+                for (int columnOffset = 0; columnOffset < realColumns; columnOffset++)
                 {
+                    int componentX = firstX + columnOffset;
                     float strength = 0f;
                     if (adaptive is not null)
                     {
@@ -1007,9 +957,9 @@ public static class JpegliEncoder
                         strength = strengths[strengthRow + column];
                     }
 
-                    int blockIndex = rowBlockBase + componentX;
-                    rowMasks[blockIndex] = PrepareSequentialFallbackWithMask(in source, component,
-                        componentX, componentY, strength, floatScratch, rowCoefficients.Slice(blockIndex * 64, 64));
+                    int blockIndex = rowBlockBase + columnOffset;
+                    chunkMasks[blockIndex] = PrepareSequentialFallbackWithMask(in source, component,
+                        componentX, componentY, strength, floatScratch, chunkCoefficients.Slice(blockIndex * 64, 64));
                 }
             }
         }
@@ -1040,8 +990,7 @@ public static class JpegliEncoder
             plane2 = pixels.GetConverted420ChromaPlane(2, out width2, out height2);
         }
         var components = new SequentialComponent[3];
-        Span<int> rowBlockOffsets = stackalloc int[4];
-        rowBlockOffsets[0] = 0;
+        int blocksPerMcu = 0;
         for (int component = 0; component < components.Length; component++)
         {
             JpegComponentSampling factor = sampling[component];
@@ -1058,34 +1007,43 @@ public static class JpegliEncoder
                 component == 0 ? height : component == 1 ? height1 : height2,
                 smoothingFactor == 0 && ((factor.Horizontal == horizontal && factor.Vertical == vertical)
                     || (compact420 && component != 0)), quantizer);
-            rowBlockOffsets[component + 1] = checked(rowBlockOffsets[component] + (blocksWide * factor.Vertical));
+            blocksPerMcu += factor.Horizontal * factor.Vertical;
         }
 
-        int totalRowBlocks = rowBlockOffsets[3];
-        short[] rentedCoefficients = ArrayPool<short>.Shared.Rent(checked(totalRowBlocks * 64));
-        ulong[] rentedMasks = ArrayPool<ulong>.Shared.Rent(totalRowBlocks);
-        try
+        int maxChunkMcus = Math.Min(mcusWide, Math.Max(1, SequentialChunkBlocks / blocksPerMcu));
+        Span<int> chunkBlockOffsets = stackalloc int[4];
+        Span<short> chunkCoefficients = stackalloc short[SequentialChunkBlocks * 64];
+        Span<ulong> chunkMasks = stackalloc ulong[SequentialChunkBlocks];
+        var source = new SequentialBlockSource(pixels, width, height, stride, horizontal, vertical, smoothingFactor,
+            components, plane0, plane1, plane2);
+        Span<float> floatScratch = stackalloc float[64];
+        Span<int> previousDc = stackalloc int[3];
+        previousDc.Clear();
+        Span<float> strengths = adaptive is null ? default : adaptive.Strengths;
+        int mcusRemaining = restartInterval, restartIndex = 0;
+        for (int mcuY = 0; mcuY < mcusHigh; mcuY++)
         {
-            Span<short> rowCoefficients = rentedCoefficients.AsSpan(0, totalRowBlocks * 64);
-            Span<ulong> rowMasks = rentedMasks.AsSpan(0, totalRowBlocks);
-            var source = new SequentialBlockSource(pixels, width, height, stride, horizontal, vertical, smoothingFactor,
-                components, plane0, plane1, plane2);
-            Span<float> floatScratch = stackalloc float[64];
-            Span<int> previousDc = stackalloc int[3];
-            previousDc.Clear();
-            Span<float> strengths = adaptive is null ? default : adaptive.Strengths;
-            int mcusRemaining = restartInterval, restartIndex = 0;
-            for (int mcuY = 0; mcuY < mcusHigh; mcuY++)
+            cancellationToken.ThrowIfCancellationRequested();
+            adaptive?.ComputeRow(pixels, stride, mcuY * mcuHeight,
+                tables[pixels.AnalysisComponent][1], strengths!, cancellationToken);
+            for (int chunkStartMcuX = 0; chunkStartMcuX < mcusWide; chunkStartMcuX += maxChunkMcus)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                adaptive?.ComputeRow(pixels, stride, mcuY * mcuHeight,
-                    tables[pixels.AnalysisComponent][1], strengths!, cancellationToken);
-                PrepareSequentialRow(in source, mcuY, rowBlockOffsets, adaptive, strengths,
-                    floatScratch, rowCoefficients, rowMasks, cancellationToken);
-
-                for (int mcuX = 0; mcuX < mcusWide; mcuX++)
+                int chunkMcus = Math.Min(maxChunkMcus, mcusWide - chunkStartMcuX);
+                chunkBlockOffsets[0] = 0;
+                for (int component = 0; component < 3; component++)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    ref readonly SequentialComponent info = ref components[component];
+                    chunkBlockOffsets[component + 1] = chunkBlockOffsets[component]
+                        + (chunkMcus * info.Horizontal * info.Vertical);
+                }
+
+                PrepareSequentialChunk(in source, mcuY, chunkStartMcuX, chunkMcus, chunkBlockOffsets,
+                    adaptive, strengths, floatScratch, chunkCoefficients, chunkMasks);
+
+                for (int mcuOffset = 0; mcuOffset < chunkMcus; mcuOffset++)
+                {
+                    int mcuX = chunkStartMcuX + mcuOffset;
                     if (restartInterval != 0 && mcusRemaining == 0)
                     {
                         if (writer is null)
@@ -1105,15 +1063,17 @@ public static class JpegliEncoder
                     {
                         ref readonly SequentialComponent info = ref components[component];
                         int firstX = mcuX * info.Horizontal, firstY = mcuY * info.Vertical;
-                        int componentBlockOffset = rowBlockOffsets[component];
+                        int chunkColumns = chunkMcus * info.Horizontal;
+                        int chunkColumnBase = mcuOffset * info.Horizontal;
+                        int componentBlockOffset = chunkBlockOffsets[component];
                         for (int blockY = 0; blockY < info.Vertical; blockY++)
                         {
                             int componentY = firstY + blockY;
-                            int rowBlockBase = componentBlockOffset + (blockY * info.BlocksWide);
+                            int rowBlockBase = componentBlockOffset + (blockY * chunkColumns) + chunkColumnBase;
                             for (int blockX = 0; blockX < info.Horizontal; blockX++)
                             {
                                 int componentX = firstX + blockX;
-                                int blockIndex = rowBlockBase + componentX;
+                                int blockIndex = rowBlockBase + blockX;
                                 short dcValue;
                                 ulong mask;
                                 if (componentX >= info.BlocksWide || componentY >= info.BlocksHigh)
@@ -1123,8 +1083,8 @@ public static class JpegliEncoder
                                 }
                                 else
                                 {
-                                    mask = rowMasks[blockIndex];
-                                    dcValue = rowCoefficients[blockIndex * 64];
+                                    mask = chunkMasks[blockIndex];
+                                    dcValue = chunkCoefficients[blockIndex * 64];
                                 }
                                 if (writer is null)
                                 {
@@ -1137,7 +1097,7 @@ public static class JpegliEncoder
                                     else
                                     {
                                         EntropyEncoder.AccumulateOrderedBlockWithMask(
-                                            rowCoefficients.Slice(blockIndex * 64, 64), mask,
+                                            chunkCoefficients.Slice(blockIndex * 64, 64), mask,
                                             ref previousDc[component], dcFrequencies![component], acFrequencies![component],
                                             tokens: tokens, component: component);
                                     }
@@ -1152,7 +1112,7 @@ public static class JpegliEncoder
                                     else
                                     {
                                         EntropyEncoder.WriteOrderedBlockWithMask(writer,
-                                            rowCoefficients.Slice(blockIndex * 64, 64), mask,
+                                            chunkCoefficients.Slice(blockIndex * 64, 64), mask,
                                             ref previousDc[component], coding!.DcTables[component], coding.AcTables[component]);
                                     }
                                 }
@@ -1165,11 +1125,6 @@ public static class JpegliEncoder
                     }
                 }
             }
-        }
-        finally
-        {
-            ArrayPool<ulong>.Shared.Return(rentedMasks);
-            ArrayPool<short>.Shared.Return(rentedCoefficients);
         }
     }
 

@@ -218,6 +218,24 @@ internal sealed class QuantizedImage : IDisposable
                             int strengthStep = horizontal / factor.Horizontal;
                             int interiorBlocks = planeY + 8 <= rowPlaneHeight
                                 ? Math.Min(widths[component], rowPlaneWidth / 8) : 0;
+                            if (image.segments is null)
+                            {
+                                Span<short> componentRow = image.components[component].AsSpan(y * widths[component] * 64,
+                                    widths[component] * 64);
+                                for (int x = 0; x < interiorBlocks; x++)
+                                {
+                                    float strength = adaptive is null ? 0f : strengths[rowOffset + (x * strengthStep)];
+                                    ForwardDct.TransformQuantizePlane(rowPlane, rowPlaneWidth, x * 8, planeY,
+                                        quantizers[component], componentRow.Slice(x * 64, 64), strength, zigZagOrdered: true);
+                                }
+                                for (int x = interiorBlocks; x < widths[component]; x++)
+                                {
+                                    float strength = adaptive is null ? 0f : strengths[rowOffset + (x * strengthStep)];
+                                    ForwardDct.TransformQuantizePaddedPlane(rowPlane, rowPlaneWidth, rowPlaneHeight,
+                                        x * 8, planeY, quantizers[component], componentRow.Slice(x * 64, 64), strength);
+                                }
+                                continue;
+                            }
                             for (int x = 0; x < interiorBlocks; x++)
                             {
                                 float strength = adaptive is null ? 0f : strengths[rowOffset + (x * strengthStep)];
