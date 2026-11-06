@@ -1,0 +1,31 @@
+{
+  "repository": "https://github.com/google/jpegli.git",
+  "revision": "031a0077f5799a6041004267fc12b956c1f52a20",
+  "dependencies": {
+    "third_party/highway": "271a9a0ed9de1232d9117f1572c3fe28f8542ec1",
+    "third_party/skcms": "96d9171c94b937a1b5f0293de7309ac16311b722",
+    "third_party/libjpeg-turbo": "8ecba3647edb6dd940463fedf38ca33a8e2a73d1"
+  },
+  "sourceUnmodified": true,
+  "cmake": "cmake version 4.4.5",
+  "configuration": [
+    "CMAKE_BUILD_TYPE:STRING=Release",
+    "CMAKE_CXX_COMPILER:FILEPATH=/usr/bin/c++",
+    "CMAKE_GENERATOR:INTERNAL=Ninja"
+  ],
+  "compiler": [
+    "set(CMAKE_CXX_COMPILER \"/usr/bin/c++\")",
+    "set(CMAKE_CXX_COMPILER_ID \"GNU\")",
+    "set(CMAKE_CXX_COMPILER_VERSION \"15.2.0\")",
+    "set(CMAKE_CXX_COMPILER_FRONTEND_VARIANT \"GNU\")",
+    "set(CMAKE_CXX_COMPILER_ARCHITECTURE_ID \"x86_64\")",
+    "set(CMAKE_CXX_SIZEOF_DATA_PTR \"8\")"
+  ],
+  "executable": "/home/runner/work/_temp/parity-native/jpegli-parity-native",
+  "executableSha256": "875059ce1cee1a0a25d5b144c6684748d284823e962011ca4147372f025bc029",
+  "allocationProbeSha256": "3ab918da8e648588475d1505e4e52b42485150b5c79a3f8ac94e77a13fc18b0d",
+  "allocationProbe": "Separate untimed GNU linker-wrap malloc/calloc/realloc/aligned_alloc/posix_memalign/memalign plus C++ new; successful requested bytes including full realloc requests; single encode thread",
+  "encode": "RGB uint8 -> YCbCr; force_baseline=true; explicit 444/420, distance, progressive level, optimized Huffman and AQ; no smoothing/restarts; JFIF 1.01 1x1 aspect",
+  "decode": "same pinned jpegli decoder for both streams; full-size RGB uint8; JDCT_ISLOW; fancy upsampling; no ICC transform",
+  "benchmark": "same encode settings with AQ and optimized Huffman; fresh jpegli_mem_dest lifecycle through destroy; sum per-encode steady_clock intervals; process/file IO, warmups, verification and returned-buffer free excluded"
+}

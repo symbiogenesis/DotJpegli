@@ -18,6 +18,6 @@
     <line x1="32.00" y1="180" x2="848.00" y2="180" stroke="var(--grid)"/>
     <text x="32.00" y="207" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">24 photos · five anchors per image and metric · bound on group means</text>
     <text x="32.00" y="230" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">Full quality matrix passed · worst size overhead: 0.3636% (including controls)</text>
-    <text x="32.00" y="250" font-size="12" fill="var(--muted)" font-weight="400" text-anchor="start">2026-11-06 UTC · revision 40a3074 · run 42175083932</text>
+    <text x="32.00" y="250" font-size="12" fill="var(--muted)" font-weight="400" text-anchor="start">2026-11-06 UTC · revision 373851b · run 42183646421</text>
   </g>
 </svg>

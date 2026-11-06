@@ -28,7 +28,7 @@ conditioning on timing stability does not characterize all attempts' latency.
 The [earlier complete native run at `0104778`](performance-evidence/2026-11-03-0104778/README.md)
 has an invalid timing verdict: one of 256 cases, `kodim13/420/p0/d1`, fails the
 managed relative-MAD guard. Its aggregate timings cannot establish native
-performance parity. The current valid `40a3074` reference below includes all
+performance parity. The current valid `373851b` reference below includes all
 256 cases.
 
 The fixed acceptance matrix is complemented by an opt-in workload diagnostic.
@@ -64,8 +64,8 @@ observations and the added 256-warmup tiering scenario; it does not establish
 native parity or a release regression verdict.
 
 The latest complete 256-case comparison of revision
-`40a3074c61fbb052e452a82faf6d74616d060060` in
-[hosted run 42175083932](https://github.com/symbiogenesis/DotJpegli/actions/runs/42175083932)
+`373851b426633754ca4137a8b0960c4f41113447` in
+[hosted run 42183646421](https://github.com/symbiogenesis/DotJpegli/actions/runs/42183646421)
 has valid measurements under the fixed protocol and matched settings, but **fails full performance
 parity**. Measurements were collected on November 6, 2026 (America/Chicago and
 UTC). The same run passes the complete quality/compression matrix, collects
@@ -73,28 +73,29 @@ untimed allocation observations and generates the README charts.
 
 | Corpus | Sampling | Sequential mean / worst | Progressive level 2 mean / worst |
 | --- | --- | ---: | ---: |
-| Kodak photographs | 4:4:4 | 1.061 / 1.423 | 0.889 / 1.054 |
-| Kodak photographs | 4:2:0 | 1.060 / 1.310 | 0.882 / 1.152 |
-| Deterministic controls | 4:4:4 | 1.116 / 1.419 | 1.080 / 1.306 |
-| Deterministic controls | 4:2:0 | 1.021 / 1.381 | 1.078 / 1.344 |
+| Kodak photographs | 4:4:4 | 0.840 / 1.017 | 0.704 / 0.757 |
+| Kodak photographs | 4:2:0 | 0.827 / 1.084 | 0.696 / 0.787 |
+| Deterministic controls | 4:4:4 | 0.964 / 1.322 | 0.916 / 1.349 |
+| Deterministic controls | 4:2:0 | 0.899 / 1.371 | 0.931 / 1.371 |
 
 Each mean is the geometric mean of managed/native median latency ratios across
 the group's images and both distances; worst is the largest case ratio.
-Lower is better. Photograph groups use 6.0–6.1% more time for sequential
-encoding and 11.1–11.8% less for progressive encoding. Progressive 4:4:4
-photographs pass the group and individual bounds; progressive 4:2:0 photographs
-and sequential 4:2:0 controls pass the group bound but fail the individual
-bound. Overall, seven of eight groups fail, and 73 cases exceed the individual
-bound. The worst individual case is a 1.423404 ratio for sequential 4:4:4
-Kodak20 at distance 4. Group averages cannot override individual failures.
+Lower is better. Photograph groups use 16.0–17.3% less time for sequential
+encoding and 29.6–30.4% less for progressive encoding. All four photograph
+groups pass both the group and individual bounds. All four deterministic control
+groups pass the group bound (using 3.6–10.1% less time on average) but fail the
+individual bound. Overall, four of eight groups fail, and 25 cases exceed the
+individual bound. The worst individual case is a 1.371160 ratio for sequential
+4:2:0 `tiny-odd-edges` at distance 1. Group averages cannot override individual
+failures.
 
 This RGB8 to YCbCr comparison uses distances 1/4, adaptive quantization, optimized
-Huffman coding and one worker, on AMD EPYC 7763 x64 with .NET
-`11.0.0-rc.3.26522.148`, accelerated Vector256 and tiered compilation disabled.
-The [complete reference evidence](performance-evidence/2026-11-06-40a3074/README.md)
+Huffman coding and one worker, on AMD EPYC 9V45 x64 with .NET
+`11.0.0-rc.3.26522.148`, accelerated Vector512 and tiered compilation disabled.
+The [complete reference evidence](performance-evidence/2026-11-06-373851b/README.md)
 retains every case, failure, raw sample, host identity, setting, hash and native
 provenance. These measurements support lower group mean
-progressive photograph latency within this scope; full parity remains
+photograph latency within this scope; full parity remains
 unestablished. Separate workflow runs do not isolate the effect of source changes.
 
 ## Untimed compact coefficient storage study

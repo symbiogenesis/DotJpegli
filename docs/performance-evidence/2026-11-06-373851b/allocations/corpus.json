@@ -1,0 +1,177 @@
+{
+  "name": "Kodak Lossless True Color Image Suite",
+  "source": "https://r0k.us/graphics/kodak/",
+  "baseUrl": "https://r0k.us/graphics/kodak/kodak/",
+  "retrieved": "2026-10-14",
+  "conversion": "Noninterlaced RGB8 PNG to P6 RGB8; no sample/color/gamma transformations",
+  "images": [
+    {
+      "name": "kodim01.png",
+      "pngSha256": "a56e27cbf5f843c048b6af1d6e090760e9c92fadba88b7dee0205918a37523bd",
+      "ppmSha256": "998ccf0be59a31ed12dfc2296a957f5363e35043e47ee232932ca5f1039e8628",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim02.png",
+      "pngSha256": "4f4b74a79237e311d72cad958237b5f7088d8bce1c82305ebefe1a70e3022dfd",
+      "ppmSha256": "914943215155443fbb1785afa6ae91f136a4d2608b426a670e1050d7d66681b4",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim03.png",
+      "pngSha256": "e25ca1ff2f0c0cb5fdfd5f9b0a0bb21ac4c3de3c84a67f35b09a85d3306249db",
+      "ppmSha256": "ee3721fc6e0f53b3bcc61bb0b7183962d3f31286619b5739954ab702d90ee5ae",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim04.png",
+      "pngSha256": "e3b946107c5d3441c022f678d0c3caf1e224d81b1604ba840a4f88e562de61aa",
+      "ppmSha256": "624321d37c4f3c9903011b4aa592bf4a89ad7038228aaec4441ce01b52ed97e5",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "name": "kodim05.png",
+      "pngSha256": "10349e963c5c813d327852f82c1795fa4148d69fedffc4c589bee458e3ac3d53",
+      "ppmSha256": "d3167a6d9f0461c33a48f18796c58a3b0e80a742ac41bffd4eba16355bc50c87",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim06.png",
+      "pngSha256": "363510303b715d4cbc384e1ce227e466b613a09e1b71ae985882bf8e7fbd9b18",
+      "ppmSha256": "088424c10db10cc87fcbf3c362f38511c9b6e55671e6d7c91bbc7b78f227a87b",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim07.png",
+      "pngSha256": "b77d3f006f42414bb242222e0482e750c0fb9e5ee8d4bed2f6f11c5605fe54a4",
+      "ppmSha256": "02a4fbc79d6e5ce4cc07726e6627da5573edb208982827404fa4d6be6cbbf635",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim08.png",
+      "pngSha256": "ba23983c76b4832ee0e8af0592664756841a16779acd69f792e268fb6d13d6e7",
+      "ppmSha256": "b9e248f779e67e75208db18da7cec9e18ae6f379800e8c9c38edca064d698252",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim09.png",
+      "pngSha256": "6a4361c2fc194feb4edaa9f9a4a0620fb9943e460ac7fdf037fb0f6dd6607a7d",
+      "ppmSha256": "44bdce3851a934e8ce52895341c0f3c8815b124dd599d9bf1516fec94b65fe45",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "name": "kodim10.png",
+      "pngSha256": "9dfb70f5867c29ff9ed6313683f19b3d867849e40fbc0c4c54a4a89df341cf23",
+      "ppmSha256": "85be383b7825c53a32d699d5f5cf520ac2a999c7df0006deea496bfbf8bd3909",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "name": "kodim11.png",
+      "pngSha256": "7936814b58b5387fce2e4e2488b4ec830dadd95fa9520f358ddb30990b50f2b6",
+      "ppmSha256": "246f8c885cea96d9d12a8811e00e8a01dd65d097f4f8c133c0fff0342a4b29ba",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim12.png",
+      "pngSha256": "d78c37c2f04f23761ed2367dd77e2db584ddd4c3950833fecf89f199a8126980",
+      "ppmSha256": "1ecbafe928b9c833f8bd8e7adfea72739ed5fcddd0a4a7765cd3c7025aee68a2",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim13.png",
+      "pngSha256": "bc34a3ce58dea09dce1704c997171602de90cb34d0c8503a988b77f473d39b08",
+      "ppmSha256": "b5bbd7da7e6a08f3bd93968b8c84801ae0973f1e627d9f6bbf5781f00d4025b0",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim14.png",
+      "pngSha256": "55a94550ff18f3246c4074fd32b77b0c74447c26b6ad274d564d999c0450ba6e",
+      "ppmSha256": "5148c95eed0f82c079854c797e19a3fa70f134ee4e05cfa958416a63ab715c9b",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim15.png",
+      "pngSha256": "7538cbb80cb9103606c48b806eae57d56c885c7f90b9b3be70a41160f9cbb683",
+      "ppmSha256": "4ec14eab8c3fded683abb6acc883b3b80a5964e38e83507db75d6d60e6bbb7a6",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim16.png",
+      "pngSha256": "a89c7268ccd4718ba424a99fc4643c572cf692ca6eae887185ceb4e9f11d2e54",
+      "ppmSha256": "360c57cb87479b3744835a0d09daeaf11b3ab5d07b8bfbe0837895ab75c57fa7",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim17.png",
+      "pngSha256": "37afcc89fbdcb76d9518e04b2fc011027e2f4cd14b3b2f83cefd721641a47c5b",
+      "ppmSha256": "95c6dc97d54e0c7df5ab9dc8449905386494cb36e857ca1e59340d0c8b811b34",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "name": "kodim18.png",
+      "pngSha256": "1a9258c365988961d87a0598725b609139c303ad48a5aad6c503c3b1a87849aa",
+      "ppmSha256": "03faa4d4b71f73ff1c3808052ab500f7bdea5ef68b8ff9c8a369e33df9bc0ae4",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "name": "kodim19.png",
+      "pngSha256": "b7450b264b1b0a411390d8931b112c27905a992520fc90569dc4b920aa32bbdc",
+      "ppmSha256": "50aefc153e11b75f6df8e553ec9bb6bc032967ed12d1819087229fb60f53256f",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "name": "kodim20.png",
+      "pngSha256": "3b46c71e3b92a563820ba32936be8330c586c41f938efd94be938386aae4328a",
+      "ppmSha256": "3af75bd5bbeefe1f40f5e3fbfb60b2ba72df1c1f7901aa4e2cd0caf473d53b8c",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim21.png",
+      "pngSha256": "ac958597c82073f6bb65129c68f72b651db5b9efd82e11547d07350214bc268b",
+      "ppmSha256": "cfe09809b382c1e1d8046400ec8509fd2021e1d2940ced66f225ad1eab40c73a",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim22.png",
+      "pngSha256": "1cee58eb1f2d9c7ebb254d208a03c783ce6cf2c4d8c2cf45e235dd23b4ce1b29",
+      "ppmSha256": "503f80c1265f030484b2cf6e92f8dce664e8be971b0ae555f4a8fbe60fa6cd78",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim23.png",
+      "pngSha256": "e3111a2fd4da24af15d6459ef9eacfe54106b38e27b4a21821b75c3f5d2d5baf",
+      "ppmSha256": "a84c7740f69a5c4920b73dbd901882881bc0c0d94e1051f3bd9287dbd0dec4c6",
+      "width": 768,
+      "height": 512
+    },
+    {
+      "name": "kodim24.png",
+      "pngSha256": "1071c68372cc5a01435c2c225a5cf7d4bb803846ec08bb6b3d6721b156d7cb96",
+      "ppmSha256": "fe6f1bd2efbd8ca8568d4a3ba872bcbb26bd230fa88b954ec5f7e30aa57150ac",
+      "width": 768,
+      "height": 512
+    }
+  ]
+}

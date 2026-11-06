@@ -165,16 +165,16 @@ Mean JPEG sizes differ from native by **at most 0.032%** at matched PSNR and SSI
 
 ### Encoding wall time
 
-On an AMD EPYC 7763, progressive encoding averaged **11.1–11.8% less
-time** than native; sequential averaged **6.0–6.1% more**.
+On an AMD EPYC 9V45, progressive encoding averaged **29.6–30.4% less
+time** than native; sequential averaged **16.0–17.3% less**.
 
 ![Percentage encoding-time differences from native Google Jpegli, pairing Kodak photographs and deterministic controls for each encoding mode.](docs/images/performance/wall-time.svg)
 
 ### Allocations per encode
 
-DotJpegli averaged **105.3–164.3 KiB** of managed GC allocations per encode,
+DotJpegli averaged **98.8–146.3 KiB** of managed GC allocations per encode,
 compared with **1,924.8–4,288.3 KiB** of native heap requests for Google Jpegli
-([measurements](docs/performance-evidence/2026-11-06-40a3074/README.md),
+([measurements](docs/performance-evidence/2026-11-06-373851b/README.md),
 including the output JPEG; not peak memory).
 
 ![DotJpegli managed GC allocation bytes and official Google C++ jpegli requested heap bytes in KiB per encode, grouped by sampling and sequential or progressive encoding.](docs/images/performance/allocations.svg)
