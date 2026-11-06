@@ -318,12 +318,16 @@ internal static class Downsampling
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void UnzipPairs256(ReadOnlySpan<float> samples, out Vector256<float> evenSamples, out Vector256<float> oddSamples)
     {
-        var first = Vector256.Create(samples[..8]);
-        var second = Vector256.Create(samples[8..]);
 #if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
-        evenSamples = Vector256.UnzipEven(first, second);
-        oddSamples = Vector256.UnzipOdd(first, second);
+        var fourth = Vector128.Create(samples.Slice(12, 4));
+        var first = Vector128.Create(samples);
+        var second = Vector128.Create(samples.Slice(4, 4));
+        var third = Vector128.Create(samples.Slice(8, 4));
+        evenSamples = Vector256.Create(Vector128.UnzipEven(first, second), Vector128.UnzipEven(third, fourth));
+        oddSamples = Vector256.Create(Vector128.UnzipOdd(first, second), Vector128.UnzipOdd(third, fourth));
 #else
+        var second = Vector256.Create(samples.Slice(8, 8));
+        var first = Vector256.Create(samples);
         var even = Vector256.Create(0, 2, 4, 6, 0, 2, 4, 6);
         var odd = Vector256.Create(1, 3, 5, 7, 1, 3, 5, 7);
         evenSamples = Vector256.Create(Vector256.Shuffle(first, even).GetLower(), Vector256.Shuffle(second, even).GetLower());
@@ -334,8 +338,8 @@ internal static class Downsampling
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void UnzipPairs128(ReadOnlySpan<float> samples, out Vector128<float> evenSamples, out Vector128<float> oddSamples)
     {
-        var first = Vector128.Create(samples[..4]);
-        var second = Vector128.Create(samples[4..]);
+        var second = Vector128.Create(samples.Slice(4, 4));
+        var first = Vector128.Create(samples);
 #if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
         evenSamples = Vector128.UnzipEven(first, second);
         oddSamples = Vector128.UnzipOdd(first, second);
@@ -350,11 +354,15 @@ internal static class Downsampling
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static Vector256<float> PairwiseSums256(ReadOnlySpan<float> samples)
     {
-        var first = Vector256.Create(samples[..8]);
-        var second = Vector256.Create(samples[8..]);
 #if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
-        return PairwiseSumsNet11(first, second);
+        var fourth = Vector128.Create(samples.Slice(12, 4));
+        var first = Vector128.Create(samples);
+        var second = Vector128.Create(samples.Slice(4, 4));
+        var third = Vector128.Create(samples.Slice(8, 4));
+        return Vector256.Create(PairwiseSumsNet11(first, second), PairwiseSumsNet11(third, fourth));
 #else
+        var second = Vector256.Create(samples.Slice(8, 8));
+        var first = Vector256.Create(samples);
         return PairwiseSumsPortable(first, second);
 #endif
     }
@@ -362,8 +370,8 @@ internal static class Downsampling
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static Vector128<float> PairwiseSums128(ReadOnlySpan<float> samples)
     {
-        var first = Vector128.Create(samples[..4]);
-        var second = Vector128.Create(samples[4..]);
+        var second = Vector128.Create(samples.Slice(4, 4));
+        var first = Vector128.Create(samples);
 #if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
         return PairwiseSumsNet11(first, second);
 #else
@@ -396,7 +404,9 @@ internal static class Downsampling
 #if NET11_0_OR_GREATER
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static Vector256<float> PairwiseSumsNet11(Vector256<float> first, Vector256<float> second)
-        => Vector256.UnzipEven(first, second) + Vector256.UnzipOdd(first, second);
+        => Vector256.Create(
+            PairwiseSumsNet11(first.GetLower(), first.GetUpper()),
+            PairwiseSumsNet11(second.GetLower(), second.GetUpper()));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static Vector128<float> PairwiseSumsNet11(Vector128<float> first, Vector128<float> second)

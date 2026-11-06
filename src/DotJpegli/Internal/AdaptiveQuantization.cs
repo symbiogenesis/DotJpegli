@@ -764,8 +764,8 @@ internal sealed class AdaptiveQuantization : IDisposable
         DeinterleaveFuzzy(lowerFuzzy, out Vector256<float> lowerEven, out Vector256<float> lowerOdd);
         DeinterleaveFuzzy(upperFuzzy, out Vector256<float> upperEven, out Vector256<float> upperOdd);
         Vector256<float> value = lowerEven + lowerOdd + upperEven + upperOdd;
-        var hf = Vector256.Create(modulation[..8]);
         var ratio = Vector256.Create(modulation.Slice(8, 8));
+        var hf = Vector256.Create(modulation);
         var infinity = Vector256.Create(float.PositiveInfinity);
         Vector256<float> valid = Vector256.LessThan(Vector256.Abs(value), infinity)
             & Vector256.LessThan(Vector256.Abs(hf), infinity)
@@ -809,12 +809,18 @@ internal sealed class AdaptiveQuantization : IDisposable
     private static void DeinterleaveFuzzy(ReadOnlySpan<float> values,
         out Vector256<float> even, out Vector256<float> odd)
     {
-        var first = Vector256.Create(values[..8]);
-        var second = Vector256.Create(values.Slice(8, 8));
 #if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
-        even = Vector256.UnzipEven(first, second);
-        odd = Vector256.UnzipOdd(first, second);
+        // Deinterleave 128-bit halves before joining so 256-bit x64 hosts emit
+        // in-lane shuffles instead of extra cross-lane half extractions.
+        var fourth = Vector128.Create(values.Slice(12, 4));
+        var first = Vector128.Create(values);
+        var second = Vector128.Create(values.Slice(4, 4));
+        var third = Vector128.Create(values.Slice(8, 4));
+        even = Vector256.Create(Vector128.UnzipEven(first, second), Vector128.UnzipEven(third, fourth));
+        odd = Vector256.Create(Vector128.UnzipOdd(first, second), Vector128.UnzipOdd(third, fourth));
 #else
+        var second = Vector256.Create(values.Slice(8, 8));
+        var first = Vector256.Create(values);
         var evens = Vector256.Create(0, 2, 4, 6, 0, 2, 4, 6);
         var odds = Vector256.Create(1, 3, 5, 7, 1, 3, 5, 7);
         even = Vector256.Create(Vector256.Shuffle(first, evens).GetLower(), Vector256.Shuffle(second, evens).GetLower());

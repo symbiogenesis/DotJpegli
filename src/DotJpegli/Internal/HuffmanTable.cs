@@ -325,7 +325,7 @@ internal sealed class HuffmanTable
         bits = 0;
         // Zero/singleton/two-symbol costs were handled before entering here.
         int leaves = symbols + 1;
-        Span<byte> heights = stackalloc byte[(2 * leaves) + 1];
+        Span<byte> heights = stackalloc byte[515];
         nodes[0] = 1UL;
         // Integer keys sort first by weight, then by descending symbol. The
         // padding symbol has the smallest unit-weight key and is already first.
@@ -489,8 +489,6 @@ internal sealed class HuffmanTable
             throw new ArgumentOutOfRangeException(nameof(frequencies), "Symbol frequencies cannot be negative.");
         }
 
-        int symbols = frequencies.Length - frequencies.Count(0L);
-        int leaves = Math.Max(1, symbols) + 1;
         if (narrow)
         {
             // All 257 uint-bounded leaf weights and their 16-level package-merge
@@ -498,7 +496,7 @@ internal sealed class HuffmanTable
             // length-limited package weights can collide with the ulong sentinel.
             // Positive long and ulong weights have identical representations;
             // read the validated histogram directly instead of copying it.
-            Span<Node<ulong>> narrowTree = stackalloc Node<ulong>[(2 * leaves) + 1];
+            Span<Node<ulong>> narrowTree = stackalloc Node<ulong>[515];
             BuildCodeLengths<ulong, NarrowArithmetic>(MemoryMarshal.Cast<long, ulong>(frequencies), depth, narrowTree);
             return true;
         }
@@ -516,9 +514,9 @@ internal sealed class HuffmanTable
 
         Span<Node<UInt128>> tree =
 #if NETSTANDARD2_1
-            new Node<UInt128>[(2 * leaves) + 1];
+            new Node<UInt128>[515];
 #else
-            stackalloc Node<UInt128>[(2 * leaves) + 1];
+            stackalloc Node<UInt128>[515];
 #endif
         BuildCodeLengths<UInt128, WideArithmetic>(counts, depth, tree);
         return false;
@@ -568,7 +566,7 @@ internal sealed class HuffmanTable
             tree[leafCount + merge + 1] = sentinel;
         }
 
-        Span<byte> nodeDepth = stackalloc byte[2 * leafCount];
+        Span<byte> nodeDepth = stackalloc byte[514];
         bool exceedsLimit = false;
         nodeDepth[(2 * leafCount) - 1] = 0;
         for (int nodeIndex = (2 * leafCount) - 1; nodeIndex > leafCount; nodeIndex--)

@@ -139,13 +139,10 @@ internal static class JpegScanScript
                 }
             }
         }
-        for (int component = 0; component < componentCount; component++)
+        cancellationToken.ThrowIfCancellationRequested();
+        if (approximation[..(componentCount * 64)].ContainsAnyExcept(0))
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (approximation.Slice(component * 64, 64).ContainsAnyExcept(0))
-            {
-                throw Invalid("The scan script must deliver every output coefficient through bit zero.");
-            }
+            throw Invalid("The scan script must deliver every output coefficient through bit zero.");
         }
         return snapshot;
     }

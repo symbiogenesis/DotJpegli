@@ -149,13 +149,19 @@ internal sealed class HuffmanCodingPlan
         Span<float> standaloneCosts = histograms.Count <= 64 ? stackalloc float[histograms.Count] : new float[histograms.Count];
         for (int index = 0; index < histograms.Count; index++)
         {
-            long[] current = histograms[index];
-            if (current.Length != 256 || current.AsSpan().ContainsAnyInRange(long.MinValue, -1L))
+            ReadOnlySpan<long> current = histograms[index];
+            if (current.Length != 256)
             {
                 throw new ArgumentException("Each histogram requires 256 nonnegative frequencies.", nameof(histograms));
             }
 
-            nonEmpty[index] = current.AsSpan().ContainsAnyExcept(0L);
+            bool hasNonZero = current.ContainsAnyExcept(0L);
+            if (hasNonZero && current.ContainsAnyInRange(long.MinValue, -1L))
+            {
+                throw new ArgumentException("Each histogram requires 256 nonnegative frequencies.", nameof(histograms));
+            }
+
+            nonEmpty[index] = hasNonZero;
             standaloneCosts[index] = -1f;
         }
 
