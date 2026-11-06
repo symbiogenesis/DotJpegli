@@ -15,8 +15,8 @@ internal sealed record DiagnosticSelection(string[] Images, float[] Distances, i
         }
 
         string[] images = List(values.GetValueOrDefault("--images", "kodim01"));
-        IEnumerable<string> supportedImages = Evidence.ImageIds("natural").Concat(Evidence.ControlledIds).Concat(additionalImageIds ?? []);
-        if (images.Any(id => !supportedImages.Contains(id, StringComparer.Ordinal)))
+        var supportedImages = new HashSet<string>([.. Evidence.ImageIds("natural"), .. Evidence.ControlledIds, .. additionalImageIds ?? []], StringComparer.Ordinal);
+        if (images.Any(id => !supportedImages.Contains(id)))
         {
             throw new ArgumentException("Diagnostic images must name pinned Kodak images (kodim01..kodim24) or generated inputs supported by this mode.");
         }

@@ -1,6 +1,6 @@
 namespace DotJpegli.Parity;
 
-using System.Text.Json;
+using System.Buffers.Binary;
 
 internal sealed record FrameComponent(int Id, int HorizontalSampling, int VerticalSampling, int QuantizationTable);
 internal sealed record ScanStructure(int[] Components, int SpectralStart, int SpectralEnd, int SuccessiveHigh, int SuccessiveLow);
@@ -13,7 +13,7 @@ internal sealed record JpegStructure(int FrameMarker, int Precision, int Width, 
 
     public static JpegStructure Read(byte[] bytes)
     {
-        if (bytes.Length < 4 || bytes[0] != 0xff || bytes[1] != 0xd8)
+        if (bytes.Length < 4 || !bytes.AsSpan().StartsWith((ReadOnlySpan<byte>)[0xff, 0xd8]))
         {
             throw new InvalidDataException("Missing JPEG SOI.");
         }
@@ -57,7 +57,7 @@ internal sealed record JpegStructure(int FrameMarker, int Precision, int Width, 
                 throw new InvalidDataException("Truncated JPEG segment length.");
             }
 
-            int length = (bytes[position] << 8) | bytes[position + 1];
+            int length = BinaryPrimitives.ReadUInt16BigEndian(bytes.AsSpan(position, 2));
             if (length < 2 || length > bytes.Length - position)
             {
                 throw new InvalidDataException("Invalid JPEG segment length.");
@@ -74,8 +74,8 @@ internal sealed record JpegStructure(int FrameMarker, int Precision, int Width, 
 
                 frameMarker = marker;
                 precision = data[0];
-                height = (data[1] << 8) | data[2];
-                width = (data[3] << 8) | data[4];
+                height = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(1, 2));
+                width = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(3, 2));
                 components = new FrameComponent[data[5]];
                 for (int index = 0; index < components.Length; index++)
                 {
@@ -102,7 +102,9 @@ internal sealed record JpegStructure(int FrameMarker, int Precision, int Width, 
                     int[] values = new int[64];
                     for (int index = 0; index < values.Length; index++)
                     {
-                        values[index] = tablePrecision == 0 ? data[offset++] : (data[offset++] << 8) | data[offset++];
+                        values[index] = tablePrecision == 0
+                            ? data[offset++]
+                            : BinaryPrimitives.ReadUInt16BigEndian(data.Slice((offset += 2) - 2, 2));
                         if (values[index] is < 1 or > 255)
                         {
                             throw new InvalidDataException("Quantization table violates force-baseline parity settings.");
@@ -162,9 +164,14 @@ internal sealed record JpegStructure(int FrameMarker, int Precision, int Width, 
                 // Stuffed FF00 and RST markers are entropy data; the next other marker ends the scan.
                 while (position < bytes.Length)
                 {
-                    if (bytes[position] != 0xff)
-                    { position++; continue; }
-                    int prefix = position++;
+                    int nextMarker = bytes.AsSpan(position).IndexOf((byte)0xff);
+                    if (nextMarker < 0)
+                    {
+                        position = bytes.Length;
+                        break;
+                    }
+                    int prefix = position + nextMarker;
+                    position = prefix + 1;
                     while (position < bytes.Length && bytes[position] == 0xff)
                     {
                         position++;
@@ -177,7 +184,10 @@ internal sealed record JpegStructure(int FrameMarker, int Precision, int Width, 
 
                     int entropyMarker = bytes[position];
                     if (entropyMarker is 0 or (>= 0xd0 and <= 0xd7))
-                    { position++; continue; }
+                    {
+                        position++;
+                        continue;
+                    }
                     position = prefix;
                     break;
                 }
@@ -237,16 +247,55 @@ internal sealed record JpegStructure(int FrameMarker, int Precision, int Width, 
                 differences.Add($"{encoder} JFIF contradicts version1.01/unit0/densities1/no-thumbnail settings");
             }
         }
-        if (JsonSerializer.Serialize(a.QuantizationTables) != JsonSerializer.Serialize(b.QuantizationTables))
+        if (!QuantizationTablesEqual(a.QuantizationTables, b.QuantizationTables))
         {
             differences.Add("quantization table values differ");
         }
 
-        if (JsonSerializer.Serialize(a.Scans) != JsonSerializer.Serialize(b.Scans))
+        if (!ScansEqual(a.Scans, b.Scans))
         {
             differences.Add("component/spectral/refinement scan scripts differ");
         }
 
         return differences.Count == 0 ? null : string.Join("; ", differences);
+    }
+
+    private static bool QuantizationTablesEqual(SortedDictionary<int, int[]> first, SortedDictionary<int, int[]> second)
+    {
+        if (first.Count != second.Count)
+        {
+            return false;
+        }
+
+        foreach ((int id, int[] table) in first)
+        {
+            if (!second.TryGetValue(id, out int[]? other) || !table.AsSpan().SequenceEqual(other))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ScansEqual(ReadOnlySpan<ScanStructure> first, ReadOnlySpan<ScanStructure> second)
+    {
+        if (first.Length != second.Length)
+        {
+            return false;
+        }
+
+        for (int index = 0; index < first.Length; index++)
+        {
+            ScanStructure a = first[index], b = second[index];
+            if (a.SpectralStart != b.SpectralStart || a.SpectralEnd != b.SpectralEnd ||
+                a.SuccessiveHigh != b.SuccessiveHigh || a.SuccessiveLow != b.SuccessiveLow ||
+                !a.Components.AsSpan().SequenceEqual(b.Components))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

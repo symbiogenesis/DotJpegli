@@ -151,7 +151,7 @@ internal static class PerformanceChartsCommand
         }
     }
 
-    private static void ValidateCoverage(JsonNode[] cases, string idField, string progressionField, double[] distances)
+    private static void ValidateCoverage(JsonNode[] cases, string idField, string progressionField, ReadOnlySpan<double> distances)
     {
         Require(cases.Length == 32 * 4 * distances.Length, "Incomplete source case matrix.");
         HashSet<string> keys = [];
@@ -163,10 +163,11 @@ internal static class PerformanceChartsCommand
             Require(keys.Add(string.Create(CultureInfo.InvariantCulture, $"{id}/{category}/{sampling}/{progression}/{distance}")), "Duplicate source case.");
         }
 
+        int expectedPerImage = 4 * distances.Length;
         foreach ((string category, int count) in new[] { ("natural", 24), ("controlled", 8) })
         {
             KeyValuePair<string, int>[] images = cases.Where(item => Text(item["category"]) == category).CountBy(item => Text(item[idField])).ToArray();
-            Require(images.Length == count && images.All(image => image.Value == 4 * distances.Length), "Incomplete corpus coverage.");
+            Require(images.Length == count && images.All(image => image.Value == expectedPerImage), "Incomplete corpus coverage.");
             if (category == "natural")
             {
                 Require(images.Select(group => group.Key).Order(StringComparer.Ordinal).SequenceEqual(Enumerable.Range(1, 24).Select(index => string.Create(CultureInfo.InvariantCulture, $"kodim{index:00}"))), "Expected all 24 Kodak photographs.");

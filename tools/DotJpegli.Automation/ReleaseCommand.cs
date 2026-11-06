@@ -32,7 +32,7 @@ internal static class ReleaseCommand
 
     internal static void VerifyPackage(string packagePath, string expectedVersion, string expectedRevision)
     {
-        Require(expectedRevision.Length == 40 && expectedRevision.All(character => character is (>= '0' and <= '9') or (>= 'a' and <= 'f')),
+        Require(expectedRevision.Length == 40 && expectedRevision.All(char.IsAsciiHexDigitLower),
             "ExpectedRevision must be a full lowercase Git commit ID.");
         Require(Path.GetFileName(packagePath) == $"DotJpegli.{expectedVersion}.nupkg",
             "Package filename must match the requested DotJpegli version exactly.");

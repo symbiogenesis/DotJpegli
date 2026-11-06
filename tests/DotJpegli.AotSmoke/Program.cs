@@ -146,7 +146,7 @@ static byte[] FindPayload(List<Marker> markers, byte code, ReadOnlySpan<byte> pr
 // Inspect JPEG framing and metadata without depending on a decoder that might itself need trim/AOT support.
 static List<Marker> Inspect(byte[] jpeg, int expectedWidth, int expectedHeight, int components, bool progressive)
 {
-    Check(jpeg.Length > 4 && jpeg[0] == 0xff && jpeg[1] == 0xd8, "JPEG SOI");
+    Check(jpeg.Length > 4 && jpeg.AsSpan().StartsWith((ReadOnlySpan<byte>)[0xff, 0xd8]), "JPEG SOI");
     var markers = new List<Marker>();
     int offset = 2;
     while (offset < jpeg.Length)
@@ -186,11 +186,13 @@ static List<Marker> Inspect(byte[] jpeg, int expectedWidth, int expectedHeight, 
         int entropyStart = offset;
         while (offset < jpeg.Length)
         {
-            if (jpeg[offset] != 0xff)
+            int nextMarker = jpeg.AsSpan(offset).IndexOf((byte)0xff);
+            if (nextMarker < 0)
             {
-                offset++;
-                continue;
+                offset = jpeg.Length;
+                break;
             }
+            offset += nextMarker;
             Check(offset + 1 < jpeg.Length, "Truncated JPEG entropy marker");
             byte next = jpeg[offset + 1];
             if (next is 0 or (>= 0xd0 and <= 0xd7))

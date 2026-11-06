@@ -124,7 +124,8 @@ internal static partial class PerformanceEvidenceCommand
             Require(True(status["valid"]) && cases is JsonArray { Count: 1 }, "Runtime comparison needs stable matched evidence.");
             string expected = version == "10.0.14" ? version : "11.0.0-rc.3.26522.148";
             JsonNode environment = run["environment"]!;
-            Require(Text(environment["runtimeVersion"]) == expected.Split('-')[0], "Unexpected runtime version.");
+            ReadOnlySpan<char> expectedPrefix = expected.IndexOf('-') is int dash and >= 0 ? expected.AsSpan(0, dash) : expected;
+            Require(expectedPrefix.SequenceEqual(Text(environment["runtimeVersion"])), "Unexpected runtime version.");
             string product = Text(environment["runtimeProductVersion"]);
             Require(product == expected || (expected == "10.0.14" && product.StartsWith(expected + "-servicing.", StringComparison.Ordinal)), "Unexpected runtime build.");
             Require(version == "net11-simd" ? True(environment["explicitNet11Simd"]) : False(environment["explicitNet11Simd"]), "Unexpected SIMD experiment build.");

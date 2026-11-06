@@ -19,39 +19,30 @@ internal static class Program
     {
         try
         {
-            if (args.SequenceEqual(["--self-test"]))
-            { SelfTest.Run(); Console.WriteLine("Parity harness self-test passed."); return 0; }
-            if (args.Length > 0 && args[0] == "--search-progressive-scans")
+            switch (args)
             {
-                return ProgressiveScanSearchCommand.Run(args[1..]);
-            }
-            if (args.Length > 0 && args[0] == "--search-huffman-orderings")
-            {
-                return HuffmanOrderingSearchCommand.Run(args[1..]);
-            }
-            if (args.Length > 0 && args[0] == "--search-dc-trellis")
-            {
-                return DcTrellisSearchCommand.Run(args[1..]);
-            }
-            if (args.Length > 0 && args[0] == "--search-huffman-feedback")
-            {
-                return HuffmanFeedbackSearchCommand.Run(args[1..]);
-            }
-            if (args.Length > 0 && args[0] == "--search-color-preprocessing")
-            {
-                return ColorPreprocessingSearchCommand.Run(args[1..]);
-            }
-            if (args.Length > 0 && args[0] == "--search-quantization-tables")
-            {
-                return QuantizationTableSearchCommand.Run(args[1..]);
-            }
-            if (args.Length > 0 && args[0] == "--search-rate-distortion")
-            {
-                return RateDistortionSearchCommand.Run(args[1..]);
-            }
-            if (args.Length > 0 && args[0] == "--search-fast-compression")
-            {
-                return FastCompressionSearchCommand.Run(args[1..]);
+                case ["--self-test"]:
+                    SelfTest.Run();
+                    Console.WriteLine("Parity harness self-test passed.");
+                    return 0;
+                case ["--search-progressive-scans", .. string[] rest]:
+                    return ProgressiveScanSearchCommand.Run(rest);
+                case ["--search-huffman-orderings", .. string[] rest]:
+                    return HuffmanOrderingSearchCommand.Run(rest);
+                case ["--search-dc-trellis", .. string[] rest]:
+                    return DcTrellisSearchCommand.Run(rest);
+                case ["--search-huffman-feedback", .. string[] rest]:
+                    return HuffmanFeedbackSearchCommand.Run(rest);
+                case ["--search-color-preprocessing", .. string[] rest]:
+                    return ColorPreprocessingSearchCommand.Run(rest);
+                case ["--search-quantization-tables", .. string[] rest]:
+                    return QuantizationTableSearchCommand.Run(rest);
+                case ["--search-rate-distortion", .. string[] rest]:
+                    return RateDistortionSearchCommand.Run(rest);
+                case ["--search-fast-compression", .. string[] rest]:
+                    return FastCompressionSearchCommand.Run(rest);
+                default:
+                    break;
             }
             var options = Options.Parse(args);
             string native = options.Native, corpus = options.Corpus, output = options.Output;

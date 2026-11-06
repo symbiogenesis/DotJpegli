@@ -544,7 +544,8 @@ internal static class Program
 
     // Environment.Version is numeric and cannot identify a prerelease build.
     // Preserve the complete prerelease suffix; only remove the source-hash metadata.
-    internal static string? RuntimeProductVersion(string? informationalVersion) => informationalVersion?.Split('+', 2)[0];
+    internal static string? RuntimeProductVersion(string? informationalVersion) =>
+        informationalVersion is { } value && value.IndexOf('+') is int plus and >= 0 ? value[..plus] : informationalVersion;
 
     private static string Report(string status, List<CaseResult> cases, Evaluation evaluation)
     {
@@ -650,7 +651,11 @@ internal static class Program
     }
 
     private static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
-    private static string HashFile(string path) => Hash(File.ReadAllBytes(path));
+    private static string HashFile(string path)
+    {
+        using FileStream stream = File.OpenRead(path);
+        return Convert.ToHexStringLower(SHA256.HashData(stream));
+    }
     private static Task WriteJson<T>(string output, string name, T value) => File.WriteAllTextAsync(Path.Combine(output, name), JsonSerializer.Serialize(value, JsonOptions) + "\n");
     internal sealed record NativeSample(double NsPerEncode, long Bytes);
     private sealed record ManagedSample(double NsPerEncode, int Gen0Collections, int Gen1Collections, int Gen2Collections, long AllocatedBytes);

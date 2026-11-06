@@ -12,7 +12,7 @@ internal static class Program
                 return 0;
             }
 
-            var options = new Arguments(args[1..]);
+            var options = new Arguments(args.AsSpan(1));
             switch (args[0])
             {
                 case "infer-sharp":

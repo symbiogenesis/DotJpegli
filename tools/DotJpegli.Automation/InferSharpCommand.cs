@@ -170,7 +170,7 @@ internal static partial class InferSharpCommand
                 throw new InvalidDataException($"InferSharp reviewed source changed or is missing: {source.Name}");
             }
 
-            string normalized = File.ReadAllText(sourcePath).Replace("\r\n", "\n", StringComparison.Ordinal);
+            string normalized = File.ReadAllText(sourcePath).ReplaceLineEndings("\n");
             string hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(normalized)));
             if (!string.Equals(hash, String(source.Value), StringComparison.OrdinalIgnoreCase))
             {

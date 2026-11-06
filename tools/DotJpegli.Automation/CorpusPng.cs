@@ -3,13 +3,16 @@
 
 namespace DotJpegli.Automation;
 
+using System.Buffers.Binary;
+using System.Globalization;
+using System.IO.Compression;
+using System.Text;
+
 internal static class CorpusPng
 {
     internal static byte[] ToPpm(byte[] data)
     {
-        ReadOnlySpan<byte> signature = [137, 80, 78, 71, 13, 10, 26, 10];
-        if (data.Length < signature.Length ||
-            !MemoryExtensions.SequenceEqual(data.AsSpan(0, 8), signature))
+        if (!data.AsSpan().StartsWith((ReadOnlySpan<byte>)[137, 80, 78, 71, 13, 10, 26, 10]))
         {
             throw new InvalidDataException("Not a PNG");
         }
@@ -24,7 +27,7 @@ internal static class CorpusPng
                 throw new InvalidDataException("Truncated PNG chunk");
             }
 
-            uint length = ReadUInt32(data, position);
+            uint length = BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(position, 4));
             if (length > (uint)(data.Length - position - 12))
             {
                 throw new InvalidDataException("Truncated PNG payload");
@@ -33,7 +36,7 @@ internal static class CorpusPng
             int size = (int)length;
             ReadOnlySpan<byte> kind = data.AsSpan(position + 4, 4);
             int payload = position + 8;
-            if (Crc32(data, position + 4, size + 4) != ReadUInt32(data, payload + size))
+            if (Crc32(data.AsSpan(position + 4, size + 4)) != BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(payload + size, 4)))
             {
                 throw new InvalidDataException("PNG CRC mismatch");
             }
@@ -50,7 +53,8 @@ internal static class CorpusPng
                     throw new InvalidDataException("Invalid IHDR");
                 }
 
-                uint pngWidth = ReadUInt32(data, payload), pngHeight = ReadUInt32(data, payload + 4);
+                uint pngWidth = BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(payload, 4));
+                uint pngHeight = BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(payload + 4, 4));
                 if (pngWidth == 0 || pngHeight == 0 || (ulong)pngWidth * pngHeight > 1024 * 1024)
                 {
                     throw new InvalidDataException("Unexpected corpus dimensions");
@@ -58,8 +62,7 @@ internal static class CorpusPng
 
                 width = (int)pngWidth;
                 height = (int)pngHeight;
-                if (data[payload + 8] != 8 || data[payload + 9] != 2 ||
-                    data[payload + 10] != 0 || data[payload + 11] != 0 || data[payload + 12] != 0)
+                if (!data.AsSpan(payload + 8, 5).SequenceEqual((ReadOnlySpan<byte>)[8, 2, 0, 0, 0]))
                 {
                     throw new InvalidDataException("Expected noninterlaced RGB8 PNG");
                 }
@@ -80,7 +83,7 @@ internal static class CorpusPng
             }
             else if (data[position + 4] is >= ((byte)'A') and <= ((byte)'Z'))
             {
-                throw new InvalidDataException("Unsupported critical chunk " + System.Text.Encoding.ASCII.GetString(kind));
+                throw new InvalidDataException("Unsupported critical chunk " + Encoding.ASCII.GetString(kind));
             }
 
             position += size + 12;
@@ -93,38 +96,34 @@ internal static class CorpusPng
         int stride = width * 3;
         byte[] raw = new byte[(stride + 1) * height];
         compressed.Position = 0;
-        using (var inflater = new System.IO.Compression.ZLibStream(compressed, System.IO.Compression.CompressionMode.Decompress))
+        using (var inflater = new ZLibStream(compressed, CompressionMode.Decompress))
         {
-            int read = 0, count;
-            while (read < raw.Length && (count = inflater.Read(raw, read, raw.Length - read)) != 0)
-            {
-                read += count;
-            }
-
-            if (read != raw.Length || inflater.ReadByte() != -1)
+            if (inflater.ReadAtLeast(raw, raw.Length, throwOnEndOfStream: false) != raw.Length || inflater.ReadByte() != -1)
             {
                 throw new InvalidDataException("Unexpected pixel extent");
             }
         }
-        byte[] header = System.Text.Encoding.ASCII.GetBytes(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"P6\n{width} {height}\n255\n"));
+        byte[] header = Encoding.ASCII.GetBytes(string.Create(CultureInfo.InvariantCulture, $"P6\n{width} {height}\n255\n"));
         byte[] ppm = new byte[header.Length + (stride * height)];
-        Buffer.BlockCopy(header, 0, ppm, 0, header.Length);
+        header.CopyTo(ppm, 0);
         for (int row = 0; row < height; row++)
         {
             int start = row * (stride + 1), target = header.Length + (row * stride);
             int mode = raw[start];
-            if (mode > 4)
-            {
-                throw new InvalidDataException("Unknown PNG filter");
-            }
-
             for (int x = 0; x < stride; x++)
             {
                 int left = x >= 3 ? ppm[target + x - 3] : 0;
                 int above = row > 0 ? ppm[target + x - stride] : 0;
                 int upperLeft = row > 0 && x >= 3 ? ppm[target + x - stride - 3] : 0;
-                int predictor = mode == 1 ? left : mode == 2 ? above :
-                    mode == 3 ? (left + above) / 2 : mode == 4 ? Paeth(left, above, upperLeft) : 0;
+                int predictor = mode switch
+                {
+                    0 => 0,
+                    1 => left,
+                    2 => above,
+                    3 => (left + above) / 2,
+                    4 => Paeth(left, above, upperLeft),
+                    _ => throw new InvalidDataException("Unknown PNG filter"),
+                };
                 ppm[target + x] = unchecked((byte)(raw[start + 1 + x] + predictor));
             }
         }
@@ -138,15 +137,12 @@ internal static class CorpusPng
         return a <= b && a <= c ? left : b <= c ? above : upperLeft;
     }
 
-    private static uint ReadUInt32(byte[] data, int offset) => ((uint)data[offset] << 24) | ((uint)data[offset + 1] << 16) |
-            ((uint)data[offset + 2] << 8) | data[offset + 3];
-
-    private static uint Crc32(byte[] data, int offset, int length)
+    private static uint Crc32(ReadOnlySpan<byte> data)
     {
         uint crc = 0xffffffff;
-        for (int i = offset; i < offset + length; i++)
+        foreach (byte value in data)
         {
-            crc ^= data[i];
+            crc ^= value;
             for (int bit = 0; bit < 8; bit++)
             {
                 crc = (crc >> 1) ^ ((crc & 1) != 0 ? 0xedb88320U : 0U);

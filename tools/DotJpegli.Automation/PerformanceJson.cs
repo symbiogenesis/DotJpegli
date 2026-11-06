@@ -33,7 +33,7 @@ internal static class PerformanceJson
         }
 
         string raw = value.ToJsonString();
-        return !raw.Contains('.') && !raw.Contains('e') && !raw.Contains('E');
+        return raw.AsSpan().IndexOfAny('.', 'e', 'E') < 0;
     }
 
     internal static double Number(JsonNode? value)

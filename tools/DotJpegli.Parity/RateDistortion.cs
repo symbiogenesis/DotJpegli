@@ -45,7 +45,7 @@ internal static class RateDistortion
         throw new InvalidDataException("Unreachable rate-distortion interpolation point.");
     }
 
-    public static double[] Targets(params IReadOnlyList<CurvePoint>[] curves)
+    public static double[] Targets(params ReadOnlySpan<IReadOnlyList<CurvePoint>> curves)
     {
         (double minimum, double maximum) = RateRange(curves);
         double logMinimum = Math.Log(minimum), logRange = Math.Log(maximum) - logMinimum;
@@ -78,11 +78,24 @@ internal static class RateDistortion
         return TargetFractions.Select(fraction => minimum + (fraction * (maximum - minimum))).ToArray();
     }
 
-    public static double[] WorstRateTargets(params IReadOnlyList<CurvePoint>[] curves)
+    public static double[] WorstRateTargets(params ReadOnlySpan<IReadOnlyList<CurvePoint>> curves)
     {
         (double minimum, double maximum) = RateRange(curves);
-        return curves.SelectMany(curve => curve.Select(point => (double)point.Bytes)).Where(bytes => bytes >= minimum && bytes <= maximum)
-            .Append(minimum).Append(maximum).Distinct().Order().ToArray();
+        var points = new HashSet<double> { minimum, maximum };
+        foreach (IReadOnlyList<CurvePoint> curve in curves)
+        {
+            foreach (CurvePoint point in curve)
+            {
+                if (point.Bytes >= minimum && point.Bytes <= maximum)
+                {
+                    _ = points.Add(point.Bytes);
+                }
+            }
+        }
+
+        double[] sorted = points.ToArray();
+        Array.Sort(sorted);
+        return sorted;
     }
 
     public static double[] WorstQualityTargets(IReadOnlyList<CurvePoint> managed, IReadOnlyList<CurvePoint> native)
@@ -92,14 +105,24 @@ internal static class RateDistortion
             .Append(minimum).Append(maximum).Distinct().Order().ToArray();
     }
 
-    private static (double Minimum, double Maximum) RateRange(IReadOnlyList<CurvePoint>[] curves)
+    private static (double Minimum, double Maximum) RateRange(ReadOnlySpan<IReadOnlyList<CurvePoint>> curves)
     {
-        if (curves.Length == 0 || curves.Any(curve => curve.Count < 2))
+        if (curves.IsEmpty)
         {
             throw new InvalidDataException("At least two nondominated points are required in every metric curve.");
         }
 
-        double minimum = curves.Max(curve => (double)curve[0].Bytes), maximum = curves.Min(curve => (double)curve[^1].Bytes);
+        double minimum = double.NegativeInfinity, maximum = double.PositiveInfinity;
+        foreach (IReadOnlyList<CurvePoint> curve in curves)
+        {
+            if (curve.Count < 2)
+            {
+                throw new InvalidDataException("At least two nondominated points are required in every metric curve.");
+            }
+
+            minimum = Math.Max(minimum, curve[0].Bytes);
+            maximum = Math.Min(maximum, curve[^1].Bytes);
+        }
         if (minimum >= maximum)
         {
             throw new InvalidDataException("No common rate-distortion range.");

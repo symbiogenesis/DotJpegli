@@ -1,5 +1,9 @@
 namespace DotJpegli.Automation;
 
+using System.Buffers.Binary;
+using System.IO.Compression;
+using System.Text;
+
 internal static class CorpusPngTests
 {
     internal static void Run(Func<byte[], byte[]> decode)
@@ -10,12 +14,9 @@ internal static class CorpusPngTests
 #pragma warning disable CA5394 // Fixed-seed synthetic pixels must be reproducible; no security-sensitive randomness is used.
         new Random(1729).NextBytes(pixels);
 #pragma warning restore CA5394
-        byte[] expectedHeader = System.Text.Encoding.ASCII.GetBytes("P6\n4 10\n255\n");
-        byte[] expected = new byte[expectedHeader.Length + pixels.Length];
-        Buffer.BlockCopy(expectedHeader, 0, expected, 0, expectedHeader.Length);
-        Buffer.BlockCopy(pixels, 0, expected, expectedHeader.Length, pixels.Length);
+        byte[] expected = [.. "P6\n4 10\n255\n"u8, .. pixels];
         byte[] png = MakePng(pixels);
-        if (!MemoryExtensions.SequenceEqual(decode(png), expected))
+        if (!decode(png).AsSpan().SequenceEqual(expected))
         {
             throw new InvalidOperationException("Lossless PNG filters changed RGB samples.");
         }
@@ -31,9 +32,7 @@ internal static class CorpusPngTests
         Reject(decode, MakePng(pixels, firstFilter: 5), "unknown filter");
         Reject(decode, MakePng(pixels, extraRawByte: true), "pixel extent");
         Reject(decode, MakePng(pixels, critical: true), "critical chunk");
-        byte[] missingEnd = new byte[png.Length - 12];
-        Buffer.BlockCopy(png, 0, missingEnd, 0, missingEnd.Length);
-        Reject(decode, missingEnd, "missing IEND");
+        Reject(decode, png[..^12], "missing IEND");
     }
 
     private static void Reject(Func<byte[], byte[]> decode, byte[] png, string label)
@@ -67,33 +66,39 @@ internal static class CorpusPngTests
         using var output = new MemoryStream();
         output.Write([137, 80, 78, 71, 13, 10, 26, 10]);
         Chunk(output, "IHDR", [0, 0, 0, 4, 0, 0, 0, 10, depth, 2, 0, 0, 0]);
-        Chunk(output, critical ? "TEST" : "tEXt", System.Text.Encoding.ASCII.GetBytes("Comment\0ignored"));
+        Chunk(output, critical ? "TEST" : "tEXt", "Comment\0ignored"u8);
         using (var compressed = new MemoryStream())
         {
-            using (var zlib = new System.IO.Compression.ZLibStream(compressed, System.IO.Compression.CompressionLevel.Optimal, true))
+            using (var zlib = new ZLibStream(compressed, CompressionLevel.Optimal, true))
             {
                 zlib.Write(raw);
             }
 
             byte[] all = compressed.ToArray();
-            byte[] first = new byte[all.Length / 2], second = new byte[all.Length - first.Length];
-            Buffer.BlockCopy(all, 0, first, 0, first.Length);
-            Buffer.BlockCopy(all, first.Length, second, 0, second.Length);
-            Chunk(output, "IDAT", first);
-            Chunk(output, "IDAT", second);
+            int split = all.Length / 2;
+            Chunk(output, "IDAT", all.AsSpan(0, split));
+            Chunk(output, "IDAT", all.AsSpan(split));
         }
         Chunk(output, "IEND", []);
         return output.ToArray();
     }
 
-    private static void Chunk(Stream output, string kind, byte[] payload)
+    private static void Chunk(Stream output, string kind, ReadOnlySpan<byte> payload)
     {
         UInt32(output, (uint)payload.Length);
-        byte[] name = System.Text.Encoding.ASCII.GetBytes(kind);
+        byte[] name = Encoding.ASCII.GetBytes(kind);
         output.Write(name);
         output.Write(payload);
         uint crc = 0xffffffff;
-        foreach (byte value in Enumerable.Concat(name, payload))
+        foreach (byte value in name)
+        {
+            crc ^= value;
+            for (int bit = 0; bit < 8; bit++)
+            {
+                crc = (crc >> 1) ^ ((crc & 1) != 0 ? 0xedb88320U : 0U);
+            }
+        }
+        foreach (byte value in payload)
         {
             crc ^= value;
             for (int bit = 0; bit < 8; bit++)
@@ -104,5 +109,10 @@ internal static class CorpusPngTests
         UInt32(output, crc ^ 0xffffffff);
     }
 
-    private static void UInt32(Stream output, uint value) => output.Write([(byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8), (byte)value]);
+    private static void UInt32(Stream output, uint value)
+    {
+        Span<byte> bytes = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32BigEndian(bytes, value);
+        output.Write(bytes);
+    }
 }

@@ -2,6 +2,7 @@ namespace DotJpegli.Automation;
 
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using static DotJpegli.Automation.PerformanceJson;
@@ -33,7 +34,7 @@ internal static partial class PerformanceComparisonCommand
             JsonObject result = Compare(ReadEvidence(args.Get("baseline")), ReadEvidence(args.Get("current")), beforeRevision, afterRevision);
             Console.Write(Save(result, args.Get("output"), args.Optional("summary")));
         }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException or ArgumentException or System.Text.Json.JsonException)
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or ArgumentException or JsonException)
         {
             throw new InvalidOperationException($"Performance revision comparison invalid: {exception.Message}", exception);
         }
@@ -63,7 +64,7 @@ internal static partial class PerformanceComparisonCommand
     }
 
     private static void Sha256(JsonNode? value, string label) => Require(
-        value?.GetValueKind() == System.Text.Json.JsonValueKind.String && Sha256Pattern().IsMatch(Text(value)), $"Invalid {label} SHA-256");
+        value?.GetValueKind() == JsonValueKind.String && Sha256Pattern().IsMatch(Text(value)), $"Invalid {label} SHA-256");
 
     private static double Allocated(JsonNode value, double blockCount)
     {
@@ -123,11 +124,11 @@ internal static partial class PerformanceComparisonCommand
         }
 
         JsonNode? affinity = left["environment"]!["affinity"];
-        string affinityText = affinity?.GetValueKind() == System.Text.Json.JsonValueKind.String ? Text(affinity) : affinity?.ToJsonString() ?? string.Empty;
+        string affinityText = affinity?.GetValueKind() == JsonValueKind.String ? Text(affinity) : affinity?.ToJsonString() ?? string.Empty;
         Require(AffinityPattern().IsMatch(affinityText), "Comparisons must be pinned to one CPU");
         Dictionary<string, JsonNode> old = Index(before["cases"], CaseKey, "baseline cases");
         Dictionary<string, JsonNode> current = Index(after["cases"], CaseKey, "current cases");
-        Require(old.Keys.ToHashSet(StringComparer.Ordinal).SetEquals(current.Keys) && old.Count == Number(left["expectedCases"]) && current.Count == Number(right["expectedCases"]), "Selected-case mismatch");
+        Require(old.Count == current.Count && old.Keys.All(current.ContainsKey) && old.Count == Number(left["expectedCases"]) && current.Count == Number(right["expectedCases"]), "Selected-case mismatch");
         static string SourceKey(JsonNode item)
         {
             Fields(item, "id");
@@ -137,7 +138,7 @@ internal static partial class PerformanceComparisonCommand
         Dictionary<string, JsonNode> oldSources = Index(before["sources"], SourceKey, "baseline sources");
         Dictionary<string, JsonNode> newSources = Index(after["sources"], SourceKey, "current sources");
         var selected = old.Values.Select(item => Text(item["id"])).ToHashSet(StringComparer.Ordinal);
-        Require(oldSources.Keys.ToHashSet(StringComparer.Ordinal).SetEquals(newSources.Keys) && selected.SetEquals(oldSources.Keys), "Selected source-image mismatch");
+        Require(oldSources.Count == newSources.Count && oldSources.Keys.All(newSources.ContainsKey) && selected.SetEquals(oldSources.Keys), "Selected source-image mismatch");
         foreach ((string id, JsonNode source) in oldSources)
         {
             Fields(source, "category", "width", "height", "ppmSha256", "pixelsSha256");

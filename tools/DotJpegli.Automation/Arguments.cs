@@ -1,10 +1,12 @@
 namespace DotJpegli.Automation;
 
+using System.Runtime.InteropServices;
+
 internal sealed class Arguments
 {
     private readonly Dictionary<string, List<string>> values = [];
 
-    public Arguments(string[] tokens)
+    public Arguments(ReadOnlySpan<string> tokens)
     {
         for (int index = 0; index < tokens.Length; index++)
         {
@@ -15,12 +17,7 @@ internal sealed class Arguments
             }
 
             string name = Name(token);
-            if (!this.values.TryGetValue(name, out List<string>? items))
-            {
-                items = [];
-                this.values.Add(name, items);
-            }
-
+            List<string> items = CollectionsMarshal.GetValueRefOrAddDefault(this.values, name, out _) ??= [];
             if (index + 1 < tokens.Length && !tokens[index + 1].StartsWith("--", StringComparison.Ordinal))
             {
                 items.Add(tokens[++index]);

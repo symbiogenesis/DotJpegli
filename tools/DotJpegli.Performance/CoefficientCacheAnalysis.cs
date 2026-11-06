@@ -350,6 +350,11 @@ internal static class CoefficientCacheAnalysis
 
     private static string HashCoefficients(short[] coefficients)
     {
+        if (BitConverter.IsLittleEndian)
+        {
+            return Convert.ToHexStringLower(SHA256.HashData(MemoryMarshal.AsBytes(coefficients.AsSpan())));
+        }
+
         byte[] bytes = new byte[coefficients.Length * sizeof(short)];
         for (int index = 0; index < coefficients.Length; index++)
         {

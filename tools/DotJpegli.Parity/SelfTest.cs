@@ -1,7 +1,5 @@
 namespace DotJpegli.Parity;
 
-using System.Text;
-
 internal static class SelfTest
 {
     public static void Run()
@@ -36,13 +34,13 @@ internal static class SelfTest
         Throws<InvalidDataException>(() => RateDistortion.QualityTargets(points, [new CurvePoint(900, 60), new CurvePoint(1000, 70)]));
         Throws<InvalidDataException>(() => RateDistortion.Frontier([new CurvePoint(0, 30)]));
 
-        byte[] header = Encoding.ASCII.GetBytes("P6\n# header comment\n1 1\n255\n");
-        var whitespacePixels = PpmImage.Read(header.Concat("\n #"u8.ToArray()).ToArray());
+        byte[] header = "P6\n# header comment\n1 1\n255\n"u8.ToArray();
+        var whitespacePixels = PpmImage.Read([.. header, .. "\n #"u8]);
         Check(whitespacePixels.Pixels.SequenceEqual("\n #"u8), "Raster bytes must not be treated as header whitespace/comments.");
-        Throws<InvalidDataException>(() => PpmImage.Read(header.Concat(new byte[] { 0, 0 }).ToArray()));
-        Throws<InvalidDataException>(() => PpmImage.Read(header.Concat(new byte[] { 0, 0, 0, 0 }).ToArray()));
-        Throws<InvalidDataException>(() => PpmImage.Read(Encoding.ASCII.GetBytes("P3\n1 1\n255\n0 0 0")));
-        Throws<InvalidDataException>(() => PpmImage.Read(Encoding.ASCII.GetBytes("P6\n1 1\n65535\n")));
+        Throws<InvalidDataException>(() => PpmImage.Read([.. header, 0, 0]));
+        Throws<InvalidDataException>(() => PpmImage.Read([.. header, 0, 0, 0, 0]));
+        Throws<InvalidDataException>(() => PpmImage.Read("P3\n1 1\n255\n0 0 0"u8));
+        Throws<InvalidDataException>(() => PpmImage.Read("P6\n1 1\n65535\n"u8));
         Throws<ArgumentException>(() => Options.Parse([]));
         string scratch = Path.Combine(Path.GetTempPath(), "DotJpegli-parity-self-test-" + Guid.NewGuid().ToString("N"));
         _ = Directory.CreateDirectory(scratch);
@@ -139,14 +137,7 @@ internal static class SelfTest
     }
     private static int FindMarker(byte[] data, byte marker)
     {
-        for (int index = 2; index < data.Length - 1; index++)
-        {
-            if (data[index] == 0xff && data[index + 1] == marker)
-            {
-                return index;
-            }
-        }
-
-        throw new InvalidOperationException("Self-test fixture does not contain expected JPEG marker.");
+        int index = data.AsSpan(2).IndexOf((ReadOnlySpan<byte>)[0xff, marker]);
+        return index >= 0 ? index + 2 : throw new InvalidOperationException("Self-test fixture does not contain expected JPEG marker.");
     }
 }

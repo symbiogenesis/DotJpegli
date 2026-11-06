@@ -466,7 +466,7 @@ public sealed class SourceIccColorManagementTests
         AssertConversion(transform, 1, 1, 1, 0.8, 0.8, 0.8, 0.000001);
     }
 
-    private static byte[] ParametricGrayProfile(int function, params double[] parameters)
+    private static byte[] ParametricGrayProfile(int function, params ReadOnlySpan<double> parameters)
     {
         byte[] data = new byte[12 + (parameters.Length * 4)];
         "para"u8.CopyTo(data);
@@ -495,7 +495,7 @@ public sealed class SourceIccColorManagementTests
         throw new InvalidOperationException("Missing fixture curve.");
     }
 
-    private static byte[] SampledGrayProfile(params ushort[] values)
+    private static byte[] SampledGrayProfile(params ReadOnlySpan<ushort> values)
     {
         byte[] profile = JpegliIccProfiles.CreateSrgbGrayscaleProfile();
         int curve = Tag(profile, "kTRC"u8);
@@ -1531,7 +1531,7 @@ public sealed class SourceIccColorManagementTests
                 break;
             }
 
-            int length = (jpeg[position + 2] << 8) | jpeg[position + 3];
+            int length = BinaryPrimitives.ReadUInt16BigEndian(jpeg.AsSpan(position + 2, 2));
             if (jpeg[position + 1] == 0xe2)
             {
                 ReadOnlySpan<byte> payload = jpeg.AsSpan(position + 4, length - 2);
