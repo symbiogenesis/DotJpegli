@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DotJpegli — Pure managed JPEG encoding for .NET</title>
+  <meta name="description" content="Safe, portable C# JPEG encoder based on Google Jpegli. Pure managed .NET with zero native dependencies, full NativeAOT and trimming support, and standalone CLI packages." />
+  <meta property="og:title" content="DotJpegli — Pure managed JPEG encoding for .NET" />
+  <meta property="og:description" content="Safe, portable C# JPEG encoder based on Google Jpegli. Encode RGB or grayscale pixels as baseline or progressive JPEG with no native dependencies or unsafe code." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://symbiogenesis.github.io/DotJpegli/images/comparison/detail-comparison.png" />
+  <link rel="icon" type="image/svg+xml" href="images/logo.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav-inner">
+      <a class="brand" href="#">
+        <img class="brand-logo" src="images/logo.svg" width="34" height="34" alt="DotJpegli logo" />
+        <span>DotJpegli</span>
+        <span class="brand-version" id="nav-version">v3.0.0</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="#photograph-comparison">Comparison</a>
+        <a href="#features">Features</a>
+        <a href="#cli">CLI</a>
+        <a href="#quick-start">Quick start</a>
+        <a href="#performance">Performance</a>
+        <a href="#documentation">Docs</a>
+        <a class="nav-gh" href="https://github.com/symbiogenesis/DotJpegli">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+          </svg>
+          <span>GitHub</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <div class="hero-identity">
+            <img class="hero-logo" src="images/logo.svg" width="76" height="76" alt="DotJpegli vector logo" />
+            <div>
+              <h1 class="hero-title">DotJpegli</h1>
+              <p class="hero-tagline">Pure managed JPEG encoding for .NET.</p>
+            </div>
+          </div>
+
+          <p class="hero-lead">
+            DotJpegli is a safe, portable C# JPEG encoder based on
+            <a href="https://github.com/google/jpegli">Google Jpegli</a>. Encode RGB or grayscale pixels
+            as baseline or progressive JPEG, with control over quality, sampling, color
+            profiles and metadata.
+          </p>
+          <p class="hero-sublead">
+            The library is implemented entirely in managed .NET, with no native dependencies,
+            P/Invoke, unsafe code or runtime NuGet dependencies. NativeAOT and trimming are
+            fully supported on .NET 10 and .NET 11.
+          </p>
+
+          <div class="badge-row" aria-label="Project metadata">
+            <a href="https://github.com/symbiogenesis/DotJpegli/actions/workflows/ci.yml">
+              <span class="badge-dot" aria-hidden="true"></span>
+              <span>CI Passing</span>
+            </a>
+            <a href="https://www.nuget.org/packages/DotJpegli">
+              <span>NuGet · 3.0.0</span>
+            </a>
+            <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/src/DotJpegli/DotJpegli.csproj">
+              <span>.NET Standard 2.1 · .NET 10 · .NET 11</span>
+            </a>
+            <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE">
+              <span>License · BSD-3-Clause</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Download & Install Panel -->
+        <aside class="download-panel" aria-label="Download DotJpegli CLI and NuGet package">
+          <div class="download-panel-header">
+            <h2 class="download-panel-title">Self-Contained NativeAOT CLI</h2>
+            <span class="detected-badge" id="dl-detect-status">Windows · x64</span>
+          </div>
+
+          <div class="dl-action-group">
+            <a
+              id="dl-primary-btn"
+              class="dl-primary-btn"
+              href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-x64.msi"
+            >
+              <span class="dl-btn-left">
+                <span class="dl-btn-icon" aria-hidden="true">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                </span>
+                <span class="dl-btn-text">
+                  <span class="dl-btn-main" id="dl-btn-main">Download for Windows (x64)</span>
+                  <span class="dl-btn-sub" id="dl-btn-sub">DotJpegli.Cli-3.0.0-win-x64.msi · MSI installer</span>
+                </span>
+              </span>
+              <span class="dl-btn-badge" id="dl-btn-badge">win-x64</span>
+            </a>
+
+            <div class="dl-alt-formats" id="dl-alt-formats" aria-label="Alternate formats for detected platform">
+              <span class="dl-alt-label" id="dl-alt-label">Windows x64 formats:</span>
+              <a class="dl-format-pill" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-x64.msi">.msi</a>
+              <a class="dl-format-pill" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-x64.zip">.zip</a>
+              <a class="dl-format-pill" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-x64.exe">.exe</a>
+              <a class="dl-format-pill" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/SHA256SUMS">SHA256SUMS</a>
+            </div>
+
+            <!-- Manual Fallback Menu -->
+            <details class="dl-fallback" id="dl-fallback">
+              <summary class="dl-fallback-summary">
+                <span>Other platforms, architectures &amp; packages</span>
+                <svg class="dl-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </summary>
+              <div class="dl-fallback-menu">
+                <p class="dl-menu-hint">
+                  Choose a platform and architecture to switch the primary button, or download any package directly:
+                </p>
+                <div class="dl-target-list" id="dl-target-list">
+                  <div class="dl-target-item is-selected" data-rid="win-x64">
+                    <div class="dl-target-top">
+                      <button type="button" class="dl-target-select-btn" data-select-rid="win-x64">
+                        <span>Windows (x64)</span>
+                      </button>
+                      <span class="dl-rid-tag">win-x64</span>
+                    </div>
+                    <div class="dl-target-links">
+                      <a class="dl-link-primary" data-asset="DotJpegli.Cli-3.0.0-win-x64.msi" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-x64.msi">.msi installer</a>
+                      <a data-asset="DotJpegli.Cli-3.0.0-win-x64.zip" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-x64.zip">.zip portable</a>
+                      <a data-asset="DotJpegli.Cli-3.0.0-win-x64.exe" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-x64.exe">.exe standalone</a>
+                    </div>
+                  </div>
+
+                  <div class="dl-target-item" data-rid="win-arm64">
+                    <div class="dl-target-top">
+                      <button type="button" class="dl-target-select-btn" data-select-rid="win-arm64">
+                        <span>Windows (ARM64)</span>
+                      </button>
+                      <span class="dl-rid-tag">win-arm64</span>
+                    </div>
+                    <div class="dl-target-links">
+                      <a class="dl-link-primary" data-asset="DotJpegli.Cli-3.0.0-win-arm64.msi" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-arm64.msi">.msi installer</a>
+                      <a data-asset="DotJpegli.Cli-3.0.0-win-arm64.zip" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-arm64.zip">.zip portable</a>
+                      <a data-asset="DotJpegli.Cli-3.0.0-win-arm64.exe" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-arm64.exe">.exe standalone</a>
+                    </div>
+                  </div>
+
+                  <div class="dl-target-item" data-rid="linux-x64">
+                    <div class="dl-target-top">
+                      <button type="button" class="dl-target-select-btn" data-select-rid="linux-x64">
+                        <span>Linux (x64)</span>
+                      </button>
+                      <span class="dl-rid-tag">linux-x64</span>
+                    </div>
+                    <div class="dl-target-links">
+                      <a class="dl-link-primary" data-asset="DotJpegli.Cli-3.0.0-linux-x64.tar.gz" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-x64.tar.gz">.tar.gz portable</a>
+                      <a data-asset="DotJpegli.Cli-3.0.0-linux-x64.deb" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-x64.deb">.deb</a>
+                      <a data-asset="DotJpegli.Cli-3.0.0-linux-x64.rpm" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-x64.rpm">.rpm</a>
+                      <a data-asset="DotJpegli.Cli-3.0.0-linux-x64.AppImage" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-x64.AppImage">.AppImage</a>
+                      <a data-asset="DotJpegli.Cli-3.0.0-linux-x64.flatpak" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-x64.flatpak">.flatpak</a>
+                    </div>
+                  </div>
+
+                  <div class="dl-target-item" data-rid="linux-arm64">
+                    <div class="dl-target-top">
+                      <button type="button" class="dl-target-select-btn" data-select-rid="linux-arm64">
+                        <span>Linux (ARM64)</span>
+                      </button>
+                      <span class="dl-rid-tag">linux-arm64</span>
+                    </div>
+                    <div class="dl-target-links">
+                      <a class="dl-link-primary" data-asset="DotJpegli.Cli-3.0.0-linux-arm64.tar.gz" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-arm64.tar.gz">.tar.gz portable</a>
+                      <a data-asset="DotJpegli.Cli-3.0.0-linux-arm64.deb" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-arm64.deb">.deb</a>
+                      <a data-asset="DotJpegli.Cli-3.0.0-linux-arm64.rpm" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-arm64.rpm">.rpm</a>
+                      <a data-asset="DotJpegli.Cli-3.0.0-linux-arm64.AppImage" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-arm64.AppImage">.AppImage</a>
+                      <a data-asset="DotJpegli.Cli-3.0.0-linux-arm64.flatpak" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-arm64.flatpak">.flatpak</a>
+                    </div>
+                  </div>
+
+                  <div class="dl-target-item" data-rid="osx-arm64">
+                    <div class="dl-target-top">
+                      <button type="button" class="dl-target-select-btn" data-select-rid="osx-arm64">
+                        <span>macOS (ARM64 · Apple Silicon)</span>
+                      </button>
+                      <span class="dl-rid-tag">osx-arm64</span>
+                    </div>
+                    <div class="dl-target-links">
+                      <a class="dl-link-primary" data-asset="DotJpegli.Cli-3.0.0-osx-arm64.pkg" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-osx-arm64.pkg">.pkg installer</a>
+                      <a data-asset="DotJpegli.Cli-3.0.0-osx-arm64.tar.gz" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-osx-arm64.tar.gz">.tar.gz portable</a>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="dl-menu-footer">
+                  <a data-asset="SHA256SUMS" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/SHA256SUMS">SHA256SUMS</a>
+                  <a href="https://github.com/symbiogenesis/DotJpegli/releases">All GitHub Releases →</a>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <div class="nuget-box">
+            <div class="nuget-box-label">
+              <span>Or install the .NET library via NuGet</span>
+              <a href="https://www.nuget.org/packages/DotJpegli">nuget.org ↗</a>
+            </div>
+            <div class="cmd-snippet">
+              <code id="nuget-cmd">dotnet add package DotJpegli --version 3.0.0</code>
+              <button type="button" class="copy-btn" data-copy-target="nuget-cmd">Copy</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Photograph Comparison -->
+    <section class="section" id="photograph-comparison">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-eyebrow">Visual &amp; Perceptual Evaluation</p>
+          <h2 class="section-title">Photograph comparison</h2>
+          <p class="section-desc">
+            Fine clouds of dust, saturated colour and thousands of stars make Webb's
+            <strong>Cosmic Cliffs</strong> a demanding subject. Open the <strong>2400 × 1390</strong> source photograph
+            to inspect its full detail:
+          </p>
+        </div>
+
+        <figure class="photo-figure">
+          <a class="photo-link" href="images/comparison/source.png">
+            <img
+              class="photo-img"
+              src="images/comparison/source.png"
+              width="2400"
+              height="1390"
+              loading="lazy"
+              alt="James Webb Space Telescope photograph of the Cosmic Cliffs: glowing amber clouds, blue starlight and intricate filaments in the Carina Nebula."
+            />
+          </a>
+          <figcaption class="photo-caption">
+            <span>
+              <strong>Photograph: NASA, ESA, CSA, and STScI — <a href="https://esawebb.org/images/weic2205a/">ESA/Webb source</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</strong>
+              Resized from the official lossless TIFF; the comparison images are re-encoded and the detail panels are cropped.
+            </span>
+            <a href="images/comparison/source.png">Open 2400 × 1390 lossless source PNG ↗</a>
+          </figcaption>
+        </figure>
+
+        <p class="comparison-note">
+          Every encoder receives the same RGB pixels. Links open the complete files;
+          sizes include headers and metadata. SSIMULACRA2 measures each decoded image
+          against the source; higher scores indicate closer agreement with that metric.
+        </p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Encoder / source</th>
+                <th>Settings</th>
+                <th class="num-col">File size</th>
+                <th class="num-col">SSIMULACRA2</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="images/comparison/source.png">Source PNG</a></td>
+                <td>Lossless common input</td>
+                <td class="num-col">4,437,354 bytes · 4333.4 KiB</td>
+                <td class="num-col">100.00</td>
+              </tr>
+              <tr class="highlight-row">
+                <td><a href="images/comparison/dotjpegli.jpg">DotJpegli 2.0.0</a></td>
+                <td>Distance 1, 4:2:0, progressive level 2</td>
+                <td class="num-col">723,724 bytes · 706.8 KiB</td>
+                <td class="num-col">80.49</td>
+              </tr>
+              <tr>
+                <td><a href="images/comparison/google-jpegli.jpg">Google's C++ jpegli</a></td>
+                <td>Distance 1, 4:2:0, progressive level 2</td>
+                <td class="num-col">723,938 bytes · 707.0 KiB</td>
+                <td class="num-col">80.49</td>
+              </tr>
+              <tr>
+                <td><a href="images/comparison/mozjpeg.jpg">mozjpeg 4.1.1</a></td>
+                <td>Quality 90, 4:2:0, progressive, trellis</td>
+                <td class="num-col">726,330 bytes · 709.3 KiB</td>
+                <td class="num-col">78.92</td>
+              </tr>
+              <tr>
+                <td><a href="images/comparison/libjpeg-turbo.jpg">libjpeg-turbo 3.2.0</a></td>
+                <td>Quality 90, 4:2:0, progressive</td>
+                <td class="num-col">822,647 bytes · 803.4 KiB</td>
+                <td class="num-col">80.41</td>
+              </tr>
+              <tr>
+                <td><a href="images/comparison/webp.webp">WebP 1.6.0</a></td>
+                <td>Quality 90, method 6</td>
+                <td class="num-col">640,770 bytes · 625.8 KiB</td>
+                <td class="num-col">82.28</td>
+              </tr>
+              <tr>
+                <td><a href="images/comparison/avif.avif">AVIF · libavif 1.4.2 / libaom 3.14.1</a></td>
+                <td>Quality 90, speed 6, 8-bit 4:2:0</td>
+                <td class="num-col">837,683 bytes · 818.0 KiB</td>
+                <td class="num-col">86.85</td>
+              </tr>
+              <tr>
+                <td><a href="images/comparison/jpeg-xl.jxl">JPEG XL · libjxl 0.12.0</a></td>
+                <td>Distance 1, effort 7</td>
+                <td class="num-col">759,353 bytes · 741.6 KiB</td>
+                <td class="num-col">88.02</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="comparison-note">
+          These are selected high-quality settings for one photograph. Quality scales
+          differ across codecs, and these outputs are <strong>not matched perceptual quality</strong>.
+          JPEG XL and AVIF retain more detail according to this metric at the settings
+          shown. DotJpegli is 214 bytes smaller than Google's jpegli here; their bytes
+          and decoded pixels differ slightly. JPEG XL requires a compatible viewer.
+        </p>
+
+        <p class="comparison-note">
+          The following lossless sheet shows the same <strong>480 × 300</strong> detail from every
+          image, with one source pixel per image pixel. Open it at full size to compare
+          star edges, wispy dust and colour transitions:
+        </p>
+
+        <figure class="photo-figure">
+          <a class="photo-link" href="images/comparison/detail-comparison.png">
+            <img
+              class="photo-img"
+              src="images/comparison/detail-comparison.png"
+              width="1960"
+              height="688"
+              loading="lazy"
+              alt="Pixel-for-pixel source and encoded detail crops for DotJpegli, Google jpegli, mozjpeg, libjpeg-turbo, WebP, AVIF and JPEG XL, each labelled with its complete file size. Credit: NASA, ESA, CSA, and STScI; CC BY 4.0."
+            />
+          </a>
+          <figcaption class="photo-caption">
+            <span>
+              See the <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/photo-comparison.md">source, exact settings, hashes and reproduction instructions</a>.
+              Google also published a separate <a href="https://arxiv.org/abs/2403.18589">human-rater study of jpegli, mozjpeg and libjpeg-turbo</a>; the example above is generated for this repository.
+            </span>
+            <a href="images/comparison/detail-comparison.png">Open full-size detail crop sheet ↗</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="section section-alt" id="features">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-eyebrow">Capabilities</p>
+          <h2 class="section-title">Features</h2>
+          <p class="section-desc">
+            Full-featured JPEG compression implemented in safe, portable managed C# without native binaries or runtime dependencies.
+          </p>
+        </div>
+
+        <div class="features-grid">
+          <article class="feature-card">
+            <h3>
+              <span class="feature-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+              </span>
+              <span>Encoding</span>
+            </h3>
+            <p>Baseline and progressive JPEG, perceptual quality or distance, chroma subsampling and custom scan scripts.</p>
+          </article>
+
+          <article class="feature-card">
+            <h3>
+              <span class="feature-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+              </span>
+              <span>Pixel input</span>
+            </h3>
+            <p>RGB, BGR, grayscale and other layouts; <code>byte</code>, <code>ushort</code> and <code>float</code> sources; configurable row stride.</p>
+          </article>
+
+          <article class="feature-card">
+            <h3>
+              <span class="feature-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              </span>
+              <span>Color and metadata</span>
+            </h3>
+            <p>ICC profiles and source color conversion, Exif, XMP, IPTC, comments and raw metadata markers.</p>
+          </article>
+
+          <article class="feature-card">
+            <h3>
+              <span class="feature-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              </span>
+              <span>Output and execution</span>
+            </h3>
+            <p>Byte arrays or streams, cancellation and optional parallel encoding.</p>
+          </article>
+
+          <article class="feature-card">
+            <h3>
+              <span class="feature-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+              </span>
+              <span>Portable acceleration</span>
+            </h3>
+            <p>Managed SIMD on .NET 10 and .NET 11, with scalar fallbacks.</p>
+          </article>
+
+          <article class="feature-card">
+            <h3>
+              <span class="feature-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </span>
+              <span>Pure managed &amp; NativeAOT</span>
+            </h3>
+            <p>Zero <code>unsafe</code> blocks, zero P/Invoke, zero runtime NuGet dependencies, and full trimming and NativeAOT compatibility.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Command-line encoder -->
+    <section class="section" id="cli">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-eyebrow">Standalone Tooling</p>
+          <h2 class="section-title">Command-line encoder</h2>
+          <p class="section-desc">
+            Download a self-contained NativeAOT <code>dotjpegli</code> package or portable archive from
+            <a href="https://github.com/symbiogenesis/DotJpegli/releases">Releases</a>. Downloads are
+            available for Windows (x64, ARM64), Linux (x64, ARM64) and macOS (ARM64),
+            and do not require .NET to be installed.
+          </p>
+        </div>
+
+        <div class="code-card">
+          <div class="code-card-header">
+            <span>Encode images from the command line</span>
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <span class="code-lang">shell</span>
+              <button type="button" class="copy-btn" data-copy-target="cli-example-code">Copy</button>
+            </div>
+          </div>
+          <pre class="code-block"><code id="cli-example-code">dotjpegli encode input.png output.jpg --quality 90 --progressive
+dotjpegli encode input.png output.jpg --distance 1 --subsampling 444 --threads 4</code></pre>
+          <p class="code-card-note">
+            See the <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/cli.md">CLI guide</a> for installation, options and local publishing.
+          </p>
+        </div>
+
+        <div class="cli-platforms">
+          <div class="cli-os-card" data-os-card="windows">
+            <h3>
+              <span>Windows</span>
+              <span class="dl-rid-tag">win-x64 · win-arm64</span>
+            </h3>
+            <p>
+              Per-user <code>.msi</code> installer (adds <code>dotjpegli</code> to user <code>PATH</code>), portable <code>.zip</code> archive and standalone <code>.exe</code> executable.
+            </p>
+            <div class="dl-target-links">
+              <a data-asset="DotJpegli.Cli-3.0.0-win-x64.msi" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-x64.msi">x64 .msi</a>
+              <a data-asset="DotJpegli.Cli-3.0.0-win-x64.zip" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-x64.zip">x64 .zip</a>
+              <a data-asset="DotJpegli.Cli-3.0.0-win-x64.exe" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-x64.exe">x64 .exe</a>
+              <a data-asset="DotJpegli.Cli-3.0.0-win-arm64.msi" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-arm64.msi">ARM64 .msi</a>
+              <a data-asset="DotJpegli.Cli-3.0.0-win-arm64.zip" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-arm64.zip">ARM64 .zip</a>
+              <a data-asset="DotJpegli.Cli-3.0.0-win-arm64.exe" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-win-arm64.exe">ARM64 .exe</a>
+            </div>
+          </div>
+
+          <div class="cli-os-card" data-os-card="linux">
+            <h3>
+              <span>Linux</span>
+              <span class="dl-rid-tag">linux-x64 · linux-arm64</span>
+            </h3>
+            <p>
+              Debian/Ubuntu <code>.deb</code>, Fedora/RHEL/openSUSE <code>.rpm</code>, single-file <code>.AppImage</code>, <code>.flatpak</code> bundle and portable <code>.tar.gz</code>.
+            </p>
+            <div class="dl-target-links">
+              <a data-asset="DotJpegli.Cli-3.0.0-linux-x64.deb" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-x64.deb">x64 .deb</a>
+              <a data-asset="DotJpegli.Cli-3.0.0-linux-x64.rpm" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-x64.rpm">x64 .rpm</a>
+              <a data-asset="DotJpegli.Cli-3.0.0-linux-x64.AppImage" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-x64.AppImage">x64 .AppImage</a>
+              <a data-asset="DotJpegli.Cli-3.0.0-linux-x64.flatpak" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-x64.flatpak">x64 .flatpak</a>
+              <a data-asset="DotJpegli.Cli-3.0.0-linux-x64.tar.gz" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-x64.tar.gz">x64 .tar.gz</a>
+              <a data-asset="DotJpegli.Cli-3.0.0-linux-arm64.deb" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-arm64.deb">ARM64 .deb</a>
+              <a data-asset="DotJpegli.Cli-3.0.0-linux-arm64.tar.gz" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-linux-arm64.tar.gz">ARM64 .tar.gz</a>
+            </div>
+          </div>
+
+          <div class="cli-os-card" data-os-card="macos">
+            <h3>
+              <span>macOS</span>
+              <span class="dl-rid-tag">osx-arm64</span>
+            </h3>
+            <p>
+              Apple Silicon <code>.pkg</code> installer (installs <code>/usr/local/bin/dotjpegli</code>) and ad-hoc signed portable <code>.tar.gz</code> archive.
+            </p>
+            <div class="dl-target-links">
+              <a data-asset="DotJpegli.Cli-3.0.0-osx-arm64.pkg" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-osx-arm64.pkg">ARM64 .pkg</a>
+              <a data-asset="DotJpegli.Cli-3.0.0-osx-arm64.tar.gz" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v3.0.0/DotJpegli.Cli-3.0.0-osx-arm64.tar.gz">ARM64 .tar.gz</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick Start -->
+    <section class="section section-alt" id="quick-start">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-eyebrow">Library API</p>
+          <h2 class="section-title">Quick start</h2>
+          <p class="section-desc">
+            Add the NuGet package to any .NET Standard 2.1, .NET 10 or .NET 11 project and encode pixels to a byte array or stream.
+          </p>
+        </div>
+
+        <div class="quickstart-grid">
+          <div>
+            <div class="code-card">
+              <div class="code-card-header">
+                <span>1. Install the package</span>
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                  <span class="code-lang">sh</span>
+                  <button type="button" class="copy-btn" data-copy-target="qs-install">Copy</button>
+                </div>
+              </div>
+              <pre class="code-block"><code id="qs-install">dotnet add package DotJpegli --version 3.0.0</code></pre>
+              <p class="code-card-note">
+                Supports .NET Standard 2.1, .NET 10 and .NET 11.
+              </p>
+            </div>
+
+            <div class="code-card">
+              <div class="code-card-header">
+                <span>Build from source</span>
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                  <span class="code-lang">sh</span>
+                  <button type="button" class="copy-btn" data-copy-target="qs-source">Copy</button>
+                </div>
+              </div>
+              <pre class="code-block"><code id="qs-source">dotnet add path/to/YourApp.csproj reference src/DotJpegli/DotJpegli.csproj</code></pre>
+              <p class="code-card-note">
+                Building from source requires <strong>.NET SDK <code>11.0.100-rc.3.26522.148</code></strong>, pinned in
+                <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/global.json"><code>global.json</code></a>
+                with prerelease SDKs enabled.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <div class="code-card">
+              <div class="code-card-header">
+                <span>2. Encode an image</span>
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                  <span class="code-lang">csharp</span>
+                  <button type="button" class="copy-btn" data-copy-target="qs-encode">Copy</button>
+                </div>
+              </div>
+              <pre class="code-block"><code id="qs-encode">using DotJpegli;
+
+byte[] rgbPixels = [255, 0, 0]; // One red pixel, in R, G, B order.
+
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width: 1, height: 1, options: new()
+{
+    Quality = 85
+});
+
+File.WriteAllBytes("output.jpg", jpeg);</code></pre>
+              <p class="code-card-note">
+                For RGB input, the defaults are baseline JPEG, quality 85 and 4:2:0 chroma subsampling.
+                For other pixel layouts, row padding and higher-precision sources, see the
+                <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/encoding.md">encoding guide</a>.
+                Alpha channels are ignored; composite translucent pixels before encoding.
+              </p>
+            </div>
+
+            <div class="code-card">
+              <div class="code-card-header">
+                <span>3. Write progressive JPEG to a stream</span>
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                  <span class="code-lang">csharp</span>
+                  <button type="button" class="copy-btn" data-copy-target="qs-stream">Copy</button>
+                </div>
+              </div>
+              <pre class="code-block"><code id="qs-stream">using FileStream output = File.Create("progressive.jpg");
+
+JpegliEncoder.Encode(output, rgbPixels, width: 1, height: 1, options: new()
+{
+    Quality = 85,
+    Progressive = true
+});</code></pre>
+              <p class="code-card-note">
+                The stream overload avoids retaining the complete encoded JPEG in a returned
+                byte array. See <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/compression.md">compression and scan options</a>
+                for quality, sampling and progression controls.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Performance -->
+    <section class="section" id="performance">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-eyebrow">Benchmarks &amp; Evidence</p>
+          <h2 class="section-title">Performance</h2>
+          <p class="section-desc">
+            These charts compare DotJpegli with <strong>native Google Jpegli</strong> on 24 Kodak photographs.
+          </p>
+        </div>
+
+        <div class="perf-stack">
+          <article class="perf-card">
+            <h3>Compression efficiency</h3>
+            <p>Mean JPEG sizes differ from native by <strong>at most 0.032%</strong> at matched PSNR and SSIM.</p>
+            <img
+              class="perf-chart"
+              src="images/performance/compression.svg"
+              width="880"
+              height="264"
+              loading="lazy"
+              alt="Photograph group mean JPEG file-size differences from native Google Jpegli are at most 0.032% across all four encoding modes at matched PSNR and SSIM."
+            />
+          </article>
+
+          <article class="perf-card">
+            <h3>Encoding wall time</h3>
+            <p>
+              On an AMD EPYC 9V45, progressive encoding averaged <strong>29.6–30.5% less time</strong>
+              than native; sequential averaged <strong>15.7–16.8% less</strong>.
+            </p>
+            <img
+              class="perf-chart"
+              src="images/performance/wall-time.svg"
+              width="880"
+              height="584"
+              loading="lazy"
+              alt="Percentage encoding-time differences from native Google Jpegli, pairing Kodak photographs and deterministic controls for each encoding mode."
+            />
+          </article>
+
+          <article class="perf-card">
+            <h3>Allocations per encode</h3>
+            <p>
+              DotJpegli averaged <strong>98.8–146.3 KiB</strong> of managed GC allocations per encode,
+              compared with <strong>1,924.8–4,288.3 KiB</strong> of native heap requests for Google Jpegli
+              (<a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-evidence/2026-11-06-615b373/README.md">measurements</a>,
+              including the output JPEG; not peak memory).
+            </p>
+            <img
+              class="perf-chart"
+              src="images/performance/allocations.svg"
+              width="880"
+              height="548"
+              loading="lazy"
+              alt="DotJpegli managed GC allocation bytes and official Google C++ jpegli requested heap bytes in KiB per encode, grouped by sampling and sequential or progressive encoding."
+            />
+          </article>
+        </div>
+
+        <p class="comparison-note" style="margin-bottom: 0;">
+          See <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md">methodology and full results</a> and
+          <a href="images/performance/metrics.json">chart data</a>. The full comparison does not
+          meet native performance parity.
+        </p>
+      </div>
+    </section>
+
+    <!-- Documentation & Scope -->
+    <section class="section section-alt" id="documentation">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-eyebrow">Reference Guides</p>
+          <h2 class="section-title">Documentation</h2>
+          <p class="section-desc">
+            Detailed guides covering pixel layouts, ICC color profiles, scan scripts, quantization tables, parity evidence and release engineering.
+          </p>
+        </div>
+
+        <div class="docs-grid">
+          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/encoding.md">
+            <div>
+              <h3><span>Encoding</span> <span aria-hidden="true">→</span></h3>
+              <p>Pixel layouts, sampling, streams and color spaces.</p>
+            </div>
+          </a>
+
+          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/metadata.md">
+            <div>
+              <h3><span>Profiles and metadata</span> <span aria-hidden="true">→</span></h3>
+              <p>ICC profiles, Exif, XMP, IPTC and metadata editing.</p>
+            </div>
+          </a>
+
+          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/compression.md">
+            <div>
+              <h3><span>Compression and scans</span> <span aria-hidden="true">→</span></h3>
+              <p>Quality, distance, scan scripts, parallel execution and memory use.</p>
+            </div>
+          </a>
+
+          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/cli.md">
+            <div>
+              <h3><span>Command-line encoder</span> <span aria-hidden="true">→</span></h3>
+              <p>NativeAOT CLI usage, portable downloads and Windows, Linux and macOS packages.</p>
+            </div>
+          </a>
+
+          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/quantization.md">
+            <div>
+              <h3><span>Quantization</span> <span aria-hidden="true">→</span></h3>
+              <p>Standard and custom tables, transfer functions and advanced tuning.</p>
+            </div>
+          </a>
+
+          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/development.md">
+            <div>
+              <h3><span>Development and validation</span> <span aria-hidden="true">→</span></h3>
+              <p>Source builds, focused tests, reproducibility and deployment checks.</p>
+            </div>
+          </a>
+
+          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/publishing.md">
+            <div>
+              <h3><span>Publishing to NuGet</span> <span aria-hidden="true">→</span></h3>
+              <p>Trusted publishing setup and publishing a tested package from CI.</p>
+            </div>
+          </a>
+
+          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/quality-compression-parity.md">
+            <div>
+              <h3><span>Quality and compression parity</span> <span aria-hidden="true">→</span></h3>
+              <p>Comparison scope, acceptance bounds and hosted evidence.</p>
+            </div>
+          </a>
+
+          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md">
+            <div>
+              <h3><span>Performance parity</span> <span aria-hidden="true">→</span></h3>
+              <p>Measurement scope, encoding latency and CI diagnostics.</p>
+            </div>
+          </a>
+
+          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/photo-comparison.md">
+            <div>
+              <h3><span>Photograph comparison</span> <span aria-hidden="true">→</span></h3>
+              <p>Licensed high-resolution source, seven encoder outputs, file sizes and reproduction instructions.</p>
+            </div>
+          </a>
+        </div>
+
+        <div class="scope-grid">
+          <div class="scope-box">
+            <h3>Scope</h3>
+            <p>
+              DotJpegli produces <strong>lossy, eight-bit JPEG</strong>, including from higher-precision
+              sources and even at quality 100. Jpegli's quality scale is not interchangeable with
+              libjpeg's. Decoding is outside the project's scope.
+            </p>
+          </div>
+          <div class="scope-box">
+            <h3>Validation</h3>
+            <p>
+              Quality and compression parity with upstream is established within a
+              <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/quality-compression-parity.md">documented RGB8 YCbCr scope</a>.
+              Byte-identical upstream output is not claimed.
+              <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md">Performance results and acceptance bounds</a>
+              are documented separately.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>
+        <p style="margin: 0 0 0.45rem;">
+          Copyright &copy; 2026 Edward Miller. Licensed under
+          <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE">BSD-3-Clause</a>, with the
+          upstream copyright notice retained for adapted portions.
+        </p>
+        <p style="margin: 0;">
+          The photograph and its derivatives are separately licensed under
+          <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, with the full credit
+          and source given in the comparison above.
+        </p>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE.jpegli">Upstream license</a>
+        <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/THIRD-PARTY-NOTICES.md">Third-party notices</a>
+        <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/upstream.json">Upstream manifest</a>
+        <a href="https://github.com/symbiogenesis/DotJpegli">GitHub repository</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (() => {
+      let version = '3.0.0';
+      const repoUrl = 'https://github.com/symbiogenesis/DotJpegli';
+
+      const targets = {
+        'win-x64': {
+          os: 'windows',
+          label: 'Windows (x64)',
+          short: 'Windows · x64',
+          primaryExt: '.msi',
+          primaryDesc: 'MSI installer',
+          formats: ['.msi', '.zip', '.exe']
+        },
+        'win-arm64': {
+          os: 'windows',
+          label: 'Windows (ARM64)',
+          short: 'Windows · ARM64',
+          primaryExt: '.msi',
+          primaryDesc: 'MSI installer',
+          formats: ['.msi', '.zip', '.exe']
+        },
+        'linux-x64': {
+          os: 'linux',
+          label: 'Linux (x64)',
+          short: 'Linux · x64',
+          primaryExt: '.tar.gz',
+          primaryDesc: 'Portable tarball',
+          formats: ['.tar.gz', '.deb', '.rpm', '.AppImage', '.flatpak']
+        },
+        'linux-arm64': {
+          os: 'linux',
+          label: 'Linux (ARM64)',
+          short: 'Linux · ARM64',
+          primaryExt: '.tar.gz',
+          primaryDesc: 'Portable tarball',
+          formats: ['.tar.gz', '.deb', '.rpm', '.AppImage', '.flatpak']
+        },
+        'osx-arm64': {
+          os: 'macos',
+          label: 'macOS (ARM64)',
+          short: 'macOS · ARM64',
+          primaryExt: '.pkg',
+          primaryDesc: 'macOS pkg installer',
+          formats: ['.pkg', '.tar.gz']
+        }
+      };
+
+      const assetUrl = (rid, ext) =>
+        `${repoUrl}/releases/download/v${version}/DotJpegli.Cli-${version}-${rid}${ext}`;
+
+      const primaryBtn = document.getElementById('dl-primary-btn');
+      const btnMain = document.getElementById('dl-btn-main');
+      const btnSub = document.getElementById('dl-btn-sub');
+      const btnBadge = document.getElementById('dl-btn-badge');
+      const detectStatus = document.getElementById('dl-detect-status');
+      const altFormats = document.getElementById('dl-alt-formats');
+      const fallbackDetails = document.getElementById('dl-fallback');
+
+      let currentRid = 'win-x64';
+      let isManualSelection = false;
+
+      function applyTarget(rid, manual = false) {
+        const target = targets[rid] || targets['win-x64'];
+        currentRid = rid in targets ? rid : 'win-x64';
+        if (manual) {
+          isManualSelection = true;
+        }
+
+        let ext = target.primaryExt;
+        let desc = target.primaryDesc;
+        if (target.os === 'linux') {
+          const ua = navigator.userAgent || '';
+          if (/Ubuntu|Debian/i.test(ua)) {
+            ext = '.deb';
+            desc = 'Debian / Ubuntu package';
+          } else if (/Fedora|Red Hat|RHEL|openSUSE|CentOS/i.test(ua)) {
+            ext = '.rpm';
+            desc = 'RPM package';
+          }
+        }
+
+        const fileName = `DotJpegli.Cli-${version}-${currentRid}${ext}`;
+        primaryBtn.href = assetUrl(currentRid, ext);
+        btnMain.textContent = `Download for ${target.label}`;
+        btnSub.textContent = `${fileName} · ${desc}`;
+        btnBadge.textContent = currentRid;
+        detectStatus.textContent = `${isManualSelection ? 'Selected' : 'Auto-detected'}: ${target.short}`;
+
+        altFormats.replaceChildren();
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'dl-alt-label';
+        labelSpan.textContent = `${target.short} formats:`;
+        altFormats.appendChild(labelSpan);
+
+        for (const fmt of target.formats) {
+          const link = document.createElement('a');
+          link.className = 'dl-format-pill';
+          link.href = assetUrl(currentRid, fmt);
+          link.textContent = fmt;
+          altFormats.appendChild(link);
+        }
+
+        const sumsLink = document.createElement('a');
+        sumsLink.className = 'dl-format-pill';
+        sumsLink.href = `${repoUrl}/releases/download/v${version}/SHA256SUMS`;
+        sumsLink.textContent = 'SHA256SUMS';
+        altFormats.appendChild(sumsLink);
+
+        document.querySelectorAll('.dl-target-item').forEach((el) => {
+          el.classList.toggle('is-selected', el.getAttribute('data-rid') === currentRid);
+        });
+        document.querySelectorAll('.cli-os-card').forEach((el) => {
+          el.classList.toggle('is-detected-os', el.getAttribute('data-os-card') === target.os);
+        });
+      }
+
+      function detectInitialTarget() {
+        const ua = navigator.userAgent || '';
+        const platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        const combined = `${ua} ${platform}`;
+
+        const isArm = /arm64|aarch64|armv8/i.test(combined);
+        let os = 'windows';
+        if (/Mac|iPod|iPhone|iPad/i.test(platform) || /Mac OS X|Macintosh/i.test(ua)) {
+          os = 'macos';
+        } else if (/Linux|X11|Ubuntu|Debian|Fedora|Arch/i.test(combined) && !/Android/i.test(combined)) {
+          os = 'linux';
+        }
+
+        if (os === 'macos') {
+          return 'osx-arm64';
+        }
+        if (os === 'linux') {
+          return isArm ? 'linux-arm64' : 'linux-x64';
+        }
+        return isArm ? 'win-arm64' : 'win-x64';
+      }
+
+      applyTarget(detectInitialTarget(), false);
+
+      fetch('https://api.github.com/repos/symbiogenesis/DotJpegli/releases/latest')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((release) => {
+          if (!release || typeof release.tag_name !== 'string') {
+            return;
+          }
+          const latestVersion = release.tag_name.replace(/^v/, '');
+          if (!/^\d+\.\d+\.\d+$/.test(latestVersion) || latestVersion === version) {
+            return;
+          }
+          version = latestVersion;
+          const navVer = document.getElementById('nav-version');
+          if (navVer) {
+            navVer.textContent = `v${version}`;
+          }
+          ['nuget-cmd', 'qs-install'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.textContent = `dotnet add package DotJpegli --version ${version}`;
+            }
+          });
+          document.querySelectorAll('[data-asset]').forEach((a) => {
+            const asset = (a.getAttribute('data-asset') || '').replace(/3\.0\.0/g, version);
+            a.setAttribute('data-asset', asset);
+            a.href = `${repoUrl}/releases/download/v${version}/${asset}`;
+          });
+          applyTarget(currentRid, isManualSelection);
+        })
+        .catch(() => {});
+
+      if (navigator.userAgentData && typeof navigator.userAgentData.getHighEntropyValues === 'function') {
+        navigator.userAgentData
+          .getHighEntropyValues(['architecture', 'bitness', 'platform'])
+          .then((hints) => {
+            if (isManualSelection) {
+              return;
+            }
+            const plat = (hints.platform || '').toLowerCase();
+            const arch = (hints.architecture || '').toLowerCase();
+            const isArm64 = arch.includes('arm') && hints.bitness !== '32';
+
+            if (plat.includes('mac')) {
+              applyTarget('osx-arm64', false);
+            } else if (plat.includes('linux')) {
+              applyTarget(isArm64 ? 'linux-arm64' : 'linux-x64', false);
+            } else if (plat.includes('win')) {
+              applyTarget(isArm64 ? 'win-arm64' : 'win-x64', false);
+            }
+          })
+          .catch(() => {});
+      }
+
+      document.querySelectorAll('[data-select-rid]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const rid = btn.getAttribute('data-select-rid');
+          if (rid) {
+            applyTarget(rid, true);
+            if (fallbackDetails) {
+              fallbackDetails.open = false;
+            }
+          }
+        });
+      });
+
+      document.addEventListener('click', (e) => {
+        if (fallbackDetails && fallbackDetails.open && !fallbackDetails.contains(e.target)) {
+          fallbackDetails.open = false;
+        }
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && fallbackDetails && fallbackDetails.open) {
+          fallbackDetails.open = false;
+        }
+      });
+
+      document.querySelectorAll('[data-copy-target]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-copy-target');
+          const targetEl = id ? document.getElementById(id) : null;
+          if (!targetEl || !navigator.clipboard) {
+            return;
+          }
+          navigator.clipboard.writeText(targetEl.textContent || '').then(() => {
+            const prev = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => {
+              btn.textContent = prev;
+            }, 1400);
+          });
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
