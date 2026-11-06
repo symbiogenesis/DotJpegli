@@ -44,9 +44,21 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
         null => throw new InvalidOperationException("A scan configuration must be initialized.")
     };
 
+    private static readonly int[] SingleScanEnds = [63];
+    private static readonly int[] TwoBandScanEnds = [2, 63];
+    private static readonly int[] ZeroRefinement = [0];
+    private static readonly int[] OneRefinement = [1];
+    private static readonly int[] TwoBandRefinement = [0, 2];
+    private static readonly int[] SingleComponents = [0];
+    private static readonly int[] ColorComponents = [0, 1, 2];
+    private static readonly int[][] SingleSelectors = [SingleComponents];
+    private static readonly int[][] ColorSelectors = [SingleComponents, [1], [2]];
+    private static readonly JpegScan[] DefaultGrayscaleSequential = [new(SingleComponents, 0, 63, 0, 0)];
+    private static readonly JpegScan[] DefaultColorSequential = [new(ColorComponents, 0, 63, 0, 0)];
+
     internal Prepared Prepare(JpegSamplingFactors sampling, bool grayscale, Prepared? preparedScript) => this switch
     {
-        Sequential sequential => new(false, grayscale || sequential.InterleaveComponents, 0, [63], [0], null),
+        Sequential sequential => new(false, grayscale || sequential.InterleaveComponents, 0, SingleScanEnds, ZeroRefinement, null),
         Progressive progressive => PrepareProgressive(progressive, grayscale),
         Preset preset => PreparePreset(preset, sampling, grayscale),
         Scripted => preparedScript ?? throw new InvalidOperationException("The scan script must be prepared first."),
@@ -56,32 +68,32 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
     private static Prepared PrepareScript(Scripted script, int componentCount, CancellationToken cancellationToken)
     {
         JpegScan[] scans = JpegScanScript.Prepare(script.Scans, componentCount, cancellationToken, out bool progressive);
-        return new(progressive, true, 0, [63], [0], scans);
+        return new(progressive, true, 0, SingleScanEnds, ZeroRefinement, scans);
     }
 
     private static Prepared PreparePreset(Preset preset, JpegSamplingFactors sampling, bool grayscale)
     {
         if (preset.Level == 0)
         {
-            return new(false, grayscale || preset.InterleaveSequentialComponents, 0, [63], [0], null);
+            return new(false, grayscale || preset.InterleaveSequentialComponents, 0, SingleScanEnds, ZeroRefinement, null);
         }
 
         bool interleaveInitialScan = grayscale || (sampling.MaxHorizontal == 1 && sampling.MaxVertical == 1);
         if (preset.Level >= 3 && !grayscale)
         {
-            return new(true, interleaveInitialScan, 0, [2, 63], [0, 2],
+            return new(true, interleaveInitialScan, 0, TwoBandScanEnds, TwoBandRefinement,
                 CreateAsymmetricColorScript(interleaveInitialScan));
         }
 
         // SetDefaultScanScript, lib/jpegli/encode.cc, pinned revision
         // 031a0077f5799a6041004267fc12b956c1f52a20, for levels 1 and 2.
         return new(true, interleaveInitialScan, 0,
-            preset.Level == 1 ? [63] : [2, 63], preset.Level == 1 ? [1] : [0, 2], null);
+            preset.Level == 1 ? SingleScanEnds : TwoBandScanEnds, preset.Level == 1 ? OneRefinement : TwoBandRefinement, null);
     }
 
     internal static JpegScan[] CreateAsymmetricColorScript(bool interleaveInitialScan)
     {
-        int[] all = [0, 1, 2], y = [0], cb = [1], cr = [2];
+        int[] all = ColorComponents, y = SingleComponents, cb = ColorSelectors[1], cr = ColorSelectors[2];
         JpegScan[] dc = interleaveInitialScan
             ? [new(all, 0, 0, 0, 0)]
             : [new(y, 0, 0, 0, 0), new(cb, 0, 0, 0, 0), new(cr, 0, 0, 0, 0)];
@@ -114,7 +126,7 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
     {
         if (ends is null)
         {
-            return [63];
+            return SingleScanEnds;
         }
 
         int count = ends.Count;
@@ -148,6 +160,11 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
         Justification = "Scan validation identifies the public ProgressiveAcRefinementBits option forwarded to this helper.")]
     private static int[] PrepareAcRefinementBits(IReadOnlyList<int>? depths, int bandCount, int refinementBits)
     {
+        if (depths is null && bandCount == 1 && refinementBits == 0)
+        {
+            return ZeroRefinement;
+        }
+
         int[] snapshot = new int[bandCount];
         if (depths is null)
         {
@@ -176,13 +193,41 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
     internal readonly record struct Prepared(bool Progressive, bool InterleaveInitialScan, int DcRefinementBits,
         int[] AcScanEnds, int[] AcRefinementBits, JpegScan[]? Script)
     {
-        internal int MaxRefinementBits => Math.Max(this.DcRefinementBits, this.AcRefinementBits.Max());
+        internal int MaxRefinementBits
+        {
+            get
+            {
+                int max = this.DcRefinementBits;
+                foreach (int depth in this.AcRefinementBits)
+                {
+                    if (depth > max)
+                    {
+                        max = depth;
+                    }
+                }
+                return max;
+            }
+        }
 
         internal JpegScan[] CreateDefaultScript(int componentCount)
         {
-            int[] components = Enumerable.Range(0, componentCount).ToArray();
             bool interleaveInitialScan = this.InterleaveInitialScan;
             bool progressive = this.Progressive;
+            if (!progressive && interleaveInitialScan && this.DcRefinementBits == 0)
+            {
+                if (componentCount == 3)
+                {
+                    return DefaultColorSequential;
+                }
+                if (componentCount == 1)
+                {
+                    return DefaultGrayscaleSequential;
+                }
+            }
+
+            int[] components = componentCount == 3 ? ColorComponents
+                : componentCount == 1 ? SingleComponents
+                : Enumerable.Range(0, componentCount).ToArray();
             if (!progressive && interleaveInitialScan)
             {
                 return [new(components, 0, 63, 0, this.DcRefinementBits)];
@@ -202,10 +247,22 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
             var scans = new JpegScan[scanCount];
             // These selectors belong to this encode and are only read by scans.
             // Every AC band and refinement round can share the same singleton.
-            int[][] componentSelectors = new int[componentCount][];
-            foreach (int component in components)
+            int[][] componentSelectors;
+            if (componentCount == 3)
             {
-                componentSelectors[component] = componentCount == 1 ? components : [component];
+                componentSelectors = ColorSelectors;
+            }
+            else if (componentCount == 1)
+            {
+                componentSelectors = SingleSelectors;
+            }
+            else
+            {
+                componentSelectors = new int[componentCount][];
+                foreach (int component in components)
+                {
+                    componentSelectors[component] = [component];
+                }
             }
 
             int nextScan = 0;

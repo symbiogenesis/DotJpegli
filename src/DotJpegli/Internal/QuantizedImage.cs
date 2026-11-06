@@ -356,7 +356,7 @@ internal sealed class QuantizedImage : IDisposable
             // This is the same clustered, baseline-limited table plan as output;
             // changing canonical symbol order cannot alter its per-symbol costs.
             var coding = HuffmanCodingPlan.Create(scans, dcFrequencies, acFrequencies, progressive: false,
-                forceBaseline: true);
+                forceBaseline: true, reuseHistograms: true);
             byte[][] codeLengths = Enumerable.Range(0, components)
                 .Select(component => RateDistortionQuantization.CodeLengths(coding.Scans[component].AcTables[component])).ToArray();
             diagnostics?.RecordFeedbackModel(codeLengths, histogramBlocks);
