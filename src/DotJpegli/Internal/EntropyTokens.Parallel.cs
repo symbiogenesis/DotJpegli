@@ -100,7 +100,7 @@ internal sealed partial class EntropyTokens
                     }
                     try
                     {
-                        var writer = new BitWriter(work.Output, buffered: true, stuffingKernel);
+                        using var writer = new BitWriter(work.Output, buffered: true, stuffingKernel);
                         this.ReplayRangeWithLookups(writer, coding, lookups, lookupOffset,
                             work.Range.Start, work.Range.End, cancellationToken);
                         writer.Flush();
@@ -124,7 +124,7 @@ internal sealed partial class EntropyTokens
                     {
                         // A large segment or unexpectedly oversized pool bucket
                         // keeps the original bounded writer on the destination.
-                        var writer = new BitWriter(output, buffered: true, stuffingKernel);
+                        using var writer = new BitWriter(output, buffered: true, stuffingKernel);
                         this.ReplayRangeWithLookups(writer, coding, lookups, lookupOffset,
                             work.Range.Start, work.Range.End, cancellationToken);
                         writer.Flush();

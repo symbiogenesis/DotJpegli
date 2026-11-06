@@ -488,7 +488,7 @@ public static class JpegliEncoder
         cancellationToken.ThrowIfCancellationRequested();
         JpegMarkerWriter.WriteHeaders(output, width, height, sampling, tables, quantizationSelectors, dcTables, acTables,
             options, extendedXmp, cancellationToken, rgb: rgb);
-        var bits = new BitWriter(output, buffered: true, options.EntropyByteStuffingKernel);
+        using var bits = new BitWriter(output, buffered: true, options.EntropyByteStuffingKernel);
         int lastRestartInterval = 0;
         void WriteRestartInterval(int interval)
         {
@@ -754,7 +754,7 @@ public static class JpegliEncoder
         JpegMarkerWriter.WriteHeaders(output, width, height, sampling, tables, quantizationSelectors,
             emptyTables, emptyTables, options, extendedXmp, cancellationToken, rgb: pixels.IsRgb,
             writeHuffmanTables: false, extendedHuffman: plan.RequiresExtendedSequential);
-        var bits = new BitWriter(output, buffered: true, options.EntropyByteStuffingKernel);
+        using var bits = new BitWriter(output, buffered: true, options.EntropyByteStuffingKernel);
         int lastRestartInterval = 0;
         for (int scanIndex = 0; scanIndex < scans.Length; scanIndex++)
         {

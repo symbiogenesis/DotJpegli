@@ -4,6 +4,7 @@
 
 namespace DotJpegli.Internal;
 
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -13,11 +14,12 @@ using System.Runtime.CompilerServices;
 // (JumpToByteBoundary), revision 031a0077f5799a6041004267fc12b956c1f52a20.
 // Buffered output accumulates complete 64-bit words and stores eight bytes at
 // once unless JPEG byte stuffing is needed. The default remains byte-eager.
-internal sealed class BitWriter
+internal sealed class BitWriter : IDisposable
 {
+    private const int BufferCapacity = 4096;
     private readonly Stream output;
-    private readonly byte[]? outputBuffer;
     private readonly bool vectorStuffing;
+    private byte[]? outputBuffer;
     private int outputCount;
     private ulong buffer;
     private int bufferedBits;
@@ -32,7 +34,7 @@ internal sealed class BitWriter
         }
 
         this.output = output;
-        this.outputBuffer = buffered ? new byte[4096] : null;
+        this.outputBuffer = buffered ? ArrayPool<byte>.Shared.Rent(BufferCapacity) : null;
         // Automatic retains the measured control until a portable deployment
         // rule is established. Explicit choices belong to this writer only.
         this.vectorStuffing = stuffingKernel switch
@@ -41,6 +43,14 @@ internal sealed class BitWriter
             KernelPreference.Optimized => true,
             _ => throw new ArgumentOutOfRangeException(nameof(stuffingKernel))
         };
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref this.outputBuffer, null) is { } rented)
+        {
+            ArrayPool<byte>.Shared.Return(rented);
+        }
     }
 
     public void WriteBits(uint bits, int count)
@@ -166,11 +176,22 @@ internal sealed class BitWriter
             int totalBits = pendingBits + count;
             if (totalBits >= 64)
             {
-                // Preserve the same pending prefix if the destination throws.
-                this.buffer = pending;
-                this.bufferedBits = pendingBits;
                 int spillBits = totalBits - 64;
-                this.WriteWord((pending << (count - spillBits)) | (bits >> spillBits));
+                ulong word = (pending << (count - spillBits)) | (bits >> spillBits);
+                if (this.outputCount <= BufferCapacity - 16
+                    && (unchecked(~word - 0x0101010101010101UL) & word & 0x8080808080808080UL) == 0)
+                {
+                    BinaryPrimitives.WriteUInt64BigEndian(this.outputBuffer.AsSpan(this.outputCount, sizeof(ulong)), word);
+                    this.outputCount += 8;
+                }
+                else
+                {
+                    // Preserve the same pending prefix if the destination throws.
+                    this.buffer = pending;
+                    this.bufferedBits = pendingBits;
+                    this.WriteWord(word);
+                }
+
                 pending = bits & ((1UL << spillBits) - 1);
                 pendingBits = spillBits;
             }
@@ -264,7 +285,7 @@ internal sealed class BitWriter
         // Reserve room for both a sample byte and its possible stuffing byte.
         // Keeping the pair together also leaves any failed write at a complete
         // entropy-byte boundary.
-        if (this.outputCount > this.outputBuffer.Length - 2)
+        if (this.outputCount > BufferCapacity - 2)
         {
             this.DrainOutput();
         }
@@ -275,7 +296,7 @@ internal sealed class BitWriter
             this.outputBuffer[this.outputCount++] = 0;
         }
 
-        if (this.outputCount == this.outputBuffer.Length)
+        if (this.outputCount == BufferCapacity)
         {
             this.DrainOutput();
         }
@@ -288,14 +309,14 @@ internal sealed class BitWriter
         ulong inverted = ~word;
         if ((unchecked(inverted - 0x0101010101010101UL) & word & 0x8080808080808080UL) == 0)
         {
-            if (this.outputCount > this.outputBuffer!.Length - 8)
+            if (this.outputCount > BufferCapacity - 8)
             {
                 this.DrainOutput();
             }
 
             BinaryPrimitives.WriteUInt64BigEndian(this.outputBuffer.AsSpan(this.outputCount, sizeof(ulong)), word);
             this.outputCount += 8;
-            if (this.outputCount == this.outputBuffer.Length)
+            if (this.outputCount == BufferCapacity)
             {
                 this.DrainOutput();
             }
@@ -308,7 +329,7 @@ internal sealed class BitWriter
         // The boundary path below retains the byte/pair drain rules.
         byte[] destination = this.outputBuffer!;
         int offset = this.outputCount;
-        if (offset <= destination.Length - 16)
+        if (offset <= BufferCapacity - 16)
         {
             if (this.vectorStuffing)
             {
@@ -328,7 +349,7 @@ internal sealed class BitWriter
             }
 
             this.outputCount = offset;
-            if (offset == destination.Length)
+            if (offset == BufferCapacity)
             {
                 this.DrainOutput();
             }

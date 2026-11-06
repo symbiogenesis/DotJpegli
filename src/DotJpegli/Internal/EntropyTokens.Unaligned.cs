@@ -35,7 +35,7 @@ internal sealed partial class EntropyTokens
         ulong[] lookups = this.PrepareParallelLookups(coding, out int lookupOffset);
         var batch = new UnalignedWork?[workers];
         var cursor = new TokenPosition(0, 0);
-        var writer = new BitWriter(output, buffered: true, stuffingKernel);
+        using var writer = new BitWriter(output, buffered: true, stuffingKernel);
         while (cursor.Segment < this.segments.Count)
         {
             cancellationToken.ThrowIfCancellationRequested();

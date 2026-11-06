@@ -209,17 +209,62 @@ internal sealed class HuffmanTable
     // canonical codes and allocating table arrays for each trial is unnecessary.
     internal static float EstimateOptimizedCost(ReadOnlySpan<long> frequencies)
     {
-        if (!TryReadSparseHistogram(frequencies, out _, out long first, out int secondSymbol, out long second))
+        if (frequencies.Length != 256)
         {
-            return EstimateTreeCost(frequencies);
+            throw new ArgumentException("A frequency table must have 256 entries.", nameof(frequencies));
         }
+
+        Span<ulong> nodes = stackalloc ulong[515];
+        int symbols = 0;
+        long first = 0, second = 0;
+        bool bounded = true;
+        for (int symbol = 0; symbol < frequencies.Length; symbol++)
+        {
+            long frequency = frequencies[symbol];
+            if (frequency == 0)
+            {
+                continue;
+            }
+
+            if (frequency < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(frequencies), "Symbol frequencies cannot be negative.");
+            }
+
+            if (symbols == 0)
+            {
+                first = frequency;
+            }
+            else if (symbols == 1)
+            {
+                second = frequency;
+            }
+
+            if (frequency <= uint.MaxValue)
+            {
+                nodes[symbols] = ((ulong)frequency << 9) | (uint)(256 - symbol);
+            }
+            else
+            {
+                bounded = false;
+            }
+
+            symbols++;
+        }
+
         // The padding pseudo-symbol has weight one. Zero/singleton inputs use
         // one real length-one code; two real symbols use lengths one and two,
         // assigning the shorter code to the larger frequency. Include the
         // selector, sixteen counts and one byte per emitted real symbol.
-        return secondSymbol < 0
-            ? HistogramCost((UInt128)first + 144)
-            : HistogramCost((UInt128)Math.Max(first, second) + ((UInt128)Math.Min(first, second) * 2) + 152);
+        if (symbols <= 2)
+        {
+            return symbols < 2
+                ? HistogramCost((UInt128)first + 144)
+                : HistogramCost((UInt128)Math.Max(first, second) + ((UInt128)Math.Min(first, second) * 2) + 152);
+        }
+
+        return bounded && TryEstimateBoundedCost(nodes, symbols, out ulong bits)
+            ? HistogramCost((UInt128)bits) : EstimateDepthCost(frequencies);
     }
 
     private static bool TryReadSparseHistogram(ReadOnlySpan<long> frequencies,
@@ -261,46 +306,13 @@ internal sealed class HuffmanTable
         return true;
     }
 
-    private static float EstimateTreeCost(ReadOnlySpan<long> frequencies)
-        => TryEstimateBoundedCost(frequencies, out ulong bits)
-            ? HistogramCost((UInt128)bits) : EstimateDepthCost(frequencies);
-
-    private static bool TryEstimateBoundedCost(ReadOnlySpan<long> frequencies, out ulong bits)
+    private static bool TryEstimateBoundedCost(Span<ulong> nodes, int symbols, out ulong bits)
     {
         bits = 0;
-#if NETSTANDARD2_1
-        int symbols = 0;
-        foreach (long frequency in frequencies)
-        {
-            if (frequency is < 0 or > uint.MaxValue)
-            {
-                return false;
-            }
-
-            symbols += frequency == 0 ? 0 : 1;
-        }
-#else
-        if (frequencies.ContainsAnyExceptInRange(0L, uint.MaxValue))
-        {
-            return false;
-        }
-
-        int symbols = frequencies.Length - frequencies.Count(0L);
-#endif
         // Zero/singleton/two-symbol costs were handled before entering here.
         int leaves = symbols + 1;
-        Span<ulong> nodes = stackalloc ulong[(2 * leaves) + 1];
         Span<byte> heights = stackalloc byte[(2 * leaves) + 1];
-        int leaf = 0;
-        for (int symbol = 0; symbol < frequencies.Length; symbol++)
-        {
-            if (frequencies[symbol] != 0)
-            {
-                nodes[leaf++] = ((ulong)frequencies[symbol] << 9) | (uint)(256 - symbol);
-            }
-        }
-
-        nodes[leaf] = 1UL << 9;
+        nodes[symbols] = 1UL << 9;
         // Integer keys sort first by weight, then by descending symbol. The
         // padding symbol has the smallest unit-weight key and is always first.
 #if NETSTANDARD2_1
@@ -531,6 +543,7 @@ internal sealed class HuffmanTable
         // bounded ulong counts and for the exact UInt128/BigInteger fallback.
         TArithmetic arithmetic = default;
         T minimumCount = default;
+        Span<byte> nodeDepth = stackalloc byte[tree.Length];
         // Every retry writes the same active symbols. Inactive depths need
         // clearing only once, rather than zeroing the full array per retry.
         depth.Clear();
@@ -554,11 +567,7 @@ internal sealed class HuffmanTable
             // all-ones codes unavailable to real symbols, as in the wide tree.
             tree[leafCount++] = new Node<T>(pseudoCount, -1, frequencies.Length);
 
-            tree[..leafCount].Sort(static (left, right) =>
-            {
-                int comparison = left.Count.CompareTo(right.Count);
-                return comparison != 0 ? comparison : right.RightOrSymbol.CompareTo(left.RightOrSymbol);
-            });
+            arithmetic.SortLeaves(tree[..leafCount]);
             Node<T> sentinel = new(arithmetic.Sentinel, -1, -1);
             tree[leafCount] = sentinel;
             tree[leafCount + 1] = sentinel;
@@ -574,9 +583,29 @@ internal sealed class HuffmanTable
                 tree[leafCount + merge + 1] = sentinel;
             }
 
-            SetDepth(tree, (2 * leafCount) - 1, depth, 0);
-            if (!depth.ContainsAnyInRange(17, int.MaxValue))
+            bool exceedsLimit = false;
+            nodeDepth[(2 * leafCount) - 1] = 0;
+            for (int nodeIndex = (2 * leafCount) - 1; nodeIndex > leafCount; nodeIndex--)
             {
+                int childDepth = nodeDepth[nodeIndex] + 1;
+                if (childDepth > 16)
+                {
+                    exceedsLimit = true;
+                    break;
+                }
+
+                Node<T> node = tree[nodeIndex];
+                nodeDepth[node.Left] = (byte)childDepth;
+                nodeDepth[node.RightOrSymbol] = (byte)childDepth;
+            }
+
+            if (!exceedsLimit)
+            {
+                for (int index = 0; index < leafCount; index++)
+                {
+                    depth[tree[index].RightOrSymbol] = nodeDepth[index];
+                }
+
                 return;
             }
 
@@ -586,25 +615,13 @@ internal sealed class HuffmanTable
         }
     }
 
-    private static void SetDepth<T>(ReadOnlySpan<Node<T>> tree, int nodeIndex, Span<int> depth, int level)
-    {
-        Node<T> node = tree[nodeIndex];
-        if (node.Left < 0)
-        {
-            depth[node.RightOrSymbol] = level;
-            return;
-        }
-
-        SetDepth(tree, node.Left, depth, level + 1);
-        SetDepth(tree, node.RightOrSymbol, depth, level + 1);
-    }
-
     private interface ITreeArithmetic<T>
     {
         public T One { get; }
         public T Sentinel { get; }
         public T Add(T left, T right);
         public T NextMinimum(T minimum);
+        public void SortLeaves(Span<Node<T>> leaves);
     }
 
     private readonly struct NarrowArithmetic : ITreeArithmetic<ulong>
@@ -613,6 +630,27 @@ internal sealed class HuffmanTable
         public ulong Sentinel => ulong.MaxValue;
         public ulong Add(ulong left, ulong right) => left + right;
         public ulong NextMinimum(ulong minimum) => minimum == 0 ? 1 : (minimum * 2) + 1;
+
+        public void SortLeaves(Span<Node<ulong>> leaves)
+        {
+            Span<ulong> keys = stackalloc ulong[leaves.Length];
+            for (int index = 0; index < leaves.Length; index++)
+            {
+                Node<ulong> leaf = leaves[index];
+                keys[index] = (leaf.Count << 9) | (uint)(256 - leaf.RightOrSymbol);
+            }
+
+#if NETSTANDARD2_1
+            keys.Sort(static (left, right) => left.CompareTo(right));
+#else
+            keys.Sort();
+#endif
+            for (int index = 0; index < leaves.Length; index++)
+            {
+                ulong key = keys[index];
+                leaves[index] = new Node<ulong>(key >> 9, -1, 256 - (int)(key & 0x1ff));
+            }
+        }
     }
 
     private readonly struct WideArithmetic : ITreeArithmetic<UInt128>
@@ -626,6 +664,13 @@ internal sealed class HuffmanTable
 #endif
         public UInt128 Add(UInt128 left, UInt128 right) => left + right;
         public UInt128 NextMinimum(UInt128 minimum) => minimum == 0 ? 1 : (minimum * 2) + 1;
+
+        public void SortLeaves(Span<Node<UInt128>> leaves)
+            => leaves.Sort(static (left, right) =>
+            {
+                int comparison = left.Count.CompareTo(right.Count);
+                return comparison != 0 ? comparison : right.RightOrSymbol.CompareTo(left.RightOrSymbol);
+            });
     }
 
     private readonly record struct Node<T>(T Count, int Left, int RightOrSymbol);

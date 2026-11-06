@@ -146,6 +146,7 @@ internal sealed class HuffmanCodingPlan
         Span<float> slotCosts = stackalloc float[4];
         int slotCount = 0;
         Span<long> combined = stackalloc long[256];
+        Span<long> bestCombined = stackalloc long[256];
         for (int index = 0; index < histograms.Count; index++)
         {
             long[] current = histograms[index];
@@ -173,6 +174,9 @@ internal sealed class HuffmanCodingPlan
                 {
                     bestCost = cost;
                     bestSlot = slot;
+                    Span<long> previous = bestCombined;
+                    bestCombined = combined;
+                    combined = previous;
                 }
             }
             if (bestSlot == slotCount)
@@ -196,7 +200,7 @@ internal sealed class HuffmanCodingPlan
             else
             {
                 int histogramIndex = slotHistograms[bestSlot];
-                Add(clusters[histogramIndex], current, clusters[histogramIndex]);
+                bestCombined.CopyTo(clusters[histogramIndex]);
                 indexes[index] = histogramIndex;
                 slotCosts[bestSlot] += bestCost;
             }
@@ -215,12 +219,21 @@ internal sealed class HuffmanCodingPlan
     private static float Cost(ReadOnlySpan<long> frequencies)
         => HuffmanTable.EstimateOptimizedCost(frequencies);
 
-    // The ordinary path retains the cached noncapturing selector. Capturing the
-    // research preference here would allocate a display class on every encode.
     private static HuffmanTable[] CreateTables(List<long[]> histograms, HuffmanSymbolOrder order)
-        => order == HuffmanSymbolOrder.Canonical
-            ? histograms.Select(static histogram => HuffmanTable.CreateOptimized(histogram)).ToArray()
-            : CreateReorderedTables(histograms, order);
+    {
+        if (order != HuffmanSymbolOrder.Canonical)
+        {
+            return CreateReorderedTables(histograms, order);
+        }
+
+        var tables = new HuffmanTable[histograms.Count];
+        for (int index = 0; index < tables.Length; index++)
+        {
+            tables[index] = HuffmanTable.CreateOptimized(histograms[index]);
+        }
+
+        return tables;
+    }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static HuffmanTable[] CreateReorderedTables(List<long[]> histograms, HuffmanSymbolOrder order)
