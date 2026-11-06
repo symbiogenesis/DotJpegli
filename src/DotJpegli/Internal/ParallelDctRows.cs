@@ -23,6 +23,7 @@ internal sealed class ParallelDctRows
     private readonly int[] blocksHigh;
     private float[] coefficients = [];
     private short[]? quantizedCoefficients;
+    private ulong[]? quantizedNonzeroAcMasks;
     private float[] quantizedStrengths = [];
     private Quantization.PreparedTable[]? quantizers;
     private Action<int>? prepareQuantizedRange;
@@ -174,6 +175,7 @@ internal sealed class ParallelDctRows
 
         this.quantizedTop = -1;
         this.quantizedCoefficients ??= new short[checked(this.blockOffsets[^1] * 64)];
+        this.quantizedNonzeroAcMasks ??= new ulong[this.blockOffsets[^1]];
 #if !NETSTANDARD2_1
         bool changedQuantizers = this.quantizers is null;
         if (this.quantizers is not null)
@@ -281,20 +283,21 @@ internal sealed class ParallelDctRows
                 {
                     if ((blockX * 8) + 8 <= planeWidth && planeTop + 8 <= planeHeight)
                     {
-                        ForwardDct.TransformQuantizePlane(plane, planeWidth, blockX * 8, planeTop,
-                            quantizer, destination, strength, zigZagOrdered: true);
+                        this.quantizedNonzeroAcMasks![block] = ForwardDct.TransformQuantizePlaneWithMask(
+                            plane, planeWidth, blockX * 8, planeTop, quantizer, destination, strength);
                     }
                     else
                     {
-                        ForwardDct.TransformQuantizePaddedPlane(plane, planeWidth, planeHeight,
-                            blockX * 8, planeTop, quantizer, destination, strength);
+                        this.quantizedNonzeroAcMasks![block] = ForwardDct.TransformQuantizePaddedPlaneWithMask(
+                            plane, planeWidth, planeHeight, blockX * 8, planeTop, quantizer, destination, strength);
                     }
                     continue;
                 }
                 Downsampling.FillBlock(pixels, this.width, this.height, this.stride, component,
                     blockX, blockY, this.sampling.MaxHorizontal, this.sampling.MaxVertical,
                     factor.Horizontal, factor.Vertical, samples, this.smoothingFactor);
-                ForwardDct.TransformQuantizeBlock(samples, quantizer, destination, strength, zigZagOrdered: true);
+                this.quantizedNonzeroAcMasks![block] = ForwardDct.TransformQuantizeBlockWithMask(
+                    samples, quantizer, destination, strength);
             }
             catch (Exception error)
             {
@@ -304,6 +307,10 @@ internal sealed class ParallelDctRows
     }
 
     internal ReadOnlySpan<short> GetQuantizedBlock(int component, int blockX, int blockY)
+        => this.GetQuantizedBlock(component, blockX, blockY, out _);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal ReadOnlySpan<short> GetQuantizedBlock(int component, int blockX, int blockY, out ulong nonzeroAcMask)
     {
         if (this.quantizedTop < 0 || blockY / this.sampling[component].Vertical
             != this.quantizedTop / (8 * this.sampling.MaxVertical))
@@ -312,6 +319,7 @@ internal sealed class ParallelDctRows
         }
         int localRow = blockY % this.sampling[component].Vertical;
         int block = this.blockOffsets[component] + (localRow * this.blocksWide[component]) + blockX;
+        nonzeroAcMask = this.quantizedNonzeroAcMasks![block];
         return this.quantizedCoefficients.AsSpan(block * 64, 64);
     }
 

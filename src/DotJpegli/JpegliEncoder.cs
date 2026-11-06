@@ -2,9 +2,6 @@ namespace DotJpegli;
 
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
-#if !NETSTANDARD2_1
-using System.Runtime.Intrinsics;
-#endif
 using DotJpegli.Internal;
 
 /// <summary>
@@ -653,11 +650,7 @@ public static class JpegliEncoder
             && pixels.ParallelRows is { CanPrepareQuantizedRows: true };
         bool streamSequential = !options.Progressive && scans.Length == 1 && componentCount == 3
             && scans[0].Components.Count == 3 && (pixels.ParallelRows is null || parallelSequential);
-        bool cacheSequential = false;
-#if !NETSTANDARD2_1
-        cacheSequential = !parallelSequential && Vector256.IsHardwareAccelerated && !Vector512.IsHardwareAccelerated;
-#endif
-        using QuantizedImage? quantizedImage = streamSequential && !cacheSequential
+        using QuantizedImage? quantizedImage = streamSequential
             && options.RateDistortionLambda == 0 && options.DcTrellisLambda == 0 ? null : QuantizedImage.Create(pixels, width, height, stride,
             sampling, tables, distance, options.SmoothingFactor, adaptive, adaptiveMultipliers, cancellationToken,
             zigZagOrdered: true, narrowZigZagKernel: options.NarrowZigZagKernel,
@@ -901,6 +894,126 @@ public static class JpegliEncoder
         ForwardDct.TransformQuantizeBlock(samples, info.Quantizer, shortScratch.Slice(64, 64), strength);
     }
 
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static ulong PrepareSequentialFallbackWithMask(in SequentialBlockSource source, int component,
+        int componentX, int componentY, float strength, Span<float> floatScratch, Span<short> destination)
+    {
+        ref readonly SequentialComponent info = ref source.Components[component];
+        if (info.UsePlane)
+        {
+            bool compactChroma = component != 0
+                && (info.Horizontal != source.Horizontal || info.Vertical != source.Vertical);
+            ReadOnlySpan<float> plane = source.Pixels.GetConvertedPlaneSegment(component, componentY * 8, compactChroma,
+                out int planeWidth, out int planeHeight, out int planeY);
+            if (!plane.IsEmpty)
+            {
+                if ((componentX * 8) + 8 <= planeWidth && planeY + 8 <= planeHeight)
+                {
+                    return ForwardDct.TransformQuantizePlaneWithMask(plane, planeWidth, componentX * 8, planeY,
+                        info.Quantizer, destination, strength, clearDcOnlyAc: false);
+                }
+
+                return ForwardDct.TransformQuantizePaddedPlaneWithMask(plane, planeWidth, planeHeight,
+                    componentX * 8, planeY, info.Quantizer, destination, strength, clearDcOnlyAc: false);
+            }
+        }
+        Span<float> samples = floatScratch[..64];
+        Downsampling.FillBlock(source.Pixels, source.Width, source.Height, source.Stride, component,
+            componentX, componentY, source.Horizontal, source.Vertical, info.Horizontal, info.Vertical,
+            samples, source.SmoothingFactor);
+        return ForwardDct.TransformQuantizeBlockWithMask(samples, info.Quantizer, destination, strength,
+            clearDcOnlyAc: false);
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void PrepareSequentialRow(in SequentialBlockSource source, int mcuY,
+        ReadOnlySpan<int> rowBlockOffsets, AdaptiveQuantization? adaptive, ReadOnlySpan<float> strengths,
+        Span<float> floatScratch, Span<short> rowCoefficients, Span<ulong> rowMasks,
+        CancellationToken cancellationToken)
+    {
+        int horizontal = source.Horizontal;
+        int strengthStride = adaptive?.BlocksWide ?? 0;
+        for (int component = 0; component < 3; component++)
+        {
+            ref readonly SequentialComponent info = ref source.Components[component];
+            ReadOnlySpan<float> contiguousPlane = info.UsePlane
+                ? component == 0 ? source.Plane0 : component == 1 ? source.Plane1 : source.Plane2 : default;
+            int firstY = mcuY * info.Vertical;
+            int componentBlockOffset = rowBlockOffsets[component];
+            for (int blockY = 0; blockY < info.Vertical; blockY++)
+            {
+                int componentY = firstY + blockY;
+                if (componentY >= info.BlocksHigh)
+                {
+                    break;
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                int strengthRow = blockY * strengthStride;
+                int rowBlockBase = componentBlockOffset + (blockY * info.BlocksWide);
+                if (!contiguousPlane.IsEmpty)
+                {
+                    int top = componentY * 8;
+                    bool interiorY = top + 8 <= info.PlaneHeight;
+                    int interiorBlocksWide = interiorY ? info.PlaneWidth / 8 : 0;
+                    for (int componentX = 0; componentX < interiorBlocksWide; componentX++)
+                    {
+                        float strength = 0f;
+                        if (adaptive is not null)
+                        {
+                            int column = info.Horizontal == horizontal ? componentX
+                                : info.Horizontal == 1 ? componentX * horizontal
+                                : componentX * horizontal / info.Horizontal;
+                            strength = strengths[strengthRow + column];
+                        }
+
+                        int blockIndex = rowBlockBase + componentX;
+                        rowMasks[blockIndex] = ForwardDct.TransformQuantizePlaneWithMask(
+                            contiguousPlane, info.PlaneWidth, componentX * 8, top,
+                            info.Quantizer, rowCoefficients.Slice(blockIndex * 64, 64), strength,
+                            clearDcOnlyAc: false);
+                    }
+
+                    for (int componentX = interiorBlocksWide; componentX < info.BlocksWide; componentX++)
+                    {
+                        float strength = 0f;
+                        if (adaptive is not null)
+                        {
+                            int column = info.Horizontal == horizontal ? componentX
+                                : info.Horizontal == 1 ? componentX * horizontal
+                                : componentX * horizontal / info.Horizontal;
+                            strength = strengths[strengthRow + column];
+                        }
+
+                        int blockIndex = rowBlockBase + componentX;
+                        rowMasks[blockIndex] = ForwardDct.TransformQuantizePaddedPlaneWithMask(
+                            contiguousPlane, info.PlaneWidth, info.PlaneHeight, componentX * 8, top,
+                            info.Quantizer, rowCoefficients.Slice(blockIndex * 64, 64), strength,
+                            clearDcOnlyAc: false);
+                    }
+
+                    continue;
+                }
+
+                for (int componentX = 0; componentX < info.BlocksWide; componentX++)
+                {
+                    float strength = 0f;
+                    if (adaptive is not null)
+                    {
+                        int column = info.Horizontal == horizontal ? componentX
+                            : info.Horizontal == 1 ? componentX * horizontal
+                            : componentX * horizontal / info.Horizontal;
+                        strength = strengths[strengthRow + column];
+                    }
+
+                    int blockIndex = rowBlockBase + componentX;
+                    rowMasks[blockIndex] = PrepareSequentialFallbackWithMask(in source, component,
+                        componentX, componentY, strength, floatScratch, rowCoefficients.Slice(blockIndex * 64, 64));
+                }
+            }
+        }
+    }
+
     private static void ProcessSequentialInterleaved(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor, int restartInterval,
         AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
@@ -926,6 +1039,8 @@ public static class JpegliEncoder
             plane2 = pixels.GetConverted420ChromaPlane(2, out width2, out height2);
         }
         var components = new SequentialComponent[3];
+        Span<int> rowBlockOffsets = stackalloc int[4];
+        rowBlockOffsets[0] = 0;
         for (int component = 0; component < components.Length; component++)
         {
             JpegComponentSampling factor = sampling[component];
@@ -933,100 +1048,126 @@ public static class JpegliEncoder
                 adaptiveQuantization: adaptive is not null,
                 adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
                 narrowZigZagKernel: narrowZigZagKernel, imageWidth: width, imageHeight: height);
+            int blocksWide = ((width * factor.Horizontal) + mcuWidth - 1) / mcuWidth;
             components[component] = new(factor.Horizontal, factor.Vertical,
-                ((width * factor.Horizontal) + mcuWidth - 1) / mcuWidth,
+                blocksWide,
                 ((height * factor.Vertical) + mcuHeight - 1) / mcuHeight,
                 component == 0 ? width : component == 1 ? width1 : width2,
                 component == 0 ? height : component == 1 ? height1 : height2,
                 smoothingFactor == 0 && ((factor.Horizontal == horizontal && factor.Vertical == vertical)
                     || (compact420 && component != 0)), quantizer);
+            rowBlockOffsets[component + 1] = checked(rowBlockOffsets[component] + (blocksWide * factor.Vertical));
         }
 
-        var source = new SequentialBlockSource(pixels, width, height, stride, horizontal, vertical, smoothingFactor,
-            components, plane0, plane1, plane2);
-        Span<float> floatScratch = stackalloc float[64];
-        Span<short> shortScratch = stackalloc short[128];
-        Span<short> quantized = shortScratch[..64], ordered = shortScratch.Slice(64, 64);
-        Span<int> previousDc = stackalloc int[3];
-        previousDc.Clear();
-        Span<float> strengths = adaptive is null ? default : adaptive.Strengths;
-        int mcusRemaining = restartInterval, restartIndex = 0;
-        for (int mcuY = 0; mcuY < mcusHigh; mcuY++)
+        int totalRowBlocks = rowBlockOffsets[3];
+        short[] rentedCoefficients = ArrayPool<short>.Shared.Rent(checked(totalRowBlocks * 64));
+        ulong[] rentedMasks = ArrayPool<ulong>.Shared.Rent(totalRowBlocks);
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            adaptive?.ComputeRow(pixels, stride, mcuY * mcuHeight,
-                    tables[pixels.AnalysisComponent][1], strengths!, cancellationToken);
-
-            for (int mcuX = 0; mcuX < mcusWide; mcuX++)
+            Span<short> rowCoefficients = rentedCoefficients.AsSpan(0, totalRowBlocks * 64);
+            Span<ulong> rowMasks = rentedMasks.AsSpan(0, totalRowBlocks);
+            var source = new SequentialBlockSource(pixels, width, height, stride, horizontal, vertical, smoothingFactor,
+                components, plane0, plane1, plane2);
+            Span<float> floatScratch = stackalloc float[64];
+            Span<int> previousDc = stackalloc int[3];
+            previousDc.Clear();
+            Span<float> strengths = adaptive is null ? default : adaptive.Strengths;
+            int mcusRemaining = restartInterval, restartIndex = 0;
+            for (int mcuY = 0; mcuY < mcusHigh; mcuY++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (restartInterval != 0 && mcusRemaining == 0)
-                {
-                    if (writer is null)
-                    {
-                        tokens?.AddRestart(restartIndex);
-                    }
-                    else
-                    {
-                        writer.WriteRestartMarker(restartIndex);
-                    }
+                adaptive?.ComputeRow(pixels, stride, mcuY * mcuHeight,
+                    tables[pixels.AnalysisComponent][1], strengths!, cancellationToken);
+                PrepareSequentialRow(in source, mcuY, rowBlockOffsets, adaptive, strengths,
+                    floatScratch, rowCoefficients, rowMasks, cancellationToken);
 
-                    previousDc.Clear();
-                    restartIndex = (restartIndex + 1) & 7;
-                    mcusRemaining = restartInterval;
-                }
-                for (int component = 0; component < 3; component++)
+                for (int mcuX = 0; mcuX < mcusWide; mcuX++)
                 {
-                    ref readonly SequentialComponent info = ref components[component];
-                    int firstX = mcuX * info.Horizontal, firstY = mcuY * info.Vertical;
-                    for (int blockY = 0; blockY < info.Vertical; blockY++)
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (restartInterval != 0 && mcusRemaining == 0)
                     {
-                        int componentY = firstY + blockY;
-                        int strengthRow = adaptive is null ? 0 : blockY * adaptive.BlocksWide;
-                        for (int blockX = 0; blockX < info.Horizontal; blockX++)
+                        if (writer is null)
                         {
-                            cancellationToken.ThrowIfCancellationRequested();
-                            int componentX = firstX + blockX;
-                            scoped ReadOnlySpan<short> encoded;
-                            if (componentX >= info.BlocksWide || componentY >= info.BlocksHigh)
+                            tokens?.AddRestart(restartIndex);
+                        }
+                        else
+                        {
+                            writer.WriteRestartMarker(restartIndex);
+                        }
+
+                        previousDc.Clear();
+                        restartIndex = (restartIndex + 1) & 7;
+                        mcusRemaining = restartInterval;
+                    }
+                    for (int component = 0; component < 3; component++)
+                    {
+                        ref readonly SequentialComponent info = ref components[component];
+                        int firstX = mcuX * info.Horizontal, firstY = mcuY * info.Vertical;
+                        int componentBlockOffset = rowBlockOffsets[component];
+                        for (int blockY = 0; blockY < info.Vertical; blockY++)
+                        {
+                            int componentY = firstY + blockY;
+                            int rowBlockBase = componentBlockOffset + (blockY * info.BlocksWide);
+                            for (int blockX = 0; blockX < info.Horizontal; blockX++)
                             {
-                                quantized.Clear();
-                                quantized[0] = checked((short)previousDc[component]);
-                                encoded = quantized;
-                            }
-                            else
-                            {
-                                float strength = 0;
-                                if (adaptive is not null)
+                                int componentX = firstX + blockX;
+                                int blockIndex = rowBlockBase + componentX;
+                                short dcValue;
+                                ulong mask;
+                                if (componentX >= info.BlocksWide || componentY >= info.BlocksHigh)
                                 {
-                                    int column = info.Horizontal == horizontal ? componentX
-                                        : info.Horizontal == 1 ? componentX * horizontal
-                                        : componentX * horizontal / info.Horizontal;
-                                    strength = strengths![strengthRow + column];
+                                    dcValue = checked((short)previousDc[component]);
+                                    mask = 0;
                                 }
-                                PrepareSequentialBlock(in source, component, componentX, componentY, strength, floatScratch, shortScratch);
-                                encoded = ordered;
-                            }
-                            if (writer is null)
-                            {
-                                EntropyEncoder.AccumulateFrequencies(encoded, ref previousDc[component],
-                                    dcFrequencies![component], acFrequencies![component], coefficientsValidated: true,
-                                    tokens: tokens, component: component, zigZagOrdered: true);
-                            }
-                            else
-                            {
-                                EntropyEncoder.WriteBlock(writer, encoded, ref previousDc[component],
-                                    coding!.DcTables[component], coding.AcTables[component], coefficientsValidated: true,
-                                    zigZagOrdered: true);
+                                else
+                                {
+                                    mask = rowMasks[blockIndex];
+                                    dcValue = rowCoefficients[blockIndex * 64];
+                                }
+                                if (writer is null)
+                                {
+                                    if (mask == 0)
+                                    {
+                                        EntropyEncoder.AccumulateDcOnlyBlock(dcValue, ref previousDc[component],
+                                            dcFrequencies![component], acFrequencies![component],
+                                            tokens: tokens, component: component);
+                                    }
+                                    else
+                                    {
+                                        EntropyEncoder.AccumulateOrderedBlockWithMask(
+                                            rowCoefficients.Slice(blockIndex * 64, 64), mask,
+                                            ref previousDc[component], dcFrequencies![component], acFrequencies![component],
+                                            tokens: tokens, component: component);
+                                    }
+                                }
+                                else
+                                {
+                                    if (mask == 0)
+                                    {
+                                        EntropyEncoder.WriteDcOnlyBlock(writer, dcValue, ref previousDc[component],
+                                            coding!.DcTables[component], coding.AcTables[component]);
+                                    }
+                                    else
+                                    {
+                                        EntropyEncoder.WriteOrderedBlockWithMask(writer,
+                                            rowCoefficients.Slice(blockIndex * 64, 64), mask,
+                                            ref previousDc[component], coding!.DcTables[component], coding.AcTables[component]);
+                                    }
+                                }
                             }
                         }
                     }
-                }
-                if (restartInterval != 0)
-                {
-                    mcusRemaining--;
+                    if (restartInterval != 0)
+                    {
+                        mcusRemaining--;
+                    }
                 }
             }
+        }
+        finally
+        {
+            ArrayPool<ulong>.Shared.Return(rentedMasks);
+            ArrayPool<short>.Shared.Return(rentedCoefficients);
         }
     }
 

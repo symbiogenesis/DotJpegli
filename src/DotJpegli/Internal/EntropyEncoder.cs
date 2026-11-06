@@ -196,18 +196,23 @@ internal static class EntropyEncoder
 
     private static void AccumulateOrderedBlock(ReadOnlySpan<short> coefficients, ref int previousDc,
         long[] dc, long[] ac, EntropyTokens tokens, int component, Span<uint> destination)
+        => AccumulateOrderedBlockCore(coefficients, NonzeroAcMask(coefficients),
+            coefficients[0] - previousDc, ref previousDc, dc, ac, tokens, component, destination);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void AccumulateOrderedBlockCore(ReadOnlySpan<short> coefficients, ulong nonzero,
+        int difference, ref int previousDc, long[] dc, long[] ac, EntropyTokens tokens, int component,
+        Span<uint> destination)
     {
         int count = 0;
         int dcContext = component << 1;
         int acContext = dcContext | 1;
         ReadOnlySpan<uint> amplitudes = PreparedAmplitudes.Values.AsSpan(0, 4096);
-        int difference = coefficients[0] - previousDc;
         uint amplitude = PrepareAmplitude(difference, amplitudes);
         int category = (int)(amplitude >> 27);
         IncrementReservedFrequency(dc, category, tokens, count);
         destination[count++] = amplitude | ((uint)dcContext << 24);
         previousDc = coefficients[0];
-        ulong nonzero = NonzeroAcMask(coefficients);
         int previousPosition = 0;
         while (nonzero != 0)
         {
@@ -235,6 +240,168 @@ internal static class EntropyEncoder
         }
         tokens.CommitBlock(count);
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void AccumulateDcOnlyBlock(
+        short dcValue,
+        ref int previousDc,
+        long[] dc,
+        long[] ac,
+        EntropyTokens? tokens = null,
+        int component = 0)
+    {
+        int difference = dcValue - previousDc;
+        if ((uint)(difference + 2047) > 4094)
+        {
+            ThrowDcDifferenceOutOfRange();
+        }
+
+        previousDc = dcValue;
+        if (tokens is not null && tokens.TryReserveDcOnlyBlock(out Span<uint> destination))
+        {
+            int dcContext = component << 1;
+            int acContext = dcContext | 1;
+            uint amplitude = PreparedAmplitudes.Values[difference + 2048];
+            int category = (int)(amplitude >> 27);
+            IncrementReservedFrequency(dc, category, tokens, 0);
+            destination[0] = amplitude | ((uint)dcContext << 24);
+            IncrementReservedFrequency(ac, 0, tokens, 1);
+            destination[1] = EntropyTokens.PackHuffman(acContext, 0, 0, 0);
+            tokens.CommitBlock(2);
+            return;
+        }
+
+        int slowCategory = Category(difference);
+        checked
+        { dc[slowCategory]++; }
+        tokens?.AddHuffman(component, false, slowCategory, AdditionalBits(difference, slowCategory), slowCategory);
+        checked
+        { ac[0]++; }
+        tokens?.AddHuffman(component, true, 0, 0, 0);
+    }
+
+    internal static void AccumulateOrderedBlockWithMask(
+        ReadOnlySpan<short> zigZagCoefficients,
+        ulong nonzeroAcMask,
+        ref int previousDc,
+        long[] dc,
+        long[] ac,
+        EntropyTokens? tokens = null,
+        int component = 0)
+    {
+        int difference = zigZagCoefficients[0] - previousDc;
+        if ((uint)(difference + 2047) > 4094)
+        {
+            ThrowDcDifferenceOutOfRange();
+        }
+
+        if (tokens is not null && tokens.TryReserveBlock(out Span<uint> destination))
+        {
+            AccumulateOrderedBlockCore(zigZagCoefficients, nonzeroAcMask, difference, ref previousDc,
+                dc, ac, tokens, component, destination);
+            return;
+        }
+
+        int category = Category(difference);
+        checked
+        { dc[category]++; }
+        tokens?.AddHuffman(component, false, category, AdditionalBits(difference, category), category);
+        previousDc = zigZagCoefficients[0];
+
+        ulong nonzero = nonzeroAcMask;
+        int previousPosition = 0;
+        while (nonzero != 0)
+        {
+            int position = BitOperations.TrailingZeroCount(nonzero);
+            int run = position - previousPosition - 1;
+            while (run >= 16)
+            {
+                checked
+                { ac[0xf0]++; }
+                tokens?.AddHuffman(component, true, 0xf0, 0, 0);
+                run -= 16;
+            }
+            int value = zigZagCoefficients[position];
+            category = Category(value);
+            int symbol = (run << 4) | category;
+            checked
+            { ac[symbol]++; }
+            tokens?.AddHuffman(component, true, symbol, AdditionalBits(value, category), category);
+            previousPosition = position;
+            nonzero &= nonzero - 1;
+        }
+        if (previousPosition != 63)
+        {
+            checked
+            { ac[0]++; }
+            tokens?.AddHuffman(component, true, 0, 0, 0);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void WriteDcOnlyBlock(
+        BitWriter writer,
+        short dcValue,
+        ref int previousDc,
+        HuffmanTable dc,
+        HuffmanTable ac)
+    {
+        int difference = dcValue - previousDc;
+        if ((uint)(difference + 2047) > 4094)
+        {
+            ThrowDcDifferenceOutOfRange();
+        }
+
+        int category = Category(difference);
+        dc.WriteSymbolWithBits(writer, category, AdditionalBits(difference, category), category);
+        previousDc = dcValue;
+        ac.WriteSymbol(writer, 0);
+    }
+
+    internal static void WriteOrderedBlockWithMask(
+        BitWriter writer,
+        ReadOnlySpan<short> zigZagCoefficients,
+        ulong nonzeroAcMask,
+        ref int previousDc,
+        HuffmanTable dc,
+        HuffmanTable ac)
+    {
+        int difference = zigZagCoefficients[0] - previousDc;
+        if ((uint)(difference + 2047) > 4094)
+        {
+            ThrowDcDifferenceOutOfRange();
+        }
+
+        int category = Category(difference);
+        dc.WriteSymbolWithBits(writer, category, AdditionalBits(difference, category), category);
+        previousDc = zigZagCoefficients[0];
+
+        ulong nonzero = nonzeroAcMask;
+        int previousPosition = 0;
+        while (nonzero != 0)
+        {
+            int position = BitOperations.TrailingZeroCount(nonzero);
+            int run = position - previousPosition - 1;
+            while (run >= 16)
+            {
+                ac.WriteSymbol(writer, 0xf0);
+                run -= 16;
+            }
+            int value = zigZagCoefficients[position];
+            category = Category(value);
+            ac.WriteSymbolWithBits(writer, (run << 4) | category, AdditionalBits(value, category), category);
+            previousPosition = position;
+            nonzero &= nonzero - 1;
+        }
+        if (previousPosition != 63)
+        {
+            ac.WriteSymbol(writer, 0);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowDcDifferenceOutOfRange()
+        => throw new ArgumentOutOfRangeException("coefficients", "The DC difference exceeds baseline JPEG's 11-bit category.");
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static uint PrepareAmplitude(int value, ReadOnlySpan<uint> amplitudes)

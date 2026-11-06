@@ -35,8 +35,6 @@ internal static class ParallelSequentialEncoder
         Span<float> strengths = adaptive is null ? default : adaptive.Strengths;
         Span<int> previousDc = stackalloc int[3];
         previousDc.Clear();
-        Span<short> dummy = stackalloc short[64];
-        dummy.Clear();
         int remaining = restartInterval, restart = 0;
         for (int top = 0; top < height; top += mcuHeight)
         {
@@ -72,26 +70,46 @@ internal static class ParallelSequentialEncoder
                         {
                             int x = (mcuX * factor.Horizontal) + column;
                             scoped ReadOnlySpan<short> block;
+                            short dcValue;
+                            ulong nonzeroAcMask;
                             if (x >= widths[component] || y >= heights[component])
                             {
-                                dummy[0] = checked((short)previousDc[component]);
-                                block = dummy;
+                                block = default;
+                                dcValue = checked((short)previousDc[component]);
+                                nonzeroAcMask = 0;
                             }
                             else
                             {
-                                block = rows.GetQuantizedBlock(component, x, y);
+                                block = rows.GetQuantizedBlock(component, x, y, out nonzeroAcMask);
+                                dcValue = block[0];
                             }
                             if (writer is null)
                             {
-                                EntropyEncoder.AccumulateFrequencies(block, ref previousDc[component],
-                                    dcFrequencies![component], acFrequencies![component], coefficientsValidated: true,
-                                    tokens: tokens, component: component, zigZagOrdered: true);
+                                if (nonzeroAcMask == 0)
+                                {
+                                    EntropyEncoder.AccumulateDcOnlyBlock(dcValue, ref previousDc[component],
+                                        dcFrequencies![component], acFrequencies![component],
+                                        tokens: tokens, component: component);
+                                }
+                                else
+                                {
+                                    EntropyEncoder.AccumulateOrderedBlockWithMask(block, nonzeroAcMask,
+                                        ref previousDc[component], dcFrequencies![component], acFrequencies![component],
+                                        tokens: tokens, component: component);
+                                }
                             }
                             else
                             {
-                                EntropyEncoder.WriteBlock(writer, block, ref previousDc[component],
-                                    coding!.DcTables[component], coding.AcTables[component],
-                                    coefficientsValidated: true, zigZagOrdered: true);
+                                if (nonzeroAcMask == 0)
+                                {
+                                    EntropyEncoder.WriteDcOnlyBlock(writer, dcValue, ref previousDc[component],
+                                        coding!.DcTables[component], coding.AcTables[component]);
+                                }
+                                else
+                                {
+                                    EntropyEncoder.WriteOrderedBlockWithMask(writer, block, nonzeroAcMask,
+                                        ref previousDc[component], coding!.DcTables[component], coding.AcTables[component]);
+                                }
                             }
                         }
                     }

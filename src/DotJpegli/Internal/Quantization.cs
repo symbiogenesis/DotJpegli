@@ -667,6 +667,14 @@ internal static class Quantization
         Vector256<float> r2, Vector256<float> r3, Vector256<float> r4, Vector256<float> r5,
         Vector256<float> r6, Vector256<float> r7, PreparedTable table, TransposedTable transposed,
         float adaptiveStrength, Span<short> output)
+        => TryQuantizeTransposed(r0, r1, r2, r3, r4, r5, r6, r7, table, transposed, adaptiveStrength, output,
+            out _, clearDcOnlyAc: true);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static bool TryQuantizeTransposed(Vector256<float> r0, Vector256<float> r1,
+        Vector256<float> r2, Vector256<float> r3, Vector256<float> r4, Vector256<float> r5,
+        Vector256<float> r6, Vector256<float> r7, PreparedTable table, TransposedTable transposed,
+        float adaptiveStrength, Span<short> output, out ulong nonzeroAcMask, bool clearDcOnlyAc = true)
     {
         Guard.ThrowIfNull(table);
         if (output.Length < 64)
@@ -676,6 +684,7 @@ internal static class Quantization
 
         if (table.AdaptiveQuantization && (!float.IsFinite(adaptiveStrength) || adaptiveStrength < 0f))
         {
+            nonzeroAcMask = 0;
             return false;
         }
 
@@ -701,21 +710,39 @@ internal static class Quantization
             table.AcOffset, adaptiveStrength, adaptive, dc: false, ref valid);
         if (!valid)
         {
+            nonzeroAcMask = 0;
             return false;
         }
+
+        Vector128<short> ac = q0.WithElement(0, (short)0) | q1 | (q2 | q3)
+            | (q4 | q5 | (q6 | q7));
+        if (Vector128.EqualsAll(ac, Vector128<short>.Zero))
+        {
+            if (clearDcOnlyAc)
+            {
+                output[..64].Clear();
+            }
+
+            output[0] = q0.GetElement(0);
+            nonzeroAcMask = 0;
+            return true;
+        }
+
         // Explicit narrow-kernel diagnostics must exercise their selected
         // network even when this host can use the automatic wide path.
         if (Vector512.IsHardwareAccelerated && table.NarrowZigZagKernel == KernelPreference.Automatic)
         {
-            StoreTransposedZigZag512(q0, q1, q2, q3, q4, q5, q6, q7, output);
+            nonzeroAcMask = StoreTransposedZigZag512Nonzero(q0, q1, q2, q3, q4, q5, q6, q7, output);
         }
         else if (table.UseTiledZigZag)
         {
-            StoreTransposedZigZag128Tiled(q0, q1, q2, q3, q4, q5, q6, q7, output);
+            StoreTransposedZigZag128TiledNonzero(q0, q1, q2, q3, q4, q5, q6, q7, output);
+            nonzeroAcMask = EntropyEncoder.NonzeroAcMask(output[..64]);
         }
         else
         {
-            StoreTransposedZigZag128Original(q0, q1, q2, q3, q4, q5, q6, q7, output);
+            StoreTransposedZigZag128OriginalNonzero(q0, q1, q2, q3, q4, q5, q6, q7, output);
+            nonzeroAcMask = EntropyEncoder.NonzeroAcMask(output[..64]);
         }
 
         return true;
@@ -923,6 +950,14 @@ internal static class Quantization
             return;
         }
 
+        StoreTransposedZigZag128OriginalNonzero(q0, q1, q2, q3, q4, q5, q6, q7, output);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void StoreTransposedZigZag128OriginalNonzero(Vector128<short> q0, Vector128<short> q1,
+        Vector128<short> q2, Vector128<short> q3, Vector128<short> q4, Vector128<short> q5,
+        Vector128<short> q6, Vector128<short> q7, Span<short> output)
+    {
         (Vector128.Shuffle(q0.AsByte(), OriginalTransposedZigZagMasks.M00)
             | Vector128.Shuffle(q1.AsByte(), OriginalTransposedZigZagMasks.M01)
             | Vector128.Shuffle(q2.AsByte(), OriginalTransposedZigZagMasks.M02)
@@ -974,6 +1009,15 @@ internal static class Quantization
         {
             return;
         }
+
+        StoreTransposedZigZag128TiledNonzero(q0, q1, q2, q3, q4, q5, q6, q7, output);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void StoreTransposedZigZag128TiledNonzero(Vector128<short> q0, Vector128<short> q1,
+        Vector128<short> q2, Vector128<short> q3, Vector128<short> q4, Vector128<short> q5,
+        Vector128<short> q6, Vector128<short> q7, Span<short> output)
+    {
         // Pack adjacent columns into 2 by 4 tiles before applying the JPEG
         // permutation. Each output group now draws from two to four tiles,
         // reducing the byte shuffles from 40 to 26 and ORs from 32 to 18.
@@ -1033,12 +1077,30 @@ internal static class Quantization
         Vector128<short> q2, Vector128<short> q3, Vector128<short> q4, Vector128<short> q5,
         Vector128<short> q6, Vector128<short> q7, Span<short> output)
     {
+        if (TryStoreDcOnly(q0, q1, q2, q3, q4, q5, q6, q7, output))
+        {
+            return;
+        }
+
+        _ = StoreTransposedZigZag512Nonzero(q0, q1, q2, q3, q4, q5, q6, q7, output);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong StoreTransposedZigZag512Nonzero(Vector128<short> q0, Vector128<short> q1,
+        Vector128<short> q2, Vector128<short> q3, Vector128<short> q4, Vector128<short> q5,
+        Vector128<short> q6, Vector128<short> q7, Span<short> output)
+    {
         Vector512<ushort> first = Vector512.Create(Vector256.Create(q0, q1), Vector256.Create(q2, q3)).AsUInt16();
         Vector512<ushort> second = Vector512.Create(Vector256.Create(q4, q5), Vector256.Create(q6, q7)).AsUInt16();
-        (Vector512.Shuffle(first, TransposedZigZagMasks.W00)
-            | Vector512.Shuffle(second, TransposedZigZagMasks.W01)).AsInt16().CopyTo(output[..32]);
-        (Vector512.Shuffle(first, TransposedZigZagMasks.W10)
-            | Vector512.Shuffle(second, TransposedZigZagMasks.W11)).AsInt16().CopyTo(output.Slice(32, 32));
+        Vector512<short> lower = (Vector512.Shuffle(first, TransposedZigZagMasks.W00)
+            | Vector512.Shuffle(second, TransposedZigZagMasks.W01)).AsInt16();
+        Vector512<short> upper = (Vector512.Shuffle(first, TransposedZigZagMasks.W10)
+            | Vector512.Shuffle(second, TransposedZigZagMasks.W11)).AsInt16();
+        lower.CopyTo(output[..32]);
+        upper.CopyTo(output.Slice(32, 32));
+        uint lowerZeros = (uint)Vector512.ExtractMostSignificantBits(Vector512.Equals(lower, Vector512<short>.Zero));
+        uint upperZeros = (uint)Vector512.ExtractMostSignificantBits(Vector512.Equals(upper, Vector512<short>.Zero));
+        return (~lowerZeros | ((ulong)~upperZeros << 32)) & ~1UL;
     }
 
     private static class OriginalTransposedZigZagMasks

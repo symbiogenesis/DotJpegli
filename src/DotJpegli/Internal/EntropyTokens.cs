@@ -99,6 +99,19 @@ internal sealed partial class EntropyTokens : IDisposable
         return false;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal bool TryReserveDcOnlyBlock(out Span<uint> destination)
+    {
+        uint[]? segment = this.current;
+        if (this.IsComplete && segment is not null && segment.Length - this.currentCount >= 2)
+        {
+            destination = segment.AsSpan(this.currentCount, 2);
+            return true;
+        }
+        destination = default;
+        return false;
+    }
+
     internal void CommitBlock(int count)
     {
         Debug.Assert(this.IsComplete && this.current is not null && (uint)count <= 64 && this.currentCount + count <= this.current.Length);

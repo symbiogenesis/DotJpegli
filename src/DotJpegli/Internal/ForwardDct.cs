@@ -80,6 +80,14 @@ internal static class ForwardDct
             table, output, adaptiveStrength, zigZagOrdered);
     }
 
+    internal static ulong TransformQuantizePlaneWithMask(ReadOnlySpan<float> plane, int stride, int left, int top,
+        Quantization.PreparedTable table, Span<short> output, float adaptiveStrength = 0f, bool clearDcOnlyAc = true)
+    {
+        ValidatePlane(plane, stride, left, top);
+        return TransformQuantizeCoreWithMask(plane[((top * stride) + left)..], stride, centerInput: true,
+            table, output, adaptiveStrength, clearDcOnlyAc);
+    }
+
     /// <summary>Transforms and quantizes already centered samples without materializing float coefficients.</summary>
     internal static void TransformQuantizeBlock(ReadOnlySpan<float> samples,
         Quantization.PreparedTable table, Span<short> output, float adaptiveStrength = 0f, bool zigZagOrdered = true)
@@ -92,9 +100,25 @@ internal static class ForwardDct
         TransformQuantizeCore(samples, 8, centerInput: false, table, output, adaptiveStrength, zigZagOrdered);
     }
 
+    internal static ulong TransformQuantizeBlockWithMask(ReadOnlySpan<float> samples,
+        Quantization.PreparedTable table, Span<short> output, float adaptiveStrength = 0f, bool clearDcOnlyAc = true)
+    {
+        if (samples.Length != 64)
+        {
+            throw new ArgumentException("An 8 by 8 block requires exactly 64 samples.", nameof(samples));
+        }
+
+        return TransformQuantizeCoreWithMask(samples, 8, centerInput: false, table, output, adaptiveStrength, clearDcOnlyAc);
+    }
+
     /// <summary>Replicates a partial plane block's edges before using the fused transform and quantizer.</summary>
     internal static void TransformQuantizePaddedPlane(ReadOnlySpan<float> plane, int width, int height, int left, int top,
         Quantization.PreparedTable table, Span<short> output, float adaptiveStrength = 0f)
+        => _ = TransformQuantizePaddedPlaneWithMask(plane, width, height, left, top, table, output, adaptiveStrength,
+            clearDcOnlyAc: true);
+
+    internal static ulong TransformQuantizePaddedPlaneWithMask(ReadOnlySpan<float> plane, int width, int height, int left, int top,
+        Quantization.PreparedTable table, Span<short> output, float adaptiveStrength = 0f, bool clearDcOnlyAc = true)
     {
         Guard.ThrowIfNegativeOrZero(width);
         Guard.ThrowIfNegativeOrZero(height);
@@ -121,12 +145,32 @@ internal static class ForwardDct
             plane.Slice((Math.Min(top + row, height - 1) * width) + left, copied).CopyTo(destination);
             destination[copied..].Fill(destination[copied - 1]);
         }
-        TransformQuantizeCore(padded, 8, centerInput: true, table, output, adaptiveStrength, zigZagOrdered: true);
+        return TransformQuantizeCoreWithMask(padded, 8, centerInput: true, table, output, adaptiveStrength, clearDcOnlyAc);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void TransformQuantizeCore(ReadOnlySpan<float> samples, int stride, bool centerInput,
         Quantization.PreparedTable table, Span<short> output, float adaptiveStrength, bool zigZagOrdered)
+    {
+        if (zigZagOrdered)
+        {
+            _ = TransformQuantizeCoreWithMask(samples, stride, centerInput, table, output, adaptiveStrength,
+                clearDcOnlyAc: true);
+            return;
+        }
+
+        if (output.Length < 64)
+        {
+            throw new ArgumentException("A quantized block requires 64 values.", nameof(output));
+        }
+
+        Guard.ThrowIfNull(table);
+        TransformQuantizeFallback(samples, stride, centerInput, table, output, adaptiveStrength, zigZagOrdered: false);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong TransformQuantizeCoreWithMask(ReadOnlySpan<float> samples, int stride, bool centerInput,
+        Quantization.PreparedTable table, Span<short> output, float adaptiveStrength, bool clearDcOnlyAc)
     {
         if (output.Length < 64)
         {
@@ -135,7 +179,7 @@ internal static class ForwardDct
 
         Guard.ThrowIfNull(table);
 #if !NETSTANDARD2_1
-        if (zigZagOrdered && Vector.IsHardwareAccelerated && Vector<float>.Count == 8
+        if (Vector.IsHardwareAccelerated && Vector<float>.Count == 8
             && (!table.AdaptiveQuantization || (float.IsFinite(adaptiveStrength) && adaptiveStrength >= 0f)))
         {
             Quantization.TransposedTable transposed = table.GetTransposed();
@@ -143,19 +187,21 @@ internal static class ForwardDct
                 out Vector<float> r0, out Vector<float> r1, out Vector<float> r2, out Vector<float> r3,
                 out Vector<float> r4, out Vector<float> r5, out Vector<float> r6, out Vector<float> r7);
             if (Quantization.TryQuantizeTransposed(r0.AsVector256(), r1.AsVector256(), r2.AsVector256(), r3.AsVector256(),
-                r4.AsVector256(), r5.AsVector256(), r6.AsVector256(), r7.AsVector256(), table, transposed, adaptiveStrength, output))
+                r4.AsVector256(), r5.AsVector256(), r6.AsVector256(), r7.AsVector256(), table, transposed, adaptiveStrength,
+                output, out ulong nonzeroAcMask, clearDcOnlyAc))
             {
-                return;
+                return nonzeroAcMask;
             }
         }
-        else if (zigZagOrdered && Vector.IsHardwareAccelerated && Vector<float>.Count == 4
+        else if (Vector.IsHardwareAccelerated && Vector<float>.Count == 4
             && (!table.AdaptiveQuantization || (float.IsFinite(adaptiveStrength) && adaptiveStrength >= 0f))
             && TryTransformQuantizeFourLane(samples, stride, centerInput, table, output, adaptiveStrength))
         {
-            return;
+            return EntropyEncoder.NonzeroAcMask(output[..64]);
         }
 #endif
-        TransformQuantizeFallback(samples, stride, centerInput, table, output, adaptiveStrength, zigZagOrdered);
+        TransformQuantizeFallback(samples, stride, centerInput, table, output, adaptiveStrength, zigZagOrdered: true);
+        return EntropyEncoder.NonzeroAcMask(output[..64]);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
