@@ -159,12 +159,6 @@ for quality, sampling and progression controls.
 
 These charts compare DotJpegli with **native Google Jpegli** on 24 Kodak photographs.
 
-### Compression efficiency
-
-Mean JPEG sizes differ from native by **at most 0.032%** at matched PSNR and SSIM.
-
-![Photograph group mean JPEG file-size differences from native Google Jpegli are at most 0.032% across all four encoding modes at matched PSNR and SSIM.](docs/images/performance/compression.svg)
-
 ### Encoding wall time
 
 On an AMD EPYC 9V45, progressive encoding averaged **29.6–30.5% less
