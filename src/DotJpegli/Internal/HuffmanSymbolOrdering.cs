@@ -41,6 +41,36 @@ internal static class HuffmanSymbolOrdering
         ReadOnlySpan<long> frequencies, HuffmanSymbolOrder order)
     {
         int start = 0;
+        if (order == HuffmanSymbolOrder.FrequencyDescending)
+        {
+            foreach (byte count in counts)
+            {
+                Span<byte> group = symbols.Slice(start, count);
+                for (int index = 1; index < group.Length; index++)
+                {
+                    byte symbol = group[index];
+                    long symbolFrequency = frequencies[symbol];
+                    int previous = index - 1;
+                    while (previous >= 0)
+                    {
+                        byte previousSymbol = group[previous];
+                        long previousFrequency = frequencies[previousSymbol];
+                        if (symbolFrequency < previousFrequency
+                            || (symbolFrequency == previousFrequency && symbol >= previousSymbol))
+                        {
+                            break;
+                        }
+
+                        group[previous + 1] = previousSymbol;
+                        previous--;
+                    }
+                    group[previous + 1] = symbol;
+                }
+                start += count;
+            }
+            return;
+        }
+
         foreach (byte count in counts)
         {
             Span<byte> group = symbols.Slice(start, count);

@@ -145,12 +145,8 @@ internal sealed class HuffmanCodingPlan
         var clusters = new List<long[]>();
         int[] indexes = new int[histograms.Count];
         var slots = new List<int>();
-        // JPEG has only four table slots, even when later clusters evict them.
-        Span<int> slotHistograms = stackalloc int[4];
-        Span<float> slotCosts = stackalloc float[4];
-        int slotCount = 0;
-        Span<long> combined = stackalloc long[256];
-        Span<long> bestCombined = stackalloc long[256];
+        Span<bool> nonEmpty = histograms.Count <= 64 ? stackalloc bool[histograms.Count] : new bool[histograms.Count];
+        Span<float> standaloneCosts = histograms.Count <= 64 ? stackalloc float[histograms.Count] : new float[histograms.Count];
         for (int index = 0; index < histograms.Count; index++)
         {
             long[] current = histograms[index];
@@ -159,24 +155,51 @@ internal sealed class HuffmanCodingPlan
                 throw new ArgumentException("Each histogram requires 256 nonnegative frequencies.", nameof(histograms));
             }
 
-            if (!current.AsSpan().ContainsAnyExcept(0L))
+            nonEmpty[index] = current.AsSpan().ContainsAnyExcept(0L);
+            standaloneCosts[index] = -1f;
+        }
+
+        // JPEG has only four table slots, even when later clusters evict them.
+        Span<int> slotHistograms = stackalloc int[4];
+        Span<float> slotCosts = stackalloc float[4];
+        Span<int> createdStep = stackalloc int[4];
+        Span<int> modifiedStep = stackalloc int[4];
+        int slotCount = 0;
+        Span<long> combined = stackalloc long[256];
+        Span<long> bestCombined = stackalloc long[256];
+        for (int index = 0; index < histograms.Count; index++)
+        {
+            if (!nonEmpty[index])
             {
                 continue;
             }
 
+            long[] current = histograms[index];
             int bestSlot = slotCount;
             // Explicit offline limits retain a bounded set of clusters instead
             // of evicting table slots. Zero keeps the existing default policy.
             bool forbidNewCluster = (forceBaseline && bestSlot > 1)
                 || (tableLimit != 0 && bestSlot >= tableLimit);
-            float bestCost = forbidNewCluster ? float.MaxValue : Cost(current);
+            float bestCost = float.MaxValue;
+            if (!forbidNewCluster)
+            {
+                bestCost = standaloneCosts[index];
+                if (bestCost < 0f)
+                {
+                    standaloneCosts[index] = bestCost = Cost(current);
+                }
+            }
+
+            float bestMergedCost = 0f;
             for (int slot = 0; slot < slotCount; slot++)
             {
                 Add(clusters[slotHistograms[slot]], current, combined);
-                float cost = Cost(combined) - slotCosts[slot];
+                float mergedCost = Cost(combined);
+                float cost = mergedCost - slotCosts[slot];
                 if (cost < bestCost)
                 {
                     bestCost = cost;
+                    bestMergedCost = mergedCost;
                     bestSlot = slot;
                     Span<long> previous = bestCombined;
                     bestCombined = combined;
@@ -190,12 +213,14 @@ internal sealed class HuffmanCodingPlan
                 indexes[index] = histogramIndex;
                 if (bestSlot < slotHistograms.Length)
                 {
+                    createdStep[bestSlot] = index;
+                    modifiedStep[bestSlot] = index;
                     slotCount++;
                 }
                 else
                 {
-                    bestSlot = SelectEvictionSlot(histograms, index, clusters, slotHistograms, slotCosts,
-                        (slots[^1] + 1) % 4, combined);
+                    bestSlot = SelectEvictionSlot(histograms, index, nonEmpty, standaloneCosts,
+                        clusters, slotHistograms, slotCosts, (slots[^1] + 1) % 4, combined);
                 }
 
                 slotHistograms[bestSlot] = histogramIndex;
@@ -207,17 +232,20 @@ internal sealed class HuffmanCodingPlan
                 int histogramIndex = slotHistograms[bestSlot];
                 bestCombined.CopyTo(clusters[histogramIndex]);
                 indexes[index] = histogramIndex;
-                slotCosts[bestSlot] += bestCost;
+                slotCosts[bestSlot] = bestMergedCost;
+                modifiedStep[bestSlot] = index;
             }
         }
         if (clusters.Count is > 1 and <= 4)
         {
-            ConsolidateClusters(clusters, indexes, slots, slotCosts[..clusters.Count], combined, bestCombined);
+            ConsolidateClusters(clusters, indexes, slots, slotCosts[..clusters.Count],
+                createdStep[..clusters.Count], modifiedStep[..clusters.Count], combined, bestCombined);
         }
         return new(clusters, indexes, slots);
     }
 
     private static int SelectEvictionSlot(IReadOnlyList<long[]> histograms, int currentIndex,
+        ReadOnlySpan<bool> nonEmpty, Span<float> standaloneCosts,
         List<long[]> clusters, ReadOnlySpan<int> slotHistograms, ReadOnlySpan<float> slotCosts,
         int defaultSlot, Span<long> scratch)
     {
@@ -231,19 +259,27 @@ internal sealed class HuffmanCodingPlan
             float futureSavings = 0f;
             for (int futureIndex = currentIndex + 1; futureIndex < histograms.Count; futureIndex++)
             {
-                long[] future = histograms[futureIndex];
-                if (future.Length != 256 || future.AsSpan().ContainsAnyInRange(long.MinValue, -1L)
-                    || !future.AsSpan().ContainsAnyExcept(0L))
+                if (!nonEmpty[futureIndex])
                 {
                     continue;
                 }
 
-                float standaloneCost = Cost(future);
+                long[] future = histograms[futureIndex];
+                float standaloneCost = standaloneCosts[futureIndex];
+                if (standaloneCost < 0f)
+                {
+                    standaloneCosts[futureIndex] = standaloneCost = Cost(future);
+                }
+
                 Add(cluster, future, scratch);
                 float mergeDelta = Cost(scratch) - slotCost;
                 if (mergeDelta < standaloneCost)
                 {
                     futureSavings += standaloneCost - mergeDelta;
+                    if (futureSavings >= lowestFutureSavings)
+                    {
+                        break;
+                    }
                 }
             }
             if (futureSavings < lowestFutureSavings)
@@ -260,13 +296,9 @@ internal sealed class HuffmanCodingPlan
     }
 
     private static void ConsolidateClusters(List<long[]> clusters, int[] indexes, List<int> slots,
-        Span<float> clusterCosts, Span<long> combined, Span<long> bestCombined)
+        Span<float> clusterCosts, Span<int> createdStep, Span<int> modifiedStep,
+        Span<long> combined, Span<long> bestCombined)
     {
-        for (int index = 0; index < clusters.Count; index++)
-        {
-            clusterCosts[index] = Cost(clusters[index]);
-        }
-
         while (clusters.Count > 1)
         {
             int bestFirst = -1, bestSecond = -1;
@@ -276,6 +308,15 @@ internal sealed class HuffmanCodingPlan
             {
                 for (int second = first + 1; second < clusters.Count; second++)
                 {
+                    // When neither cluster changed after the later cluster was
+                    // created, the main pass already tested this exact pair and
+                    // found no savings.
+                    if (modifiedStep[first] <= createdStep[second]
+                        && modifiedStep[second] <= createdStep[second])
+                    {
+                        continue;
+                    }
+
                     Add(clusters[first], clusters[second], combined);
                     float mergedCost = Cost(combined);
                     float savings = clusterCosts[first] + clusterCosts[second] - mergedCost;
@@ -298,9 +339,12 @@ internal sealed class HuffmanCodingPlan
 
             bestCombined.CopyTo(clusters[bestFirst]);
             clusterCosts[bestFirst] = bestCost;
+            modifiedStep[bestFirst] = int.MaxValue;
             for (int index = bestSecond + 1; index < clusters.Count; index++)
             {
                 clusterCosts[index - 1] = clusterCosts[index];
+                createdStep[index - 1] = createdStep[index];
+                modifiedStep[index - 1] = modifiedStep[index];
             }
 
             clusters.RemoveAt(bestSecond);

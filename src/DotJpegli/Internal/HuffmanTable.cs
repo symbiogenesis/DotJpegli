@@ -256,7 +256,7 @@ internal sealed class HuffmanTable
 
             if (frequency <= uint.MaxValue)
             {
-                nodes[symbols] = ((ulong)frequency << 9) | (uint)(256 - symbol);
+                nodes[symbols + 1] = ((ulong)frequency << 9) | (uint)(256 - symbol);
             }
             else
             {
@@ -326,20 +326,19 @@ internal sealed class HuffmanTable
         // Zero/singleton/two-symbol costs were handled before entering here.
         int leaves = symbols + 1;
         Span<byte> heights = stackalloc byte[(2 * leaves) + 1];
-        nodes[symbols] = 1UL << 9;
+        nodes[0] = 1UL;
         // Integer keys sort first by weight, then by descending symbol. The
-        // padding symbol has the smallest unit-weight key and is always first.
+        // padding symbol has the smallest unit-weight key and is already first.
 #if NETSTANDARD2_1
-        nodes[..leaves].Sort(static (left, right) => left.CompareTo(right));
+        nodes.Slice(1, symbols).Sort(static (left, right) => left.CompareTo(right));
 #else
-        nodes[..leaves].Sort();
+        nodes.Slice(1, symbols).Sort();
 #endif
-        for (int index = 0; index < leaves; index++)
+        for (int index = 1; index < leaves; index++)
         {
             nodes[index] >>= 9;
         }
 
-        heights[..leaves].Clear();
         nodes[leaves] = nodes[leaves + 1] = ulong.MaxValue;
         int leafIndex = 0, parentIndex = leaves + 1, paddingRoot = 0;
         for (int merge = 1; merge < leaves; merge++)
@@ -519,7 +518,7 @@ internal sealed class HuffmanTable
             // length-limited package weights can collide with the ulong sentinel.
             // Positive long and ulong weights have identical representations;
             // read the validated histogram directly instead of copying it.
-            Span<Node<ulong>> narrowTree = stackalloc Node<ulong>[(3 * leaves) + 1];
+            Span<Node<ulong>> narrowTree = stackalloc Node<ulong>[(2 * leaves) + 1];
             BuildCodeLengths<ulong, NarrowArithmetic>(MemoryMarshal.Cast<long, ulong>(frequencies), depth, narrowTree);
             return true;
         }
@@ -537,9 +536,9 @@ internal sealed class HuffmanTable
 
         Span<Node<UInt128>> tree =
 #if NETSTANDARD2_1
-            new Node<UInt128>[(3 * leaves) + 1];
+            new Node<UInt128>[(2 * leaves) + 1];
 #else
-            stackalloc Node<UInt128>[(3 * leaves) + 1];
+            stackalloc Node<UInt128>[(2 * leaves) + 1];
 #endif
         BuildCodeLengths<UInt128, WideArithmetic>(counts, depth, tree);
         return false;
@@ -551,7 +550,7 @@ internal sealed class HuffmanTable
         where TArithmetic : struct, ITreeArithmetic<T>
     {
         // Unconstrained Huffman merging runs first; only trees deeper than 16
-        // invoke exact length-limited package-merge in the trailing workspace.
+        // invoke exact length-limited package-merge.
         // Value-type arithmetic lets the JIT specialize this one algorithm for
         // bounded ulong counts and for the exact UInt128/BigInteger fallback.
         TArithmetic arithmetic = default;
@@ -619,6 +618,7 @@ internal sealed class HuffmanTable
         BuildLengthLimitedCodeLengths<T, TArithmetic>(tree, leafCount, depth);
     }
 
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static void BuildLengthLimitedCodeLengths<T, TArithmetic>(Span<Node<T>> tree, int leafCount, Span<int> depth)
         where T : struct, IComparable<T>
         where TArithmetic : struct, ITreeArithmetic<T>
@@ -630,7 +630,7 @@ internal sealed class HuffmanTable
         TArithmetic arithmetic = default;
         ReadOnlySpan<Node<T>> leaves = tree[..leafCount];
         Span<Node<T>> currentPackages = tree.Slice(leafCount, leafCount);
-        Span<Node<T>> nextPackages = tree.Slice(2 * leafCount, leafCount);
+        Span<Node<T>> nextPackages = new Node<T>[leafCount];
         Span<ushort> packageLeafCounts = stackalloc ushort[16 * leafCount];
         int packageCount = 0;
         for (int level = 16; level >= 1; level--)
