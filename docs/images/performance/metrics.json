@@ -1,13 +1,13 @@
 {
   "schemaVersion": 2,
   "performance": {
-    "revision": "018a34bfaecb576c4fa327637e78e4c46e54da77",
-    "run": "42193412518",
+    "revision": "615b373ca0d6104584140a5a0176c029d866f964",
+    "run": "42196948996",
     "dateUtc": "2026-11-06"
   },
   "quality": {
-    "revision": "018a34bfaecb576c4fa327637e78e4c46e54da77",
-    "run": "42193412518",
+    "revision": "615b373ca0d6104584140a5a0176c029d866f964",
+    "run": "42196948996",
     "dateUtc": "2026-11-06"
   },
   "upstreamRevision": "031a0077f5799a6041004267fc12b956c1f52a20",
@@ -18,49 +18,49 @@
       "category": "natural",
       "label": "Sequential \u00B7 4:4:4",
       "metric": "DotJpegli / native",
-      "value": 0.8533893891474057
+      "value": 0.8432501991110475
     },
     {
       "category": "natural",
       "label": "Sequential \u00B7 4:2:0",
       "metric": "DotJpegli / native",
-      "value": 0.8320716334543465
+      "value": 0.8318864515972424
     },
     {
       "category": "natural",
       "label": "Progressive \u00B7 4:4:4",
       "metric": "DotJpegli / native",
-      "value": 0.7125934109385421
+      "value": 0.7044474499458284
     },
     {
       "category": "natural",
       "label": "Progressive \u00B7 4:2:0",
       "metric": "DotJpegli / native",
-      "value": 0.7032206851591959
+      "value": 0.6952557746438689
     },
     {
       "category": "controlled",
       "label": "Sequential \u00B7 4:4:4",
       "metric": "DotJpegli / native",
-      "value": 0.9676858769645269
+      "value": 0.967269038542102
     },
     {
       "category": "controlled",
       "label": "Sequential \u00B7 4:2:0",
       "metric": "DotJpegli / native",
-      "value": 0.9002078071030306
+      "value": 0.9042591680376745
     },
     {
       "category": "controlled",
       "label": "Progressive \u00B7 4:4:4",
       "metric": "DotJpegli / native",
-      "value": 0.9159379442240462
+      "value": 0.9086226504868439
     },
     {
       "category": "controlled",
       "label": "Progressive \u00B7 4:2:0",
       "metric": "DotJpegli / native",
-      "value": 0.9295541499393368
+      "value": 0.9289578999343419
     }
   ],
   "compression": [
@@ -130,7 +130,7 @@
       "category": "natural",
       "label": "Sequential \u00B7 4:2:0",
       "metric": "DotJpegli managed KiB / encode",
-      "value": 98.79866536458333
+      "value": 98.78304036458333
     },
     {
       "category": "natural",
@@ -142,7 +142,7 @@
       "category": "natural",
       "label": "Progressive \u00B7 4:4:4",
       "metric": "DotJpegli managed KiB / encode",
-      "value": 146.32845052083334
+      "value": 146.33544921875
     },
     {
       "category": "natural",
@@ -168,17 +168,17 @@
     "complete": true,
     "cases": 192,
     "expectedCases": 192,
-    "startedAtUtc": "2026-11-06T09:15:30.858716\u002B00:00",
-    "testedRevision": "018a34bfaecb576c4fa327637e78e4c46e54da77",
-    "githubRunId": "42193412518",
+    "startedAtUtc": "2026-11-06T09:43:26.5333638\u002B00:00",
+    "testedRevision": "615b373ca0d6104584140a5a0176c029d866f964",
+    "githubRunId": "42196948996",
     "upstreamPin": "031a0077f5799a6041004267fc12b956c1f52a20",
-    "managedEncoderSha256": "9a1ddf915bc951554fe3eb74cdcbfb31e26048b065b54c4e8481dfb1ddd261d7",
-    "managedRunnerSha256": "cf77e26bcb3feab670c96198af332810d481e0dd71d9f8d0b99cb8b7d28d1aac",
+    "managedEncoderSha256": "8547255b86d3c90853c14928dff8b707db6d2200cc034f8b1ccedce6d6b610da",
+    "managedRunnerSha256": "10b70c49bb59b28e1fd246206f382d17f578afe871981fe1b201cea0c0612ab0",
     "corpusManifestSha256": "6a529b1ae279c7f89998eb1f89f58237a5c1507ef53f502d71ea429d188dd8a5",
     "nativeExecutableSha256": "875059ce1cee1a0a25d5b144c6684748d284823e962011ca4147372f025bc029",
     "allocationProbeSha256": "3ab918da8e648588475d1505e4e52b42485150b5c79a3f8ac94e77a13fc18b0d",
     "environment": {
-      "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpu": "AMD EPYC 7763 64-Core Processor",
       "affinity": "0-3",
       "os": "Ubuntu 26.04.1 LTS",
       "osArchitecture": 1,
@@ -196,7 +196,7 @@
       "vectorFloatWidth": 8,
       "vector128": true,
       "vector256": true,
-      "vector512": true,
+      "vector512": false,
       "serverGc": false,
       "gcLatencyMode": "Interactive",
       "dotnetTieredCompilation": "0",
@@ -211,7 +211,7 @@
     "nativeMethod": "Successful requested bytes from GNU linker-wrapped malloc/calloc/realloc/aligned_alloc/posix_memalign/memalign and replaced C\u002B\u002B new; full realloc request counted; includes returned JPEG; prepared input excluded",
     "scope": "Untimed allocation traffic on Kodak24, distances1/4, sampling444/420, progression0/2; excludes allocator overhead, retained pool capacity and peak memory; no latency or acceptance verdict"
   },
-  "worstCaseWallTimeRatio": 1.3890793237293053,
+  "worstCaseWallTimeRatio": 1.367095657816471,
   "worstMatchedQualitySizeRatio": 1.0036363636363637,
   "allocationMethod": "Arithmetic mean across Kodak cases of three untimed samples / 1024. DotJpegli: managed GC allocated bytes, including object headers/alignment. Google C\u002B\u002B jpegli: requested heap bytes at wrapped allocation APIs and C\u002B\u002B new, counting full realloc requests; native allocator overhead excluded. Both include returned JPEG; prepared input, retained capacity and peak memory excluded. Independent allocation observation identity retained."
 }

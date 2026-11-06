@@ -102,7 +102,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           $chartOutput = Join-Path $env:RUNNER_TEMP 'readme-performance-charts'
-          ./tools/update-performance-charts.ps1 -Performance docs/performance-evidence/2026-11-06-018a34b/full -Quality docs/performance-evidence/2026-11-06-018a34b/quality -Allocations docs/performance-evidence/2026-11-06-018a34b/allocations -Output $chartOutput | Out-Null
+          ./tools/update-performance-charts.ps1 -Performance docs/performance-evidence/2026-11-06-615b373/full -Quality docs/performance-evidence/2026-11-06-615b373/quality -Allocations docs/performance-evidence/2026-11-06-615b373/allocations -Output $chartOutput | Out-Null
           foreach ($name in @('compression.svg', 'wall-time.svg', 'allocations.svg', 'metrics.json')) {
             $expectedHash = (Get-FileHash -LiteralPath (Join-Path 'docs/images/performance' $name) -Algorithm SHA256).Hash
             $actualHash = (Get-FileHash -LiteralPath (Join-Path $chartOutput $name) -Algorithm SHA256).Hash

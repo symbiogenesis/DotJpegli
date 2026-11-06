@@ -1,36 +1,33 @@
-# Complete native measurements at 018a34b
+# Complete native measurements at 615b373
 
-Revision `018a34bfaecb576c4fa327637e78e4c46e54da77` was measured in
-[CI run 42193412518](https://github.com/symbiogenesis/DotJpegli/actions/runs/42193412518)
+Revision `615b373ca0d6104584140a5a0176c029d866f964` was measured in
+[CI run 42196948996](https://github.com/symbiogenesis/DotJpegli/actions/runs/42196948996)
 on November 6, 2026 (America/Chicago and UTC). All 256 performance cases are
 complete, matched and valid under the fixed protocol, but full performance
 parity **fails**. The same run's complete 1,280-pair quality/compression
 comparison and 192-case untimed allocation observation both pass.
 
-The latency step fails because valid measurements exceed the fixed individual
-acceptance bound. Chart generation succeeds. The overall workflow therefore
-fails; the retained [job outcomes](job.json) distinguish measurement validity,
-performance acceptance and successful chart generation.
+The latency step fails because valid control measurements exceed the fixed
+individual acceptance bound. Chart generation succeeds. The overall workflow
+therefore fails; the retained [job outcomes](job.json) distinguish measurement
+validity, performance acceptance and successful chart generation.
 
 | Corpus | Sampling | Sequential mean / worst | Progressive level 2 mean / worst |
 | --- | --- | ---: | ---: |
-| Kodak photographs | 4:4:4 | 0.853389 / 1.176001 | 0.712593 / 0.799176 |
-| Kodak photographs | 4:2:0 | 0.832072 / 1.074707 | 0.703221 / 0.841216 |
-| Deterministic controls | 4:4:4 | 0.967686 / 1.339396 | 0.915938 / 1.352072 |
-| Deterministic controls | 4:2:0 | 0.900208 / 1.389079 | 0.929554 / 1.374212 |
+| Kodak photographs | 4:4:4 | 0.843250 / 1.028723 | 0.704447 / 0.757750 |
+| Kodak photographs | 4:2:0 | 0.831886 / 1.072241 | 0.695256 / 0.785251 |
+| Deterministic controls | 4:4:4 | 0.967269 / 1.356492 | 0.908623 / 1.356400 |
+| Deterministic controls | 4:2:0 | 0.904259 / 1.367096 | 0.928958 / 1.345023 |
 
 Ratios are managed/native median encoding latency; means are geometric means
 over every case in each group. Lower is better. Photograph sequential groups
-use **14.7–16.8% less time** than native, while progressive groups use
-**28.7–29.7% less**. Progressive 4:4:4, progressive 4:2:0 and sequential 4:2:0
-photograph groups pass both the fixed 1.05 group and 1.10 individual bounds;
-sequential 4:4:4 photographs pass the group bound but one case (`kodim02`,
-4:4:4, sequential, distance 4 at 1.176001) exceeds the 1.10 individual bound.
-All four deterministic control groups meet the 1.05 group bound (using
-3.2–10.0% less time on average) but exceed the 1.10 individual bound. Overall,
-five of eight groups fail and 26 cases exceed the 1.10 individual bound; the
-worst ratio is 1.389079 for `tiny-odd-edges`, 4:2:0, sequential, distance 1.
-No aggregate result overrides an individual failure.
+use **15.7–16.8% less time** than native, while progressive groups use
+**29.6–30.5% less**. All four photograph groups pass both the fixed 1.05 group
+and 1.10 individual bounds. All four deterministic control groups meet the
+1.05 group bound (using 3.3–9.6% less time on average) but exceed the 1.10
+individual bound. Overall, four of eight groups fail and 25 cases exceed the
+1.10 individual bound; the worst ratio is 1.367096 for `tiny-odd-edges`, 4:2:0,
+sequential, distance 1. No aggregate result overrides an individual failure.
 
 The latency host is AMD EPYC 9V45 x64, running .NET `11.0.0-rc.3.26522.148`,
 with eight float SIMD lanes and accelerated Vector512 (`Vector512` true). One
@@ -43,7 +40,7 @@ are discarded.
 ## Allocations per encode
 
 The same CI run collected all **192 photograph configurations** in the untimed
-allocation job on an Intel Xeon Platinum 8573C x64 runner:
+allocation job on an AMD EPYC 7763 x64 runner:
 
 | Encoding | DotJpegli managed GC bytes, KiB/encode | Google C++ jpegli requested heap bytes, KiB/encode |
 | --- | ---: | ---: |
@@ -78,8 +75,8 @@ Regenerate all charts from the retained evidence without running a benchmark:
 
 ```powershell
 ./tools/update-performance-charts.ps1 `
-  -Performance docs/performance-evidence/2026-11-06-018a34b/full `
-  -Quality docs/performance-evidence/2026-11-06-018a34b/quality `
-  -Allocations docs/performance-evidence/2026-11-06-018a34b/allocations `
+  -Performance docs/performance-evidence/2026-11-06-615b373/full `
+  -Quality docs/performance-evidence/2026-11-06-615b373/quality `
+  -Allocations docs/performance-evidence/2026-11-06-615b373/allocations `
   -Output .artifacts/regenerated-readme-charts
 ```

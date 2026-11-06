@@ -64,8 +64,8 @@ observations and the added 256-warmup tiering scenario; it does not establish
 native parity or a release regression verdict.
 
 The latest complete 256-case comparison of revision
-`018a34bfaecb576c4fa327637e78e4c46e54da77` in
-[hosted run 42193412518](https://github.com/symbiogenesis/DotJpegli/actions/runs/42193412518)
+`615b373ca0d6104584140a5a0176c029d866f964` in
+[hosted run 42196948996](https://github.com/symbiogenesis/DotJpegli/actions/runs/42196948996)
 has valid measurements under the fixed protocol and matched settings, but **fails full performance
 parity**. Measurements were collected on November 6, 2026 (America/Chicago and
 UTC). The same run passes the complete quality/compression matrix, collects
@@ -73,28 +73,26 @@ untimed allocation observations and generates the README charts.
 
 | Corpus | Sampling | Sequential mean / worst | Progressive level 2 mean / worst |
 | --- | --- | ---: | ---: |
-| Kodak photographs | 4:4:4 | 0.853 / 1.176 | 0.713 / 0.799 |
-| Kodak photographs | 4:2:0 | 0.832 / 1.075 | 0.703 / 0.841 |
-| Deterministic controls | 4:4:4 | 0.968 / 1.339 | 0.916 / 1.352 |
-| Deterministic controls | 4:2:0 | 0.900 / 1.389 | 0.930 / 1.374 |
+| Kodak photographs | 4:4:4 | 0.843 / 1.029 | 0.704 / 0.758 |
+| Kodak photographs | 4:2:0 | 0.832 / 1.072 | 0.695 / 0.785 |
+| Deterministic controls | 4:4:4 | 0.967 / 1.356 | 0.909 / 1.356 |
+| Deterministic controls | 4:2:0 | 0.904 / 1.367 | 0.929 / 1.345 |
 
 Each mean is the geometric mean of managed/native median latency ratios across
 the group's images and both distances; worst is the largest case ratio.
-Lower is better. Photograph groups use 14.7–16.8% less time for sequential
-encoding and 28.7–29.7% less for progressive encoding. Progressive 4:4:4,
-progressive 4:2:0 and sequential 4:2:0 photograph groups pass both the group
-and individual bounds; sequential 4:4:4 photographs pass the group bound but
-one case (`kodim02` at distance 4, ratio 1.176001) exceeds the individual
-bound. All four deterministic control groups pass the group bound (using
-3.2–10.0% less time on average) but fail the individual bound. Overall, five of
-eight groups fail, and 26 cases exceed the individual bound. The worst
-individual case is a 1.389079 ratio for sequential 4:2:0 `tiny-odd-edges` at
-distance 1. Group averages cannot override individual failures.
+Lower is better. Photograph groups use 15.7–16.8% less time for sequential
+encoding and 29.6–30.5% less for progressive encoding. All four photograph
+groups pass both the group and individual bounds. All four deterministic
+control groups pass the group bound (using 3.3–9.6% less time on average)
+but fail the individual bound. Overall, four of eight groups fail, and 25
+cases exceed the individual bound. The worst individual case is a 1.367096
+ratio for sequential 4:2:0 `tiny-odd-edges` at distance 1. Group averages
+cannot override individual failures.
 
 This RGB8 to YCbCr comparison uses distances 1/4, adaptive quantization, optimized
 Huffman coding and one worker, on AMD EPYC 9V45 x64 with .NET
 `11.0.0-rc.3.26522.148`, accelerated Vector512 and tiered compilation disabled.
-The [complete reference evidence](performance-evidence/2026-11-06-018a34b/README.md)
+The [complete reference evidence](performance-evidence/2026-11-06-615b373/README.md)
 retains every case, failure, raw sample, host identity, setting, hash and native
 provenance. These measurements support lower group mean
 photograph latency within this scope; full parity remains

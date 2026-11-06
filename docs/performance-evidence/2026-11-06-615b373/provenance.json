@@ -1,37 +1,37 @@
 {
-    "testedRevision":  "018a34bfaecb576c4fa327637e78e4c46e54da77",
-    "runId":  "42193412518",
-    "runUrl":  "https://github.com/symbiogenesis/DotJpegli/actions/runs/42193412518",
-    "runAttempt":  1,
+    "testedRevision":  "615b373ca0d6104584140a5a0176c029d866f964",
+    "runId":  "42196948996",
+    "runUrl":  "https://github.com/symbiogenesis/DotJpegli/actions/runs/42196948996",
+    "runAttempt":  3,
     "measurementDate":  "2026-11-06",
     "measurementDateTimeZone":  "America/Chicago",
     "artifacts":  [
                       {
-                          "id":  "13491540273",
-                          "name":  "allocation-evidence-018a34bfaecb576c4fa327637e78e4c46e54da77",
-                          "githubReportedArchiveDigest":  "sha256:3a2741a0bcc7b2d3de65feead1d60543c6a4f73bfe0ad1fc0879eb753da00c26"
+                          "id":  "13492646646",
+                          "name":  "allocation-evidence-615b373ca0d6104584140a5a0176c029d866f964",
+                          "githubReportedArchiveDigest":  "sha256:9b833bb375bf18708b40b9a551db4ff9afb907c775154c65e8b5a3d35555451c"
                       },
                       {
-                          "id":  "13491366343",
-                          "name":  "performance-charts-018a34bfaecb576c4fa327637e78e4c46e54da77",
-                          "githubReportedArchiveDigest":  "sha256:8356dea495328e17e3a4d7d57e591fdda5890e7c51effc349b9ac4b43750db85"
+                          "id":  "13494846981",
+                          "name":  "performance-charts-615b373ca0d6104584140a5a0176c029d866f964",
+                          "githubReportedArchiveDigest":  "sha256:e30d232b0c0604e9b023842563192df32fe24d1ea71e7339a0fdcf3467b5abc2"
                       },
                       {
-                          "id":  "13490762374",
-                          "name":  "performance-parity-018a34bfaecb576c4fa327637e78e4c46e54da77",
-                          "githubReportedArchiveDigest":  "sha256:fcd64a7a0b96a9fd4f0b1a74a56d0e036fa1df9d41ba65cba28a74fa4fec9ddf"
+                          "id":  "13495196266",
+                          "name":  "performance-parity-615b373ca0d6104584140a5a0176c029d866f964",
+                          "githubReportedArchiveDigest":  "sha256:84506f608ab22a1f503c721fabd0fc4f6aa9cf0dfdd05e1578a3bebd024e3b61"
                       },
                       {
-                          "id":  "13491275962",
-                          "name":  "quality-compression-parity-018a34bfaecb576c4fa327637e78e4c46e54da77",
-                          "githubReportedArchiveDigest":  "sha256:3eabeb5c8b885504757cb314dbab93d7b4f4dc07e6d508484839ae04fe9b8edc"
+                          "id":  "13494197424",
+                          "name":  "quality-compression-parity-615b373ca0d6104584140a5a0176c029d866f964",
+                          "githubReportedArchiveDigest":  "sha256:908094cb968555cc466a75ac79bae77655b903fa4e8da3b4c63c1006bdfebb49"
                       }
                   ],
     "archiveDigestSource":  "GitHub API; archive digests not independently recomputed",
     "files":  [
                   {
                       "path":  "allocations/cases.json",
-                      "sha256":  "c1b9cf7825598750a51eccf9f7d5da068d4c522cd5ce8fbce7db8de71828c604"
+                      "sha256":  "d1c3810e59e35ddab7b62334e2aeaf09bee4cbb94ea224b40ff47681034e8721"
                   },
                   {
                       "path":  "allocations/corpus.json",
@@ -43,35 +43,35 @@
                   },
                   {
                       "path":  "allocations/summary.json",
-                      "sha256":  "c6b7041c7a2449a670cfdec7fd8473786f3a1f3edf35752d50886700a96c8c67"
+                      "sha256":  "310955a4e5c87caf6220505a927dfe8601fe2c014f0ea51a44acce1f9c4ffc35"
                   },
                   {
                       "path":  "charts/allocations.svg",
-                      "sha256":  "fea12d4f8174b7616d7a32897abd12c76f36e817516317bd58f0d93885520870"
+                      "sha256":  "b42bd74e28214284a7de9483e9d7cd7ec01a9f7fafcb0f782545a079e549d1fe"
                   },
                   {
                       "path":  "charts/compression.svg",
-                      "sha256":  "32b875b9e122572d396c9037c1f3805be1ead096c6d7dd831f5b28dbb6eaacc8"
+                      "sha256":  "9d5413f67e589fa280a2ae4bc904e79e85a864f240fd9297c46e3ee62b2cb636"
                   },
                   {
                       "path":  "charts/metrics.json",
-                      "sha256":  "933863b002f53eb11ec8b4ac8981e996f04a63d25c89d0c0825bb14bd4d5f4ed"
+                      "sha256":  "091dded797ef6d4d419c376b147c80a66c3ad83fdb2f9561e7fb3e1a1c30e05f"
                   },
                   {
                       "path":  "charts/wall-time.svg",
-                      "sha256":  "fa75bf530c288c541ec2f26d8cb630d150381eba2db87524b3c8753fb4000811"
+                      "sha256":  "f5c842289112bc5a29a542989b37590724d2b86d7a6f24db8de0712f9e45e34e"
                   },
                   {
                       "path":  "full/cases.json",
-                      "sha256":  "4f3ff37c0f0fc231ae81292480b25e9c04819a3671a6e83c66025509cf1f2488"
+                      "sha256":  "01ed10ca34ae7e8cd416f68c74c1e70a094658d368f57a02f7f743ed2f20effd"
                   },
                   {
                       "path":  "full/report.md",
-                      "sha256":  "61923cbd9eaf155b497b409425dedf17b775326dd61a0a40538d15156fba28a1"
+                      "sha256":  "abc433d591382c1f4576c728af618ecf376172aff48194542660033d007f0cef"
                   },
                   {
                       "path":  "full/run.json",
-                      "sha256":  "3be8f6aa035f5f5cc19d066853e31777e875c3054d89fa4de792ebd1499f4f22"
+                      "sha256":  "507da1437f8867839def4da277fd7aa3c646ec3698e429f2a54c1a8f386fae2d"
                   },
                   {
                       "path":  "full/sources.json",
@@ -79,11 +79,11 @@
                   },
                   {
                       "path":  "full/summary.json",
-                      "sha256":  "aaa4b1514426c07ea52548fd46b4724b51da86311d57833bd4ec9a2fc745932a"
+                      "sha256":  "79e40e9d81891a682829447629bc2116dcd56f9f0f3d7adcc3bf1ca2a2ad876a"
                   },
                   {
                       "path":  "job.json",
-                      "sha256":  "380730a79213d0fb7185686733cf2a4928b052d25e28308dbe7b545edf469a2f"
+                      "sha256":  "0e91aadde2727fc6e5b37d09ee179c5c10174e9f67961763761807a32963f6ae"
                   },
                   {
                       "path":  "native-provenance.json",
@@ -103,7 +103,7 @@
                   },
                   {
                       "path":  "quality/report.md",
-                      "sha256":  "611c7a1272d1eb18560cda6d102c67652ba9297177dad35134b0bd45adaeb24a"
+                      "sha256":  "bd1ae687e7a41a9f3dc4036fd9e30aa5134f0ff3484c76aab82d8a7977be90ac"
                   },
                   {
                       "path":  "quality/sources.json",
@@ -111,7 +111,7 @@
                   },
                   {
                       "path":  "quality/summary.json",
-                      "sha256":  "b7dbf8dc2702af7351593d24d26abec1ea36a7e48dc8e02470204f1cab38d4ee"
+                      "sha256":  "0c92575c7abddcddcc2c510651b4bb96a8edc44e809f26e14f30670ec9fa1f74"
                   }
               ]
 }

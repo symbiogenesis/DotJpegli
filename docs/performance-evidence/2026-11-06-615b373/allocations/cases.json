@@ -1735,7 +1735,7 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      63632,
+      60296,
       60296,
       60296
     ],
@@ -3262,7 +3262,7 @@
     "managedAllocatedBytes": [
       161088,
       161088,
-      161088
+      162120
     ],
     "nativeAllocatedBytes": [
       4210986,
@@ -4510,7 +4510,7 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      90680,
+      91712,
       90680,
       90680
     ],

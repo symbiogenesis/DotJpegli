@@ -3,7 +3,7 @@
 RGB8 to YCbCr, Kodak24 and controlled corpus; noninferiority within declared tolerances; no universal or visual-quality proof
 
 Pinned upstream: `031a0077f5799a6041004267fc12b956c1f52a20`. Cases: 1280; matched-rate targets: 2850 (640 anchors); matched-quality targets: 4396 (1280 anchors).
-Tested revision: `018a34bfaecb576c4fa327637e78e4c46e54da77`.
+Tested revision: `615b373ca0d6104584140a5a0176c029d866f964`.
 
 Every group and every image/target must satisfy the fixed bounds. Aggregate results never excuse an individual failure. The gate measures PSNR and this explicitly defined local luma SSIM, without a human study or Butteraugli/MS-SSIM claim.
 
