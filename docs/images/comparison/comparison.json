@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "purpose": "Untimed single-photograph illustration; selected settings are not matched perceptual quality and do not rank encoders universally.",
-  "managedSourceRevision": "d010c0fed7799639fdd4e56fcde8f367aab0bc96",
-  "managedLibrarySha256": "fe2d65f86de93877b741acae7ce9834835a42ffca422134d3f38e405bdfea72e",
+  "managedSourceRevision": "40a3074c61fbb052e452a82faf6d74616d060060",
+  "managedLibrarySha256": "4214f202155e9db02ea8b3f44fc2e0dc2e5b575e6d8f96aa311bdfba126e765a",
   "source": {
     "title": "NIRCam Image of the Cosmic Cliffs in Carina",
     "page": "https://esawebb.org/images/weic2205a/",
@@ -91,8 +91,8 @@
       "version": "2.0.0",
       "settings": "distance 1, 4:2:0, progressive level 2, AQ and optimized Huffman, one worker",
       "file": "dotjpegli.jpg",
-      "bytes": 723938,
-      "sha256": "95b2b4ee3744f7c52abb8af540923183527d95dd85db12b2b273138ebdbe99e6",
+      "bytes": 723724,
+      "sha256": "fbf2d51257799cc0d93ff6ac1c347ab3a1b338e6f0a44e1f00f099627ec533e0",
       "ssimulacra2": 80.48803004
     },
     {
@@ -153,8 +153,8 @@
   "assets": [
     {
       "file": "detail-comparison.png",
-      "bytes": 1881733,
-      "sha256": "49650fa0a1142ae780cbf5041f82258aae0ce540d56eba0d78530908f37fcc7a"
+      "bytes": 1881682,
+      "sha256": "c6f9bd3ea1012cbe8436592ee8134f9bb5b865f8d9b9bfedd3d4d4cc8a045670"
     }
   ]
 }

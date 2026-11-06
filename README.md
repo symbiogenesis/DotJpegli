@@ -43,7 +43,7 @@ against the source; higher scores indicate closer agreement with that metric.
 | Encoder / source | Settings | File size | SSIMULACRA2 |
 | --- | --- | ---: | ---: |
 | [Source PNG](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/source.png) | Lossless common input | 4,437,354 bytes · 4333.4 KiB | 100.00 |
-| **[DotJpegli 2.0.0](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/dotjpegli.jpg)** | Distance 1, 4:2:0, progressive level 2 | **723,938 bytes · 707.0 KiB** | **80.49** |
+| **[DotJpegli 2.0.0](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/dotjpegli.jpg)** | Distance 1, 4:2:0, progressive level 2 | **723,724 bytes · 706.8 KiB** | **80.49** |
 | [Google's C++ jpegli](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/google-jpegli.jpg) | Distance 1, 4:2:0, progressive level 2 | 723,938 bytes · 707.0 KiB | 80.49 |
 | [mozjpeg 4.1.1](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/mozjpeg.jpg) | Quality 90, 4:2:0, progressive, trellis | 726,330 bytes · 709.3 KiB | 78.92 |
 | [libjpeg-turbo 3.2.0](https://raw.githubusercontent.com/symbiogenesis/DotJpegli/main/docs/images/comparison/libjpeg-turbo.jpg) | Quality 90, 4:2:0, progressive | 822,647 bytes · 803.4 KiB | 80.41 |
@@ -54,7 +54,7 @@ against the source; higher scores indicate closer agreement with that metric.
 These are selected high-quality settings for one photograph. Quality scales
 differ across codecs, and these outputs are **not matched perceptual quality**.
 JPEG XL and AVIF retain more detail according to this metric at the settings
-shown. DotJpegli and Google's jpegli have equal file sizes here; their bytes
+shown. DotJpegli is 214 bytes smaller than Google's jpegli here; their bytes
 and decoded pixels differ slightly. JPEG XL requires a compatible viewer.
 
 The following lossless sheet shows the same **480 × 300** detail from every

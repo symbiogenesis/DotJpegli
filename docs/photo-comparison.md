@@ -35,7 +35,7 @@ The source TIFF is downloadable upstream; the common input PNG is committed.
 | Encoder | Complete bytes | KiB | SSIMULACRA2 |
 | --- | ---: | ---: | ---: |
 | [Source PNG](images/comparison/source.png) | 4,437,354 | 4333.4 | 100.00 |
-| [DotJpegli 2.0.0](images/comparison/dotjpegli.jpg) | 723,938 | 707.0 | 80.49 |
+| [DotJpegli 2.0.0](images/comparison/dotjpegli.jpg) | 723,724 | 706.8 | 80.49 |
 | [Google jpegli](images/comparison/google-jpegli.jpg) | 723,938 | 707.0 | 80.49 |
 | [mozjpeg 4.1.1](images/comparison/mozjpeg.jpg) | 726,330 | 709.3 | 78.92 |
 | [libjpeg-turbo 3.2.0](images/comparison/libjpeg-turbo.jpg) | 822,647 | 803.4 | 80.41 |
@@ -50,8 +50,8 @@ adaptive quantization and baseline-range quantizers. DotJpegli uses one worker
 and YCbCr output. Its exact settings are in
 [`encode-readme-photo.cs`](../tools/encode-readme-photo.cs); this helper uses the
 library directly because the public CLI's default progressive script differs
-from preset 2. The two resulting files have equal lengths; their hashes and
-decoded pixels are not identical.
+from preset 2. DotJpegli is 214 bytes smaller than Google jpegli here; their
+hashes and decoded pixels are not identical.
 
 mozjpeg uses quality 90, its default trellis, `-sample 2x2 -progressive -optimize`.
 Pillow invokes libjpeg-turbo with quality 90, subsampling 2, progressive and
@@ -87,8 +87,8 @@ It verifies the source TIFF hash, uses Pillow **13.0.0**, executes each encode
 without timing it, checks decoded dimensions, computes the metric and produces
 the contact sheet and JSON manifest. The input source, helper and output
 hashes, actual managed assembly hash and external executable hashes are
-retained in the manifest. The original encode used managed source revision
-`d010c0fed7799639fdd4e56fcde8f367aab0bc96`; the helper source is additionally
+retained in the manifest. The retained encode used managed source revision
+`40a3074c61fbb052e452a82faf6d74616d060060`; the helper source is additionally
 identified by hash. No encoder source changes accompany this example.
 
 Use the repository's pinned .NET SDK and these upstream tools:
