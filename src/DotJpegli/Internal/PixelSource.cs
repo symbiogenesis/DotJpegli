@@ -412,6 +412,30 @@ internal readonly ref struct PixelSource
     {
         int lanes = Vector<float>.Count;
         int step = this.ComponentsPerPixel;
+        int width = lumaSamples.Length;
+        int x = 0;
+        if (step == 4)
+        {
+            var byteMask = new Vector<uint>(0xffU);
+            int vectorBytes = lanes * 4;
+            for (; x <= width - lanes; x += lanes)
+            {
+                var packed = Vector.AsVectorUInt32(new Vector<byte>(this.bytes.Slice(rowStart + (x * 4), vectorBytes)));
+                var c0 = Vector.ConvertToSingle(Vector.AsVectorInt32(packed & byteMask));
+                var green = Vector.ConvertToSingle(Vector.AsVectorInt32((packed >> 8) & byteMask));
+                var c2 = Vector.ConvertToSingle(Vector.AsVectorInt32((packed >> 16) & byteMask));
+                ColorConversion.RgbToYCbCr(this.bgr ? c2 : c0, green, this.bgr ? c0 : c2,
+                    out Vector<float> luma, out Vector<float> cb, out Vector<float> cr);
+                luma.CopyTo(lumaSamples.Slice(x, lanes));
+                if (!cbSamples.IsEmpty)
+                {
+                    cb.CopyTo(cbSamples.Slice(x, lanes));
+                    cr.CopyTo(crSamples.Slice(x, lanes));
+                }
+            }
+            return x;
+        }
+
         Vector128<byte> redIndices = ComponentIndices(this.bgr ? 2 : 0, step);
         Vector128<byte> greenIndices = ComponentIndices(1, step);
         Vector128<byte> blueIndices = ComponentIndices(this.bgr ? 0 : 2, step);
@@ -419,8 +443,6 @@ internal readonly ref struct PixelSource
         Vector128<byte> upperRedIndices = ComponentIndices((this.bgr ? 2 : 0) + upperBackstep, step);
         Vector128<byte> upperGreenIndices = ComponentIndices(1 + upperBackstep, step);
         Vector128<byte> upperBlueIndices = ComponentIndices((this.bgr ? 0 : 2) + upperBackstep, step);
-        int width = lumaSamples.Length;
-        int x = 0;
         // Overlap the two RGB loads so an eight-pixel group consumes exactly
         // 24 bytes. Bound every load by the active row, including the final
         // unpadded row; leave remaining pixels to the scalar path.

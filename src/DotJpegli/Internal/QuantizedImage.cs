@@ -157,9 +157,33 @@ internal sealed class QuantizedImage : IDisposable
             int horizontal = sampling.MaxHorizontal;
             int vertical = sampling.MaxVertical;
             Span<float> strengths = adaptive is null ? default : adaptive.Strengths;
+            ParallelDctRows? parallelQuantized = rateDistortionLambda == 0 && zigZagOrdered
+                && pixels.ParallelRows is { CanPrepareQuantizedRows: true } candidate ? candidate : null;
             for (int top = 0; top < Math.Min(height, cachedMcuRows * mcuHeight); top += vertical * 8)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (parallelQuantized is not null)
+                {
+                    adaptive?.ComputeRow(parallelQuantized.SourceForAnalysis, stride, top,
+                        tables[pixels.AnalysisComponent][1], strengths, cancellationToken);
+                    parallelQuantized.PrepareQuantizedRow(top, quantizers,
+                        adaptive is null ? default : strengths, cancellationToken);
+                    for (int component = 0; component < tables.Length; component++)
+                    {
+                        JpegComponentSampling factor = sampling[component];
+                        int firstRow = top / (vertical * 8) * factor.Vertical;
+                        for (int row = 0; row < factor.Vertical && firstRow + row < heights[component]; row++)
+                        {
+                            int y = firstRow + row;
+                            for (int x = 0; x < widths[component]; x++)
+                            {
+                                parallelQuantized.GetQuantizedBlock(component, x, y).CopyTo(image.Block(component, x, y));
+                            }
+                        }
+                    }
+                    continue;
+                }
+
                 pixels.ParallelRows?.PrepareRow(top, cancellationToken);
                 adaptive?.ComputeRow(pixels, stride, top, tables[pixels.AnalysisComponent][1], strengths, cancellationToken);
 
@@ -177,6 +201,7 @@ internal sealed class QuantizedImage : IDisposable
                     int firstRow = top / (vertical * 8) * factor.Vertical;
                     for (int row = 0; row < factor.Vertical && firstRow + row < heights[component]; row++)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         int y = firstRow + row;
                         ReadOnlySpan<float> rowPlane = plane;
                         int rowPlaneWidth = planeWidth, rowPlaneHeight = planeHeight, planeY = y * 8;
@@ -186,6 +211,26 @@ internal sealed class QuantizedImage : IDisposable
                         {
                             rowPlane = pixels.GetConvertedPlaneSegment(component, y * 8, compactChroma,
                                 out rowPlaneWidth, out rowPlaneHeight, out planeY);
+                        }
+                        if (pixels.ParallelRows is null && rateDistortionLambda == 0 && !rowPlane.IsEmpty && zigZagOrdered)
+                        {
+                            int rowOffset = adaptive is null ? 0 : row * adaptive.BlocksWide;
+                            int strengthStep = horizontal / factor.Horizontal;
+                            int interiorBlocks = planeY + 8 <= rowPlaneHeight
+                                ? Math.Min(widths[component], rowPlaneWidth / 8) : 0;
+                            for (int x = 0; x < interiorBlocks; x++)
+                            {
+                                float strength = adaptive is null ? 0f : strengths[rowOffset + (x * strengthStep)];
+                                ForwardDct.TransformQuantizePlane(rowPlane, rowPlaneWidth, x * 8, planeY,
+                                    quantizers[component], image.Block(component, x, y), strength, zigZagOrdered: true);
+                            }
+                            for (int x = interiorBlocks; x < widths[component]; x++)
+                            {
+                                float strength = adaptive is null ? 0f : strengths[rowOffset + (x * strengthStep)];
+                                ForwardDct.TransformQuantizePaddedPlane(rowPlane, rowPlaneWidth, rowPlaneHeight,
+                                    x * 8, planeY, quantizers[component], image.Block(component, x, y), strength);
+                            }
+                            continue;
                         }
                         for (int x = 0; x < widths[component]; x++)
                         {

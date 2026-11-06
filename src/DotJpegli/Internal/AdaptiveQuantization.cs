@@ -406,12 +406,33 @@ internal sealed class AdaptiveQuantization : IDisposable
                 sum += this.PreErosionDifference<TDivision>(current, new(this.luma, index + (3 * this.lumaStride) - 1),
                     new(this.luma, index + (3 * this.lumaStride) + 1), above, below, gammaOffset, maskingScale);
                 // Reduce each horizontal group while its four-row sums are
-                // still available. Explicit lane reads preserve the original
+                // still available. Constant-index lane reads preserve the original
                 // left-to-right scalar reduction without width-sized staging.
-                for (int lane = 0; lane < Vector<float>.Count; lane += 4)
+#if !NETSTANDARD2_1
+                if (Vector<float>.Count == 8)
                 {
-                    this.preErosion[output + ((x + lane) / 4)] =
-                        (sum[lane] + sum[lane + 1] + sum[lane + 2] + sum[lane + 3]) * 0.25f;
+                    Vector256<float> sum256 = sum.AsVector256();
+                    Vector128<float> lower = sum256.GetLower();
+                    Vector128<float> upper = sum256.GetUpper();
+                    this.preErosion[output + (x / 4)] =
+                        (lower.GetElement(0) + lower.GetElement(1) + lower.GetElement(2) + lower.GetElement(3)) * 0.25f;
+                    this.preErosion[output + (x / 4) + 1] =
+                        (upper.GetElement(0) + upper.GetElement(1) + upper.GetElement(2) + upper.GetElement(3)) * 0.25f;
+                }
+                else if (Vector<float>.Count == 4)
+                {
+                    Vector128<float> sum128 = sum.AsVector128();
+                    this.preErosion[output + (x / 4)] =
+                        (sum128.GetElement(0) + sum128.GetElement(1) + sum128.GetElement(2) + sum128.GetElement(3)) * 0.25f;
+                }
+                else
+#endif
+                {
+                    for (int lane = 0; lane < Vector<float>.Count; lane += 4)
+                    {
+                        this.preErosion[output + ((x + lane) / 4)] =
+                            (sum[lane] + sum[lane + 1] + sum[lane + 2] + sum[lane + 3]) * 0.25f;
+                    }
                 }
             }
         }
