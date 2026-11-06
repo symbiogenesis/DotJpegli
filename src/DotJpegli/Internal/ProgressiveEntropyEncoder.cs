@@ -301,7 +301,11 @@ internal static class ProgressiveEntropyEncoder
         // Narrow low-frequency bands are cheaper to inspect directly. Larger
         // bands classify independent magnitudes together, then skip every zero.
 #if !NETSTANDARD2_1
-        if (spectralEnd - spectralStart >= 8 && Vector512.IsHardwareAccelerated)
+        if (spectralEnd - spectralStart >= 8 && successiveLow == 0)
+        {
+            mask = EntropyEncoder.NonzeroAcMask(coefficients);
+        }
+        else if (spectralEnd - spectralStart >= 8 && Vector512.IsHardwareAccelerated)
         {
             for (int offset = 0; offset < 64; offset += Vector512<short>.Count)
             {
@@ -309,21 +313,22 @@ internal static class ProgressiveEntropyEncoder
                 mask |= (~Vector512.Equals(magnitude, Vector512<short>.Zero)).ExtractMostSignificantBits() << offset;
             }
         }
-        else if (spectralEnd - spectralStart >= 8 && Vector256.IsHardwareAccelerated)
-        {
-            for (int offset = 0; offset < 64; offset += Vector256<short>.Count)
-            {
-                var magnitude = Vector256.ShiftRightLogical(Vector256.Abs(Vector256.Create(coefficients[offset..])), successiveLow);
-                mask |= (ulong)(~Vector256.Equals(magnitude, Vector256<short>.Zero)).ExtractMostSignificantBits() << offset;
-            }
-        }
         else if (spectralEnd - spectralStart >= 8 && Vector128.IsHardwareAccelerated)
         {
-            for (int offset = 0; offset < 64; offset += Vector128<short>.Count)
-            {
-                var magnitude = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients[offset..])), successiveLow);
-                mask |= (ulong)(~Vector128.Equals(magnitude, Vector128<short>.Zero)).ExtractMostSignificantBits() << offset;
-            }
+            var cutoff = Vector128.Create((short)((1 << successiveLow) - 1));
+            uint m01 = PackMask16(
+                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients[..8])), cutoff),
+                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients.Slice(8, 8))), cutoff));
+            uint m23 = PackMask16(
+                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients.Slice(16, 8))), cutoff),
+                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients.Slice(24, 8))), cutoff));
+            uint m45 = PackMask16(
+                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients.Slice(32, 8))), cutoff),
+                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients.Slice(40, 8))), cutoff));
+            uint m67 = PackMask16(
+                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients.Slice(48, 8))), cutoff),
+                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients.Slice(56, 8))), cutoff));
+            mask = m01 | (m23 << 16) | ((ulong)(m45 | (m67 << 16)) << 32);
         }
         else
 #endif
@@ -699,8 +704,9 @@ internal static class ProgressiveEntropyEncoder
         out ulong newlySignificant, out ulong previouslySignificant)
     {
         newlySignificant = previouslySignificant = 0;
-        // Abs(short.MinValue) retains the unsigned 0x8000 magnitude. Keep
-        // comparisons unsigned so already-validated wide callers match scalar.
+        // Validated AC magnitudes fit in [0, 1023], and position 0 is masked out
+        // by the caller's spectral band. Narrowing pairs of 128-bit comparisons
+        // avoids Vector256<ushort>'s unsigned bias XORs and cross-lane vpermq.
 #if !NETSTANDARD2_1
         if (Vector512.IsHardwareAccelerated)
         {
@@ -712,25 +718,27 @@ internal static class ProgressiveEntropyEncoder
                 previouslySignificant |= Vector512.GreaterThan(magnitude, one).ExtractMostSignificantBits() << offset;
             }
         }
-        else if (Vector256.IsHardwareAccelerated)
-        {
-            var one = Vector256.Create((ushort)1);
-            for (int offset = 0; offset < 64; offset += Vector256<short>.Count)
-            {
-                var magnitude = Vector256.ShiftRightLogical(Vector256.Abs(Vector256.Create(coefficients[offset..])).AsUInt16(), successiveLow);
-                newlySignificant |= (ulong)Vector256.Equals(magnitude, one).ExtractMostSignificantBits() << offset;
-                previouslySignificant |= (ulong)Vector256.GreaterThan(magnitude, one).ExtractMostSignificantBits() << offset;
-            }
-        }
         else if (Vector128.IsHardwareAccelerated)
         {
-            var one = Vector128.Create((ushort)1);
-            for (int offset = 0; offset < 64; offset += Vector128<short>.Count)
-            {
-                var magnitude = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients[offset..])).AsUInt16(), successiveLow);
-                newlySignificant |= (ulong)Vector128.Equals(magnitude, one).ExtractMostSignificantBits() << offset;
-                previouslySignificant |= (ulong)Vector128.GreaterThan(magnitude, one).ExtractMostSignificantBits() << offset;
-            }
+            var one = Vector128.Create((short)1);
+            var m0 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients[..8])), successiveLow);
+            var m1 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(8, 8))), successiveLow);
+            var m2 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(16, 8))), successiveLow);
+            var m3 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(24, 8))), successiveLow);
+            var m4 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(32, 8))), successiveLow);
+            var m5 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(40, 8))), successiveLow);
+            var m6 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(48, 8))), successiveLow);
+            var m7 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(56, 8))), successiveLow);
+            uint n01 = PackMask16(Vector128.Equals(m0, one), Vector128.Equals(m1, one));
+            uint n23 = PackMask16(Vector128.Equals(m2, one), Vector128.Equals(m3, one));
+            uint n45 = PackMask16(Vector128.Equals(m4, one), Vector128.Equals(m5, one));
+            uint n67 = PackMask16(Vector128.Equals(m6, one), Vector128.Equals(m7, one));
+            newlySignificant = n01 | (n23 << 16) | ((ulong)(n45 | (n67 << 16)) << 32);
+            uint p01 = PackMask16(Vector128.GreaterThan(m0, one), Vector128.GreaterThan(m1, one));
+            uint p23 = PackMask16(Vector128.GreaterThan(m2, one), Vector128.GreaterThan(m3, one));
+            uint p45 = PackMask16(Vector128.GreaterThan(m4, one), Vector128.GreaterThan(m5, one));
+            uint p67 = PackMask16(Vector128.GreaterThan(m6, one), Vector128.GreaterThan(m7, one));
+            previouslySignificant = p01 | (p23 << 16) | ((ulong)(p45 | (p67 << 16)) << 32);
         }
         else
 #endif
@@ -749,6 +757,12 @@ internal static class ProgressiveEntropyEncoder
             }
         }
     }
+
+#if !NETSTANDARD2_1
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static uint PackMask16(Vector128<short> lower, Vector128<short> upper)
+        => Vector128.ExtractMostSignificantBits(Vector128.Narrow(lower, upper));
+#endif
 
     public static void FlushAcRefinement(BitWriter writer, HuffmanTable ac, ProgressiveAcRefinementState state)
     {
