@@ -1,0 +1,204 @@
+{
+    "id":  127811053680,
+    "run_id":  42193412518,
+    "workflow_name":  "CI",
+    "head_branch":  "main",
+    "run_url":  "https://api.github.com/repos/symbiogenesis/DotJpegli/actions/runs/42193412518",
+    "run_attempt":  1,
+    "node_id":  "CR_kwDOVGQB588AAAAdwiHocA",
+    "head_sha":  "018a34bfaecb576c4fa327637e78e4c46e54da77",
+    "url":  "https://api.github.com/repos/symbiogenesis/DotJpegli/actions/jobs/127811053680",
+    "html_url":  "https://github.com/symbiogenesis/DotJpegli/actions/runs/42193412518/job/127811053680",
+    "status":  "completed",
+    "conclusion":  "failure",
+    "created_at":  "2026-11-06T09:14:29Z",
+    "started_at":  "2026-11-06T09:14:31Z",
+    "completed_at":  "2026-11-06T09:20:15Z",
+    "name":  "quality-compression-parity",
+    "steps":  [
+                  {
+                      "name":  "Set up job",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  1,
+                      "started_at":  "2026-11-06T09:14:32Z",
+                      "completed_at":  "2026-11-06T09:14:33Z"
+                  },
+                  {
+                      "name":  "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  2,
+                      "started_at":  "2026-11-06T09:14:33Z",
+                      "completed_at":  "2026-11-06T09:14:35Z"
+                  },
+                  {
+                      "name":  "Run actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  3,
+                      "started_at":  "2026-11-06T09:14:35Z",
+                      "completed_at":  "2026-11-06T09:14:43Z"
+                  },
+                  {
+                      "name":  "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  4,
+                      "started_at":  "2026-11-06T09:14:43Z",
+                      "completed_at":  "2026-11-06T09:14:45Z"
+                  },
+                  {
+                      "name":  "Make downloaded native executable runnable",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  5,
+                      "started_at":  "2026-11-06T09:14:45Z",
+                      "completed_at":  "2026-11-06T09:14:45Z"
+                  },
+                  {
+                      "name":  "Restore and build managed comparison",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  6,
+                      "started_at":  "2026-11-06T09:14:45Z",
+                      "completed_at":  "2026-11-06T09:15:15Z"
+                  },
+                  {
+                      "name":  "Verify comparison metrics and rate interpolation",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  7,
+                      "started_at":  "2026-11-06T09:15:15Z",
+                      "completed_at":  "2026-11-06T09:15:16Z"
+                  },
+                  {
+                      "name":  "Compare matched quality and compression (CI only)",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  8,
+                      "started_at":  "2026-11-06T09:15:16Z",
+                      "completed_at":  "2026-11-06T09:15:49Z"
+                  },
+                  {
+                      "name":  "Retain parity evidence and native build provenance",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  9,
+                      "started_at":  "2026-11-06T09:15:49Z",
+                      "completed_at":  "2026-11-06T09:15:56Z"
+                  },
+                  {
+                      "name":  "Restore and build performance comparison",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  10,
+                      "started_at":  "2026-11-06T09:15:56Z",
+                      "completed_at":  "2026-11-06T09:16:02Z"
+                  },
+                  {
+                      "name":  "Verify performance statistics and acceptance policy",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  11,
+                      "started_at":  "2026-11-06T09:16:02Z",
+                      "completed_at":  "2026-11-06T09:16:03Z"
+                  },
+                  {
+                      "name":  "Compare steady-state encoding latency (CI only)",
+                      "status":  "completed",
+                      "conclusion":  "failure",
+                      "number":  12,
+                      "started_at":  "2026-11-06T09:16:03Z",
+                      "completed_at":  "2026-11-06T09:19:44Z"
+                  },
+                  {
+                      "name":  "Generate README charts from complete measurements",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  13,
+                      "started_at":  "2026-11-06T09:19:44Z",
+                      "completed_at":  "2026-11-06T09:19:52Z"
+                  },
+                  {
+                      "name":  "Retain generated performance charts",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  14,
+                      "started_at":  "2026-11-06T09:19:52Z",
+                      "completed_at":  "2026-11-06T09:19:53Z"
+                  },
+                  {
+                      "name":  "Retain performance evidence and native build provenance",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  15,
+                      "started_at":  "2026-11-06T09:19:53Z",
+                      "completed_at":  "2026-11-06T09:19:56Z"
+                  },
+                  {
+                      "name":  "Publish full quality and performance reports in job summary",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  16,
+                      "started_at":  "2026-11-06T09:19:56Z",
+                      "completed_at":  "2026-11-06T09:19:56Z"
+                  },
+                  {
+                      "name":  "Install pinned CPU diagnostics after full latency failure",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  17,
+                      "started_at":  "2026-11-06T09:19:56Z",
+                      "completed_at":  "2026-11-06T09:19:58Z"
+                  },
+                  {
+                      "name":  "Profile worst images and failing smallest input (instrumented diagnostic only)",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  18,
+                      "started_at":  "2026-11-06T09:19:58Z",
+                      "completed_at":  "2026-11-06T09:20:12Z"
+                  },
+                  {
+                      "name":  "Retain separate full-run instrumented CPU diagnostics",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  19,
+                      "started_at":  "2026-11-06T09:20:12Z",
+                      "completed_at":  "2026-11-06T09:20:13Z"
+                  },
+                  {
+                      "name":  "Post Run actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68",
+                      "status":  "completed",
+                      "conclusion":  "skipped",
+                      "number":  37,
+                      "started_at":  "2026-11-06T09:20:13Z",
+                      "completed_at":  "2026-11-06T09:20:13Z"
+                  },
+                  {
+                      "name":  "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  38,
+                      "started_at":  "2026-11-06T09:20:13Z",
+                      "completed_at":  "2026-11-06T09:20:13Z"
+                  },
+                  {
+                      "name":  "Complete job",
+                      "status":  "completed",
+                      "conclusion":  "success",
+                      "number":  39,
+                      "started_at":  "2026-11-06T09:20:13Z",
+                      "completed_at":  "2026-11-06T09:20:13Z"
+                  }
+              ],
+    "check_run_url":  "https://api.github.com/repos/symbiogenesis/DotJpegli/check-runs/127811053680",
+    "labels":  [
+                   "ubuntu-latest"
+               ],
+    "runner_id":  1000023493,
+    "runner_name":  "GitHub Actions 1000023493",
+    "runner_group_id":  0,
+    "runner_group_name":  "GitHub Actions"
+}

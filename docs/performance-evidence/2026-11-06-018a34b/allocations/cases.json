@@ -1,0 +1,4802 @@
+[
+  {
+    "id": "kodim01",
+    "category": "natural",
+    "sourcePath": "kodim01.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "998ccf0be59a31ed12dfc2296a957f5363e35043e47ee232932ca5f1039e8628",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      189464,
+      189464,
+      189464
+    ],
+    "nativeAllocatedBytes": [
+      2420480,
+      2420992,
+      2421504
+    ],
+    "managedBytes": 148163,
+    "nativeBytes": 148186,
+    "managedJpegSha256": "07466e34d2cd1e779467becd8d68015414d1edfc200e263183e3fbf53c3a7bd9",
+    "nativeJpegSha256": "5696e0da5b3cc78fc9f6e55e8f36050f86cafee6b6d2c08795bcd10adb5ed1f5"
+  },
+  {
+    "id": "kodim01",
+    "category": "natural",
+    "sourcePath": "kodim01.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "998ccf0be59a31ed12dfc2296a957f5363e35043e47ee232932ca5f1039e8628",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      96920,
+      96920,
+      96920
+    ],
+    "nativeAllocatedBytes": [
+      1994260,
+      1994772,
+      1995284
+    ],
+    "managedBytes": 62754,
+    "nativeBytes": 62770,
+    "managedJpegSha256": "73ea91ca2c76e53461a8b5294b3a5113fc5d7c16f90793154bb8378450ef1e59",
+    "nativeJpegSha256": "82a4d1eb187c3cba3cdd63b6c127929d09150ca21d5a3ee6387690020ce91def"
+  },
+  {
+    "id": "kodim01",
+    "category": "natural",
+    "sourcePath": "kodim01.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "998ccf0be59a31ed12dfc2296a957f5363e35043e47ee232932ca5f1039e8628",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      230488,
+      230488,
+      230488
+    ],
+    "nativeAllocatedBytes": [
+      5026756,
+      5027012,
+      5028036
+    ],
+    "managedBytes": 143694,
+    "nativeBytes": 143713,
+    "managedJpegSha256": "8328806e01a8824bbfd856913f3d96a35b23870f6c0bb0d66567a8690e16d793",
+    "nativeJpegSha256": "233af30ca3bcbcc2c6ca93d912e425030c424d0fa3c6ed804d85f8a21cef6b7d"
+  },
+  {
+    "id": "kodim01",
+    "category": "natural",
+    "sourcePath": "kodim01.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "998ccf0be59a31ed12dfc2296a957f5363e35043e47ee232932ca5f1039e8628",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      140360,
+      140360,
+      140360
+    ],
+    "nativeAllocatedBytes": [
+      4342984,
+      4343240,
+      4344264
+    ],
+    "managedBytes": 60370,
+    "nativeBytes": 60372,
+    "managedJpegSha256": "890824fecde73f5536acf1f8b77c1f7afaf71eec36267696c8835c41de9fb204",
+    "nativeJpegSha256": "158baf60c3995cc2a76da43fe2df6050d5d0e78a2b3bbb070a584e8d5c3436a6"
+  },
+  {
+    "id": "kodim01",
+    "category": "natural",
+    "sourcePath": "kodim01.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "998ccf0be59a31ed12dfc2296a957f5363e35043e47ee232932ca5f1039e8628",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      171616,
+      171616,
+      171616
+    ],
+    "nativeAllocatedBytes": [
+      2495067,
+      2493147,
+      2495067
+    ],
+    "managedBytes": 130617,
+    "nativeBytes": 130524,
+    "managedJpegSha256": "5b84a1dbac52f93ce8149565ad633266eec4b273ede3be8a238cb23da920ec07",
+    "nativeJpegSha256": "94f81b230159d1572bb67fed6604d5035d547f29c095f54e71824251b1545288"
+  },
+  {
+    "id": "kodim01",
+    "category": "natural",
+    "sourcePath": "kodim01.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "998ccf0be59a31ed12dfc2296a957f5363e35043e47ee232932ca5f1039e8628",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      85560,
+      85560,
+      85560
+    ],
+    "nativeAllocatedBytes": [
+      2330993,
+      2329073,
+      2330993
+    ],
+    "managedBytes": 51388,
+    "nativeBytes": 51440,
+    "managedJpegSha256": "ed214952a172e5069879d08ca1fd6a384497cc6221d69e33c6f6bb2abde06c96",
+    "nativeJpegSha256": "d42ed6cfb43223df44aa45c47cfe305e734f693b10f88fae29e04252bfdcb65b"
+  },
+  {
+    "id": "kodim01",
+    "category": "natural",
+    "sourcePath": "kodim01.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "998ccf0be59a31ed12dfc2296a957f5363e35043e47ee232932ca5f1039e8628",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      205448,
+      205448,
+      205448
+    ],
+    "nativeAllocatedBytes": [
+      3673372,
+      3673500,
+      3673500
+    ],
+    "managedBytes": 126948,
+    "nativeBytes": 126953,
+    "managedJpegSha256": "6ccd02672617b2730b10e396259902f96116562042d1396ddc9edbb0b4aa9846",
+    "nativeJpegSha256": "c96f15ab3e1c1e32ef9510e82ac13844ac92e4cdec50fa9793cd8daaf39ccaa2"
+  },
+  {
+    "id": "kodim01",
+    "category": "natural",
+    "sourcePath": "kodim01.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "998ccf0be59a31ed12dfc2296a957f5363e35043e47ee232932ca5f1039e8628",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      127448,
+      127448,
+      127448
+    ],
+    "nativeAllocatedBytes": [
+      3285525,
+      3285653,
+      3285653
+    ],
+    "managedBytes": 50146,
+    "nativeBytes": 50167,
+    "managedJpegSha256": "d679f4bed42729035692d5da7564cefc944721b8476d70871a527978824fbc62",
+    "nativeJpegSha256": "1ba74f39f2ade6fd2de5965fd3e77d8911a140a77e135718399aa636c0d5cdd3"
+  },
+  {
+    "id": "kodim02",
+    "category": "natural",
+    "sourcePath": "kodim02.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "914943215155443fbb1785afa6ae91f136a4d2608b426a670e1050d7d66681b4",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      131184,
+      131184,
+      131184
+    ],
+    "nativeAllocatedBytes": [
+      2125362,
+      2125874,
+      2126386
+    ],
+    "managedBytes": 95754,
+    "nativeBytes": 95771,
+    "managedJpegSha256": "5c9f7fef85ee46d6508b60bee756375a781854d7abbac634ced3b74bc8f2f55e",
+    "nativeJpegSha256": "2585e3d62290dc2200668a4c09fdbb97cf5bf2ead93ab845953d2180d7ec67d7"
+  },
+  {
+    "id": "kodim02",
+    "category": "natural",
+    "sourcePath": "kodim02.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "914943215155443fbb1785afa6ae91f136a4d2608b426a670e1050d7d66681b4",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      67896,
+      67896,
+      67896
+    ],
+    "nativeAllocatedBytes": [
+      1994253,
+      1994765,
+      1995277
+    ],
+    "managedBytes": 33733,
+    "nativeBytes": 33736,
+    "managedJpegSha256": "ac7db6ed229a10ab8c4f37851dcd1f77facb7f126f7ea511ba9254ba1c60c728",
+    "nativeJpegSha256": "af18edae8746f36fc8cb272bc05e619c591f0c0ab9e092cd682018b6699db9eb"
+  },
+  {
+    "id": "kodim02",
+    "category": "natural",
+    "sourcePath": "kodim02.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "914943215155443fbb1785afa6ae91f136a4d2608b426a670e1050d7d66681b4",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      188688,
+      188688,
+      188688
+    ],
+    "nativeAllocatedBytes": [
+      4613683,
+      4613939,
+      4614963
+    ],
+    "managedBytes": 93763,
+    "nativeBytes": 93766,
+    "managedJpegSha256": "7049dfdeb422fc3f0d49660d93e2c039015d7b7ba8aecc5841a6615e45151e9a",
+    "nativeJpegSha256": "ce7bbc2c9a67d32b5d4fcd61c5744ec88a39d626ba8d49958757f00d53e70fdd"
+  },
+  {
+    "id": "kodim02",
+    "category": "natural",
+    "sourcePath": "kodim02.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "914943215155443fbb1785afa6ae91f136a4d2608b426a670e1050d7d66681b4",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      113456,
+      113456,
+      113456
+    ],
+    "nativeAllocatedBytes": [
+      4258691,
+      4258947,
+      4259971
+    ],
+    "managedBytes": 33475,
+    "nativeBytes": 33485,
+    "managedJpegSha256": "aaf52dc8f98585064846b15c4050356b2b94eba538627423878a188d8a5bb7b3",
+    "nativeJpegSha256": "9773fe70e9d02f252fccb8684aa0f13e4755fb07236550f82b170e07494a3faa"
+  },
+  {
+    "id": "kodim02",
+    "category": "natural",
+    "sourcePath": "kodim02.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "914943215155443fbb1785afa6ae91f136a4d2608b426a670e1050d7d66681b4",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      115904,
+      115904,
+      115904
+    ],
+    "nativeAllocatedBytes": [
+      2476973,
+      2475053,
+      2476973
+    ],
+    "managedBytes": 80656,
+    "nativeBytes": 80654,
+    "managedJpegSha256": "adbcc6144723818fba3ba51117ddcf3a03133d587dfa66bbf63ef6fd3fc3b1aa",
+    "nativeJpegSha256": "6b6f1d6be64f93238f6c719bf66ac8833d775aedbc917370870e9bab48dd8fb8"
+  },
+  {
+    "id": "kodim02",
+    "category": "natural",
+    "sourcePath": "kodim02.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "914943215155443fbb1785afa6ae91f136a4d2608b426a670e1050d7d66681b4",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      57384,
+      57384,
+      57384
+    ],
+    "nativeAllocatedBytes": [
+      2321139,
+      2319219,
+      2321139
+    ],
+    "managedBytes": 26805,
+    "nativeBytes": 26826,
+    "managedJpegSha256": "991ffa4ed92015eecdee07bfa2b2c7e5c743c181465d0118e8a6a7308aa0fbaa",
+    "nativeJpegSha256": "7c0db1a87c6eb8076597fd85e07a1b8ab658094ed727d1c71a932401f07b497a"
+  },
+  {
+    "id": "kodim02",
+    "category": "natural",
+    "sourcePath": "kodim02.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "914943215155443fbb1785afa6ae91f136a4d2608b426a670e1050d7d66681b4",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      160080,
+      160080,
+      160080
+    ],
+    "nativeAllocatedBytes": [
+      3513820,
+      3513948,
+      3513948
+    ],
+    "managedBytes": 78746,
+    "nativeBytes": 78754,
+    "managedJpegSha256": "8c5bd6d36b151dc8b3192b92e0d4e529433fa4e9519fe875f32338fe6028fed9",
+    "nativeJpegSha256": "951bb15fe9087a136991547bd34f279d59e42e0717d4c7b61094862ebb458997"
+  },
+  {
+    "id": "kodim02",
+    "category": "natural",
+    "sourcePath": "kodim02.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "914943215155443fbb1785afa6ae91f136a4d2608b426a670e1050d7d66681b4",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      97128,
+      97128,
+      97128
+    ],
+    "nativeAllocatedBytes": [
+      3191548,
+      3191676,
+      3191676
+    ],
+    "managedBytes": 26969,
+    "nativeBytes": 26969,
+    "managedJpegSha256": "67d249a1d6bc20770bc34aac8035f4ec2eb0d7956760b563c38aa5017695f48e",
+    "nativeJpegSha256": "c8b46487be2a43f22945bc82cd188d53f99e01be19326e62dc4ec311a90c229d"
+  },
+  {
+    "id": "kodim03",
+    "category": "natural",
+    "sourcePath": "kodim03.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "ee3721fc6e0f53b3bcc61bb0b7183962d3f31286619b5739954ab702d90ee5ae",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      104880,
+      104880,
+      104880
+    ],
+    "nativeAllocatedBytes": [
+      2125373,
+      2125885,
+      2126397
+    ],
+    "managedBytes": 70660,
+    "nativeBytes": 70669,
+    "managedJpegSha256": "e42643b9e770b389a9e7268000c97099ef66444ba4f2d7668c319d4eb12f1ff0",
+    "nativeJpegSha256": "2f2a393af870f3d271e32018dfa056c3048d77bcccf00a77c8a8b8289ad38359"
+  },
+  {
+    "id": "kodim03",
+    "category": "natural",
+    "sourcePath": "kodim03.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "ee3721fc6e0f53b3bcc61bb0b7183962d3f31286619b5739954ab702d90ee5ae",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      65344,
+      65344,
+      65344
+    ],
+    "nativeAllocatedBytes": [
+      1994259,
+      1994771,
+      1995283
+    ],
+    "managedBytes": 31185,
+    "nativeBytes": 31202,
+    "managedJpegSha256": "2984fe32fda0d75840251b85bdfdedea9a5b13de40b3006c75b31ff03bf54582",
+    "nativeJpegSha256": "ed724d88edb009a207573ddc396229fc457a04bce890ec3db4e9836b344fd2fe"
+  },
+  {
+    "id": "kodim03",
+    "category": "natural",
+    "sourcePath": "kodim03.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "ee3721fc6e0f53b3bcc61bb0b7183962d3f31286619b5739954ab702d90ee5ae",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      141904,
+      141904,
+      141904
+    ],
+    "nativeAllocatedBytes": [
+      4458196,
+      4458452,
+      4459476
+    ],
+    "managedBytes": 69292,
+    "nativeBytes": 69311,
+    "managedJpegSha256": "37c7df692c30710b1137855527633fb5803e6659f5d0b610d01154a4fb570878",
+    "nativeJpegSha256": "772ac7fda16b5a2f6704d7843b940c3054bf5fd7afeff70acadfc18579325ed3"
+  },
+  {
+    "id": "kodim03",
+    "category": "natural",
+    "sourcePath": "kodim03.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "ee3721fc6e0f53b3bcc61bb0b7183962d3f31286619b5739954ab702d90ee5ae",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      98976,
+      98976,
+      98976
+    ],
+    "nativeAllocatedBytes": [
+      4201440,
+      4201696,
+      4202720
+    ],
+    "managedBytes": 30252,
+    "nativeBytes": 30259,
+    "managedJpegSha256": "902a8d7f86de1987eb13a6ebde4188cad238f1f792abcfd91412ee3cc178b6a4",
+    "nativeJpegSha256": "090cf46823d3f90a327ceec8f587ffd887751bac7d79853fa5029ea6ced23dc5"
+  },
+  {
+    "id": "kodim03",
+    "category": "natural",
+    "sourcePath": "kodim03.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "ee3721fc6e0f53b3bcc61bb0b7183962d3f31286619b5739954ab702d90ee5ae",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      95192,
+      95192,
+      95192
+    ],
+    "nativeAllocatedBytes": [
+      2331028,
+      2329108,
+      2331028
+    ],
+    "managedBytes": 60974,
+    "nativeBytes": 60990,
+    "managedJpegSha256": "efa27989a11307fa5419d198d1863a8eb1d7cb763583a07386a18e2c16d61388",
+    "nativeJpegSha256": "52a6b042f314df32ddb934610d4bfb45963b074d43f0b94b2acf6f974d9f0a0f"
+  },
+  {
+    "id": "kodim03",
+    "category": "natural",
+    "sourcePath": "kodim03.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "ee3721fc6e0f53b3bcc61bb0b7183962d3f31286619b5739954ab702d90ee5ae",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      59480,
+      59480,
+      59480
+    ],
+    "nativeAllocatedBytes": [
+      2330989,
+      2329069,
+      2330989
+    ],
+    "managedBytes": 25308,
+    "nativeBytes": 25319,
+    "managedJpegSha256": "1cedf9cb7f8e8938a5b6094e259db6c087c76bcbf7951fdfbaac11c748d3a2cc",
+    "nativeJpegSha256": "93041beb56c14defe8f8817c4c9baa3994b5e8be6e3e6b877f37aa1f15f2ef60"
+  },
+  {
+    "id": "kodim03",
+    "category": "natural",
+    "sourcePath": "kodim03.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "ee3721fc6e0f53b3bcc61bb0b7183962d3f31286619b5739954ab702d90ee5ae",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      133728,
+      133728,
+      133728
+    ],
+    "nativeAllocatedBytes": [
+      3291496,
+      3291624,
+      3291624
+    ],
+    "managedBytes": 59951,
+    "nativeBytes": 59980,
+    "managedJpegSha256": "87cb0d0336e7bd0286a7b3810cd6eb5f20bc18d1a7dbd1d7aeb05d134ecf169c",
+    "nativeJpegSha256": "865f2ebf4ed557c8f70034c252c2887a223e5d5e6528480155d5617a4e021d4a"
+  },
+  {
+    "id": "kodim03",
+    "category": "natural",
+    "sourcePath": "kodim03.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "ee3721fc6e0f53b3bcc61bb0b7183962d3f31286619b5739954ab702d90ee5ae",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      95120,
+      95120,
+      95120
+    ],
+    "nativeAllocatedBytes": [
+      3181509,
+      3181637,
+      3181637
+    ],
+    "managedBytes": 25217,
+    "nativeBytes": 25230,
+    "managedJpegSha256": "f8ac93db0c19d984706646f44aaacf3443b0068933123270736fb48ad77f6f0a",
+    "nativeJpegSha256": "7113cf27c262e39d93a1d950588ffa13fb3c341adb3f82c0de54fa28a6ee9830"
+  },
+  {
+    "id": "kodim04",
+    "category": "natural",
+    "sourcePath": "kodim04.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "624321d37c4f3c9903011b4aa592bf4a89ad7038228aaec4441ce01b52ed97e5",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      136816,
+      136816,
+      136816
+    ],
+    "nativeAllocatedBytes": [
+      1589626,
+      1590138,
+      1590650
+    ],
+    "managedBytes": 96402,
+    "nativeBytes": 96402,
+    "managedJpegSha256": "671b95b492dce6ee65c0e4489ebaec5c7330462200394c77e61c8df53415889d",
+    "nativeJpegSha256": "f03b89b74a2dccae07b4f5f7dc8424d9965637ce6d0997f7ad6a1193fc34458a"
+  },
+  {
+    "id": "kodim04",
+    "category": "natural",
+    "sourcePath": "kodim04.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "624321d37c4f3c9903011b4aa592bf4a89ad7038228aaec4441ce01b52ed97e5",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      71792,
+      71792,
+      71792
+    ],
+    "nativeAllocatedBytes": [
+      1425550,
+      1426062,
+      1426574
+    ],
+    "managedBytes": 37628,
+    "nativeBytes": 37622,
+    "managedJpegSha256": "48f05670a39f2f1354ec7916c071b1920e0c07b8f36a40527bea41ff457dd342",
+    "nativeJpegSha256": "a58378e39655e09db718aef7bb35f7ade5dc0d66ae71503ccde1579a1128e58c"
+  },
+  {
+    "id": "kodim04",
+    "category": "natural",
+    "sourcePath": "kodim04.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "624321d37c4f3c9903011b4aa592bf4a89ad7038228aaec4441ce01b52ed97e5",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      176664,
+      176664,
+      176664
+    ],
+    "nativeAllocatedBytes": [
+      4274121,
+      4274377,
+      4275401
+    ],
+    "managedBytes": 93100,
+    "nativeBytes": 93083,
+    "managedJpegSha256": "80fc53abfe431b83b852aa5b75ceea91304092be11f48429828ee859f8eec256",
+    "nativeJpegSha256": "44d555c11489d3c4072040e0ccbced8a37de4f29fcf68861d35ff3207da318ad"
+  },
+  {
+    "id": "kodim04",
+    "category": "natural",
+    "sourcePath": "kodim04.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "624321d37c4f3c9903011b4aa592bf4a89ad7038228aaec4441ce01b52ed97e5",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      113024,
+      113024,
+      113024
+    ],
+    "nativeAllocatedBytes": [
+      3963888,
+      3964144,
+      3965168
+    ],
+    "managedBytes": 36757,
+    "nativeBytes": 36776,
+    "managedJpegSha256": "daec6883670b2b2d476b745184a439052fafb98bd09ed7b56f7dec7f9fea9df3",
+    "nativeJpegSha256": "865f6699362251b5e71b35b86dcc18d5e0048c9fc3a6825176a292ba4d7cf2df"
+  },
+  {
+    "id": "kodim04",
+    "category": "natural",
+    "sourcePath": "kodim04.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "624321d37c4f3c9903011b4aa592bf4a89ad7038228aaec4441ce01b52ed97e5",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      120912,
+      120912,
+      120912
+    ],
+    "nativeAllocatedBytes": [
+      1818123,
+      1816203,
+      1818123
+    ],
+    "managedBytes": 81959,
+    "nativeBytes": 81946,
+    "managedJpegSha256": "f3a8ec6da1dc703c33e14c827d647077cf0ec4208b27ceb7e8de2daeead9bf2d",
+    "nativeJpegSha256": "274a1171cbe0eba6a7126ab343ab41c205c5b1e1e85d9f75d458ce58b97cc2ae"
+  },
+  {
+    "id": "kodim04",
+    "category": "natural",
+    "sourcePath": "kodim04.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "624321d37c4f3c9903011b4aa592bf4a89ad7038228aaec4441ce01b52ed97e5",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      64664,
+      64664,
+      64664
+    ],
+    "nativeAllocatedBytes": [
+      1662298,
+      1660378,
+      1662298
+    ],
+    "managedBytes": 30510,
+    "nativeBytes": 30521,
+    "managedJpegSha256": "dd9f4c2b74a42b8ea2848f3fceb52a917587861275f9a96326a74927902ec06d",
+    "nativeJpegSha256": "557debad2c95621ef245de031db3fa0fbc3ac6a7515646c2365c09469fc7767d"
+  },
+  {
+    "id": "kodim04",
+    "category": "natural",
+    "sourcePath": "kodim04.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "624321d37c4f3c9903011b4aa592bf4a89ad7038228aaec4441ce01b52ed97e5",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      156888,
+      156888,
+      156888
+    ],
+    "nativeAllocatedBytes": [
+      3105885,
+      3106013,
+      3106013
+    ],
+    "managedBytes": 79415,
+    "nativeBytes": 79444,
+    "managedJpegSha256": "758bc074ca4f58256c57ab6f55043453a37bb8ed2cfcf95c716216b0d41b909d",
+    "nativeJpegSha256": "9060fccbe913f0d1439f1c5fdfadfd54a56e637f4fd8f436217919936a3a5eb0"
+  },
+  {
+    "id": "kodim04",
+    "category": "natural",
+    "sourcePath": "kodim04.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "624321d37c4f3c9903011b4aa592bf4a89ad7038228aaec4441ce01b52ed97e5",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      104088,
+      104088,
+      104088
+    ],
+    "nativeAllocatedBytes": [
+      2820279,
+      2820407,
+      2820407
+    ],
+    "managedBytes": 30357,
+    "nativeBytes": 30365,
+    "managedJpegSha256": "22268d8aa189ab16c752be130a998911fc44b4d405393cf31b44d41deb46134e",
+    "nativeJpegSha256": "4ec63b2e371d7193c03006dc0bdde8ab1cdb339989fa623d478ed202179f0cd2"
+  },
+  {
+    "id": "kodim05",
+    "category": "natural",
+    "sourcePath": "kodim05.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "d3167a6d9f0461c33a48f18796c58a3b0e80a742ac41bffd4eba16355bc50c87",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      195064,
+      195064,
+      195064
+    ],
+    "nativeAllocatedBytes": [
+      2420470,
+      2420982,
+      2421494
+    ],
+    "managedBytes": 154652,
+    "nativeBytes": 154630,
+    "managedJpegSha256": "abd0b2636ca635b48965130bd9067c9c9b20edff260e0d161235a56b9ea8f84a",
+    "nativeJpegSha256": "750f07a56594ac99466f24e17aba9286e1e3fbcef30f78643d87c7de38a61e13"
+  },
+  {
+    "id": "kodim05",
+    "category": "natural",
+    "sourcePath": "kodim05.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "d3167a6d9f0461c33a48f18796c58a3b0e80a742ac41bffd4eba16355bc50c87",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      106080,
+      106080,
+      106080
+    ],
+    "nativeAllocatedBytes": [
+      2125333,
+      2125845,
+      2126357
+    ],
+    "managedBytes": 71912,
+    "nativeBytes": 71912,
+    "managedJpegSha256": "148de1a9fd3dcc3f38d4db6f9c318a142c9a6563f61e707038b148c3da3420b0",
+    "nativeJpegSha256": "077ef01eb1968e5b25bb19eb4783bd152fb314158fde99d939d5f5fc81f5b174"
+  },
+  {
+    "id": "kodim05",
+    "category": "natural",
+    "sourcePath": "kodim05.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "d3167a6d9f0461c33a48f18796c58a3b0e80a742ac41bffd4eba16355bc50c87",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      232480,
+      232480,
+      232480
+    ],
+    "nativeAllocatedBytes": [
+      5035597,
+      5035853,
+      5036877
+    ],
+    "managedBytes": 150594,
+    "nativeBytes": 150614,
+    "managedJpegSha256": "2b775f4d02b2a8fef295d4dea45b19122cc11e9646112738ffebdcc9404597c2",
+    "nativeJpegSha256": "89a2ac44ab6ec21db918c3c6fc1d3375c5bd8aa8e9610d72cabdde52941e315c"
+  },
+  {
+    "id": "kodim05",
+    "category": "natural",
+    "sourcePath": "kodim05.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "d3167a6d9f0461c33a48f18796c58a3b0e80a742ac41bffd4eba16355bc50c87",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      142360,
+      142360,
+      142360
+    ],
+    "nativeAllocatedBytes": [
+      4452253,
+      4452509,
+      4453533
+    ],
+    "managedBytes": 69791,
+    "nativeBytes": 69800,
+    "managedJpegSha256": "2400a15540f1665b2f67a19c4d96472d575f51a6d9e36de7748ae38da9cb8763",
+    "nativeJpegSha256": "514abd9d042da1cf13072d61743cd84c9f2595c57996e68b297b9d58208fbffe"
+  },
+  {
+    "id": "kodim05",
+    "category": "natural",
+    "sourcePath": "kodim05.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "d3167a6d9f0461c33a48f18796c58a3b0e80a742ac41bffd4eba16355bc50c87",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      178256,
+      178256,
+      178256
+    ],
+    "nativeAllocatedBytes": [
+      2757204,
+      2755284,
+      2757204
+    ],
+    "managedBytes": 137899,
+    "nativeBytes": 137822,
+    "managedJpegSha256": "cb94ce500e528a30eed69dcb02a8d95fbc1dabaa0c7ba94470a2c6a18d154a0b",
+    "nativeJpegSha256": "fa226d3f0d4282caaebc0a2f04506614dd5c1e46511c844ff89ba58f3ee514e0"
+  },
+  {
+    "id": "kodim05",
+    "category": "natural",
+    "sourcePath": "kodim05.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "d3167a6d9f0461c33a48f18796c58a3b0e80a742ac41bffd4eba16355bc50c87",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      95128,
+      95128,
+      95128
+    ],
+    "nativeAllocatedBytes": [
+      2330996,
+      2329076,
+      2330996
+    ],
+    "managedBytes": 60939,
+    "nativeBytes": 60947,
+    "managedJpegSha256": "6840c40b0bb8c98902fd69b237f8ae5bb9c31ceb6e51c4059c0767a9f2f31413",
+    "nativeJpegSha256": "2c3a469ed1e05256a029c5a9b612471356f2729632438f15d692536d58a7da45"
+  },
+  {
+    "id": "kodim05",
+    "category": "natural",
+    "sourcePath": "kodim05.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "d3167a6d9f0461c33a48f18796c58a3b0e80a742ac41bffd4eba16355bc50c87",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      220680,
+      220680,
+      220680
+    ],
+    "nativeAllocatedBytes": [
+      3957049,
+      3957177,
+      3957177
+    ],
+    "managedBytes": 133916,
+    "nativeBytes": 133921,
+    "managedJpegSha256": "250ae03dffde5a5db8a865f202e645704a129707959312734fb8d3323096580f",
+    "nativeJpegSha256": "891a8b5f88b8d187587e4d99688dbb7a2ff16498fa4792168574fc2009933281"
+  },
+  {
+    "id": "kodim05",
+    "category": "natural",
+    "sourcePath": "kodim05.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "d3167a6d9f0461c33a48f18796c58a3b0e80a742ac41bffd4eba16355bc50c87",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      133304,
+      133304,
+      133304
+    ],
+    "nativeAllocatedBytes": [
+      3294934,
+      3295062,
+      3295062
+    ],
+    "managedBytes": 59562,
+    "nativeBytes": 59567,
+    "managedJpegSha256": "dc5a791bbc9ea979ac00f67d5505ed1bebce6f31f16b3df369a8f133f759a441",
+    "nativeJpegSha256": "98258135931014b05881cfba82441d3b2a5c3d17c63fb5809956bf8fed33afbb"
+  },
+  {
+    "id": "kodim06",
+    "category": "natural",
+    "sourcePath": "kodim06.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "088424c10db10cc87fcbf3c362f38511c9b6e55671e6d7c91bbc7b78f227a87b",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      157304,
+      157304,
+      157304
+    ],
+    "nativeAllocatedBytes": [
+      2158320,
+      2158832,
+      2159344
+    ],
+    "managedBytes": 116661,
+    "nativeBytes": 116624,
+    "managedJpegSha256": "022d4cfa00ba7cd8194cc9abd9d44494696f9d2050461e963e3776a4b51e7077",
+    "nativeJpegSha256": "2b67265bedb7df39cd89d24d7494da88448c1fdbde5099c07361148984c6f10c"
+  },
+  {
+    "id": "kodim06",
+    "category": "natural",
+    "sourcePath": "kodim06.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "088424c10db10cc87fcbf3c362f38511c9b6e55671e6d7c91bbc7b78f227a87b",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      84136,
+      84136,
+      84136
+    ],
+    "nativeAllocatedBytes": [
+      1994254,
+      1994766,
+      1995278
+    ],
+    "managedBytes": 49977,
+    "nativeBytes": 50016,
+    "managedJpegSha256": "db8700e692717ba8364184532dda8d6675f535816baa73ca8c806cf3f2cdf0ad",
+    "nativeJpegSha256": "2ed6bff391a7384bc7bd095e3f474e8ac2604a928cab2f51fbddb58755b2c75b"
+  },
+  {
+    "id": "kodim06",
+    "category": "natural",
+    "sourcePath": "kodim06.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "088424c10db10cc87fcbf3c362f38511c9b6e55671e6d7c91bbc7b78f227a87b",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      189568,
+      189568,
+      189568
+    ],
+    "nativeAllocatedBytes": [
+      4599625,
+      4599881,
+      4600905
+    ],
+    "managedBytes": 113254,
+    "nativeBytes": 113298,
+    "managedJpegSha256": "b8a370069ea5f71c3ae0eac00f6686fba864184595987ca0c6e33f0b305a6cc0",
+    "nativeJpegSha256": "3380177ad830c6e97baa559ea82a56d38a0508e0402e7aae2afecce6116098aa"
+  },
+  {
+    "id": "kodim06",
+    "category": "natural",
+    "sourcePath": "kodim06.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "088424c10db10cc87fcbf3c362f38511c9b6e55671e6d7c91bbc7b78f227a87b",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      116360,
+      116360,
+      116360
+    ],
+    "nativeAllocatedBytes": [
+      4258805,
+      4259061,
+      4260085
+    ],
+    "managedBytes": 47634,
+    "nativeBytes": 47671,
+    "managedJpegSha256": "3a3877d612da50064864be04be6b6618d46defbb866f249c701625be288fc736",
+    "nativeJpegSha256": "b2d724fb688403399450f2d6a62b76d76c2794fcb8da2861312ff3de46796c16"
+  },
+  {
+    "id": "kodim06",
+    "category": "natural",
+    "sourcePath": "kodim06.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "088424c10db10cc87fcbf3c362f38511c9b6e55671e6d7c91bbc7b78f227a87b",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      142744,
+      142744,
+      142744
+    ],
+    "nativeAllocatedBytes": [
+      2495051,
+      2493131,
+      2495051
+    ],
+    "managedBytes": 102571,
+    "nativeBytes": 102571,
+    "managedJpegSha256": "6c5bc4f95b145a3f6d2baeb6d3fe5bf948be2c2875f891930b0d2b19de31b824",
+    "nativeJpegSha256": "0e643803cc773806dac8132000d66454a09f6e2f1117a1fd93f14e3dcff8aaf2"
+  },
+  {
+    "id": "kodim06",
+    "category": "natural",
+    "sourcePath": "kodim06.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "088424c10db10cc87fcbf3c362f38511c9b6e55671e6d7c91bbc7b78f227a87b",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      75224,
+      75224,
+      75224
+    ],
+    "nativeAllocatedBytes": [
+      2330986,
+      2329066,
+      2330986
+    ],
+    "managedBytes": 41055,
+    "nativeBytes": 41075,
+    "managedJpegSha256": "d2b256524152d8a5fc9ee056444e9d6dd2bbfe711dd731db2242e758ad373052",
+    "nativeJpegSha256": "05ba9fef29a897c8ac8f4caf805d33ad93e6c308dbc6bf6fddb218267f775c2d"
+  },
+  {
+    "id": "kodim06",
+    "category": "natural",
+    "sourcePath": "kodim06.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "088424c10db10cc87fcbf3c362f38511c9b6e55671e6d7c91bbc7b78f227a87b",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      177304,
+      177304,
+      177304
+    ],
+    "nativeAllocatedBytes": [
+      3577718,
+      3577846,
+      3577846
+    ],
+    "managedBytes": 99810,
+    "nativeBytes": 99807,
+    "managedJpegSha256": "1c665b44c25431ac03cf570890e0b5b3d8749c57d744f874ed8587a37fed17ff",
+    "nativeJpegSha256": "4c068cb7330abeebcfb0feca57bd9247e9b9ab5f9410053bff23d94811be88fd"
+  },
+  {
+    "id": "kodim06",
+    "category": "natural",
+    "sourcePath": "kodim06.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "088424c10db10cc87fcbf3c362f38511c9b6e55671e6d7c91bbc7b78f227a87b",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      109664,
+      109664,
+      109664
+    ],
+    "nativeAllocatedBytes": [
+      3232697,
+      3232825,
+      3232825
+    ],
+    "managedBytes": 39776,
+    "nativeBytes": 39776,
+    "managedJpegSha256": "4975a52a714e8f6edacb8e2a69073c5878140d1667850971a1389639d89ec183",
+    "nativeJpegSha256": "5c2245a029234ad068b9c6040275368b18129b06e17d146e8b4cf378e39ed79f"
+  },
+  {
+    "id": "kodim07",
+    "category": "natural",
+    "sourcePath": "kodim07.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "02a4fbc79d6e5ce4cc07726e6627da5573edb208982827404fa4d6be6cbbf635",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      119224,
+      119224,
+      119224
+    ],
+    "nativeAllocatedBytes": [
+      2133596,
+      2134108,
+      2134620
+    ],
+    "managedBytes": 82625,
+    "nativeBytes": 82630,
+    "managedJpegSha256": "e43a425818fdf5dd09d4518ff3c01844d87eb4cf09ae69ab7f91e474c1f9fc52",
+    "nativeJpegSha256": "8d87477b3797a6c3c361d27e24791c0c7e3a6c6f4fddc4bbacc58a7e40462625"
+  },
+  {
+    "id": "kodim07",
+    "category": "natural",
+    "sourcePath": "kodim07.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "02a4fbc79d6e5ce4cc07726e6627da5573edb208982827404fa4d6be6cbbf635",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      73384,
+      73384,
+      73384
+    ],
+    "nativeAllocatedBytes": [
+      1994251,
+      1994763,
+      1995275
+    ],
+    "managedBytes": 39239,
+    "nativeBytes": 39269,
+    "managedJpegSha256": "bea85c46124250c4263807aea0700e7cd3d321fc515db36aaff867d899058f90",
+    "nativeJpegSha256": "381a864a443b21674c4f568526520174fe5f9487a793cdf53975b153a343d615"
+  },
+  {
+    "id": "kodim07",
+    "category": "natural",
+    "sourcePath": "kodim07.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "02a4fbc79d6e5ce4cc07726e6627da5573edb208982827404fa4d6be6cbbf635",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      164848,
+      164848,
+      164848
+    ],
+    "nativeAllocatedBytes": [
+      4517710,
+      4517966,
+      4518990
+    ],
+    "managedBytes": 81257,
+    "nativeBytes": 81267,
+    "managedJpegSha256": "2ec77fadc06a638dc8be75d1dcb7c902f1a7261a14987d9e820524b1153f84d2",
+    "nativeJpegSha256": "a087e8179bf33b8f1df6c769538f4c0abcfd210a998d1038abb2480185ef89c2"
+  },
+  {
+    "id": "kodim07",
+    "category": "natural",
+    "sourcePath": "kodim07.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "02a4fbc79d6e5ce4cc07726e6627da5573edb208982827404fa4d6be6cbbf635",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      110928,
+      110928,
+      110928
+    ],
+    "nativeAllocatedBytes": [
+      4234562,
+      4234818,
+      4235842
+    ],
+    "managedBytes": 38355,
+    "nativeBytes": 38366,
+    "managedJpegSha256": "432d6287c266f8e54fa239ae2f198ff36ae58d2e3dfc64bdb475441c99151507",
+    "nativeJpegSha256": "e53d29f1a9af5116e97d3bc88e63e34e02ed98f6ef20063e23c69a18b1090cee"
+  },
+  {
+    "id": "kodim07",
+    "category": "natural",
+    "sourcePath": "kodim07.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "02a4fbc79d6e5ce4cc07726e6627da5573edb208982827404fa4d6be6cbbf635",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      106472,
+      106472,
+      106472
+    ],
+    "nativeAllocatedBytes": [
+      2462092,
+      2460172,
+      2462092
+    ],
+    "managedBytes": 72263,
+    "nativeBytes": 72265,
+    "managedJpegSha256": "45502887045c696b1485ee145432c8dc545c42baad1d733c445c7a117fa26ce8",
+    "nativeJpegSha256": "71bc6c885683b7430d969f52f1a2b0232a04578a7d6f8fecec56e253a65a4207"
+  },
+  {
+    "id": "kodim07",
+    "category": "natural",
+    "sourcePath": "kodim07.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "02a4fbc79d6e5ce4cc07726e6627da5573edb208982827404fa4d6be6cbbf635",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      67144,
+      67144,
+      67144
+    ],
+    "nativeAllocatedBytes": [
+      2330986,
+      2329066,
+      2330986
+    ],
+    "managedBytes": 32984,
+    "nativeBytes": 33014,
+    "managedJpegSha256": "c6f4c130b7b411a7205fe6d7190bd01379b67b6054952406aa551c206567ea14",
+    "nativeJpegSha256": "a01d99ce537c1b65594b14178918762c807f0e59be799ca68e15490c0beed5a2"
+  },
+  {
+    "id": "kodim07",
+    "category": "natural",
+    "sourcePath": "kodim07.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "02a4fbc79d6e5ce4cc07726e6627da5573edb208982827404fa4d6be6cbbf635",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      144864,
+      144864,
+      144864
+    ],
+    "nativeAllocatedBytes": [
+      3465078,
+      3465206,
+      3465206
+    ],
+    "managedBytes": 71077,
+    "nativeBytes": 71069,
+    "managedJpegSha256": "4fe8a52f3c1e15e485083cb1e039c740f2c331e6336e27e827c38b3cb30c7552",
+    "nativeJpegSha256": "fbe1c20bcd1f7bc56dfb22d4c79631e4e43bd705893c60028f61e49b398b7f72"
+  },
+  {
+    "id": "kodim07",
+    "category": "natural",
+    "sourcePath": "kodim07.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "02a4fbc79d6e5ce4cc07726e6627da5573edb208982827404fa4d6be6cbbf635",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      102744,
+      102744,
+      102744
+    ],
+    "nativeAllocatedBytes": [
+      3204396,
+      3204524,
+      3204524
+    ],
+    "managedBytes": 32858,
+    "nativeBytes": 32861,
+    "managedJpegSha256": "669fc6eade9c42bd5128eb14fadc332ff32c1146e200d84fe9192847f25aa3a2",
+    "nativeJpegSha256": "3d9356a37244dd97ea77666f6a1d058f6a5c9e8d195f9bb609ebc0f125220f4d"
+  },
+  {
+    "id": "kodim08",
+    "category": "natural",
+    "sourcePath": "kodim08.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b9e248f779e67e75208db18da7cec9e18ae6f379800e8c9c38edca064d698252",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      199208,
+      199208,
+      199208
+    ],
+    "nativeAllocatedBytes": [
+      2420479,
+      2420991,
+      2421503
+    ],
+    "managedBytes": 157836,
+    "nativeBytes": 157825,
+    "managedJpegSha256": "17794b582dd5d6a4c00d7f495db96818860adc129199466160f2bcb3b6976677",
+    "nativeJpegSha256": "797f5bd5bf9ea1c4e077ecf4c5269d37bd1bc8422fc58fcf6ec3fde636102827"
+  },
+  {
+    "id": "kodim08",
+    "category": "natural",
+    "sourcePath": "kodim08.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b9e248f779e67e75208db18da7cec9e18ae6f379800e8c9c38edca064d698252",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      105344,
+      105344,
+      105344
+    ],
+    "nativeAllocatedBytes": [
+      2125337,
+      2125849,
+      2126361
+    ],
+    "managedBytes": 71171,
+    "nativeBytes": 71177,
+    "managedJpegSha256": "68dc203eb1023137e155d65dffd7ee8954c41feda67a6267aa5241bf0405eb13",
+    "nativeJpegSha256": "d6e2414988efc91a502bcd8cab2d214d5d9cb7ed095277b19a7aedd6d3f97d0e"
+  },
+  {
+    "id": "kodim08",
+    "category": "natural",
+    "sourcePath": "kodim08.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b9e248f779e67e75208db18da7cec9e18ae6f379800e8c9c38edca064d698252",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      235496,
+      235496,
+      235496
+    ],
+    "nativeAllocatedBytes": [
+      5031663,
+      5031919,
+      5032943
+    ],
+    "managedBytes": 153309,
+    "nativeBytes": 153340,
+    "managedJpegSha256": "bc81d1ce93bc7d6019ebf483f5fad5c8318295f79f474041527d0d43812426ab",
+    "nativeJpegSha256": "214ac7373b5484be52619229228f65c254d074a46e60e1a7694f150dd233bc3a"
+  },
+  {
+    "id": "kodim08",
+    "category": "natural",
+    "sourcePath": "kodim08.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b9e248f779e67e75208db18da7cec9e18ae6f379800e8c9c38edca064d698252",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      141896,
+      141896,
+      141896
+    ],
+    "nativeAllocatedBytes": [
+      4448796,
+      4449052,
+      4450076
+    ],
+    "managedBytes": 69305,
+    "nativeBytes": 69315,
+    "managedJpegSha256": "75e4231056ff78f74755846a6543ccc3b52167a309690ed97a3ffb22772322ef",
+    "nativeJpegSha256": "cfbc3506f138b98bb902bae33ba1e1c775bf4c875db6db45db2aace83c579965"
+  },
+  {
+    "id": "kodim08",
+    "category": "natural",
+    "sourcePath": "kodim08.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b9e248f779e67e75208db18da7cec9e18ae6f379800e8c9c38edca064d698252",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      180784,
+      180784,
+      180784
+    ],
+    "nativeAllocatedBytes": [
+      2757214,
+      2755294,
+      2757214
+    ],
+    "managedBytes": 139480,
+    "nativeBytes": 139488,
+    "managedJpegSha256": "0c02d8da6e2ce4109aa80efe47f0cb2c55b3529ca4f8728c14de181b65d596c4",
+    "nativeJpegSha256": "bd900e0c62843c5ade95448be5293647654a2ab93112f3e163ff5288fc830be6"
+  },
+  {
+    "id": "kodim08",
+    "category": "natural",
+    "sourcePath": "kodim08.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b9e248f779e67e75208db18da7cec9e18ae6f379800e8c9c38edca064d698252",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      94296,
+      94296,
+      94296
+    ],
+    "nativeAllocatedBytes": [
+      2330999,
+      2329079,
+      2330999
+    ],
+    "managedBytes": 60111,
+    "nativeBytes": 60128,
+    "managedJpegSha256": "e3ab6638d964465342edefdfdfdec42b886896d5ff937ac6239cf8703739a503",
+    "nativeJpegSha256": "2826189c5734ffd06f0521a072faf2ee10a3e812714780608ff8db2ff62a0800"
+  },
+  {
+    "id": "kodim08",
+    "category": "natural",
+    "sourcePath": "kodim08.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b9e248f779e67e75208db18da7cec9e18ae6f379800e8c9c38edca064d698252",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      216624,
+      216624,
+      216624
+    ],
+    "nativeAllocatedBytes": [
+      3930160,
+      3930288,
+      3930288
+    ],
+    "managedBytes": 135409,
+    "nativeBytes": 135445,
+    "managedJpegSha256": "42a47a795758dc18e548b6767d6a8c64de5747df6e1c06f9afc3dc792cb946f6",
+    "nativeJpegSha256": "532b685df28e22d1efc7558fafa7953296183a476622e16305b389279078beb1"
+  },
+  {
+    "id": "kodim08",
+    "category": "natural",
+    "sourcePath": "kodim08.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b9e248f779e67e75208db18da7cec9e18ae6f379800e8c9c38edca064d698252",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      136664,
+      136664,
+      136664
+    ],
+    "nativeAllocatedBytes": [
+      3297558,
+      3297686,
+      3297686
+    ],
+    "managedBytes": 59201,
+    "nativeBytes": 59206,
+    "managedJpegSha256": "2574380ea685b3a3009ca74b857aa06095b23767687bd40b879c9106dd75fd3d",
+    "nativeJpegSha256": "8b14c4fed1d04ed19a0ac470da221363c1582a4f044b830677130e2c4386c450"
+  },
+  {
+    "id": "kodim09",
+    "category": "natural",
+    "sourcePath": "kodim09.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "44bdce3851a934e8ce52895341c0f3c8815b124dd599d9bf1516fec94b65fe45",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      108832,
+      108832,
+      108832
+    ],
+    "nativeAllocatedBytes": [
+      1556654,
+      1557166,
+      1557678
+    ],
+    "managedBytes": 74636,
+    "nativeBytes": 74631,
+    "managedJpegSha256": "3f9dbc01ebb5e87fdc327d848e1ec20d368a0ac15f5affa96d90b65725a91c96",
+    "nativeJpegSha256": "b7509b49d5f63d2d11c480a63775673891bf0403892534681a5395ce37d57e03"
+  },
+  {
+    "id": "kodim09",
+    "category": "natural",
+    "sourcePath": "kodim09.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "44bdce3851a934e8ce52895341c0f3c8815b124dd599d9bf1516fec94b65fe45",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      66176,
+      66176,
+      66176
+    ],
+    "nativeAllocatedBytes": [
+      1425551,
+      1426063,
+      1426575
+    ],
+    "managedBytes": 32018,
+    "nativeBytes": 32035,
+    "managedJpegSha256": "cc81b6f5d1653a19776bd13285f704cc47adb22b3a82977a61cdc31583831f6a",
+    "nativeJpegSha256": "e202586add53b0437b01e341fa1c647f3b7f8d4cb0d587a49e70559e5bcae468"
+  },
+  {
+    "id": "kodim09",
+    "category": "natural",
+    "sourcePath": "kodim09.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "44bdce3851a934e8ce52895341c0f3c8815b124dd599d9bf1516fec94b65fe45",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      148128,
+      148128,
+      148128
+    ],
+    "nativeAllocatedBytes": [
+      4166099,
+      4166355,
+      4167379
+    ],
+    "managedBytes": 71816,
+    "nativeBytes": 71796,
+    "managedJpegSha256": "22a483de04e5e31de340dae24aa461864a1a8f18fe49eae326efd66c5b13137c",
+    "nativeJpegSha256": "687dd0a76d76abb84842218c760c52645fa8525f618fe4c371cc4c42a90108af"
+  },
+  {
+    "id": "kodim09",
+    "category": "natural",
+    "sourcePath": "kodim09.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "44bdce3851a934e8ce52895341c0f3c8815b124dd599d9bf1516fec94b65fe45",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      99424,
+      99424,
+      99424
+    ],
+    "nativeAllocatedBytes": [
+      3912078,
+      3912334,
+      3913358
+    ],
+    "managedBytes": 30702,
+    "nativeBytes": 30709,
+    "managedJpegSha256": "168e8e7f2ac5b6d6eb7c55f6739f6bde14137579cbfca428bbb5e8994ed0edb7",
+    "nativeJpegSha256": "610ffdf0eb83baa8b28873b3658af0e541348fe8d20992550096c1b41040fa95"
+  },
+  {
+    "id": "kodim09",
+    "category": "natural",
+    "sourcePath": "kodim09.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "44bdce3851a934e8ce52895341c0f3c8815b124dd599d9bf1516fec94b65fe45",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      96720,
+      96720,
+      96720
+    ],
+    "nativeAllocatedBytes": [
+      1662353,
+      1660433,
+      1662353
+    ],
+    "managedBytes": 62497,
+    "nativeBytes": 62515,
+    "managedJpegSha256": "dd321e8b27d72d1e191bc6e0da285ede65a1ce8ac0b52f6bef0670457c83ffe4",
+    "nativeJpegSha256": "ca4bac1ec6c2614e9c0bfdc25832ac93385934116a7e483c5c5b408dbcf7ba6a"
+  },
+  {
+    "id": "kodim09",
+    "category": "natural",
+    "sourcePath": "kodim09.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "44bdce3851a934e8ce52895341c0f3c8815b124dd599d9bf1516fec94b65fe45",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      63632,
+      60296,
+      60296
+    ],
+    "nativeAllocatedBytes": [
+      1662313,
+      1660393,
+      1662313
+    ],
+    "managedBytes": 26136,
+    "nativeBytes": 26135,
+    "managedJpegSha256": "f6662dc75819e0bfc3ee21159a19b1816d05bb2abff0e27e2fc98957e5a715dd",
+    "nativeJpegSha256": "d99670862a0bb96eb1feb2967baf8170f22c17216b2c841a4ef9b389ea625a92"
+  },
+  {
+    "id": "kodim09",
+    "category": "natural",
+    "sourcePath": "kodim09.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "44bdce3851a934e8ce52895341c0f3c8815b124dd599d9bf1516fec94b65fe45",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      138520,
+      138520,
+      138520
+    ],
+    "nativeAllocatedBytes": [
+      2910327,
+      2910455,
+      2910455
+    ],
+    "managedBytes": 61020,
+    "nativeBytes": 61032,
+    "managedJpegSha256": "cc87434ae8d647ebc27d69eb10c23f99e0402a71e62fbb2d994295d45f295243",
+    "nativeJpegSha256": "4e87b0e17dd81110ef1e1ccff3395359e0e71bdfa28b7bef152eb9065c2492a2"
+  },
+  {
+    "id": "kodim09",
+    "category": "natural",
+    "sourcePath": "kodim09.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "44bdce3851a934e8ce52895341c0f3c8815b124dd599d9bf1516fec94b65fe45",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      92120,
+      92120,
+      92120
+    ],
+    "nativeAllocatedBytes": [
+      2736110,
+      2736238,
+      2736238
+    ],
+    "managedBytes": 25803,
+    "nativeBytes": 25815,
+    "managedJpegSha256": "4b5f7908072ea0dd7df1ce5ca2268a621e1a5b262b67b19955c224f3ab53637b",
+    "nativeJpegSha256": "ed21f5e7a60df1c6a93da402e159acb53bf34b868e947cf85b53e0970e0dd619"
+  },
+  {
+    "id": "kodim10",
+    "category": "natural",
+    "sourcePath": "kodim10.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "85be383b7825c53a32d699d5f5cf520ac2a999c7df0006deea496bfbf8bd3909",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      117464,
+      117464,
+      117464
+    ],
+    "nativeAllocatedBytes": [
+      1556659,
+      1557171,
+      1557683
+    ],
+    "managedBytes": 83183,
+    "nativeBytes": 83156,
+    "managedJpegSha256": "7f16b239e0d26e1c1ae797325650e29bcbe18f386b5ad2650cd7bb7cc7a28b7f",
+    "nativeJpegSha256": "41e96fb482e1d79abb7d192fcc9d1a5336087e90d128101fbfe0b03185357e17"
+  },
+  {
+    "id": "kodim10",
+    "category": "natural",
+    "sourcePath": "kodim10.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "85be383b7825c53a32d699d5f5cf520ac2a999c7df0006deea496bfbf8bd3909",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      69368,
+      69368,
+      69368
+    ],
+    "nativeAllocatedBytes": [
+      1425553,
+      1426065,
+      1426577
+    ],
+    "managedBytes": 35196,
+    "nativeBytes": 35226,
+    "managedJpegSha256": "542d496259994013fcbcb8e3ae65f0b4202d8679bc191e225e823dc264de193a",
+    "nativeJpegSha256": "2718ff1e84a8c996e75299796ef33eb19942e407d4ccd24ea76a960adf902464"
+  },
+  {
+    "id": "kodim10",
+    "category": "natural",
+    "sourcePath": "kodim10.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "85be383b7825c53a32d699d5f5cf520ac2a999c7df0006deea496bfbf8bd3909",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      157472,
+      157472,
+      157472
+    ],
+    "nativeAllocatedBytes": [
+      4189804,
+      4190060,
+      4191084
+    ],
+    "managedBytes": 81152,
+    "nativeBytes": 81157,
+    "managedJpegSha256": "bacc8a969b3fede893c1c6ebcb31ded73e0e9fc157b6b34807caff15276dea41",
+    "nativeJpegSha256": "2de1bc5aa2f8b71bb52cb9a670d9506bdeeac0036390935d8a963d28677eb1e9"
+  },
+  {
+    "id": "kodim10",
+    "category": "natural",
+    "sourcePath": "kodim10.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "85be383b7825c53a32d699d5f5cf520ac2a999c7df0006deea496bfbf8bd3909",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      103168,
+      103168,
+      103168
+    ],
+    "nativeAllocatedBytes": [
+      3917646,
+      3917902,
+      3918926
+    ],
+    "managedBytes": 34438,
+    "nativeBytes": 34444,
+    "managedJpegSha256": "f7dfc91a84db35d40bd210dd8d28bbc2e9b5b05a062cdc0ca5d3f4a80b3d2cb5",
+    "nativeJpegSha256": "378e43a6f1a9e93d8ab30e81a6a4376f6e0fd6ab151d9ca5c4d8914e340a2198"
+  },
+  {
+    "id": "kodim10",
+    "category": "natural",
+    "sourcePath": "kodim10.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "85be383b7825c53a32d699d5f5cf520ac2a999c7df0006deea496bfbf8bd3909",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      108408,
+      108408,
+      108408
+    ],
+    "nativeAllocatedBytes": [
+      1809900,
+      1807980,
+      1809900
+    ],
+    "managedBytes": 70618,
+    "nativeBytes": 70627,
+    "managedJpegSha256": "33eea047f9a1e499f79d39c170092e86623355e5cd46452fc730ccb82b85a53f",
+    "nativeJpegSha256": "f0817afcbcc9edcf036fdb908796aadce81214aedadcbf71efc5b386d8352182"
+  },
+  {
+    "id": "kodim10",
+    "category": "natural",
+    "sourcePath": "kodim10.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "85be383b7825c53a32d699d5f5cf520ac2a999c7df0006deea496bfbf8bd3909",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      63016,
+      63016,
+      63016
+    ],
+    "nativeAllocatedBytes": [
+      1662310,
+      1660390,
+      1662310
+    ],
+    "managedBytes": 28863,
+    "nativeBytes": 28869,
+    "managedJpegSha256": "9c59a70a504303820200a52f963fb94b698048a3a2ffcef4210ffd10dd0509c2",
+    "nativeJpegSha256": "b0f0f75be7313f45f2b726ccf91fd5a3ecb281e6fc4d0210fa3e244ab046a775"
+  },
+  {
+    "id": "kodim10",
+    "category": "natural",
+    "sourcePath": "kodim10.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "85be383b7825c53a32d699d5f5cf520ac2a999c7df0006deea496bfbf8bd3909",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      147064,
+      147064,
+      147064
+    ],
+    "nativeAllocatedBytes": [
+      3065211,
+      3065339,
+      3065339
+    ],
+    "managedBytes": 69581,
+    "nativeBytes": 69604,
+    "managedJpegSha256": "aee199b2592d6a3ea5b2984a90167788a3e9e6d7eb6662971c2e86d87ce71d9b",
+    "nativeJpegSha256": "bc2c8b16f6c518078549ce8d4443abb4c07fb044c16c6548ef4d955c4635fd41"
+  },
+  {
+    "id": "kodim10",
+    "category": "natural",
+    "sourcePath": "kodim10.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "85be383b7825c53a32d699d5f5cf520ac2a999c7df0006deea496bfbf8bd3909",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      99008,
+      99008,
+      99008
+    ],
+    "nativeAllocatedBytes": [
+      2802442,
+      2802570,
+      2802570
+    ],
+    "managedBytes": 29132,
+    "nativeBytes": 29139,
+    "managedJpegSha256": "3690a6ecf7f04b4a3641f963ecf0e60895676b73b250d844974c06b725d3c491",
+    "nativeJpegSha256": "85fd26fa75fdbc52516926e81781534475b86c8665615fc03eee1fd794df7d50"
+  },
+  {
+    "id": "kodim11",
+    "category": "natural",
+    "sourcePath": "kodim11.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "246f8c885cea96d9d12a8811e00e8a01dd65d097f4f8c133c0fff0342a4b29ba",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      151840,
+      151840,
+      151840
+    ],
+    "nativeAllocatedBytes": [
+      2158325,
+      2158837,
+      2159349
+    ],
+    "managedBytes": 111511,
+    "nativeBytes": 111556,
+    "managedJpegSha256": "2a05c85b2f4397e252ce1612a964e9768e71b61a61d6f6151fad70c8e4006066",
+    "nativeJpegSha256": "81dda43932d5a81561cfac2950e6b81db3a5a89a3a1526109a9a7ac4eddbdaae"
+  },
+  {
+    "id": "kodim11",
+    "category": "natural",
+    "sourcePath": "kodim11.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "246f8c885cea96d9d12a8811e00e8a01dd65d097f4f8c133c0fff0342a4b29ba",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      79816,
+      79816,
+      79816
+    ],
+    "nativeAllocatedBytes": [
+      1994260,
+      1994772,
+      1995284
+    ],
+    "managedBytes": 45649,
+    "nativeBytes": 45689,
+    "managedJpegSha256": "20e87ed4c394bbedbfafbdd555c23b81894e3c188cef6286516f1707ad50344a",
+    "nativeJpegSha256": "02daabd6e56c6c6d6bbe4eda5c7ba1767203d729768973a061394bdd3a395ac9"
+  },
+  {
+    "id": "kodim11",
+    "category": "natural",
+    "sourcePath": "kodim11.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "246f8c885cea96d9d12a8811e00e8a01dd65d097f4f8c133c0fff0342a4b29ba",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      185208,
+      185208,
+      185208
+    ],
+    "nativeAllocatedBytes": [
+      4601965,
+      4602221,
+      4603245
+    ],
+    "managedBytes": 108895,
+    "nativeBytes": 108888,
+    "managedJpegSha256": "9989cbe84dd407886e7eb25770419c1bcc19b8a61d98cdd53acc9b4fa61afd59",
+    "nativeJpegSha256": "600761fd10a3fc5069607465e173b2b02f14cda6035892bc5de4eef676b937dd"
+  },
+  {
+    "id": "kodim11",
+    "category": "natural",
+    "sourcePath": "kodim11.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "246f8c885cea96d9d12a8811e00e8a01dd65d097f4f8c133c0fff0342a4b29ba",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      116608,
+      116608,
+      116608
+    ],
+    "nativeAllocatedBytes": [
+      4256189,
+      4256445,
+      4257469
+    ],
+    "managedBytes": 44029,
+    "nativeBytes": 44034,
+    "managedJpegSha256": "b3dc4433b1c0657554f02f0f3b30cb3c6dcba71d9cf73879af81dfae21b9ff56",
+    "nativeJpegSha256": "b5cdf5db7db5fb07bbcd9749d669e5b02549e95eaa12b0ced74d2898febbdb65"
+  },
+  {
+    "id": "kodim11",
+    "category": "natural",
+    "sourcePath": "kodim11.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "246f8c885cea96d9d12a8811e00e8a01dd65d097f4f8c133c0fff0342a4b29ba",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      135416,
+      135416,
+      135416
+    ],
+    "nativeAllocatedBytes": [
+      2478572,
+      2476652,
+      2478572
+    ],
+    "managedBytes": 97547,
+    "nativeBytes": 97578,
+    "managedJpegSha256": "6dcb10d56fcd43adc37514a723a0e7a8130eeca738b82f0bd9ad7d5b3e48e908",
+    "nativeJpegSha256": "c07252c7a00a577c6649615542b9e3d1af8dadd59dc6f4adbb7f066ac5dbef06"
+  },
+  {
+    "id": "kodim11",
+    "category": "natural",
+    "sourcePath": "kodim11.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "246f8c885cea96d9d12a8811e00e8a01dd65d097f4f8c133c0fff0342a4b29ba",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      71640,
+      71640,
+      71640
+    ],
+    "nativeAllocatedBytes": [
+      2330988,
+      2329068,
+      2330988
+    ],
+    "managedBytes": 37480,
+    "nativeBytes": 37492,
+    "managedJpegSha256": "e3708de61cbdc7dcaf4fe80284a555a16dbb3a70a6f7c09f8540049981ce45ab",
+    "nativeJpegSha256": "3211c50016db806495f737667b5a878c1d4ca1629fd81303480097185c0e7782"
+  },
+  {
+    "id": "kodim11",
+    "category": "natural",
+    "sourcePath": "kodim11.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "246f8c885cea96d9d12a8811e00e8a01dd65d097f4f8c133c0fff0342a4b29ba",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      172520,
+      172520,
+      172520
+    ],
+    "nativeAllocatedBytes": [
+      3561297,
+      3561425,
+      3561425
+    ],
+    "managedBytes": 95030,
+    "nativeBytes": 95057,
+    "managedJpegSha256": "c3654ef4c893b709f19566aaf96c6d2b319577dd3154158c6489d50477656c81",
+    "nativeJpegSha256": "1f97a093a3d958ca2abab5b1579fe5241be24364877742c42790bcf0862f0351"
+  },
+  {
+    "id": "kodim11",
+    "category": "natural",
+    "sourcePath": "kodim11.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "246f8c885cea96d9d12a8811e00e8a01dd65d097f4f8c133c0fff0342a4b29ba",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      110472,
+      110472,
+      110472
+    ],
+    "nativeAllocatedBytes": [
+      3233869,
+      3233997,
+      3233997
+    ],
+    "managedBytes": 36728,
+    "nativeBytes": 36736,
+    "managedJpegSha256": "cba5854c2246f5c285e3848a3c4f873ed25fff673fe66f3c5e1cf9fa14c2e383",
+    "nativeJpegSha256": "fa0c5d2dec49cf62b4d974a3067a0288d1274daa1ac96ceb20fd546a6a0c717d"
+  },
+  {
+    "id": "kodim12",
+    "category": "natural",
+    "sourcePath": "kodim12.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "1ecbafe928b9c833f8bd8e7adfea72739ed5fcddd0a4a7765cd3c7025aee68a2",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      117328,
+      117328,
+      117328
+    ],
+    "nativeAllocatedBytes": [
+      2141842,
+      2142354,
+      2142866
+    ],
+    "managedBytes": 79229,
+    "nativeBytes": 79243,
+    "managedJpegSha256": "239abbec332f0573eaf9a4f7251695d13b56e18940a38f04b7de4199de39558e",
+    "nativeJpegSha256": "ff252dd25c1dcd4cc7708ae38011a688194e3aa23e36726ea910d8e48597d808"
+  },
+  {
+    "id": "kodim12",
+    "category": "natural",
+    "sourcePath": "kodim12.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "1ecbafe928b9c833f8bd8e7adfea72739ed5fcddd0a4a7765cd3c7025aee68a2",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      65832,
+      65832,
+      65832
+    ],
+    "nativeAllocatedBytes": [
+      1994252,
+      1994764,
+      1995276
+    ],
+    "managedBytes": 31678,
+    "nativeBytes": 31702,
+    "managedJpegSha256": "aa79ecbb3e8ccb81426232055c42194a6649612f033ddcf571b81f9ca456c374",
+    "nativeJpegSha256": "a2fefb570474029d170e65f8df38f9d38025cb9bfc82c3e8adb73605b37764dc"
+  },
+  {
+    "id": "kodim12",
+    "category": "natural",
+    "sourcePath": "kodim12.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "1ecbafe928b9c833f8bd8e7adfea72739ed5fcddd0a4a7765cd3c7025aee68a2",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      149464,
+      149464,
+      149464
+    ],
+    "nativeAllocatedBytes": [
+      4481626,
+      4481882,
+      4482906
+    ],
+    "managedBytes": 76858,
+    "nativeBytes": 76892,
+    "managedJpegSha256": "f429d03b4b12068759b0502aba20407277fb60b09848ef4b0583654e09f3da20",
+    "nativeJpegSha256": "37ea0f538a0d2b3ca1f47debf7e5f044bb854102c7a85ad2eba43a6ee45ce5b0"
+  },
+  {
+    "id": "kodim12",
+    "category": "natural",
+    "sourcePath": "kodim12.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "1ecbafe928b9c833f8bd8e7adfea72739ed5fcddd0a4a7765cd3c7025aee68a2",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      106680,
+      106680,
+      106680
+    ],
+    "nativeAllocatedBytes": [
+      4228000,
+      4228256,
+      4229280
+    ],
+    "managedBytes": 30400,
+    "nativeBytes": 30404,
+    "managedJpegSha256": "1172ab2836c25c5773e97231344f2004ccb03c750fce45376d76098bd026d98d",
+    "nativeJpegSha256": "0dde563551c4d8b6cbcbac6f4c062a1209064792ff8a1fbc6873f773c80f5615"
+  },
+  {
+    "id": "kodim12",
+    "category": "natural",
+    "sourcePath": "kodim12.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "1ecbafe928b9c833f8bd8e7adfea72739ed5fcddd0a4a7765cd3c7025aee68a2",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      104272,
+      104272,
+      104272
+    ],
+    "nativeAllocatedBytes": [
+      2470332,
+      2468412,
+      2470332
+    ],
+    "managedBytes": 67678,
+    "nativeBytes": 67698,
+    "managedJpegSha256": "3bf15aa8397e5b72a691db2ad970e6eaa99d3f1045e7f358221240c31cbeaa46",
+    "nativeJpegSha256": "2a52ea989c2d4024f859bfed0f30f0964e82b8b39b2c92706622589cdf7370d9"
+  },
+  {
+    "id": "kodim12",
+    "category": "natural",
+    "sourcePath": "kodim12.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "1ecbafe928b9c833f8bd8e7adfea72739ed5fcddd0a4a7765cd3c7025aee68a2",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      59680,
+      59680,
+      59680
+    ],
+    "nativeAllocatedBytes": [
+      2330984,
+      2329064,
+      2330984
+    ],
+    "managedBytes": 25517,
+    "nativeBytes": 25534,
+    "managedJpegSha256": "7146cb86587acc0a91c91b7b828716c8e2a554b73a069fcf6c4d400d9c7fd745",
+    "nativeJpegSha256": "2735bc6ab1e8fd5e0d2ad27eaf74e053bb5c871a95527d4391516686a7883479"
+  },
+  {
+    "id": "kodim12",
+    "category": "natural",
+    "sourcePath": "kodim12.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "1ecbafe928b9c833f8bd8e7adfea72739ed5fcddd0a4a7765cd3c7025aee68a2",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      139752,
+      139752,
+      139752
+    ],
+    "nativeAllocatedBytes": [
+      3463260,
+      3463388,
+      3463388
+    ],
+    "managedBytes": 65970,
+    "nativeBytes": 65978,
+    "managedJpegSha256": "514e26c2a24489f4cae5eaabf931e44de90fe273017f27321f63f5da5e22f9a8",
+    "nativeJpegSha256": "760e12db0ca7648a526f0b04aca26331792fcc2f213329ab6688b8311b9ff5a5"
+  },
+  {
+    "id": "kodim12",
+    "category": "natural",
+    "sourcePath": "kodim12.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "1ecbafe928b9c833f8bd8e7adfea72739ed5fcddd0a4a7765cd3c7025aee68a2",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      94904,
+      94904,
+      94904
+    ],
+    "nativeAllocatedBytes": [
+      3188196,
+      3188324,
+      3188324
+    ],
+    "managedBytes": 25019,
+    "nativeBytes": 25021,
+    "managedJpegSha256": "85bccb5a220ebdea31cb88e367f9292b10b54012ea03df158f4cfa8849a4cfc0",
+    "nativeJpegSha256": "0c3744e220b57c08627f26553b9311be9772e6f92e862a7a05a566fb19cd3585"
+  },
+  {
+    "id": "kodim13",
+    "category": "natural",
+    "sourcePath": "kodim13.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b5bbd7da7e6a08f3bd93968b8c84801ae0973f1e627d9f6bbf5781f00d4025b0",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      220936,
+      220936,
+      220936
+    ],
+    "nativeAllocatedBytes": [
+      2420454,
+      2420966,
+      2421478
+    ],
+    "managedBytes": 180871,
+    "nativeBytes": 180821,
+    "managedJpegSha256": "dd5feb6e8cea2bc48cb7afb935d35958ddc17da6783106dedfb785900a3b37de",
+    "nativeJpegSha256": "39b6685fab6e7e42709bd8677126507880cde7c2c42920dc3b3c2d09c2c3363a"
+  },
+  {
+    "id": "kodim13",
+    "category": "natural",
+    "sourcePath": "kodim13.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b5bbd7da7e6a08f3bd93968b8c84801ae0973f1e627d9f6bbf5781f00d4025b0",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      116544,
+      116544,
+      116544
+    ],
+    "nativeAllocatedBytes": [
+      2158281,
+      2158793,
+      2159305
+    ],
+    "managedBytes": 77300,
+    "nativeBytes": 77327,
+    "managedJpegSha256": "e0b313e2625ffdc4ff2d96be0e4ecbc8c30c3c6764f8760ab88f021e9bcc1fa7",
+    "nativeJpegSha256": "c3100fb25cea6fff79a907ca7e2bcf38c83f00b47019d9e79b95301f43a74b9d"
+  },
+  {
+    "id": "kodim13",
+    "category": "natural",
+    "sourcePath": "kodim13.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b5bbd7da7e6a08f3bd93968b8c84801ae0973f1e627d9f6bbf5781f00d4025b0",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      256472,
+      256472,
+      256472
+    ],
+    "nativeAllocatedBytes": [
+      5268251,
+      5268507,
+      5269531
+    ],
+    "managedBytes": 174134,
+    "nativeBytes": 174172,
+    "managedJpegSha256": "e2611721c2a3d94b7a3a089ecfd4d2c6485eec3610ab35f10d70a05cf1c1fcbc",
+    "nativeJpegSha256": "d37a6ccf5f88fbad8fb06a0e3539f8b270f87f81e38b7476d2410294e370a5f6"
+  },
+  {
+    "id": "kodim13",
+    "category": "natural",
+    "sourcePath": "kodim13.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b5bbd7da7e6a08f3bd93968b8c84801ae0973f1e627d9f6bbf5781f00d4025b0",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      145920,
+      145920,
+      145920
+    ],
+    "nativeAllocatedBytes": [
+      4485632,
+      4485888,
+      4486912
+    ],
+    "managedBytes": 73341,
+    "nativeBytes": 73345,
+    "managedJpegSha256": "f1e6b651d637cc94a791d3a5df4ca29d1efbc48eb7224da062329a0a0cf9b763",
+    "nativeJpegSha256": "4cbc3c64abdb3160e5f5e5010e71a31d0db6e80bb4e1aa4c064ff4d4db8e3eb5"
+  },
+  {
+    "id": "kodim13",
+    "category": "natural",
+    "sourcePath": "kodim13.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b5bbd7da7e6a08f3bd93968b8c84801ae0973f1e627d9f6bbf5781f00d4025b0",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      201512,
+      201512,
+      201512
+    ],
+    "nativeAllocatedBytes": [
+      2757191,
+      2755271,
+      2757191
+    ],
+    "managedBytes": 161500,
+    "nativeBytes": 161458,
+    "managedJpegSha256": "8419377e827e906d8aba17ac9c9cd7b4ba51be94224ccabbc6d8a8a093b02162",
+    "nativeJpegSha256": "c9e5634c93b0480e5f28e5fd8a0298764cbe732496368cddacd2b7c50cdf365b"
+  },
+  {
+    "id": "kodim13",
+    "category": "natural",
+    "sourcePath": "kodim13.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b5bbd7da7e6a08f3bd93968b8c84801ae0973f1e627d9f6bbf5781f00d4025b0",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      97456,
+      97456,
+      97456
+    ],
+    "nativeAllocatedBytes": [
+      2330981,
+      2329061,
+      2330981
+    ],
+    "managedBytes": 63290,
+    "nativeBytes": 63307,
+    "managedJpegSha256": "a77b2ec20347b0df37cd8e70d5b78b2c297e8fd26d97a620c74c9bb2c6121dbf",
+    "nativeJpegSha256": "2a01d7ff1d488cb35175bf98804866d6c50a26a2c60f8cd172abe841e6f212df"
+  },
+  {
+    "id": "kodim13",
+    "category": "natural",
+    "sourcePath": "kodim13.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b5bbd7da7e6a08f3bd93968b8c84801ae0973f1e627d9f6bbf5781f00d4025b0",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      238512,
+      238512,
+      238512
+    ],
+    "nativeAllocatedBytes": [
+      4056074,
+      4056202,
+      4056202
+    ],
+    "managedBytes": 155620,
+    "nativeBytes": 155620,
+    "managedJpegSha256": "225f5276a60bf3d089f16a9fb5b95cc03723e31d9733b18202e4efdc831a2d85",
+    "nativeJpegSha256": "a9ef69d15067df02b1bd5d3487cc0af8c495141b8a681473c1e1eabb060c4f55"
+  },
+  {
+    "id": "kodim13",
+    "category": "natural",
+    "sourcePath": "kodim13.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "b5bbd7da7e6a08f3bd93968b8c84801ae0973f1e627d9f6bbf5781f00d4025b0",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      138528,
+      138528,
+      138528
+    ],
+    "nativeAllocatedBytes": [
+      3320290,
+      3320418,
+      3320418
+    ],
+    "managedBytes": 61072,
+    "nativeBytes": 61079,
+    "managedJpegSha256": "86890f9e6ee6fcc10f54972f0bf5514b1c29aa5eeb10181952a616b4ee88462e",
+    "nativeJpegSha256": "1811f950cfe3648ccdf801cf6dd39efaf3a293dafc53a799482054fec3dae1a6"
+  },
+  {
+    "id": "kodim14",
+    "category": "natural",
+    "sourcePath": "kodim14.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "5148c95eed0f82c079854c797e19a3fa70f134ee4e05cfa958416a63ab715c9b",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      179352,
+      179352,
+      179352
+    ],
+    "nativeAllocatedBytes": [
+      2420476,
+      2420988,
+      2421500
+    ],
+    "managedBytes": 139011,
+    "nativeBytes": 138969,
+    "managedJpegSha256": "74a78e7afc2a0c4a6d1d1b14e8146943f46ad8a76e2afe70d3e82845ff15568a",
+    "nativeJpegSha256": "1851ed4b60a5a4e2e73c46b87ad994d869d10680027d0f266be84a395820957b"
+  },
+  {
+    "id": "kodim14",
+    "category": "natural",
+    "sourcePath": "kodim14.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "5148c95eed0f82c079854c797e19a3fa70f134ee4e05cfa958416a63ab715c9b",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      92080,
+      92080,
+      92080
+    ],
+    "nativeAllocatedBytes": [
+      1994265,
+      1994777,
+      1995289
+    ],
+    "managedBytes": 57903,
+    "nativeBytes": 57958,
+    "managedJpegSha256": "903e859140d99f7f40ae98150b16b4669ea5f786b6b6a10b18dae8d9f0eb228f",
+    "nativeJpegSha256": "b255fac2acf2a58267ca4d14b78382b74b10f8b87a782b3237b642067254f4b4"
+  },
+  {
+    "id": "kodim14",
+    "category": "natural",
+    "sourcePath": "kodim14.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "5148c95eed0f82c079854c797e19a3fa70f134ee4e05cfa958416a63ab715c9b",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      208288,
+      208288,
+      208288
+    ],
+    "nativeAllocatedBytes": [
+      4939688,
+      4939944,
+      4940968
+    ],
+    "managedBytes": 133906,
+    "nativeBytes": 133939,
+    "managedJpegSha256": "be16f14021a82c68c42c064bd68e5f10bd52afe0ac4f5659ded9d55088cb98e3",
+    "nativeJpegSha256": "20f3466130147651aeeaea5fc96e2a9355db5285172beab401404c97bbf30b90"
+  },
+  {
+    "id": "kodim14",
+    "category": "natural",
+    "sourcePath": "kodim14.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "5148c95eed0f82c079854c797e19a3fa70f134ee4e05cfa958416a63ab715c9b",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      131824,
+      131824,
+      131824
+    ],
+    "nativeAllocatedBytes": [
+      4293111,
+      4293367,
+      4294391
+    ],
+    "managedBytes": 55531,
+    "nativeBytes": 55543,
+    "managedJpegSha256": "fd1f62b5b567cb44fe75cbf9ba082bc5e39ea207fdf1447ce892ef739d07e233",
+    "nativeJpegSha256": "9df082547d02e8d09575ceed4a54f77c5b3ad3882222ee26aebb8cb205ee43f3"
+  },
+  {
+    "id": "kodim14",
+    "category": "natural",
+    "sourcePath": "kodim14.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "5148c95eed0f82c079854c797e19a3fa70f134ee4e05cfa958416a63ab715c9b",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      161248,
+      161248,
+      161248
+    ],
+    "nativeAllocatedBytes": [
+      2495062,
+      2493142,
+      2495062
+    ],
+    "managedBytes": 120812,
+    "nativeBytes": 120829,
+    "managedJpegSha256": "4ef32e491bbaf101e187f0ffaa72128340f01ed5afcc661d96c588da1e49c905",
+    "nativeJpegSha256": "3b220fae6f6e78677527a85bc2c52675948505be6b3a6913151b228333b9173d"
+  },
+  {
+    "id": "kodim14",
+    "category": "natural",
+    "sourcePath": "kodim14.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "5148c95eed0f82c079854c797e19a3fa70f134ee4e05cfa958416a63ab715c9b",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      81864,
+      81864,
+      81864
+    ],
+    "nativeAllocatedBytes": [
+      2330993,
+      2329073,
+      2330993
+    ],
+    "managedBytes": 47693,
+    "nativeBytes": 47716,
+    "managedJpegSha256": "d217464e66c6bd5dccd6e21b540a16a8b4251a7db82baed172450da277295e10",
+    "nativeJpegSha256": "136ffc0b0cd2775c99d1c79d81d25caf759b07cf222bbd8f8a886844c55ed03b"
+  },
+  {
+    "id": "kodim14",
+    "category": "natural",
+    "sourcePath": "kodim14.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "5148c95eed0f82c079854c797e19a3fa70f134ee4e05cfa958416a63ab715c9b",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      190152,
+      190152,
+      190152
+    ],
+    "nativeAllocatedBytes": [
+      3612631,
+      3612759,
+      3612759
+    ],
+    "managedBytes": 116353,
+    "nativeBytes": 116350,
+    "managedJpegSha256": "9bd249750cd53923665376ee501a0318c216f55c2ce8019a72ceb95035686fe5",
+    "nativeJpegSha256": "74d8a4559c64d1211b53d2185c0c070f69bab59b8f227838a57c4293ad963588"
+  },
+  {
+    "id": "kodim14",
+    "category": "natural",
+    "sourcePath": "kodim14.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "5148c95eed0f82c079854c797e19a3fa70f134ee4e05cfa958416a63ab715c9b",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      119832,
+      119832,
+      119832
+    ],
+    "nativeAllocatedBytes": [
+      3260626,
+      3260754,
+      3260754
+    ],
+    "managedBytes": 46079,
+    "nativeBytes": 46080,
+    "managedJpegSha256": "f172895bc983eec8a1e8393d28959866e01df3caa99692670a0167544de28aa5",
+    "nativeJpegSha256": "4d953743b1955139b5aa3a353204173c825243f7c4845e6f21723ec96946648c"
+  },
+  {
+    "id": "kodim15",
+    "category": "natural",
+    "sourcePath": "kodim15.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "4ec14eab8c3fded683abb6acc883b3b80a5964e38e83507db75d6d60e6bbb7a6",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      120816,
+      120816,
+      120816
+    ],
+    "nativeAllocatedBytes": [
+      2125376,
+      2125888,
+      2126400
+    ],
+    "managedBytes": 86528,
+    "nativeBytes": 86541,
+    "managedJpegSha256": "8f56a9acf45d730ac9835ad246c4b1430282cd220a41f3ea36d9d9ba57bf9a9b",
+    "nativeJpegSha256": "3143e8af3bfb3b3a46d0758bd0873b707b179cd66a4a8dec05cd771cdd189d6d"
+  },
+  {
+    "id": "kodim15",
+    "category": "natural",
+    "sourcePath": "kodim15.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "4ec14eab8c3fded683abb6acc883b3b80a5964e38e83507db75d6d60e6bbb7a6",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      69312,
+      69312,
+      69312
+    ],
+    "nativeAllocatedBytes": [
+      1994260,
+      1994772,
+      1995284
+    ],
+    "managedBytes": 35150,
+    "nativeBytes": 35152,
+    "managedJpegSha256": "f99fefa5632f58902615a0b5aefc22b95133ff8dc6da0d5852017a2624cc1a10",
+    "nativeJpegSha256": "99b7de0315af70db878b9bf5c636d501b699e93e8aea73ee770ca3fefa5286b1"
+  },
+  {
+    "id": "kodim15",
+    "category": "natural",
+    "sourcePath": "kodim15.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "4ec14eab8c3fded683abb6acc883b3b80a5964e38e83507db75d6d60e6bbb7a6",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      167856,
+      167856,
+      167856
+    ],
+    "nativeAllocatedBytes": [
+      4532076,
+      4532332,
+      4533356
+    ],
+    "managedBytes": 84131,
+    "nativeBytes": 84157,
+    "managedJpegSha256": "67dd3c50c039e1e1a9601c55b8acbecbea9397d4ba0dbdc492bb7832af9e0a65",
+    "nativeJpegSha256": "f7b05445e0ac6c9f3c39397932d70288af45fca4dd883d2eb31f162de4dbd3b4"
+  },
+  {
+    "id": "kodim15",
+    "category": "natural",
+    "sourcePath": "kodim15.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "4ec14eab8c3fded683abb6acc883b3b80a5964e38e83507db75d6d60e6bbb7a6",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      110592,
+      110592,
+      110592
+    ],
+    "nativeAllocatedBytes": [
+      4252020,
+      4252276,
+      4253300
+    ],
+    "managedBytes": 34307,
+    "nativeBytes": 34323,
+    "managedJpegSha256": "631d91742598480830718b24e236df360c0624251f9d021a40e88ddd1e464132",
+    "nativeJpegSha256": "a800740fcee540dc4bbc40d8e43ebd1d1bee96d9f001b62bb3b6348585707b6d"
+  },
+  {
+    "id": "kodim15",
+    "category": "natural",
+    "sourcePath": "kodim15.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "4ec14eab8c3fded683abb6acc883b3b80a5964e38e83507db75d6d60e6bbb7a6",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      107544,
+      107544,
+      107544
+    ],
+    "nativeAllocatedBytes": [
+      2462106,
+      2460186,
+      2462106
+    ],
+    "managedBytes": 73314,
+    "nativeBytes": 73311,
+    "managedJpegSha256": "ebd4780581df53660838d0a74341d8b60365d56775662f06aead156712c3fa6c",
+    "nativeJpegSha256": "e60e28e473a7639babe92cb883217761b8de01578a636e21c5b9c5bc89e53bd1"
+  },
+  {
+    "id": "kodim15",
+    "category": "natural",
+    "sourcePath": "kodim15.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "4ec14eab8c3fded683abb6acc883b3b80a5964e38e83507db75d6d60e6bbb7a6",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      62904,
+      62904,
+      62904
+    ],
+    "nativeAllocatedBytes": [
+      2330975,
+      2329055,
+      2330975
+    ],
+    "managedBytes": 28742,
+    "nativeBytes": 28746,
+    "managedJpegSha256": "b0ff739cc87c55eea8b9da17c9d89ec651092f9fb868be3d97ff63eabd9a2d1b",
+    "nativeJpegSha256": "871ebb604aa55ecc42fa1be2442052546da4540896e6c2830f57bd7c87658627"
+  },
+  {
+    "id": "kodim15",
+    "category": "natural",
+    "sourcePath": "kodim15.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "4ec14eab8c3fded683abb6acc883b3b80a5964e38e83507db75d6d60e6bbb7a6",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      145352,
+      145352,
+      145352
+    ],
+    "nativeAllocatedBytes": [
+      3461602,
+      3461730,
+      3461730
+    ],
+    "managedBytes": 71576,
+    "nativeBytes": 71577,
+    "managedJpegSha256": "0be54fb5e54aaee8b4d26b88f66569e196a3d6fe5256f7d0524004f649b65687",
+    "nativeJpegSha256": "8c8f8b3d55b98ef6608bd9be562063c2284f1c14c41c84d52fea6215791fdcb8"
+  },
+  {
+    "id": "kodim15",
+    "category": "natural",
+    "sourcePath": "kodim15.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "4ec14eab8c3fded683abb6acc883b3b80a5964e38e83507db75d6d60e6bbb7a6",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      98552,
+      98552,
+      98552
+    ],
+    "nativeAllocatedBytes": [
+      3192079,
+      3192207,
+      3192207
+    ],
+    "managedBytes": 28652,
+    "nativeBytes": 28660,
+    "managedJpegSha256": "8141244a638a5c7ea3136ffc3936700fc5501bca210bb061b072ef0af328f41f",
+    "nativeJpegSha256": "054c67e5252fc4d4fc39e7ee277dedbbcc3847746418b1389794256649dc7824"
+  },
+  {
+    "id": "kodim16",
+    "category": "natural",
+    "sourcePath": "kodim16.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "360c57cb87479b3744835a0d09daeaf11b3ab5d07b8bfbe0837895ab75c57fa7",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      127248,
+      127248,
+      127248
+    ],
+    "nativeAllocatedBytes": [
+      2141825,
+      2142337,
+      2142849
+    ],
+    "managedBytes": 89402,
+    "nativeBytes": 89426,
+    "managedJpegSha256": "403c3d2f371e5fe48b9607dcec29af6c770206e691e0b32ce1bfb3c750d4456f",
+    "nativeJpegSha256": "fb8fc9aebccc96090b28a0de18ed0a488d51f5549c912abc05d54072fcb2a9e4"
+  },
+  {
+    "id": "kodim16",
+    "category": "natural",
+    "sourcePath": "kodim16.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "360c57cb87479b3744835a0d09daeaf11b3ab5d07b8bfbe0837895ab75c57fa7",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      70872,
+      70872,
+      70872
+    ],
+    "nativeAllocatedBytes": [
+      1994239,
+      1994751,
+      1995263
+    ],
+    "managedBytes": 36730,
+    "nativeBytes": 36738,
+    "managedJpegSha256": "caf51db3880275cc2a85017831d5ada855d5be76501d2c4ca22fe500fe9ccb11",
+    "nativeJpegSha256": "3c0381cc2db92bedb3a78bac78b6c758254a3054b1b7898518befa2d22fef2dc"
+  },
+  {
+    "id": "kodim16",
+    "category": "natural",
+    "sourcePath": "kodim16.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "360c57cb87479b3744835a0d09daeaf11b3ab5d07b8bfbe0837895ab75c57fa7",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      163160,
+      163160,
+      163160
+    ],
+    "nativeAllocatedBytes": [
+      4530253,
+      4530509,
+      4531533
+    ],
+    "managedBytes": 86998,
+    "nativeBytes": 87008,
+    "managedJpegSha256": "d0e2f6084ba1c562b7e2c71f36e96c7a1c7b3c52aecb2856b6c448f087b6d8b8",
+    "nativeJpegSha256": "fc669f05d27fb6306f1b5415d71aa87bb21d92951514a5c9272983f760c85b0e"
+  },
+  {
+    "id": "kodim16",
+    "category": "natural",
+    "sourcePath": "kodim16.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "360c57cb87479b3744835a0d09daeaf11b3ab5d07b8bfbe0837895ab75c57fa7",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      103488,
+      103488,
+      103488
+    ],
+    "nativeAllocatedBytes": [
+      4220919,
+      4221175,
+      4222199
+    ],
+    "managedBytes": 34789,
+    "nativeBytes": 34799,
+    "managedJpegSha256": "8c37b5d335421e03f9f0dad2a378b2446b63f20633c5f963bd79d71300c759cc",
+    "nativeJpegSha256": "1db108c27625e650af1b3229c759b2a5e92f3ac19d875ef5895036bf110786b4"
+  },
+  {
+    "id": "kodim16",
+    "category": "natural",
+    "sourcePath": "kodim16.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "360c57cb87479b3744835a0d09daeaf11b3ab5d07b8bfbe0837895ab75c57fa7",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      112760,
+      112760,
+      112760
+    ],
+    "nativeAllocatedBytes": [
+      2462080,
+      2460160,
+      2462080
+    ],
+    "managedBytes": 77400,
+    "nativeBytes": 77403,
+    "managedJpegSha256": "82076ce3decaa44dfbe9258cfb4c770e162b5b1478191972b21ff775665263e5",
+    "nativeJpegSha256": "5101d0a47fec8a8c337904f11439d8caf7db68dadc4775ee77103390bd03367f"
+  },
+  {
+    "id": "kodim16",
+    "category": "natural",
+    "sourcePath": "kodim16.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "360c57cb87479b3744835a0d09daeaf11b3ab5d07b8bfbe0837895ab75c57fa7",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      63656,
+      63656,
+      63656
+    ],
+    "nativeAllocatedBytes": [
+      2330971,
+      2329051,
+      2330971
+    ],
+    "managedBytes": 29509,
+    "nativeBytes": 29538,
+    "managedJpegSha256": "9d5e76c2539acd84a5b508ef25dd3e2a6868937d702f4e4ff05443fa491cf01f",
+    "nativeJpegSha256": "c5ee6fb643d81d173ef9272b868bc485cfce4c0bd30987a34ca5433b2dfcdfca"
+  },
+  {
+    "id": "kodim16",
+    "category": "natural",
+    "sourcePath": "kodim16.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "360c57cb87479b3744835a0d09daeaf11b3ab5d07b8bfbe0837895ab75c57fa7",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      149576,
+      149576,
+      149576
+    ],
+    "nativeAllocatedBytes": [
+      3486882,
+      3487010,
+      3487010
+    ],
+    "managedBytes": 75806,
+    "nativeBytes": 75831,
+    "managedJpegSha256": "5aeb9991c4c62b06baabdf7ccb0655857354ae8bf6d693ca63098b1e8e8831af",
+    "nativeJpegSha256": "ab5b5abc204bae77d9c4f83827f460724dda615c87f367a2f30f0cd3b8f3e277"
+  },
+  {
+    "id": "kodim16",
+    "category": "natural",
+    "sourcePath": "kodim16.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "360c57cb87479b3744835a0d09daeaf11b3ab5d07b8bfbe0837895ab75c57fa7",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      102280,
+      102280,
+      102280
+    ],
+    "nativeAllocatedBytes": [
+      3215841,
+      3215969,
+      3215969
+    ],
+    "managedBytes": 28546,
+    "nativeBytes": 28552,
+    "managedJpegSha256": "770ee50193d90ab81b469a51220f2ad1c22898032691aa039564404d5c540be2",
+    "nativeJpegSha256": "6b976709aee47429f2380d28835615ba2a71c13d27964743facebdfb82344fee"
+  },
+  {
+    "id": "kodim17",
+    "category": "natural",
+    "sourcePath": "kodim17.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "95c6dc97d54e0c7df5ab9dc8449905386494cb36e857ca1e59340d0c8b811b34",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      125832,
+      125832,
+      125832
+    ],
+    "nativeAllocatedBytes": [
+      1573139,
+      1573651,
+      1574163
+    ],
+    "managedBytes": 88021,
+    "nativeBytes": 88007,
+    "managedJpegSha256": "09ad06b58175c132efb1ed945caa680801386377c2db5927de15c19580dd6d9b",
+    "nativeJpegSha256": "a43591004bf13d107efa06002bb1307eaec94d992869dbc5947e827c2c3316b2"
+  },
+  {
+    "id": "kodim17",
+    "category": "natural",
+    "sourcePath": "kodim17.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "95c6dc97d54e0c7df5ab9dc8449905386494cb36e857ca1e59340d0c8b811b34",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      72128,
+      72128,
+      72128
+    ],
+    "nativeAllocatedBytes": [
+      1425537,
+      1426049,
+      1426561
+    ],
+    "managedBytes": 37983,
+    "nativeBytes": 38018,
+    "managedJpegSha256": "ec04b8d0e2f2113b48c97748e472181c02dcfadb8c7494cc220b7a38e7b007ca",
+    "nativeJpegSha256": "26abe4069c546625af972ff191a254a49059327f1c6b9d065a3736286c71ae97"
+  },
+  {
+    "id": "kodim17",
+    "category": "natural",
+    "sourcePath": "kodim17.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "95c6dc97d54e0c7df5ab9dc8449905386494cb36e857ca1e59340d0c8b811b34",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      161088,
+      161088,
+      161088
+    ],
+    "nativeAllocatedBytes": [
+      4210986,
+      4211242,
+      4212266
+    ],
+    "managedBytes": 84779,
+    "nativeBytes": 84797,
+    "managedJpegSha256": "14d060507341084c5896e94b39ea851a9e94914cd6d5c180a056b3f9fcabed12",
+    "nativeJpegSha256": "c3dc6392257ebd3b0e513a42b50402cbeac7ff8d17489866671644027b9b3c64"
+  },
+  {
+    "id": "kodim17",
+    "category": "natural",
+    "sourcePath": "kodim17.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "95c6dc97d54e0c7df5ab9dc8449905386494cb36e857ca1e59340d0c8b811b34",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      105000,
+      105000,
+      105000
+    ],
+    "nativeAllocatedBytes": [
+      3925084,
+      3925340,
+      3926364
+    ],
+    "managedBytes": 36285,
+    "nativeBytes": 36295,
+    "managedJpegSha256": "dc37e93a6c11df8cda6ad43c3e16b320c3b499f8bb09eac2823312ae97391944",
+    "nativeJpegSha256": "b8982f563ce9b781faf77288302ad406ba949dc97dd2d713eab8e6cc7fd2d0ae"
+  },
+  {
+    "id": "kodim17",
+    "category": "natural",
+    "sourcePath": "kodim17.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "95c6dc97d54e0c7df5ab9dc8449905386494cb36e857ca1e59340d0c8b811b34",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      109728,
+      109728,
+      109728
+    ],
+    "nativeAllocatedBytes": [
+      1793411,
+      1791491,
+      1793411
+    ],
+    "managedBytes": 75531,
+    "nativeBytes": 75533,
+    "managedJpegSha256": "2e5ba79a481456d6e960ae46f4dadabfd2820d17620107f833b3e667ab107ee4",
+    "nativeJpegSha256": "ebae62f5db41216b772dbdbc4f6ce8dee3f31585381f4fb7ce4782ef6516fed7"
+  },
+  {
+    "id": "kodim17",
+    "category": "natural",
+    "sourcePath": "kodim17.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "95c6dc97d54e0c7df5ab9dc8449905386494cb36e857ca1e59340d0c8b811b34",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      65128,
+      65128,
+      65128
+    ],
+    "nativeAllocatedBytes": [
+      1662303,
+      1660383,
+      1662303
+    ],
+    "managedBytes": 30971,
+    "nativeBytes": 30974,
+    "managedJpegSha256": "16b94ee011ee8cb6b6933753142f20cd41a2cb6eb2c950d21d9b0a80417ecb31",
+    "nativeJpegSha256": "42f5ec72625c7449b9c51b2251a9d78d4884ce8edbc2f7eebec75af8851a82b0"
+  },
+  {
+    "id": "kodim17",
+    "category": "natural",
+    "sourcePath": "kodim17.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "95c6dc97d54e0c7df5ab9dc8449905386494cb36e857ca1e59340d0c8b811b34",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      151040,
+      151040,
+      151040
+    ],
+    "nativeAllocatedBytes": [
+      3082881,
+      3083009,
+      3083009
+    ],
+    "managedBytes": 73559,
+    "nativeBytes": 73565,
+    "managedJpegSha256": "99f543a5061f72b584f9ab4728cdba390af12073a63ba9d6edbc6fe2f20d2651",
+    "nativeJpegSha256": "e33ee447fef965e730b5d2fd30191969b15a9b0841f69d3f85114f570ae1a7eb"
+  },
+  {
+    "id": "kodim17",
+    "category": "natural",
+    "sourcePath": "kodim17.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "95c6dc97d54e0c7df5ab9dc8449905386494cb36e857ca1e59340d0c8b811b34",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      104320,
+      104320,
+      104320
+    ],
+    "nativeAllocatedBytes": [
+      2822872,
+      2823000,
+      2823000
+    ],
+    "managedBytes": 30589,
+    "nativeBytes": 30597,
+    "managedJpegSha256": "f6810d7075fd34b62a06133308f8850d8d3ad8b356c9a2612502d1e13bd5d441",
+    "nativeJpegSha256": "ef0d665126670d458fac0ad53f503a3109437fdc09c43137f21cdc097fb67813"
+  },
+  {
+    "id": "kodim18",
+    "category": "natural",
+    "sourcePath": "kodim18.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "03faa4d4b71f73ff1c3808052ab500f7bdea5ef68b8ff9c8a369e33df9bc0ae4",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      172904,
+      172904,
+      172904
+    ],
+    "nativeAllocatedBytes": [
+      1900911,
+      1901423,
+      1901935
+    ],
+    "managedBytes": 133391,
+    "nativeBytes": 133350,
+    "managedJpegSha256": "110f7aa12fdb77b216a1105b8ad2a93a81ecd456af807fdd1828855e6bb2806d",
+    "nativeJpegSha256": "3d7b378b19fe995ede47b66259a6714873df3c41f3c9a7997789c3f9d94d66e2"
+  },
+  {
+    "id": "kodim18",
+    "category": "natural",
+    "sourcePath": "kodim18.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "03faa4d4b71f73ff1c3808052ab500f7bdea5ef68b8ff9c8a369e33df9bc0ae4",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      89160,
+      89160,
+      89160
+    ],
+    "nativeAllocatedBytes": [
+      1425547,
+      1426059,
+      1426571
+    ],
+    "managedBytes": 55008,
+    "nativeBytes": 55047,
+    "managedJpegSha256": "316d889a696a7a03613c079bbf2acbc8002a1f21f0fdd1f7fdaeb15f769ad503",
+    "nativeJpegSha256": "1f4f0581036667ca7798d99e6d913c5b3d138d382de99117ae3bfce5eb93cf70"
+  },
+  {
+    "id": "kodim18",
+    "category": "natural",
+    "sourcePath": "kodim18.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "03faa4d4b71f73ff1c3808052ab500f7bdea5ef68b8ff9c8a369e33df9bc0ae4",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      208968,
+      208968,
+      208968
+    ],
+    "nativeAllocatedBytes": [
+      4514429,
+      4514685,
+      4515709
+    ],
+    "managedBytes": 128941,
+    "nativeBytes": 128959,
+    "managedJpegSha256": "1fd312b2b5bb9f67e43753a27d3c16644a7f35194185942f7402cbfeed306152",
+    "nativeJpegSha256": "54d8002c89309678762df94a09245612e2ae35aaaef36dc4323376847ae460fa"
+  },
+  {
+    "id": "kodim18",
+    "category": "natural",
+    "sourcePath": "kodim18.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "03faa4d4b71f73ff1c3808052ab500f7bdea5ef68b8ff9c8a369e33df9bc0ae4",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      129776,
+      129776,
+      129776
+    ],
+    "nativeAllocatedBytes": [
+      3997483,
+      3997739,
+      3998763
+    ],
+    "managedBytes": 53492,
+    "nativeBytes": 53494,
+    "managedJpegSha256": "70416f11b396ebca118f448b9bccc350014648bf5b5a6a35c159e8eac6f7fb92",
+    "nativeJpegSha256": "346993093e3a281e21d2df3464c1a33c69a0d2c03e647edc8a7e3035e382fd92"
+  },
+  {
+    "id": "kodim18",
+    "category": "natural",
+    "sourcePath": "kodim18.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "03faa4d4b71f73ff1c3808052ab500f7bdea5ef68b8ff9c8a369e33df9bc0ae4",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      155488,
+      155488,
+      155488
+    ],
+    "nativeAllocatedBytes": [
+      1826372,
+      1824452,
+      1826372
+    ],
+    "managedBytes": 116195,
+    "nativeBytes": 116161,
+    "managedJpegSha256": "0b99b255eaefdf7aaffae28b58f22b7bb6f8cdb15b4e85c140b569c5539fc9eb",
+    "nativeJpegSha256": "9ab4417b1f09a8f167391b70d91d401386dffd233bd048942468c50ee5851f1f"
+  },
+  {
+    "id": "kodim18",
+    "category": "natural",
+    "sourcePath": "kodim18.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "03faa4d4b71f73ff1c3808052ab500f7bdea5ef68b8ff9c8a369e33df9bc0ae4",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      79384,
+      79384,
+      79384
+    ],
+    "nativeAllocatedBytes": [
+      1662313,
+      1660393,
+      1662313
+    ],
+    "managedBytes": 45215,
+    "nativeBytes": 45248,
+    "managedJpegSha256": "a62999e9855e4fd4458f2a1a045b52d99035695e43a31951104506b07d897e6a",
+    "nativeJpegSha256": "670cd156bb1578845178fd32386a50f0451a6c43f81913a9527c561aaa4e5e06"
+  },
+  {
+    "id": "kodim18",
+    "category": "natural",
+    "sourcePath": "kodim18.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "03faa4d4b71f73ff1c3808052ab500f7bdea5ef68b8ff9c8a369e33df9bc0ae4",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      193464,
+      193464,
+      193464
+    ],
+    "nativeAllocatedBytes": [
+      3235440,
+      3235568,
+      3235568
+    ],
+    "managedBytes": 112260,
+    "nativeBytes": 112279,
+    "managedJpegSha256": "4d420b0ad713aa61e0bdcd4e2d34313223baf02cca092a3fe27929728ef49aca",
+    "nativeJpegSha256": "8340fdbd9ff38e105e89fc779df616d622763b19b34ffdc3680030c03eb73e02"
+  },
+  {
+    "id": "kodim18",
+    "category": "natural",
+    "sourcePath": "kodim18.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "03faa4d4b71f73ff1c3808052ab500f7bdea5ef68b8ff9c8a369e33df9bc0ae4",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      114760,
+      114760,
+      114760
+    ],
+    "nativeAllocatedBytes": [
+      2849289,
+      2849417,
+      2849417
+    ],
+    "managedBytes": 44869,
+    "nativeBytes": 44881,
+    "managedJpegSha256": "c206e0e192745b0bfbc9409c8ce5e8595d72c46978905d145244dea06578d680",
+    "nativeJpegSha256": "94578eb43f120a325eaa15717eec409a8afefff5b6b7e1fb560cd634833435d3"
+  },
+  {
+    "id": "kodim19",
+    "category": "natural",
+    "sourcePath": "kodim19.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "50aefc153e11b75f6df8e553ec9bb6bc032967ed12d1819087229fb60f53256f",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      144376,
+      144376,
+      144376
+    ],
+    "nativeAllocatedBytes": [
+      1589629,
+      1590141,
+      1590653
+    ],
+    "managedBytes": 103165,
+    "nativeBytes": 103177,
+    "managedJpegSha256": "79d40494718e74eaea1fcae32d60da0aa209e33065615276d716fd4c3b7047dd",
+    "nativeJpegSha256": "dde78d18820efce87df0be6f92cfeff44a37ee36fc7191753df811bc85f8f104"
+  },
+  {
+    "id": "kodim19",
+    "category": "natural",
+    "sourcePath": "kodim19.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "50aefc153e11b75f6df8e553ec9bb6bc032967ed12d1819087229fb60f53256f",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      76224,
+      76224,
+      76224
+    ],
+    "nativeAllocatedBytes": [
+      1425564,
+      1426076,
+      1426588
+    ],
+    "managedBytes": 42050,
+    "nativeBytes": 42071,
+    "managedJpegSha256": "e4d1a01fec90d32a10f1e29d1206d27e8c44a68909a0e18b99fff40996ba7ec0",
+    "nativeJpegSha256": "397a98339dcc126900d9f30a20eeb530696eda1bc3e6cd5a6f77e60780beb436"
+  },
+  {
+    "id": "kodim19",
+    "category": "natural",
+    "sourcePath": "kodim19.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "50aefc153e11b75f6df8e553ec9bb6bc032967ed12d1819087229fb60f53256f",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      176280,
+      176280,
+      176280
+    ],
+    "nativeAllocatedBytes": [
+      4274459,
+      4274715,
+      4275739
+    ],
+    "managedBytes": 99957,
+    "nativeBytes": 99963,
+    "managedJpegSha256": "17a60b60d5ba7c4d3820c98ff0e34d85cf88c94e0482e7eac678d28ff802720e",
+    "nativeJpegSha256": "9fddcc8073340aa2fb2ff92c7094a103b0d2a2e4963c41f36299f1d9a51a28da"
+  },
+  {
+    "id": "kodim19",
+    "category": "natural",
+    "sourcePath": "kodim19.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "50aefc153e11b75f6df8e553ec9bb6bc032967ed12d1819087229fb60f53256f",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      108984,
+      108984,
+      108984
+    ],
+    "nativeAllocatedBytes": [
+      3935212,
+      3935468,
+      3936492
+    ],
+    "managedBytes": 40247,
+    "nativeBytes": 40252,
+    "managedJpegSha256": "3f83011964103f9452be70f6ddad1f094f7b91bdb0c79139e98b181072d21d7d",
+    "nativeJpegSha256": "61dca9686d40a6a93cdb0a3d12bcdef24030901449cd0997ea485bd3cfa1d446"
+  },
+  {
+    "id": "kodim19",
+    "category": "natural",
+    "sourcePath": "kodim19.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "50aefc153e11b75f6df8e553ec9bb6bc032967ed12d1819087229fb60f53256f",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      129640,
+      129640,
+      129640
+    ],
+    "nativeAllocatedBytes": [
+      1826394,
+      1824474,
+      1826394
+    ],
+    "managedBytes": 88576,
+    "nativeBytes": 88611,
+    "managedJpegSha256": "05144a81d7aebb54218547f9736d94cf2c126bdbfc895afbad70557913ae7cda",
+    "nativeJpegSha256": "b4005fcf90f3af1de69feae1b61b5c88ac1873cb03ca84638fa976c9e4061e9a"
+  },
+  {
+    "id": "kodim19",
+    "category": "natural",
+    "sourcePath": "kodim19.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "50aefc153e11b75f6df8e553ec9bb6bc032967ed12d1819087229fb60f53256f",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      68592,
+      68592,
+      68592
+    ],
+    "nativeAllocatedBytes": [
+      1662319,
+      1660399,
+      1662319
+    ],
+    "managedBytes": 34418,
+    "nativeBytes": 34409,
+    "managedJpegSha256": "54d7987b064e93bd741967f7918ae7acbbb909257c22862b66650632592aceb8",
+    "nativeJpegSha256": "f2ba3dc9c2ecc0b4e37d1a265aaed8a07f949621ea66827f404dcb588f790ed7"
+  },
+  {
+    "id": "kodim19",
+    "category": "natural",
+    "sourcePath": "kodim19.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "50aefc153e11b75f6df8e553ec9bb6bc032967ed12d1819087229fb60f53256f",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      163784,
+      163784,
+      163784
+    ],
+    "nativeAllocatedBytes": [
+      3125218,
+      3125346,
+      3125346
+    ],
+    "managedBytes": 86286,
+    "nativeBytes": 86314,
+    "managedJpegSha256": "094bf7b04b722e1add3817d597dcdfcaa040306527c5401951bef277acee0a51",
+    "nativeJpegSha256": "eb0164fc09f994beee224d375b425ae3a233ac062cff0287fa2a98007527706c"
+  },
+  {
+    "id": "kodim19",
+    "category": "natural",
+    "sourcePath": "kodim19.ppm",
+    "width": 512,
+    "height": 768,
+    "ppmSha256": "50aefc153e11b75f6df8e553ec9bb6bc032967ed12d1819087229fb60f53256f",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      103600,
+      103600,
+      103600
+    ],
+    "nativeAllocatedBytes": [
+      2814627,
+      2814755,
+      2814755
+    ],
+    "managedBytes": 33710,
+    "nativeBytes": 33711,
+    "managedJpegSha256": "c12c33aa3e0f25a238d5b9ff31a64bfbba3d705d2304fc98208654d4514b9d6c",
+    "nativeJpegSha256": "c2a319e6e68d639fa6b3d9f8a6f5f07804fff663a71be0793d7f699b49604ac4"
+  },
+  {
+    "id": "kodim20",
+    "category": "natural",
+    "sourcePath": "kodim20.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "3af75bd5bbeefe1f40f5e3fbfb60b2ba72df1c1f7901aa4e2cd0caf473d53b8c",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      107464,
+      107464,
+      107464
+    ],
+    "nativeAllocatedBytes": [
+      2125367,
+      2125879,
+      2126391
+    ],
+    "managedBytes": 73266,
+    "nativeBytes": 73274,
+    "managedJpegSha256": "c473e51f11febad611a5e04cad25d5fa7d157a18559f964408b7b277d3b6d1e8",
+    "nativeJpegSha256": "638e180cd127e19ae9237c1643a689e33384316c6b447a9c0c6aaf6fad529a42"
+  },
+  {
+    "id": "kodim20",
+    "category": "natural",
+    "sourcePath": "kodim20.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "3af75bd5bbeefe1f40f5e3fbfb60b2ba72df1c1f7901aa4e2cd0caf473d53b8c",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      65184,
+      65184,
+      65184
+    ],
+    "nativeAllocatedBytes": [
+      1994257,
+      1994769,
+      1995281
+    ],
+    "managedBytes": 31016,
+    "nativeBytes": 31007,
+    "managedJpegSha256": "ced8df72b06c3aee84d784d7ea84ce7e57ba6b0d356d704ee2b1653c87b7b43e",
+    "nativeJpegSha256": "7bcb4144a3f76313458315e1668801fc235796f1000de794cd94d9842f72d13d"
+  },
+  {
+    "id": "kodim20",
+    "category": "natural",
+    "sourcePath": "kodim20.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "3af75bd5bbeefe1f40f5e3fbfb60b2ba72df1c1f7901aa4e2cd0caf473d53b8c",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      145984,
+      145984,
+      145984
+    ],
+    "nativeAllocatedBytes": [
+      4474924,
+      4475180,
+      4476204
+    ],
+    "managedBytes": 69642,
+    "nativeBytes": 69627,
+    "managedJpegSha256": "1dccb614f8e34ed75ed19ff495f2eed3820abfdfa6dba15550ce5914b24b0851",
+    "nativeJpegSha256": "174c930e07f8fa3d3ea42979c226c1048ad6cc9f238176f5bee7df1e27e038ee"
+  },
+  {
+    "id": "kodim20",
+    "category": "natural",
+    "sourcePath": "kodim20.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "3af75bd5bbeefe1f40f5e3fbfb60b2ba72df1c1f7901aa4e2cd0caf473d53b8c",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      97264,
+      97264,
+      97264
+    ],
+    "nativeAllocatedBytes": [
+      4207470,
+      4207726,
+      4208750
+    ],
+    "managedBytes": 28523,
+    "nativeBytes": 28527,
+    "managedJpegSha256": "e5b45bd59e18098e3a46b0a8194887ec64e4b825465529f03b10b4215e8e3611",
+    "nativeJpegSha256": "d2212dfe41ca3ebab9f058f979e79501af1d5f451d05f46de1c0aab3c581890b"
+  },
+  {
+    "id": "kodim20",
+    "category": "natural",
+    "sourcePath": "kodim20.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "3af75bd5bbeefe1f40f5e3fbfb60b2ba72df1c1f7901aa4e2cd0caf473d53b8c",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      100144,
+      100144,
+      100144
+    ],
+    "nativeAllocatedBytes": [
+      2339263,
+      2337343,
+      2339263
+    ],
+    "managedBytes": 63446,
+    "nativeBytes": 63476,
+    "managedJpegSha256": "524cccd4f598c70d9ca4fc6b3641245008e9dfdbff35176c56e7453b50f28426",
+    "nativeJpegSha256": "2ae53684b105bf5d13873dc58a9f39f65a111534a926e768e0f97758730b0639"
+  },
+  {
+    "id": "kodim20",
+    "category": "natural",
+    "sourcePath": "kodim20.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "3af75bd5bbeefe1f40f5e3fbfb60b2ba72df1c1f7901aa4e2cd0caf473d53b8c",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      59352,
+      59352,
+      59352
+    ],
+    "nativeAllocatedBytes": [
+      2330983,
+      2329063,
+      2330983
+    ],
+    "managedBytes": 25180,
+    "nativeBytes": 25180,
+    "managedJpegSha256": "a528d78308159ff2c34bd986d74fe3fd65d99680a13683fbfee9189aa2f111fb",
+    "nativeJpegSha256": "55eb9eea7a14046a55014a3922aa9d940bfcbcd41afec24a8f3a272e91e4e4cc"
+  },
+  {
+    "id": "kodim20",
+    "category": "natural",
+    "sourcePath": "kodim20.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "3af75bd5bbeefe1f40f5e3fbfb60b2ba72df1c1f7901aa4e2cd0caf473d53b8c",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      137688,
+      137688,
+      137688
+    ],
+    "nativeAllocatedBytes": [
+      3315223,
+      3315351,
+      3315351
+    ],
+    "managedBytes": 60173,
+    "nativeBytes": 60201,
+    "managedJpegSha256": "4c56b20e283f59f4f1abd8a0500cac52066f8497a732b9c3af5898105688e503",
+    "nativeJpegSha256": "9142a68520fcc0276e52caccf100aa9153616d865f26ebc7f2f82f2536df51d7"
+  },
+  {
+    "id": "kodim20",
+    "category": "natural",
+    "sourcePath": "kodim20.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "3af75bd5bbeefe1f40f5e3fbfb60b2ba72df1c1f7901aa4e2cd0caf473d53b8c",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      93656,
+      93656,
+      93656
+    ],
+    "nativeAllocatedBytes": [
+      3191474,
+      3191602,
+      3191602
+    ],
+    "managedBytes": 23747,
+    "nativeBytes": 23757,
+    "managedJpegSha256": "bc585438062052302e66c39ea067dfa0275f183b39939528476a43dd13a5cf4a",
+    "nativeJpegSha256": "0ed76b72cdc29b842e308ada10bfd239945fc45fbd7d489cfc0964d9fc5b0a33"
+  },
+  {
+    "id": "kodim21",
+    "category": "natural",
+    "sourcePath": "kodim21.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "cfe09809b382c1e1d8046400ec8509fd2021e1d2940ced66f225ad1eab40c73a",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      146200,
+      146200,
+      146200
+    ],
+    "nativeAllocatedBytes": [
+      2158320,
+      2158832,
+      2159344
+    ],
+    "managedBytes": 105877,
+    "nativeBytes": 105813,
+    "managedJpegSha256": "34cb5850f7327159896d07addd8b21355695958d13fa121371123b4dfcf1a872",
+    "nativeJpegSha256": "c77288a03f0275e002d3d635c9a34ad587713c5dce49f46b8d260ba937747fb4"
+  },
+  {
+    "id": "kodim21",
+    "category": "natural",
+    "sourcePath": "kodim21.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "cfe09809b382c1e1d8046400ec8509fd2021e1d2940ced66f225ad1eab40c73a",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      78400,
+      78400,
+      78400
+    ],
+    "nativeAllocatedBytes": [
+      1994260,
+      1994772,
+      1995284
+    ],
+    "managedBytes": 44239,
+    "nativeBytes": 44276,
+    "managedJpegSha256": "4c1b9df3d179da842c046bf7a2e903f639da5ffbed51d5b32271aa7cc2021345",
+    "nativeJpegSha256": "64f718fafcf7f17f4fc81743bb14ab5adbf45486fb5cfcf76a034945e8305a46"
+  },
+  {
+    "id": "kodim21",
+    "category": "natural",
+    "sourcePath": "kodim21.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "cfe09809b382c1e1d8046400ec8509fd2021e1d2940ced66f225ad1eab40c73a",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      177704,
+      177704,
+      177704
+    ],
+    "nativeAllocatedBytes": [
+      4556826,
+      4557082,
+      4558106
+    ],
+    "managedBytes": 101366,
+    "nativeBytes": 101352,
+    "managedJpegSha256": "1e139af2ba56a61c158e0da8ea73526af7fc2f88f8e5f84633092bfa7a3d4e1a",
+    "nativeJpegSha256": "a9dc5603d2d72aedde4f9d9a23804528891b4236cb6e64200bfe4e328fd015ce"
+  },
+  {
+    "id": "kodim21",
+    "category": "natural",
+    "sourcePath": "kodim21.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "cfe09809b382c1e1d8046400ec8509fd2021e1d2940ced66f225ad1eab40c73a",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      110584,
+      110584,
+      110584
+    ],
+    "nativeAllocatedBytes": [
+      4242600,
+      4242856,
+      4243880
+    ],
+    "managedBytes": 41851,
+    "nativeBytes": 41856,
+    "managedJpegSha256": "64b4cf48217c48dc98668638e804db6752e28380477c0dba5b4702a4f67ddc29",
+    "nativeJpegSha256": "d9dc3afbdc8078ffb7b872882875baa38cb752e39f7a86007d09d13b5012d0ed"
+  },
+  {
+    "id": "kodim21",
+    "category": "natural",
+    "sourcePath": "kodim21.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "cfe09809b382c1e1d8046400ec8509fd2021e1d2940ced66f225ad1eab40c73a",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      131320,
+      131320,
+      131320
+    ],
+    "nativeAllocatedBytes": [
+      2495055,
+      2493135,
+      2495055
+    ],
+    "managedBytes": 90823,
+    "nativeBytes": 90806,
+    "managedJpegSha256": "154be995244cb29230279791965a559199a9de8d9f4f53e3fc37fab3c9c8b580",
+    "nativeJpegSha256": "f946843aa51ca2f90c93e9b6eb72492e1a3f130f3c07abe71cc56624dac669d7"
+  },
+  {
+    "id": "kodim21",
+    "category": "natural",
+    "sourcePath": "kodim21.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "cfe09809b382c1e1d8046400ec8509fd2021e1d2940ced66f225ad1eab40c73a",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      70560,
+      70560,
+      70560
+    ],
+    "nativeAllocatedBytes": [
+      2330993,
+      2329073,
+      2330993
+    ],
+    "managedBytes": 36377,
+    "nativeBytes": 36411,
+    "managedJpegSha256": "6394cf923acd61e1f254847ee837ac12f33a3dc483d0c99dba310a74d57f86a6",
+    "nativeJpegSha256": "2e81bd9d7f590b9b2e7fcedfbe93fba58e441120b7e2b73ac9c4fa27034d35c6"
+  },
+  {
+    "id": "kodim21",
+    "category": "natural",
+    "sourcePath": "kodim21.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "cfe09809b382c1e1d8046400ec8509fd2021e1d2940ced66f225ad1eab40c73a",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      165080,
+      165080,
+      165080
+    ],
+    "nativeAllocatedBytes": [
+      3537027,
+      3537155,
+      3537155
+    ],
+    "managedBytes": 87567,
+    "nativeBytes": 87581,
+    "managedJpegSha256": "d4d249ba435b8f209481e8cd323b232e9b1751916b3a8d516ba6dcee878514c5",
+    "nativeJpegSha256": "f2418bbda89b111ba47430c651ec12af569f96b1c7d2c1bf1bc293f7feca342f"
+  },
+  {
+    "id": "kodim21",
+    "category": "natural",
+    "sourcePath": "kodim21.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "cfe09809b382c1e1d8046400ec8509fd2021e1d2940ced66f225ad1eab40c73a",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      104800,
+      104800,
+      104800
+    ],
+    "nativeAllocatedBytes": [
+      3220420,
+      3220548,
+      3220548
+    ],
+    "managedBytes": 34898,
+    "nativeBytes": 34915,
+    "managedJpegSha256": "4648e25d86a7b7191871a4f4995311c7a1be8a33cf78c26cb531cfbf683dde95",
+    "nativeJpegSha256": "82abded86674ea674457242b594292bd5485f7b6ebf024ca47d5743b638865e1"
+  },
+  {
+    "id": "kodim22",
+    "category": "natural",
+    "sourcePath": "kodim22.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "503f80c1265f030484b2cf6e92f8dce664e8be971b0ae555f4a8fbe60fa6cd78",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      154080,
+      154080,
+      154080
+    ],
+    "nativeAllocatedBytes": [
+      2158337,
+      2158849,
+      2159361
+    ],
+    "managedBytes": 113832,
+    "nativeBytes": 113820,
+    "managedJpegSha256": "6286676c95f9610abbeae8b414211f6e20cbbc5dbb6102364b7a356ba8c9ac48",
+    "nativeJpegSha256": "d0a54e2152130707f623b1e6c7f520e246ef677557036f2be2308c97050b00fd"
+  },
+  {
+    "id": "kodim22",
+    "category": "natural",
+    "sourcePath": "kodim22.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "503f80c1265f030484b2cf6e92f8dce664e8be971b0ae555f4a8fbe60fa6cd78",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      78456,
+      78456,
+      78456
+    ],
+    "nativeAllocatedBytes": [
+      1994269,
+      1994781,
+      1995293
+    ],
+    "managedBytes": 44287,
+    "nativeBytes": 44287,
+    "managedJpegSha256": "601e7034b444d7c3a43adaff3fb525659908ca83f131cbf8e609ff89ad729405",
+    "nativeJpegSha256": "8c07fe7b9c19aff2b382f1a35cd44a7a4bf5c81ef2c070ff7c441e08a32f07f4"
+  },
+  {
+    "id": "kodim22",
+    "category": "natural",
+    "sourcePath": "kodim22.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "503f80c1265f030484b2cf6e92f8dce664e8be971b0ae555f4a8fbe60fa6cd78",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      186304,
+      186304,
+      186304
+    ],
+    "nativeAllocatedBytes": [
+      4588094,
+      4588350,
+      4589374
+    ],
+    "managedBytes": 110121,
+    "nativeBytes": 110120,
+    "managedJpegSha256": "139c6dcd3e397b8a5827ed37a01fb4ec5815a9885cfd6c8469d20b4f5b0cbe6a",
+    "nativeJpegSha256": "50916b6935d81ab4783d19ce561b46966405b5c3f4591695ab5784c24a56d0ab"
+  },
+  {
+    "id": "kodim22",
+    "category": "natural",
+    "sourcePath": "kodim22.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "503f80c1265f030484b2cf6e92f8dce664e8be971b0ae555f4a8fbe60fa6cd78",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      115448,
+      115448,
+      115448
+    ],
+    "nativeAllocatedBytes": [
+      4251507,
+      4251763,
+      4252787
+    ],
+    "managedBytes": 42868,
+    "nativeBytes": 42870,
+    "managedJpegSha256": "fef6d078dedd626e44422e934c9d23c875a3f4b2b4eed6c4f57623490a5f66bb",
+    "nativeJpegSha256": "241697ad0f61aa9feaadeed62724885c2d11fc19d0b6b518e43b55023292bff2"
+  },
+  {
+    "id": "kodim22",
+    "category": "natural",
+    "sourcePath": "kodim22.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "503f80c1265f030484b2cf6e92f8dce664e8be971b0ae555f4a8fbe60fa6cd78",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      131728,
+      131728,
+      131728
+    ],
+    "nativeAllocatedBytes": [
+      2462096,
+      2460176,
+      2462096
+    ],
+    "managedBytes": 97436,
+    "nativeBytes": 97472,
+    "managedJpegSha256": "176e993da96c4a05434aea242c948611df1378ef2d4317a42e59c3afa9665c84",
+    "nativeJpegSha256": "406b80d8a31ee85694972ff8d04fe390a1d8afaa726e00dd63e64ae2ac0a82d2"
+  },
+  {
+    "id": "kodim22",
+    "category": "natural",
+    "sourcePath": "kodim22.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "503f80c1265f030484b2cf6e92f8dce664e8be971b0ae555f4a8fbe60fa6cd78",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      70064,
+      70064,
+      70064
+    ],
+    "nativeAllocatedBytes": [
+      2330997,
+      2329077,
+      2330997
+    ],
+    "managedBytes": 35887,
+    "nativeBytes": 35904,
+    "managedJpegSha256": "dbcba53d61c2ecd273ec1049d1f5b7c2f95f1bfb0220429027d1345b4127cdd1",
+    "nativeJpegSha256": "b8a7a1f8d1c348df2ed2a9af03497cb3bae7ec5ff9d93de87e2622aadd71697b"
+  },
+  {
+    "id": "kodim22",
+    "category": "natural",
+    "sourcePath": "kodim22.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "503f80c1265f030484b2cf6e92f8dce664e8be971b0ae555f4a8fbe60fa6cd78",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      171896,
+      171896,
+      171896
+    ],
+    "nativeAllocatedBytes": [
+      3563940,
+      3564068,
+      3564068
+    ],
+    "managedBytes": 94401,
+    "nativeBytes": 94398,
+    "managedJpegSha256": "e05b3b025f833ffc0ca7ecdb0860896c55ff8dfb6e0fff4108a2a58d7c60eebd",
+    "nativeJpegSha256": "d46b6871cafe8e25b5e47350962437a4198ec4ecd9f6f5ae942f2e85699c6064"
+  },
+  {
+    "id": "kodim22",
+    "category": "natural",
+    "sourcePath": "kodim22.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "503f80c1265f030484b2cf6e92f8dce664e8be971b0ae555f4a8fbe60fa6cd78",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      109088,
+      109088,
+      109088
+    ],
+    "nativeAllocatedBytes": [
+      3229728,
+      3229856,
+      3229856
+    ],
+    "managedBytes": 35359,
+    "nativeBytes": 35352,
+    "managedJpegSha256": "ab169a5fa3381f6364f7643cfed6b85e78915d06891969cc11f6f91504670550",
+    "nativeJpegSha256": "51dc2b38f3bf5bbfa3ff2d5a4644224ccb754d319a2818d97590f058e0f9ae7a"
+  },
+  {
+    "id": "kodim23",
+    "category": "natural",
+    "sourcePath": "kodim23.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "a84c7740f69a5c4920b73dbd901882881bc0c0d94e1051f3bd9287dbd0dec4c6",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      102664,
+      102664,
+      102664
+    ],
+    "nativeAllocatedBytes": [
+      2125372,
+      2125884,
+      2126396
+    ],
+    "managedBytes": 68454,
+    "nativeBytes": 68494,
+    "managedJpegSha256": "a27191102cc503f7d219161c253eebc12aca7be6cd710e29bf0c209079c1fb2f",
+    "nativeJpegSha256": "33c61df6964c0fa29dd5e2958072221ba33cbe84cfa3f299f10caf3f5de62a8f"
+  },
+  {
+    "id": "kodim23",
+    "category": "natural",
+    "sourcePath": "kodim23.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "a84c7740f69a5c4920b73dbd901882881bc0c0d94e1051f3bd9287dbd0dec4c6",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      64584,
+      64584,
+      64584
+    ],
+    "nativeAllocatedBytes": [
+      1994257,
+      1994769,
+      1995281
+    ],
+    "managedBytes": 30422,
+    "nativeBytes": 30419,
+    "managedJpegSha256": "a39949756898a9c07f70aa7de0b6f8ebf4e68c59f62b86734437e9dd9bebf876",
+    "nativeJpegSha256": "c676e12a0ff5528f115c910fcfc8f3cc0d7e75e08196b6db2a1910e770318897"
+  },
+  {
+    "id": "kodim23",
+    "category": "natural",
+    "sourcePath": "kodim23.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "a84c7740f69a5c4920b73dbd901882881bc0c0d94e1051f3bd9287dbd0dec4c6",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      143064,
+      143064,
+      143064
+    ],
+    "nativeAllocatedBytes": [
+      4431631,
+      4431887,
+      4432911
+    ],
+    "managedBytes": 66732,
+    "nativeBytes": 66743,
+    "managedJpegSha256": "a08e65fe3a2bec00921aa0bad58404b0b26eff1dc346a3d5026513d0cd7124e4",
+    "nativeJpegSha256": "cf08f7a314e4bdf91bff199fa61ceff606276abf2f25a189c56ce084b0311c95"
+  },
+  {
+    "id": "kodim23",
+    "category": "natural",
+    "sourcePath": "kodim23.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "a84c7740f69a5c4920b73dbd901882881bc0c0d94e1051f3bd9287dbd0dec4c6",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      102384,
+      102384,
+      102384
+    ],
+    "nativeAllocatedBytes": [
+      4205082,
+      4205338,
+      4206362
+    ],
+    "managedBytes": 29798,
+    "nativeBytes": 29806,
+    "managedJpegSha256": "d54bab7a509d69b85c86144544049b26dda667516984715765dcd2d3f5bb8b6e",
+    "nativeJpegSha256": "86d0ffebc651d7561398eb3cf3d3977b4f12275ab4dc2334a72f1b493f8af091"
+  },
+  {
+    "id": "kodim23",
+    "category": "natural",
+    "sourcePath": "kodim23.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "a84c7740f69a5c4920b73dbd901882881bc0c0d94e1051f3bd9287dbd0dec4c6",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      90680,
+      90680,
+      90680
+    ],
+    "nativeAllocatedBytes": [
+      2331019,
+      2329099,
+      2331019
+    ],
+    "managedBytes": 56471,
+    "nativeBytes": 56523,
+    "managedJpegSha256": "6a29f9a2f0f8f75e3bea9b8bd53bd40a4fb21f364a20d297634d98e852eb8de6",
+    "nativeJpegSha256": "4f5944c7b0a8a741d65c302297e10cf3516d4988805f68bf4c4b73303ef4a5f5"
+  },
+  {
+    "id": "kodim23",
+    "category": "natural",
+    "sourcePath": "kodim23.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "a84c7740f69a5c4920b73dbd901882881bc0c0d94e1051f3bd9287dbd0dec4c6",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      59040,
+      59040,
+      59040
+    ],
+    "nativeAllocatedBytes": [
+      2330980,
+      2329060,
+      2330980
+    ],
+    "managedBytes": 24881,
+    "nativeBytes": 24883,
+    "managedJpegSha256": "03d3d4ffebc2d33a0cdc20df1dd76516d33576336ab6970ce3de82a53347b744",
+    "nativeJpegSha256": "27c16524b56575c6d845624d7afdf93faf0c7e86873623d76ccd0ca60d600d8c"
+  },
+  {
+    "id": "kodim23",
+    "category": "natural",
+    "sourcePath": "kodim23.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "a84c7740f69a5c4920b73dbd901882881bc0c0d94e1051f3bd9287dbd0dec4c6",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      121528,
+      121528,
+      121528
+    ],
+    "nativeAllocatedBytes": [
+      3197546,
+      3197674,
+      3197674
+    ],
+    "managedBytes": 55182,
+    "nativeBytes": 55197,
+    "managedJpegSha256": "6864b397e669dd2fc9871824ba248f10de4d5801f6feabda30ee27b6729a3adc",
+    "nativeJpegSha256": "8d25b3a3fe1a61ae81976513a0534288d35b3507f7fbd4af6289e22bf07556df"
+  },
+  {
+    "id": "kodim23",
+    "category": "natural",
+    "sourcePath": "kodim23.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "a84c7740f69a5c4920b73dbd901882881bc0c0d94e1051f3bd9287dbd0dec4c6",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      87488,
+      87488,
+      87488
+    ],
+    "nativeAllocatedBytes": [
+      3101505,
+      3101633,
+      3101633
+    ],
+    "managedBytes": 24744,
+    "nativeBytes": 24747,
+    "managedJpegSha256": "421ef596badb3c6e9a644c9b0978a302e4fbeee1dc29723445d8e124b2a4aefc",
+    "nativeJpegSha256": "c52d74d63a423cbe37770e5d45f88ea781bc6077cc0483a4b517b58231d7c7b7"
+  },
+  {
+    "id": "kodim24",
+    "category": "natural",
+    "sourcePath": "kodim24.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "fe6f1bd2efbd8ca8568d4a3ba872bcbb26bd230fa88b954ec5f7e30aa57150ac",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      170880,
+      170880,
+      170880
+    ],
+    "nativeAllocatedBytes": [
+      2158333,
+      2158845,
+      2159357
+    ],
+    "managedBytes": 130833,
+    "nativeBytes": 130758,
+    "managedJpegSha256": "88692273f1ab5c020f0fa80c97fc160dd9c78361eeb7ab43e566ae804854e965",
+    "nativeJpegSha256": "dc68f06b69b0f964b2886f63c204e46f8366c2a3f69af02701522f1f66a75570"
+  },
+  {
+    "id": "kodim24",
+    "category": "natural",
+    "sourcePath": "kodim24.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "fe6f1bd2efbd8ca8568d4a3ba872bcbb26bd230fa88b954ec5f7e30aa57150ac",
+    "sampling": 444,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      90728,
+      90728,
+      90728
+    ],
+    "nativeAllocatedBytes": [
+      1994268,
+      1994780,
+      1995292
+    ],
+    "managedBytes": 56546,
+    "nativeBytes": 56595,
+    "managedJpegSha256": "dd49fe89ca8c0ac9dfeeae7fba9d162545aa800a4fb5c775e07bb23391fb3b58",
+    "nativeJpegSha256": "8b9fab736de9fdc954ef4779465eb07e53ad2aa3829b24b666181bd75d87cd56"
+  },
+  {
+    "id": "kodim24",
+    "category": "natural",
+    "sourcePath": "kodim24.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "fe6f1bd2efbd8ca8568d4a3ba872bcbb26bd230fa88b954ec5f7e30aa57150ac",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      205096,
+      205096,
+      205096
+    ],
+    "nativeAllocatedBytes": [
+      4652714,
+      4652970,
+      4653994
+    ],
+    "managedBytes": 126843,
+    "nativeBytes": 126845,
+    "managedJpegSha256": "b9dce679e4f1656e03591f9464fbeeb5efad6667faff71c153511bf1f1970f4c",
+    "nativeJpegSha256": "64d47a74c7302b5e5de80790e845c77c153675095747864c664275ad46449ec9"
+  },
+  {
+    "id": "kodim24",
+    "category": "natural",
+    "sourcePath": "kodim24.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "fe6f1bd2efbd8ca8568d4a3ba872bcbb26bd230fa88b954ec5f7e30aa57150ac",
+    "sampling": 444,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      127160,
+      127160,
+      127160
+    ],
+    "nativeAllocatedBytes": [
+      4289087,
+      4289343,
+      4290367
+    ],
+    "managedBytes": 54580,
+    "nativeBytes": 54583,
+    "managedJpegSha256": "dbe267e75ecb901fd60f95fe44413c8cff66be3d878443571b82fff518c4d1d3",
+    "nativeJpegSha256": "7dc82b08d2dd284bed3895e59447ce873f07b12587d7bd1c8a738a6d7c8245ec"
+  },
+  {
+    "id": "kodim24",
+    "category": "natural",
+    "sourcePath": "kodim24.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "fe6f1bd2efbd8ca8568d4a3ba872bcbb26bd230fa88b954ec5f7e30aa57150ac",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      154312,
+      154312,
+      154312
+    ],
+    "nativeAllocatedBytes": [
+      2495051,
+      2493131,
+      2495051
+    ],
+    "managedBytes": 114416,
+    "nativeBytes": 114432,
+    "managedJpegSha256": "1be735b36c9e9702451204f31db0080baee5661b07634e1c172237b68a8e17b2",
+    "nativeJpegSha256": "ba000e8d40a59a2b10557630093730b24694453a4c3f07808be1e59004913016"
+  },
+  {
+    "id": "kodim24",
+    "category": "natural",
+    "sourcePath": "kodim24.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "fe6f1bd2efbd8ca8568d4a3ba872bcbb26bd230fa88b954ec5f7e30aa57150ac",
+    "sampling": 420,
+    "progressiveLevel": 0,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      80728,
+      80728,
+      80728
+    ],
+    "nativeAllocatedBytes": [
+      2330994,
+      2329074,
+      2330994
+    ],
+    "managedBytes": 46542,
+    "nativeBytes": 46588,
+    "managedJpegSha256": "ea08bb016dfbd6d1388a5bdbc19f7fa01760e1e0007beb7efc3d4e9947bb88b1",
+    "nativeJpegSha256": "ce821bb48cfd78e513c267bf1c95bb6641f3b5bbefab5449d6b7188f34ba0fb3"
+  },
+  {
+    "id": "kodim24",
+    "category": "natural",
+    "sourcePath": "kodim24.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "fe6f1bd2efbd8ca8568d4a3ba872bcbb26bd230fa88b954ec5f7e30aa57150ac",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 1,
+    "managedAllocatedBytes": [
+      184920,
+      184920,
+      184920
+    ],
+    "nativeAllocatedBytes": [
+      3602059,
+      3602187,
+      3602187
+    ],
+    "managedBytes": 111147,
+    "nativeBytes": 111170,
+    "managedJpegSha256": "7773525d0f0b0bd7930067e97ac2abae962be67ab70ca17487017af45bcbe738",
+    "nativeJpegSha256": "9c606a89c72a5228bc40bd2424c21d2501ba16463491565f11dacc43e7ebc502"
+  },
+  {
+    "id": "kodim24",
+    "category": "natural",
+    "sourcePath": "kodim24.ppm",
+    "width": 768,
+    "height": 512,
+    "ppmSha256": "fe6f1bd2efbd8ca8568d4a3ba872bcbb26bd230fa88b954ec5f7e30aa57150ac",
+    "sampling": 420,
+    "progressiveLevel": 2,
+    "distance": 4,
+    "managedAllocatedBytes": [
+      119616,
+      119616,
+      119616
+    ],
+    "nativeAllocatedBytes": [
+      3261864,
+      3261992,
+      3261992
+    ],
+    "managedBytes": 45869,
+    "nativeBytes": 45882,
+    "managedJpegSha256": "d62bd5fd8b41cb563bb551dd5a6b57cfbdc74dac3653d553270ffc4f132a1059",
+    "nativeJpegSha256": "f3181b07dc3b9dbed7b61805b3e9970d4b849becd4fad5a3ed1431ac3fb0eaba"
+  }
+]

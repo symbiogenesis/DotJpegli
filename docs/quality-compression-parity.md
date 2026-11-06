@@ -17,10 +17,10 @@ passed on November 3, 2026, testing revision
 `b07eb5d240c2be1f6b9aebac13d081fb50d740cd`, before the later partial converted-plane
 change. This result establishes quality/compression parity for that measured revision.
 
-The complete comparison also passes for revision `373851b` in
-[CI run 42183646421](https://github.com/symbiogenesis/DotJpegli/actions/runs/42183646421),
+The complete comparison also passes for revision `018a34b` in
+[CI run 42193412518](https://github.com/symbiogenesis/DotJpegli/actions/runs/42193412518),
 measured on November 6, 2026 (America/Chicago and UTC). Its
-[retained summary](performance-evidence/2026-11-06-373851b/quality/summary.json)
+[retained summary](performance-evidence/2026-11-06-018a34b/quality/summary.json)
 records the latest encoder identity after the Huffman entropy coding and
 progressive refinement updates, with 2,850 matched-rate targets and 4,396
 matched-quality targets. Every matched-quality group geometric mean is slightly

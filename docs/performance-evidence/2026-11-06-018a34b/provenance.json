@@ -1,0 +1,117 @@
+{
+    "testedRevision":  "018a34bfaecb576c4fa327637e78e4c46e54da77",
+    "runId":  "42193412518",
+    "runUrl":  "https://github.com/symbiogenesis/DotJpegli/actions/runs/42193412518",
+    "runAttempt":  1,
+    "measurementDate":  "2026-11-06",
+    "measurementDateTimeZone":  "America/Chicago",
+    "artifacts":  [
+                      {
+                          "id":  "13491540273",
+                          "name":  "allocation-evidence-018a34bfaecb576c4fa327637e78e4c46e54da77",
+                          "githubReportedArchiveDigest":  "sha256:3a2741a0bcc7b2d3de65feead1d60543c6a4f73bfe0ad1fc0879eb753da00c26"
+                      },
+                      {
+                          "id":  "13491366343",
+                          "name":  "performance-charts-018a34bfaecb576c4fa327637e78e4c46e54da77",
+                          "githubReportedArchiveDigest":  "sha256:8356dea495328e17e3a4d7d57e591fdda5890e7c51effc349b9ac4b43750db85"
+                      },
+                      {
+                          "id":  "13490762374",
+                          "name":  "performance-parity-018a34bfaecb576c4fa327637e78e4c46e54da77",
+                          "githubReportedArchiveDigest":  "sha256:fcd64a7a0b96a9fd4f0b1a74a56d0e036fa1df9d41ba65cba28a74fa4fec9ddf"
+                      },
+                      {
+                          "id":  "13491275962",
+                          "name":  "quality-compression-parity-018a34bfaecb576c4fa327637e78e4c46e54da77",
+                          "githubReportedArchiveDigest":  "sha256:3eabeb5c8b885504757cb314dbab93d7b4f4dc07e6d508484839ae04fe9b8edc"
+                      }
+                  ],
+    "archiveDigestSource":  "GitHub API; archive digests not independently recomputed",
+    "files":  [
+                  {
+                      "path":  "allocations/cases.json",
+                      "sha256":  "c1b9cf7825598750a51eccf9f7d5da068d4c522cd5ce8fbce7db8de71828c604"
+                  },
+                  {
+                      "path":  "allocations/corpus.json",
+                      "sha256":  "6a529b1ae279c7f89998eb1f89f58237a5c1507ef53f502d71ea429d188dd8a5"
+                  },
+                  {
+                      "path":  "allocations/native-provenance.json",
+                      "sha256":  "4343451985e4d190bce5504ddcb842867cdbba7bb3801da96012137dfe0cc50f"
+                  },
+                  {
+                      "path":  "allocations/summary.json",
+                      "sha256":  "c6b7041c7a2449a670cfdec7fd8473786f3a1f3edf35752d50886700a96c8c67"
+                  },
+                  {
+                      "path":  "charts/allocations.svg",
+                      "sha256":  "fea12d4f8174b7616d7a32897abd12c76f36e817516317bd58f0d93885520870"
+                  },
+                  {
+                      "path":  "charts/compression.svg",
+                      "sha256":  "32b875b9e122572d396c9037c1f3805be1ead096c6d7dd831f5b28dbb6eaacc8"
+                  },
+                  {
+                      "path":  "charts/metrics.json",
+                      "sha256":  "933863b002f53eb11ec8b4ac8981e996f04a63d25c89d0c0825bb14bd4d5f4ed"
+                  },
+                  {
+                      "path":  "charts/wall-time.svg",
+                      "sha256":  "fa75bf530c288c541ec2f26d8cb630d150381eba2db87524b3c8753fb4000811"
+                  },
+                  {
+                      "path":  "full/cases.json",
+                      "sha256":  "4f3ff37c0f0fc231ae81292480b25e9c04819a3671a6e83c66025509cf1f2488"
+                  },
+                  {
+                      "path":  "full/report.md",
+                      "sha256":  "61923cbd9eaf155b497b409425dedf17b775326dd61a0a40538d15156fba28a1"
+                  },
+                  {
+                      "path":  "full/run.json",
+                      "sha256":  "3be8f6aa035f5f5cc19d066853e31777e875c3054d89fa4de792ebd1499f4f22"
+                  },
+                  {
+                      "path":  "full/sources.json",
+                      "sha256":  "7268cb35be71aab345dc2cbc0fa2459a533c14a6f5e5cb1559172efc55b987a5"
+                  },
+                  {
+                      "path":  "full/summary.json",
+                      "sha256":  "aaa4b1514426c07ea52548fd46b4724b51da86311d57833bd4ec9a2fc745932a"
+                  },
+                  {
+                      "path":  "job.json",
+                      "sha256":  "380730a79213d0fb7185686733cf2a4928b052d25e28308dbe7b545edf469a2f"
+                  },
+                  {
+                      "path":  "native-provenance.json",
+                      "sha256":  "4343451985e4d190bce5504ddcb842867cdbba7bb3801da96012137dfe0cc50f"
+                  },
+                  {
+                      "path":  "quality/cases.json",
+                      "sha256":  "2288f327e2e7b840be9bbee2b775fb56fba3c0f4d0d486c0002aa0f648a412d1"
+                  },
+                  {
+                      "path":  "quality/matched-quality.json",
+                      "sha256":  "9d24ddd6007ee771d6efa8999b8c4625da35e57e60b7362ace6ff0028a78d2d7"
+                  },
+                  {
+                      "path":  "quality/matched-rates.json",
+                      "sha256":  "6dd3c45b056e26d17e72a19372bdeea2c8a427927c02514edfaee363147abf2d"
+                  },
+                  {
+                      "path":  "quality/report.md",
+                      "sha256":  "611c7a1272d1eb18560cda6d102c67652ba9297177dad35134b0bd45adaeb24a"
+                  },
+                  {
+                      "path":  "quality/sources.json",
+                      "sha256":  "5529c839442884fa77d559783dc3bc5d60690366acab8cf6ede182bef18a7eab"
+                  },
+                  {
+                      "path":  "quality/summary.json",
+                      "sha256":  "b7dbf8dc2702af7351593d24d26abec1ea36a7e48dc8e02470204f1cab38d4ee"
+                  }
+              ]
+}

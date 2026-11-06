@@ -28,7 +28,7 @@ conditioning on timing stability does not characterize all attempts' latency.
 The [earlier complete native run at `0104778`](performance-evidence/2026-11-03-0104778/README.md)
 has an invalid timing verdict: one of 256 cases, `kodim13/420/p0/d1`, fails the
 managed relative-MAD guard. Its aggregate timings cannot establish native
-performance parity. The current valid `373851b` reference below includes all
+performance parity. The current valid `018a34b` reference below includes all
 256 cases.
 
 The fixed acceptance matrix is complemented by an opt-in workload diagnostic.
@@ -64,8 +64,8 @@ observations and the added 256-warmup tiering scenario; it does not establish
 native parity or a release regression verdict.
 
 The latest complete 256-case comparison of revision
-`373851b426633754ca4137a8b0960c4f41113447` in
-[hosted run 42183646421](https://github.com/symbiogenesis/DotJpegli/actions/runs/42183646421)
+`018a34bfaecb576c4fa327637e78e4c46e54da77` in
+[hosted run 42193412518](https://github.com/symbiogenesis/DotJpegli/actions/runs/42193412518)
 has valid measurements under the fixed protocol and matched settings, but **fails full performance
 parity**. Measurements were collected on November 6, 2026 (America/Chicago and
 UTC). The same run passes the complete quality/compression matrix, collects
@@ -73,26 +73,28 @@ untimed allocation observations and generates the README charts.
 
 | Corpus | Sampling | Sequential mean / worst | Progressive level 2 mean / worst |
 | --- | --- | ---: | ---: |
-| Kodak photographs | 4:4:4 | 0.840 / 1.017 | 0.704 / 0.757 |
-| Kodak photographs | 4:2:0 | 0.827 / 1.084 | 0.696 / 0.787 |
-| Deterministic controls | 4:4:4 | 0.964 / 1.322 | 0.916 / 1.349 |
-| Deterministic controls | 4:2:0 | 0.899 / 1.371 | 0.931 / 1.371 |
+| Kodak photographs | 4:4:4 | 0.853 / 1.176 | 0.713 / 0.799 |
+| Kodak photographs | 4:2:0 | 0.832 / 1.075 | 0.703 / 0.841 |
+| Deterministic controls | 4:4:4 | 0.968 / 1.339 | 0.916 / 1.352 |
+| Deterministic controls | 4:2:0 | 0.900 / 1.389 | 0.930 / 1.374 |
 
 Each mean is the geometric mean of managed/native median latency ratios across
 the group's images and both distances; worst is the largest case ratio.
-Lower is better. Photograph groups use 16.0–17.3% less time for sequential
-encoding and 29.6–30.4% less for progressive encoding. All four photograph
-groups pass both the group and individual bounds. All four deterministic control
-groups pass the group bound (using 3.6–10.1% less time on average) but fail the
-individual bound. Overall, four of eight groups fail, and 25 cases exceed the
-individual bound. The worst individual case is a 1.371160 ratio for sequential
-4:2:0 `tiny-odd-edges` at distance 1. Group averages cannot override individual
-failures.
+Lower is better. Photograph groups use 14.7–16.8% less time for sequential
+encoding and 28.7–29.7% less for progressive encoding. Progressive 4:4:4,
+progressive 4:2:0 and sequential 4:2:0 photograph groups pass both the group
+and individual bounds; sequential 4:4:4 photographs pass the group bound but
+one case (`kodim02` at distance 4, ratio 1.176001) exceeds the individual
+bound. All four deterministic control groups pass the group bound (using
+3.2–10.0% less time on average) but fail the individual bound. Overall, five of
+eight groups fail, and 26 cases exceed the individual bound. The worst
+individual case is a 1.389079 ratio for sequential 4:2:0 `tiny-odd-edges` at
+distance 1. Group averages cannot override individual failures.
 
 This RGB8 to YCbCr comparison uses distances 1/4, adaptive quantization, optimized
 Huffman coding and one worker, on AMD EPYC 9V45 x64 with .NET
 `11.0.0-rc.3.26522.148`, accelerated Vector512 and tiered compilation disabled.
-The [complete reference evidence](performance-evidence/2026-11-06-373851b/README.md)
+The [complete reference evidence](performance-evidence/2026-11-06-018a34b/README.md)
 retains every case, failure, raw sample, host identity, setting, hash and native
 provenance. These measurements support lower group mean
 photograph latency within this scope; full parity remains

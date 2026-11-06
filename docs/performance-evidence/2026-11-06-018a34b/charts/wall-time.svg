@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="584" viewBox="0 0 880 584" role="img" aria-labelledby="title desc">
+  <title id="title">Encoding time</title>
+  <desc id="desc">Percentage change in elapsed encoding time versus native Google Jpegli. Left of zero means less time; right means more time. Geometric means of per-case median ratios, with photographs and deterministic controls shown separately.</desc>
+  <style>
+    :root { color-scheme: light dark; --bg: #ffffff; --ink: #1f2937; --muted: #576575; --grid: #e5eaf0; --baseline: #8996a6; --teal: #0b766e; --amber: #a25212; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0d1117; --ink: #e6edf3; --muted: #a3b1c2; --grid: #252e3a; --baseline: #738399; --teal: #5cdbca; --amber: #f2b36f; }
+    }
+    text { font-variant-numeric: tabular-nums; }
+  </style>
+  <rect width="880" height="584" rx="12" fill="var(--bg)"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="32.00" y="46" font-size="26" fill="var(--ink)" font-weight="650" text-anchor="start">Encoding time</text>
+    <text x="32.00" y="76" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Compared with native Google Jpegli · less time is better</text>
+    <text x="32.00" y="120" font-size="14" fill="var(--muted)" font-weight="600" text-anchor="start">Encoding</text>
+    <text x="244.00" y="120" font-size="14" fill="var(--muted)" font-weight="600" text-anchor="start">Inputs</text>
+    <text x="366.00" y="120" font-size="14" fill="var(--teal)" font-weight="400" text-anchor="start">Less time</text>
+    <text x="516.00" y="120" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="middle">Native</text>
+    <text x="666.00" y="120" font-size="14" fill="var(--amber)" font-weight="400" text-anchor="end">More time</text>
+    <line x1="366.00" y1="140" x2="366.00" y2="492" stroke="var(--grid)"/>
+    <text x="366.00" y="516" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">-30%</text>
+    <line x1="441.00" y1="140" x2="441.00" y2="492" stroke="var(--grid)"/>
+    <text x="441.00" y="516" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">-15%</text>
+    <line x1="516.00" y1="140" x2="516.00" y2="492" stroke="var(--baseline)"/>
+    <text x="516.00" y="516" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">0%</text>
+    <line x1="591.00" y1="140" x2="591.00" y2="492" stroke="var(--grid)"/>
+    <text x="591.00" y="516" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">+15%</text>
+    <line x1="666.00" y1="140" x2="666.00" y2="492" stroke="var(--grid)"/>
+    <text x="666.00" y="516" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">+30%</text>
+    <text x="32.00" y="173" font-size="18" fill="var(--ink)" font-weight="600" text-anchor="start">Sequential</text>
+    <text x="32.00" y="198" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">4:4:4</text>
+    <text x="244.00" y="171" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Photos</text>
+    <rect x="442.69" y="158" width="73.31" height="16" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="171" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">14.7% less</text>
+    <text x="244.00" y="205" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Controls</text>
+    <rect x="499.84" y="192" width="16.16" height="16" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="205" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">3.2% less</text>
+    <line x1="32.00" y1="226" x2="848.00" y2="226" stroke="var(--grid)"/>
+    <text x="32.00" y="265" font-size="18" fill="var(--ink)" font-weight="600" text-anchor="start">Sequential</text>
+    <text x="32.00" y="290" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">4:2:0</text>
+    <text x="244.00" y="263" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Photos</text>
+    <rect x="432.04" y="250" width="83.96" height="16" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="263" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">16.8% less</text>
+    <text x="244.00" y="297" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Controls</text>
+    <rect x="466.10" y="284" width="49.90" height="16" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="297" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">10.0% less</text>
+    <line x1="32.00" y1="318" x2="848.00" y2="318" stroke="var(--grid)"/>
+    <text x="32.00" y="357" font-size="18" fill="var(--ink)" font-weight="600" text-anchor="start">Progressive</text>
+    <text x="32.00" y="382" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">4:4:4</text>
+    <text x="244.00" y="355" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Photos</text>
+    <rect x="372.30" y="342" width="143.70" height="16" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="355" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">28.7% less</text>
+    <text x="244.00" y="389" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Controls</text>
+    <rect x="473.97" y="376" width="42.03" height="16" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="389" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">8.4% less</text>
+    <line x1="32.00" y1="410" x2="848.00" y2="410" stroke="var(--grid)"/>
+    <text x="32.00" y="449" font-size="18" fill="var(--ink)" font-weight="600" text-anchor="start">Progressive</text>
+    <text x="32.00" y="474" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">4:2:0</text>
+    <text x="244.00" y="447" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Photos</text>
+    <rect x="367.61" y="434" width="148.39" height="16" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="447" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">29.7% less</text>
+    <text x="244.00" y="481" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Controls</text>
+    <rect x="480.78" y="468" width="35.22" height="16" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="481" font-size="18" fill="var(--teal)" font-weight="600" text-anchor="end">7.0% less</text>
+    <text x="32.00" y="546" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">Full performance parity: not established · worst case: 38.9% more</text>
+    <text x="32.00" y="568" font-size="12" fill="var(--muted)" font-weight="400" text-anchor="start">2026-11-06 UTC · revision 018a34b · run 42193412518</text>
+  </g>
+</svg>
