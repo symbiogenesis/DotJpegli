@@ -135,35 +135,36 @@ public sealed class SpectralEntropyTests
     [Fact]
     public void OutsideOldCoefficientsDoNotSplitAFullSingletonCorrectionBuffer()
     {
+        const int cap = ProgressiveAcRefinementState.MaximumCorrectionBits;
         short[] old = FilledBlock(3);
         short[] empty = FilledBlock(3);
         Set(empty, 17, 0);
         short[] next = FilledBlock(3);
         Set(next, 17, -2);
-        short[][] blocks = Enumerable.Repeat(old, 255).Concat([empty, next]).ToArray();
+        short[][] blocks = Enumerable.Repeat(old, cap).Concat([empty, next]).ToArray();
         long[] frequencies = new long[256];
         var state = new ProgressiveAcRefinementState();
-        foreach (short[] block in blocks[..256])
+        foreach (short[] block in blocks[..(cap + 1)])
         {
             ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(block, frequencies, state, 0, 17, 17);
         }
-        Assert.Equal(256, state.PendingEobRun);
-        Assert.Equal(255, state.CorrectionBitCount);
+        Assert.Equal(cap + 1, state.PendingEobRun);
+        Assert.Equal(cap, state.CorrectionBitCount);
         Assert.Equal(0, frequencies.Sum());
         ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(next, frequencies, state, 0, 17, 17);
         Assert.Equal(1, state.PendingEobRun);
         Assert.Equal(new byte[] { 0 }, state.Corrections.ToArray());
-        Assert.Equal(1, frequencies[0x80]);
+        Assert.Equal(1, frequencies[0xb0]);
         Assert.Equal(1, frequencies.Sum());
 
-        // Run 256 has eight extension zeros, then the selected bit from each
-        // of the first 255 blocks. The empty block joins the full buffer.
+        // Run 2048 has eleven extension zeros, then the selected bit from each
+        // of the first 2047 blocks. The empty block joins the full buffer.
         CheckRefinementSequence(blocks, 0, 17, 17,
-            (0x80, new string('0', 8) + new string('1', 255)), (0x00, "0"));
+            (0xb0, new string('0', 11) + new string('1', cap)), (0x00, "0"));
     }
 
     [Fact]
-    public void FiveCoefficientBandSplitsCorrectionRunsOnlyAfterExactly255Bits()
+    public void FiveCoefficientBandSplitsCorrectionRunsOnlyAfterExceedingMaximumCorrectionBits()
     {
         short[] old = FilledBlock(3);
         Set(old, 18, 2);
@@ -174,11 +175,17 @@ public sealed class SpectralEntropyTests
         short[] next = FilledBlock(3);
         ClearBand(next, 17, 21);
         Set(next, 21, 2);
-        short[][] blocks = Enumerable.Repeat(old, 51).Concat([empty, next]).ToArray();
+        // 409 blocks * 5 bits = 2045 bits (<= 2047); the 410th old-coefficient block (next) has 1 bit -> 2046,
+        // so add one more 2-bit block to reach 2047 bits before empty and next.
+        short[] twoBit = FilledBlock(3);
+        ClearBand(twoBit, 17, 21);
+        Set(twoBit, 17, 3);
+        Set(twoBit, 18, 2);
+        short[][] blocks = Enumerable.Repeat(old, 409).Concat([twoBit, empty, next]).ToArray();
 
-        // 52 blocks: floor(log2(52)) = 5, with extension 52 - 32 = 20.
+        // 411 blocks: floor(log2(411)) = 8, with extension 411 - 256 = 155 (10011011_2).
         CheckRefinementSequence(blocks, 0, 17, 21,
-            (0x50, "10100" + string.Concat(Enumerable.Repeat("10101", 51))), (0x00, "0"));
+            (0x80, "10011011" + string.Concat(Enumerable.Repeat("10101", 409)) + "10"), (0x00, "0"));
     }
 
     [Fact]

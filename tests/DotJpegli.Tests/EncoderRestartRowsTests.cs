@@ -1,5 +1,6 @@
 namespace DotJpegli.Tests;
 
+using DotJpegli.Internal;
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
@@ -408,12 +409,17 @@ public sealed class EncoderRestartRowsTests
             position += length;
         }
         int? level = options.ProgressiveLevel;
+        bool interleaveDc = level is null ? options.ProgressiveInterleaveDc : maxH == 1 && maxV == 1;
+        IReadOnlyList<JpegScan>? expectedScript = level >= 3
+            ? JpegScanConfiguration.CreateAsymmetricColorScript(interleaveDc)
+            : null;
         return JpegDocument.Read(jpeg, level is int value ? value > 0 : options.Progressive,
             options.RestartInterval, level is null ? options.ProgressiveRefinementBits : 0,
             level is null ? options.ProgressiveAcScanEnds : level == 1 ? [63] : [2, 63],
             level is null ? options.ProgressiveAcRefinementBits : level == 1 ? [1] : [0, 2],
-            level is null ? options.ProgressiveInterleaveDc : maxH == 1 && maxV == 1,
-            expectedRestartRows: options.RestartRows);
+            interleaveDc,
+            expectedRestartRows: options.RestartRows,
+            expectedScanScript: expectedScript);
     }
 
     private static int Interval(JpegDocument document, Scan scan, int rows)

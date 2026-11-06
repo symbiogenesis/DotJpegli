@@ -14,7 +14,7 @@ public sealed class ProgressiveCorrectionPackingTests
         for (int length = 0; length <= ProgressiveAcRefinementState.MaximumCorrectionBits; length++)
         {
             byte[] corrections = Corrections(length);
-            using var tokens = new EntropyTokens(64);
+            using var tokens = new EntropyTokens(length <= 255 ? 64 : 512);
             Record(tokens, corrections);
             Assert.True(tokens.IsComplete);
             foreach (int prefixBits in new[] { 0, 1, 7, 63 })

@@ -1,5 +1,6 @@
 namespace DotJpegli.Tests;
 
+using DotJpegli.Internal;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
 
@@ -215,7 +216,7 @@ public sealed class EncoderRefinementTests
         // vary between blocks so misplaced buffered correction bits change
         // the reconstructed coefficients. Enough blocks exceed the fixed
         // correction storage even though the EOB length itself still fits.
-        const int width = 4800, height = 8, correctionCapacity = 255;
+        const int width = 4800, height = 8, correctionCapacity = ProgressiveAcRefinementState.MaximumCorrectionBits;
         byte[] pixels = StripePixels(width, height);
         var options = new JpegliEncoderOptions
         {

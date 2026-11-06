@@ -79,7 +79,7 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
             preset.Level == 1 ? [63] : [2, 63], preset.Level == 1 ? [1] : [0, 2], null);
     }
 
-    private static JpegScan[] CreateAsymmetricColorScript(bool interleaveInitialScan)
+    internal static JpegScan[] CreateAsymmetricColorScript(bool interleaveInitialScan)
     {
         int[] all = [0, 1, 2], y = [0], cb = [1], cr = [2];
         JpegScan[] dc = interleaveInitialScan
