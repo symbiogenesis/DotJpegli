@@ -315,20 +315,20 @@ internal static class ProgressiveEntropyEncoder
         }
         else if (spectralEnd - spectralStart >= 8 && Vector128.IsHardwareAccelerated)
         {
-            var cutoff = Vector128.Create((short)((1 << successiveLow) - 1));
-            uint m01 = PackMask16(
-                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients[..8])), cutoff),
-                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients.Slice(8, 8))), cutoff));
-            uint m23 = PackMask16(
-                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients.Slice(16, 8))), cutoff),
-                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients.Slice(24, 8))), cutoff));
-            uint m45 = PackMask16(
-                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients.Slice(32, 8))), cutoff),
-                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients.Slice(40, 8))), cutoff));
-            uint m67 = PackMask16(
-                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients.Slice(48, 8))), cutoff),
-                Vector128.GreaterThan(Vector128.Abs(Vector128.Create(coefficients.Slice(56, 8))), cutoff));
-            mask = m01 | (m23 << 16) | ((ulong)(m45 | (m67 << 16)) << 32);
+            Vector128<short> zero = Vector128<short>.Zero;
+            uint z01 = PackMask16(
+                Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients[..8])), successiveLow), zero),
+                Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(8, 8))), successiveLow), zero));
+            uint z23 = PackMask16(
+                Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(16, 8))), successiveLow), zero),
+                Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(24, 8))), successiveLow), zero));
+            uint z45 = PackMask16(
+                Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(32, 8))), successiveLow), zero),
+                Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(40, 8))), successiveLow), zero));
+            uint z67 = PackMask16(
+                Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(48, 8))), successiveLow), zero),
+                Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(56, 8))), successiveLow), zero));
+            mask = ~(z01 | (z23 << 16) | ((ulong)(z45 | (z67 << 16)) << 32));
         }
         else
 #endif
@@ -704,9 +704,9 @@ internal static class ProgressiveEntropyEncoder
         out ulong newlySignificant, out ulong previouslySignificant)
     {
         newlySignificant = previouslySignificant = 0;
-        // Validated AC magnitudes fit in [0, 1023], and position 0 is masked out
-        // by the caller's spectral band. Narrowing pairs of 128-bit comparisons
-        // avoids Vector256<ushort>'s unsigned bias XORs and cross-lane vpermq.
+        // Abs(short.MinValue) retains the unsigned 0x8000 magnitude at low == 0.
+        // Comparing against 1 and 0 with exact 16-bit equality preserves that
+        // magnitude while narrowing pairs of 128-bit masks without unsigned XORs.
 #if !NETSTANDARD2_1
         if (Vector512.IsHardwareAccelerated)
         {
@@ -720,6 +720,7 @@ internal static class ProgressiveEntropyEncoder
         }
         else if (Vector128.IsHardwareAccelerated)
         {
+            Vector128<short> zero = Vector128<short>.Zero;
             var one = Vector128.Create((short)1);
             var m0 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients[..8])), successiveLow);
             var m1 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(8, 8))), successiveLow);
@@ -734,11 +735,12 @@ internal static class ProgressiveEntropyEncoder
             uint n45 = PackMask16(Vector128.Equals(m4, one), Vector128.Equals(m5, one));
             uint n67 = PackMask16(Vector128.Equals(m6, one), Vector128.Equals(m7, one));
             newlySignificant = n01 | (n23 << 16) | ((ulong)(n45 | (n67 << 16)) << 32);
-            uint p01 = PackMask16(Vector128.GreaterThan(m0, one), Vector128.GreaterThan(m1, one));
-            uint p23 = PackMask16(Vector128.GreaterThan(m2, one), Vector128.GreaterThan(m3, one));
-            uint p45 = PackMask16(Vector128.GreaterThan(m4, one), Vector128.GreaterThan(m5, one));
-            uint p67 = PackMask16(Vector128.GreaterThan(m6, one), Vector128.GreaterThan(m7, one));
-            previouslySignificant = p01 | (p23 << 16) | ((ulong)(p45 | (p67 << 16)) << 32);
+            uint z01 = PackMask16(Vector128.Equals(m0, zero), Vector128.Equals(m1, zero));
+            uint z23 = PackMask16(Vector128.Equals(m2, zero), Vector128.Equals(m3, zero));
+            uint z45 = PackMask16(Vector128.Equals(m4, zero), Vector128.Equals(m5, zero));
+            uint z67 = PackMask16(Vector128.Equals(m6, zero), Vector128.Equals(m7, zero));
+            ulong zeroMask = z01 | (z23 << 16) | ((ulong)(z45 | (z67 << 16)) << 32);
+            previouslySignificant = ~(zeroMask | newlySignificant);
         }
         else
 #endif
