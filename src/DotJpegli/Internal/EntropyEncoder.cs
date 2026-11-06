@@ -483,39 +483,29 @@ internal static class EntropyEncoder
         {
             return NonzeroAcMaskVector512(zigZagCoefficients);
         }
+
+        if (Vector128.IsHardwareAccelerated)
+        {
+            return Quantization.NonzeroAcMask128(
+                Vector128.Create(zigZagCoefficients[..8]),
+                Vector128.Create(zigZagCoefficients.Slice(8, 8)),
+                Vector128.Create(zigZagCoefficients.Slice(16, 8)),
+                Vector128.Create(zigZagCoefficients.Slice(24, 8)),
+                Vector128.Create(zigZagCoefficients.Slice(32, 8)),
+                Vector128.Create(zigZagCoefficients.Slice(40, 8)),
+                Vector128.Create(zigZagCoefficients.Slice(48, 8)),
+                Vector128.Create(zigZagCoefficients.Slice(56, 8)));
+        }
 #endif
         ulong mask = 0;
-#if !NETSTANDARD2_1
-        if (Vector256.IsHardwareAccelerated)
+        for (int position = 1; position < 64; position++)
         {
-            for (int position = 0; position < 64; position += Vector256<short>.Count)
+            if (zigZagCoefficients[position] != 0)
             {
-                var values = Vector256.Create(zigZagCoefficients.Slice(position, Vector256<short>.Count));
-                uint zeros = Vector256.ExtractMostSignificantBits(Vector256.Equals(values, Vector256<short>.Zero));
-                mask |= (ulong)(~zeros & 0xffffU) << position;
+                mask |= 1UL << position;
             }
         }
-        else if (Vector128.IsHardwareAccelerated)
-        {
-            for (int position = 0; position < 64; position += Vector128<short>.Count)
-            {
-                var values = Vector128.Create(zigZagCoefficients.Slice(position, Vector128<short>.Count));
-                uint zeros = Vector128.ExtractMostSignificantBits(Vector128.Equals(values, Vector128<short>.Zero));
-                mask |= (ulong)(~zeros & 0xffU) << position;
-            }
-        }
-        else
-#endif
-        {
-            for (int position = 1; position < 64; position++)
-            {
-                if (zigZagCoefficients[position] != 0)
-                {
-                    mask |= 1UL << position;
-                }
-            }
-        }
-        return mask & ~1UL;
+        return mask;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

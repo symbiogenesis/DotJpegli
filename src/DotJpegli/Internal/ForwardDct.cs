@@ -155,7 +155,7 @@ internal static class ForwardDct
         if (zigZagOrdered)
         {
             _ = TransformQuantizeCoreWithMask(samples, stride, centerInput, table, output, adaptiveStrength,
-                clearDcOnlyAc: true);
+                clearDcOnlyAc: true, computeMask: false);
             return;
         }
 
@@ -170,7 +170,8 @@ internal static class ForwardDct
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static ulong TransformQuantizeCoreWithMask(ReadOnlySpan<float> samples, int stride, bool centerInput,
-        Quantization.PreparedTable table, Span<short> output, float adaptiveStrength, bool clearDcOnlyAc)
+        Quantization.PreparedTable table, Span<short> output, float adaptiveStrength, bool clearDcOnlyAc,
+        bool computeMask = true)
     {
         if (output.Length < 64)
         {
@@ -178,6 +179,7 @@ internal static class ForwardDct
         }
 
         Guard.ThrowIfNull(table);
+        bool needMask = computeMask || table.TailZeroRunBias > 0f;
 #if !NETSTANDARD2_1
         if (Vector.IsHardwareAccelerated && Vector<float>.Count == 8
             && (!table.AdaptiveQuantization || (float.IsFinite(adaptiveStrength) && adaptiveStrength >= 0f)))
@@ -188,7 +190,7 @@ internal static class ForwardDct
                 out Vector<float> r4, out Vector<float> r5, out Vector<float> r6, out Vector<float> r7);
             if (Quantization.TryQuantizeTransposed(r0.AsVector256(), r1.AsVector256(), r2.AsVector256(), r3.AsVector256(),
                 r4.AsVector256(), r5.AsVector256(), r6.AsVector256(), r7.AsVector256(), table, transposed, adaptiveStrength,
-                output, out ulong nonzeroAcMask, clearDcOnlyAc))
+                output, out ulong nonzeroAcMask, clearDcOnlyAc, needMask))
             {
                 if (table.TailZeroRunBias > 0f && Quantization.HasTailZeroRunCandidate(output, nonzeroAcMask))
                 {
@@ -202,7 +204,7 @@ internal static class ForwardDct
             && (!table.AdaptiveQuantization || (float.IsFinite(adaptiveStrength) && adaptiveStrength >= 0f))
             && TryTransformQuantizeFourLane(samples, stride, centerInput, table, output, adaptiveStrength))
         {
-            ulong nonzeroAcMask = EntropyEncoder.NonzeroAcMask(output[..64]);
+            ulong nonzeroAcMask = needMask ? EntropyEncoder.NonzeroAcMask(output[..64]) : 0;
             if (table.TailZeroRunBias > 0f && Quantization.HasTailZeroRunCandidate(output, nonzeroAcMask))
             {
                 PruneTailZeroRunFromSamples(samples, stride, centerInput, table, adaptiveStrength, output, ref nonzeroAcMask);
@@ -212,7 +214,7 @@ internal static class ForwardDct
         }
 #endif
         TransformQuantizeFallback(samples, stride, centerInput, table, output, adaptiveStrength, zigZagOrdered: true);
-        return EntropyEncoder.NonzeroAcMask(output[..64]);
+        return needMask ? EntropyEncoder.NonzeroAcMask(output[..64]) : 0;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

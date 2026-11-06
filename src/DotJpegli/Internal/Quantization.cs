@@ -681,7 +681,8 @@ internal static class Quantization
     internal static bool TryQuantizeTransposed(Vector256<float> r0, Vector256<float> r1,
         Vector256<float> r2, Vector256<float> r3, Vector256<float> r4, Vector256<float> r5,
         Vector256<float> r6, Vector256<float> r7, PreparedTable table, TransposedTable transposed,
-        float adaptiveStrength, Span<short> output, out ulong nonzeroAcMask, bool clearDcOnlyAc = true)
+        float adaptiveStrength, Span<short> output, out ulong nonzeroAcMask, bool clearDcOnlyAc = true,
+        bool computeMask = true)
     {
         Guard.ThrowIfNull(table);
         if (output.Length < 64)
@@ -743,13 +744,11 @@ internal static class Quantization
         }
         else if (table.UseTiledZigZag)
         {
-            StoreTransposedZigZag128TiledNonzero(q0, q1, q2, q3, q4, q5, q6, q7, output);
-            nonzeroAcMask = EntropyEncoder.NonzeroAcMask(output[..64]);
+            nonzeroAcMask = StoreTransposedZigZag128TiledNonzero(q0, q1, q2, q3, q4, q5, q6, q7, output, computeMask);
         }
         else
         {
-            StoreTransposedZigZag128OriginalNonzero(q0, q1, q2, q3, q4, q5, q6, q7, output);
-            nonzeroAcMask = EntropyEncoder.NonzeroAcMask(output[..64]);
+            nonzeroAcMask = StoreTransposedZigZag128OriginalNonzero(q0, q1, q2, q3, q4, q5, q6, q7, output, computeMask);
         }
 
         return true;
@@ -957,54 +956,63 @@ internal static class Quantization
             return;
         }
 
-        StoreTransposedZigZag128OriginalNonzero(q0, q1, q2, q3, q4, q5, q6, q7, output);
+        _ = StoreTransposedZigZag128OriginalNonzero(q0, q1, q2, q3, q4, q5, q6, q7, output);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void StoreTransposedZigZag128OriginalNonzero(Vector128<short> q0, Vector128<short> q1,
+    private static ulong StoreTransposedZigZag128OriginalNonzero(Vector128<short> q0, Vector128<short> q1,
         Vector128<short> q2, Vector128<short> q3, Vector128<short> q4, Vector128<short> q5,
-        Vector128<short> q6, Vector128<short> q7, Span<short> output)
+        Vector128<short> q6, Vector128<short> q7, Span<short> output, bool computeMask = false)
     {
-        (Vector128.Shuffle(q0.AsByte(), OriginalTransposedZigZagMasks.M00)
+        Vector128<short> v0 = (Vector128.Shuffle(q0.AsByte(), OriginalTransposedZigZagMasks.M00)
             | Vector128.Shuffle(q1.AsByte(), OriginalTransposedZigZagMasks.M01)
             | Vector128.Shuffle(q2.AsByte(), OriginalTransposedZigZagMasks.M02)
-            | Vector128.Shuffle(q3.AsByte(), OriginalTransposedZigZagMasks.M03)).AsInt16().CopyTo(output[..8]);
-        (Vector128.Shuffle(q0.AsByte(), OriginalTransposedZigZagMasks.M10)
+            | Vector128.Shuffle(q3.AsByte(), OriginalTransposedZigZagMasks.M03)).AsInt16();
+        Vector128<short> v1 = (Vector128.Shuffle(q0.AsByte(), OriginalTransposedZigZagMasks.M10)
             | Vector128.Shuffle(q1.AsByte(), OriginalTransposedZigZagMasks.M11)
             | Vector128.Shuffle(q2.AsByte(), OriginalTransposedZigZagMasks.M12)
             | Vector128.Shuffle(q3.AsByte(), OriginalTransposedZigZagMasks.M13)
             | Vector128.Shuffle(q4.AsByte(), OriginalTransposedZigZagMasks.M14)
-            | Vector128.Shuffle(q5.AsByte(), OriginalTransposedZigZagMasks.M15)).AsInt16().CopyTo(output.Slice(8, 8));
-        (Vector128.Shuffle(q0.AsByte(), OriginalTransposedZigZagMasks.M20)
+            | Vector128.Shuffle(q5.AsByte(), OriginalTransposedZigZagMasks.M15)).AsInt16();
+        Vector128<short> v2 = (Vector128.Shuffle(q0.AsByte(), OriginalTransposedZigZagMasks.M20)
             | Vector128.Shuffle(q1.AsByte(), OriginalTransposedZigZagMasks.M21)
             | Vector128.Shuffle(q2.AsByte(), OriginalTransposedZigZagMasks.M22)
             | Vector128.Shuffle(q3.AsByte(), OriginalTransposedZigZagMasks.M23)
-            | Vector128.Shuffle(q4.AsByte(), OriginalTransposedZigZagMasks.M24)).AsInt16().CopyTo(output.Slice(16, 8));
-        (Vector128.Shuffle(q3.AsByte(), OriginalTransposedZigZagMasks.M33)
+            | Vector128.Shuffle(q4.AsByte(), OriginalTransposedZigZagMasks.M24)).AsInt16();
+        Vector128<short> v3 = (Vector128.Shuffle(q3.AsByte(), OriginalTransposedZigZagMasks.M33)
             | Vector128.Shuffle(q4.AsByte(), OriginalTransposedZigZagMasks.M34)
             | Vector128.Shuffle(q5.AsByte(), OriginalTransposedZigZagMasks.M35)
             | Vector128.Shuffle(q6.AsByte(), OriginalTransposedZigZagMasks.M36)
-            | Vector128.Shuffle(q7.AsByte(), OriginalTransposedZigZagMasks.M37)).AsInt16().CopyTo(output.Slice(24, 8));
-        (Vector128.Shuffle(q0.AsByte(), OriginalTransposedZigZagMasks.M40)
+            | Vector128.Shuffle(q7.AsByte(), OriginalTransposedZigZagMasks.M37)).AsInt16();
+        Vector128<short> v4 = (Vector128.Shuffle(q0.AsByte(), OriginalTransposedZigZagMasks.M40)
             | Vector128.Shuffle(q1.AsByte(), OriginalTransposedZigZagMasks.M41)
             | Vector128.Shuffle(q2.AsByte(), OriginalTransposedZigZagMasks.M42)
             | Vector128.Shuffle(q3.AsByte(), OriginalTransposedZigZagMasks.M43)
-            | Vector128.Shuffle(q4.AsByte(), OriginalTransposedZigZagMasks.M44)).AsInt16().CopyTo(output.Slice(32, 8));
-        (Vector128.Shuffle(q3.AsByte(), OriginalTransposedZigZagMasks.M53)
+            | Vector128.Shuffle(q4.AsByte(), OriginalTransposedZigZagMasks.M44)).AsInt16();
+        Vector128<short> v5 = (Vector128.Shuffle(q3.AsByte(), OriginalTransposedZigZagMasks.M53)
             | Vector128.Shuffle(q4.AsByte(), OriginalTransposedZigZagMasks.M54)
             | Vector128.Shuffle(q5.AsByte(), OriginalTransposedZigZagMasks.M55)
             | Vector128.Shuffle(q6.AsByte(), OriginalTransposedZigZagMasks.M56)
-            | Vector128.Shuffle(q7.AsByte(), OriginalTransposedZigZagMasks.M57)).AsInt16().CopyTo(output.Slice(40, 8));
-        (Vector128.Shuffle(q2.AsByte(), OriginalTransposedZigZagMasks.M62)
+            | Vector128.Shuffle(q7.AsByte(), OriginalTransposedZigZagMasks.M57)).AsInt16();
+        Vector128<short> v6 = (Vector128.Shuffle(q2.AsByte(), OriginalTransposedZigZagMasks.M62)
             | Vector128.Shuffle(q3.AsByte(), OriginalTransposedZigZagMasks.M63)
             | Vector128.Shuffle(q4.AsByte(), OriginalTransposedZigZagMasks.M64)
             | Vector128.Shuffle(q5.AsByte(), OriginalTransposedZigZagMasks.M65)
             | Vector128.Shuffle(q6.AsByte(), OriginalTransposedZigZagMasks.M66)
-            | Vector128.Shuffle(q7.AsByte(), OriginalTransposedZigZagMasks.M67)).AsInt16().CopyTo(output.Slice(48, 8));
-        (Vector128.Shuffle(q4.AsByte(), OriginalTransposedZigZagMasks.M74)
+            | Vector128.Shuffle(q7.AsByte(), OriginalTransposedZigZagMasks.M67)).AsInt16();
+        Vector128<short> v7 = (Vector128.Shuffle(q4.AsByte(), OriginalTransposedZigZagMasks.M74)
             | Vector128.Shuffle(q5.AsByte(), OriginalTransposedZigZagMasks.M75)
             | Vector128.Shuffle(q6.AsByte(), OriginalTransposedZigZagMasks.M76)
-            | Vector128.Shuffle(q7.AsByte(), OriginalTransposedZigZagMasks.M77)).AsInt16().CopyTo(output.Slice(56, 8));
+            | Vector128.Shuffle(q7.AsByte(), OriginalTransposedZigZagMasks.M77)).AsInt16();
+        v0.CopyTo(output[..8]);
+        v1.CopyTo(output.Slice(8, 8));
+        v2.CopyTo(output.Slice(16, 8));
+        v3.CopyTo(output.Slice(24, 8));
+        v4.CopyTo(output.Slice(32, 8));
+        v5.CopyTo(output.Slice(40, 8));
+        v6.CopyTo(output.Slice(48, 8));
+        v7.CopyTo(output.Slice(56, 8));
+        return computeMask ? NonzeroAcMask128(v0, v1, v2, v3, v4, v5, v6, v7) : 0;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1017,13 +1025,13 @@ internal static class Quantization
             return;
         }
 
-        StoreTransposedZigZag128TiledNonzero(q0, q1, q2, q3, q4, q5, q6, q7, output);
+        _ = StoreTransposedZigZag128TiledNonzero(q0, q1, q2, q3, q4, q5, q6, q7, output);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void StoreTransposedZigZag128TiledNonzero(Vector128<short> q0, Vector128<short> q1,
+    private static ulong StoreTransposedZigZag128TiledNonzero(Vector128<short> q0, Vector128<short> q1,
         Vector128<short> q2, Vector128<short> q3, Vector128<short> q4, Vector128<short> q5,
-        Vector128<short> q6, Vector128<short> q7, Span<short> output)
+        Vector128<short> q6, Vector128<short> q7, Span<short> output, bool computeMask = false)
     {
         // Pack adjacent columns into 2 by 4 tiles before applying the JPEG
         // permutation. Each output group now draws from two to four tiles,
@@ -1033,32 +1041,62 @@ internal static class Quantization
         Vector128<byte> t2 = PackLowerHalves(q2, q3), t3 = PackUpperHalves(q2, q3);
         Vector128<byte> t4 = PackLowerHalves(q4, q5), t5 = PackUpperHalves(q4, q5);
         Vector128<byte> t6 = PackLowerHalves(q6, q7), t7 = PackUpperHalves(q6, q7);
-        (Vector128.Shuffle(t0, TransposedZigZagMasks.M00)
-            | Vector128.Shuffle(t2, TransposedZigZagMasks.M02)).AsInt16().CopyTo(output[..8]);
-        (Vector128.Shuffle(t0, TransposedZigZagMasks.M10)
+        Vector128<short> v0 = (Vector128.Shuffle(t0, TransposedZigZagMasks.M00)
+            | Vector128.Shuffle(t2, TransposedZigZagMasks.M02)).AsInt16();
+        Vector128<short> v1 = (Vector128.Shuffle(t0, TransposedZigZagMasks.M10)
             | Vector128.Shuffle(t1, TransposedZigZagMasks.M11)
             | Vector128.Shuffle(t2, TransposedZigZagMasks.M12)
-            | Vector128.Shuffle(t4, TransposedZigZagMasks.M14)).AsInt16().CopyTo(output.Slice(8, 8));
-        (Vector128.Shuffle(t1, TransposedZigZagMasks.M21)
+            | Vector128.Shuffle(t4, TransposedZigZagMasks.M14)).AsInt16();
+        Vector128<short> v2 = (Vector128.Shuffle(t1, TransposedZigZagMasks.M21)
             | Vector128.Shuffle(t2, TransposedZigZagMasks.M22)
             | Vector128.Shuffle(t3, TransposedZigZagMasks.M23)
-            | Vector128.Shuffle(t4, TransposedZigZagMasks.M24)).AsInt16().CopyTo(output.Slice(16, 8));
-        (Vector128.Shuffle(t2, TransposedZigZagMasks.M32)
+            | Vector128.Shuffle(t4, TransposedZigZagMasks.M24)).AsInt16();
+        Vector128<short> v3 = (Vector128.Shuffle(t2, TransposedZigZagMasks.M32)
             | Vector128.Shuffle(t4, TransposedZigZagMasks.M34)
-            | Vector128.Shuffle(t6, TransposedZigZagMasks.M36)).AsInt16().CopyTo(output.Slice(24, 8));
-        (Vector128.Shuffle(t1, TransposedZigZagMasks.M41)
+            | Vector128.Shuffle(t6, TransposedZigZagMasks.M36)).AsInt16();
+        Vector128<short> v4 = (Vector128.Shuffle(t1, TransposedZigZagMasks.M41)
             | Vector128.Shuffle(t3, TransposedZigZagMasks.M43)
-            | Vector128.Shuffle(t5, TransposedZigZagMasks.M45)).AsInt16().CopyTo(output.Slice(32, 8));
-        (Vector128.Shuffle(t3, TransposedZigZagMasks.M53)
+            | Vector128.Shuffle(t5, TransposedZigZagMasks.M45)).AsInt16();
+        Vector128<short> v5 = (Vector128.Shuffle(t3, TransposedZigZagMasks.M53)
             | Vector128.Shuffle(t4, TransposedZigZagMasks.M54)
             | Vector128.Shuffle(t5, TransposedZigZagMasks.M55)
-            | Vector128.Shuffle(t6, TransposedZigZagMasks.M56)).AsInt16().CopyTo(output.Slice(40, 8));
-        (Vector128.Shuffle(t3, TransposedZigZagMasks.M63)
+            | Vector128.Shuffle(t6, TransposedZigZagMasks.M56)).AsInt16();
+        Vector128<short> v6 = (Vector128.Shuffle(t3, TransposedZigZagMasks.M63)
             | Vector128.Shuffle(t5, TransposedZigZagMasks.M65)
             | Vector128.Shuffle(t6, TransposedZigZagMasks.M66)
-            | Vector128.Shuffle(t7, TransposedZigZagMasks.M67)).AsInt16().CopyTo(output.Slice(48, 8));
-        (Vector128.Shuffle(t5, TransposedZigZagMasks.M75)
-            | Vector128.Shuffle(t7, TransposedZigZagMasks.M77)).AsInt16().CopyTo(output.Slice(56, 8));
+            | Vector128.Shuffle(t7, TransposedZigZagMasks.M67)).AsInt16();
+        Vector128<short> v7 = (Vector128.Shuffle(t5, TransposedZigZagMasks.M75)
+            | Vector128.Shuffle(t7, TransposedZigZagMasks.M77)).AsInt16();
+        v0.CopyTo(output[..8]);
+        v1.CopyTo(output.Slice(8, 8));
+        v2.CopyTo(output.Slice(16, 8));
+        v3.CopyTo(output.Slice(24, 8));
+        v4.CopyTo(output.Slice(32, 8));
+        v5.CopyTo(output.Slice(40, 8));
+        v6.CopyTo(output.Slice(48, 8));
+        v7.CopyTo(output.Slice(56, 8));
+        return computeMask ? NonzeroAcMask128(v0, v1, v2, v3, v4, v5, v6, v7) : 0;
+    }
+
+    // Computing the 64-bit nonzero mask directly from the 128-bit zigzag output
+    // registers avoids reloading 64 shorts with wider 256-bit loads (which triggers
+    // store-to-load forwarding stalls after eight 128-bit stores) and avoids the
+    // cross-lane vpermq emitted by Vector256<short>.ExtractMostSignificantBits.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static ulong NonzeroAcMask128(Vector128<short> v0, Vector128<short> v1,
+        Vector128<short> v2, Vector128<short> v3, Vector128<short> v4, Vector128<short> v5,
+        Vector128<short> v6, Vector128<short> v7)
+    {
+        uint z01 = Vector128.ExtractMostSignificantBits(
+            Vector128.Narrow(Vector128.Equals(v0, Vector128<short>.Zero), Vector128.Equals(v1, Vector128<short>.Zero)));
+        uint z23 = Vector128.ExtractMostSignificantBits(
+            Vector128.Narrow(Vector128.Equals(v2, Vector128<short>.Zero), Vector128.Equals(v3, Vector128<short>.Zero)));
+        uint z45 = Vector128.ExtractMostSignificantBits(
+            Vector128.Narrow(Vector128.Equals(v4, Vector128<short>.Zero), Vector128.Equals(v5, Vector128<short>.Zero)));
+        uint z67 = Vector128.ExtractMostSignificantBits(
+            Vector128.Narrow(Vector128.Equals(v6, Vector128<short>.Zero), Vector128.Equals(v7, Vector128<short>.Zero)));
+        ulong zeros = z01 | (z23 << 16) | ((ulong)(z45 | (z67 << 16)) << 32);
+        return ~zeros & ~1UL;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
