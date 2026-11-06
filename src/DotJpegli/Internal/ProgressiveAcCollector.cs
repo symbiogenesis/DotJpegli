@@ -54,97 +54,107 @@ internal static class ProgressiveAcCollector
                 continue;
             }
 
-            JpegComponentSampling factor = sampling[component];
-            int blocksWide = ((width * factor.Horizontal) + (8 * horizontal) - 1) / (8 * horizontal);
-            int blocksHigh = ((height * factor.Vertical) + (8 * vertical) - 1) / (8 * vertical);
-            Quantization.PreparedTable? quantizer = complete ? null
-                : Quantization.PreparedTable.Create(tables[component], component, distance,
-                    grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
-                    adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                    rgb: pixels.IsRgb, tailZeroRunBias: pixels.TailZeroRunBias);
-            int restartInterval = restartIntervals[component];
-            int remaining = restartInterval, restartIndex = 0, lastAnalysisTop = -1;
-            for (int blockY = 0; blockY < blocksHigh; blockY++)
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                bool cachedRow = complete || quantizedImage?.ContainsRow(component, blockY) == true;
-                int analysisTop = blockY / factor.Vertical * 8 * vertical;
-                if (!cachedRow)
-                {
-                    pixels.ParallelRows?.PrepareRow(analysisTop, cancellationToken, component);
-                    if (adaptive is not null && analysisTop != lastAnalysisTop)
-                    {
-                        adaptive.ComputeRow(pixels, stride, analysisTop,
-                            tables[pixels.AnalysisComponent][1], strengths, cancellationToken);
-                        lastAnalysisTop = analysisTop;
-                    }
-                }
-
-                for (int blockX = 0; blockX < blocksWide; blockX++)
+                JpegComponentSampling factor = sampling[component];
+                int blocksWide = ((width * factor.Horizontal) + (8 * horizontal) - 1) / (8 * horizontal);
+                int blocksHigh = ((height * factor.Vertical) + (8 * vertical) - 1) / (8 * vertical);
+                Quantization.PreparedTable? quantizer = complete ? null
+                    : Quantization.PreparedTable.Create(tables[component], component, distance,
+                        grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
+                        adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
+                        rgb: pixels.IsRgb, tailZeroRunBias: pixels.TailZeroRunBias);
+                int restartInterval = restartIntervals[component];
+                int remaining = restartInterval, restartIndex = 0, lastAnalysisTop = -1;
+                for (int blockY = 0; blockY < blocksHigh; blockY++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (restartInterval != 0 && remaining == 0)
+                    bool cachedRow = complete || quantizedImage?.ContainsRow(component, blockY) == true;
+                    int analysisTop = blockY / factor.Vertical * 8 * vertical;
+                    if (!cachedRow)
                     {
-                        foreach (ScanState state in states)
+                        pixels.ParallelRows?.PrepareRow(analysisTop, cancellationToken, component);
+                        if (adaptive is not null && analysisTop != lastAnalysisTop)
                         {
-                            state.Flush();
-                            state.Tokens.AddRestart(restartIndex);
-                        }
-                        restartIndex = (restartIndex + 1) & 7;
-                        remaining = restartInterval;
-                    }
-
-                    scoped ReadOnlySpan<short> encoded;
-                    if (cachedRow)
-                    {
-                        encoded = quantizedImage!.GetBlock(component, blockX, blockY);
-                    }
-                    else
-                    {
-                        if (pixels.ParallelRows is { } parallelRows)
-                        {
-                            parallelRows.CopyBlock(component, blockX, blockY, coefficients);
-                        }
-                        else
-                        {
-                            Downsampling.FillBlock(pixels, width, height, stride, component,
-                                blockX, blockY, horizontal, vertical, factor.Horizontal, factor.Vertical,
-                                samples, smoothingFactor);
-                            ForwardDct.Transform(samples, coefficients);
-                        }
-                        int strengthRow = blockY % factor.Vertical;
-                        float strength = adaptive is null ? 0f : strengths[(strengthRow * adaptive.BlocksWide)
-                            + (blockX * horizontal / factor.Horizontal)];
-                        Quantization.QuantizePrepared(coefficients, quantizer!, quantized, adaptiveStrength: strength);
-                        // Validate once before sharing the block between scan
-                        // states, rather than repeating validation in each scan.
-                        EntropyEncoder.ValidateAc(quantized);
-                        if (zigZagOrdered)
-                        {
-                            ZigZagOrdering.Reorder(quantized, ordered);
-                            encoded = ordered;
-                        }
-                        else
-                        {
-                            encoded = quantized;
+                            adaptive.ComputeRow(pixels, stride, analysisTop,
+                                tables[pixels.AnalysisComponent][1], strengths, cancellationToken);
+                            lastAnalysisTop = analysisTop;
                         }
                     }
 
-                    foreach (ScanState state in states)
+                    for (int blockX = 0; blockX < blocksWide; blockX++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        state.Accumulate(encoded, zigZagOrdered);
-                    }
-                    if (restartInterval != 0)
-                    {
-                        remaining--;
+                        if (restartInterval != 0 && remaining == 0)
+                        {
+                            foreach (ScanState state in states)
+                            {
+                                state.Flush();
+                                state.Tokens.AddRestart(restartIndex);
+                            }
+                            restartIndex = (restartIndex + 1) & 7;
+                            remaining = restartInterval;
+                        }
+
+                        scoped ReadOnlySpan<short> encoded;
+                        if (cachedRow)
+                        {
+                            encoded = quantizedImage!.GetBlock(component, blockX, blockY);
+                        }
+                        else
+                        {
+                            if (pixels.ParallelRows is { } parallelRows)
+                            {
+                                parallelRows.CopyBlock(component, blockX, blockY, coefficients);
+                            }
+                            else
+                            {
+                                Downsampling.FillBlock(pixels, width, height, stride, component,
+                                    blockX, blockY, horizontal, vertical, factor.Horizontal, factor.Vertical,
+                                    samples, smoothingFactor);
+                                ForwardDct.Transform(samples, coefficients);
+                            }
+                            int strengthRow = blockY % factor.Vertical;
+                            float strength = adaptive is null ? 0f : strengths[(strengthRow * adaptive.BlocksWide)
+                                + (blockX * horizontal / factor.Horizontal)];
+                            Quantization.QuantizePrepared(coefficients, quantizer!, quantized, adaptiveStrength: strength);
+                            // Validate once before sharing the block between scan
+                            // states, rather than repeating validation in each scan.
+                            EntropyEncoder.ValidateAc(quantized);
+                            if (zigZagOrdered)
+                            {
+                                ZigZagOrdering.Reorder(quantized, ordered);
+                                encoded = ordered;
+                            }
+                            else
+                            {
+                                encoded = quantized;
+                            }
+                        }
+
+                        foreach (ScanState state in states)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            state.Accumulate(encoded, zigZagOrdered);
+                        }
+                        if (restartInterval != 0)
+                        {
+                            remaining--;
+                        }
                     }
                 }
+                foreach (ScanState state in states)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    state.Flush();
+                }
             }
-            foreach (ScanState state in states)
+            finally
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                state.Flush();
+                foreach (ScanState state in states)
+                {
+                    state.Dispose();
+                }
             }
         }
     }
@@ -173,9 +183,9 @@ internal static class ProgressiveAcCollector
         return states;
     }
 
-    private sealed class ScanState(JpegScan scan, long[] frequencies, EntropyTokens tokens, int component)
+    private sealed class ScanState(JpegScan scan, long[] frequencies, EntropyTokens tokens, int component) : IDisposable
     {
-        private readonly ProgressiveAcRefinementState? refinement = scan.SuccessiveHigh != 0 ? new() : null;
+        private readonly ProgressiveAcRefinementState? refinement = scan.SuccessiveHigh != 0 ? new(pooled: true) : null;
         private int pendingEobRun;
 
         internal EntropyTokens Tokens { get; } = tokens;
@@ -207,5 +217,7 @@ internal static class ProgressiveAcCollector
                 ProgressiveEntropyEncoder.FlushAcFrequencies(frequencies, ref this.pendingEobRun, this.Tokens, component);
             }
         }
+
+        public void Dispose() => this.refinement?.Dispose();
     }
 }

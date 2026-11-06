@@ -4,15 +4,18 @@
 
 namespace DotJpegli.Internal;
 
+using System.Buffers;
+
 // One state belongs to one refinement scan. EOB runs must be flushed at scan
 // ends and restart boundaries. A byte stores each correction bit so the backing
 // buffer contains exactly MaximumCorrectionBits bytes, independent of scan size.
-internal sealed class ProgressiveAcRefinementState
+internal sealed class ProgressiveAcRefinementState(bool pooled = false) : IDisposable
 {
     public const int MaximumCorrectionBits = 2047;
     private const int InitialCorrectionBits = 255;
 
-    private byte[] corrections = new byte[InitialCorrectionBits];
+    private byte[] corrections = [];
+    private bool rented;
 
     public int PendingEobRun { get; private set; }
 
@@ -25,8 +28,16 @@ internal sealed class ProgressiveAcRefinementState
         int required = this.CorrectionBitCount + blockCorrections.Length;
         if (required > this.corrections.Length)
         {
-            Array.Resize(ref this.corrections, Math.Min(MaximumCorrectionBits,
-                Math.Max(required, this.corrections.Length * 2)));
+            if (pooled && !this.rented)
+            {
+                this.corrections = ArrayPool<byte>.Shared.Rent(MaximumCorrectionBits);
+                this.rented = true;
+            }
+            else
+            {
+                Array.Resize(ref this.corrections, Math.Min(MaximumCorrectionBits,
+                    Math.Max(required, Math.Max(InitialCorrectionBits, this.corrections.Length * 2))));
+            }
         }
 
         blockCorrections.CopyTo(this.corrections.AsSpan(this.CorrectionBitCount));
@@ -38,5 +49,16 @@ internal sealed class ProgressiveAcRefinementState
     {
         this.PendingEobRun = 0;
         this.CorrectionBitCount = 0;
+    }
+
+    public void Dispose()
+    {
+        if (this.rented)
+        {
+            byte[] toReturn = this.corrections;
+            this.corrections = [];
+            this.rented = false;
+            ArrayPool<byte>.Shared.Return(toReturn);
+        }
     }
 }

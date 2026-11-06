@@ -1431,7 +1431,7 @@ public static class JpegliEncoder
         int restartIndex = 0;
         int pendingEobRun = 0;
         int previousScanDc = 0;
-        ProgressiveAcRefinementState? refinementState = refine && !dcOnly ? new ProgressiveAcRefinementState() : null;
+        using ProgressiveAcRefinementState? refinementState = refine && !dcOnly ? new ProgressiveAcRefinementState(pooled: true) : null;
 
         void FlushEobRun()
         {
