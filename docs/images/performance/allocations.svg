@@ -27,27 +27,27 @@
     <line x1="718.00" y1="138" x2="718.00" y2="422" stroke="var(--grid)"/>
     <text x="718.00" y="447" font-size="13" fill="var(--muted)" font-weight="400" text-anchor="middle">4500</text>
     <text x="32.00" y="175" font-size="17" fill="var(--ink)" font-weight="500" text-anchor="start">Sequential · 4:4:4</text>
-    <rect x="278.00" y="153" width="11.80" height="17" rx="3" fill="var(--teal)"/>
-    <text x="848.00" y="167" font-size="17" fill="var(--ink)" font-weight="600" text-anchor="end">120.7</text>
+    <rect x="278.00" y="153" width="11.39" height="17" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="167" font-size="17" fill="var(--ink)" font-weight="600" text-anchor="end">116.5</text>
     <rect x="278.00" y="178" width="188.20" height="17" rx="3" fill="var(--amber)"/>
     <text x="848.00" y="192" font-size="17" fill="var(--ink)" font-weight="600" text-anchor="end">1924.8</text>
     <text x="32.00" y="245" font-size="17" fill="var(--ink)" font-weight="500" text-anchor="start">Sequential · 4:2:0</text>
-    <rect x="278.00" y="223" width="10.70" height="17" rx="3" fill="var(--teal)"/>
-    <text x="848.00" y="237" font-size="17" fill="var(--ink)" font-weight="600" text-anchor="end">109.5</text>
+    <rect x="278.00" y="223" width="10.30" height="17" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="237" font-size="17" fill="var(--ink)" font-weight="600" text-anchor="end">105.3</text>
     <rect x="278.00" y="248" width="214.15" height="17" rx="3" fill="var(--amber)"/>
     <text x="848.00" y="262" font-size="17" fill="var(--ink)" font-weight="600" text-anchor="end">2190.1</text>
     <text x="32.00" y="315" font-size="17" fill="var(--ink)" font-weight="500" text-anchor="start">Progressive · 4:4:4</text>
-    <rect x="278.00" y="293" width="16.47" height="17" rx="3" fill="var(--teal)"/>
-    <text x="848.00" y="307" font-size="17" fill="var(--ink)" font-weight="600" text-anchor="end">168.5</text>
+    <rect x="278.00" y="293" width="16.07" height="17" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="307" font-size="17" fill="var(--ink)" font-weight="600" text-anchor="end">164.3</text>
     <rect x="278.00" y="318" width="419.30" height="17" rx="3" fill="var(--amber)"/>
     <text x="848.00" y="332" font-size="17" fill="var(--ink)" font-weight="600" text-anchor="end">4288.3</text>
     <text x="32.00" y="385" font-size="17" fill="var(--ink)" font-weight="500" text-anchor="start">Progressive · 4:2:0</text>
-    <rect x="278.00" y="363" width="15.24" height="17" rx="3" fill="var(--teal)"/>
-    <text x="848.00" y="377" font-size="17" fill="var(--ink)" font-weight="600" text-anchor="end">155.9</text>
+    <rect x="278.00" y="363" width="14.84" height="17" rx="3" fill="var(--teal)"/>
+    <text x="848.00" y="377" font-size="17" fill="var(--ink)" font-weight="600" text-anchor="end">151.8</text>
     <rect x="278.00" y="388" width="313.80" height="17" rx="3" fill="var(--amber)"/>
     <text x="848.00" y="402" font-size="17" fill="var(--ink)" font-weight="600" text-anchor="end">3209.3</text>
     <text x="32.00" y="480" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">Includes returned JPEG · warmed encoders · prepared input excluded</text>
     <text x="32.00" y="502" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">Native allocator overhead, retained capacity and peak memory excluded</text>
-    <text x="32.00" y="531" font-size="12" fill="var(--muted)" font-weight="400" text-anchor="start">2026-11-04 UTC · revision ae1bf49 · run 41781968920</text>
+    <text x="32.00" y="531" font-size="12" fill="var(--muted)" font-weight="400" text-anchor="start">2026-11-06 UTC · revision 40a3074 · run 42175083932</text>
   </g>
 </svg>

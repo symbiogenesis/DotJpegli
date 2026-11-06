@@ -12,12 +12,12 @@
   <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
     <text x="32.00" y="46" font-size="26" fill="var(--ink)" font-weight="650" text-anchor="start">JPEG file size</text>
     <text x="32.00" y="76" font-size="16" fill="var(--muted)" font-weight="400" text-anchor="start">Compared with native Google Jpegli at matched quality</text>
-    <text x="32.00" y="144" font-size="40" fill="var(--teal)" font-weight="650" text-anchor="start">≤0.002%</text>
+    <text x="32.00" y="144" font-size="40" fill="var(--teal)" font-weight="650" text-anchor="start">≤0.032%</text>
     <text x="280.00" y="124" font-size="19" fill="var(--ink)" font-weight="500" text-anchor="start">file-size difference on photographs</text>
     <text x="280.00" y="151" font-size="15" fill="var(--muted)" font-weight="400" text-anchor="start">Across all four encoding modes · matched PSNR and SSIM</text>
     <line x1="32.00" y1="180" x2="848.00" y2="180" stroke="var(--grid)"/>
     <text x="32.00" y="207" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">24 photos · five anchors per image and metric · bound on group means</text>
-    <text x="32.00" y="230" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">Full quality matrix passed · worst size overhead: 0.0871% (including controls)</text>
-    <text x="32.00" y="250" font-size="12" fill="var(--muted)" font-weight="400" text-anchor="start">2026-11-04 UTC · revision 744f7be · run 41772797925</text>
+    <text x="32.00" y="230" font-size="14" fill="var(--muted)" font-weight="400" text-anchor="start">Full quality matrix passed · worst size overhead: 0.3636% (including controls)</text>
+    <text x="32.00" y="250" font-size="12" fill="var(--muted)" font-weight="400" text-anchor="start">2026-11-06 UTC · revision 40a3074 · run 42175083932</text>
   </g>
 </svg>

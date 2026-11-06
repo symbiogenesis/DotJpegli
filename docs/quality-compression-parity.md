@@ -17,15 +17,18 @@ passed on November 3, 2026, testing revision
 `b07eb5d240c2be1f6b9aebac13d081fb50d740cd`, before the later partial converted-plane
 change. This result establishes quality/compression parity for that measured revision.
 
-The complete comparison also passes for revision `744f7be` in
-[CI run 41772797925](https://github.com/symbiogenesis/DotJpegli/actions/runs/41772797925),
-measured on November 3, 2026 (America/Chicago; November 4 UTC). Its
-[retained summary](performance-evidence/2026-11-03-744f7be/quality/summary.json)
-records the latest encoder identity. Raw cases, matched-rate and matched-quality
-results, and source hashes match the retained `b07eb5d` evidence byte for byte,
-so the bounds and counts below also apply to this revision.
+The complete comparison also passes for revision `40a3074` in
+[CI run 42175083932](https://github.com/symbiogenesis/DotJpegli/actions/runs/42175083932),
+measured on November 6, 2026 (America/Chicago and UTC). Its
+[retained summary](performance-evidence/2026-11-06-40a3074/quality/summary.json)
+records the latest encoder identity after the Huffman entropy coding and
+progressive refinement updates, with 2,850 matched-rate targets and 4,396
+matched-quality targets. Every matched-quality group geometric mean is slightly
+smaller than native (up to 0.031342% smaller on photographs), and the worst
+individual matched-quality or same-distance overhead is 0.363636% (all within
+the 2% group and 5% individual bounds).
 
-All **1,280 encoding pairs** passed: 24 photographs plus eight controls,
+All **1,280 encoding pairs** passed in the initial `b07eb5d` baseline: 24 photographs plus eight controls,
 two sampling modes, two scan modes and ten distances. Coverage was complete,
 with 640 matched-rate anchors and 1,280 matched-quality anchors. Endpoint/knot
 checks expanded these to 2,057 matched-rate and 4,396 matched-quality targets;

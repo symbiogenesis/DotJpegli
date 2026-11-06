@@ -159,20 +159,20 @@ These charts compare DotJpegli with **native Google Jpegli** on 24 Kodak photogr
 
 ### Compression efficiency
 
-Mean JPEG sizes differ from native by **at most 0.002%** at matched PSNR and SSIM.
+Mean JPEG sizes differ from native by **at most 0.032%** at matched PSNR and SSIM.
 
-![Photograph group mean JPEG file-size differences from native Google Jpegli are at most 0.002% across all four encoding modes at matched PSNR and SSIM.](docs/images/performance/compression.svg)
+![Photograph group mean JPEG file-size differences from native Google Jpegli are at most 0.032% across all four encoding modes at matched PSNR and SSIM.](docs/images/performance/compression.svg)
 
 ### Encoding wall time
 
-On an Intel Xeon Platinum 8573C, progressive encoding averaged **16.1–18.6% less
-time** than native; sequential averaged **3.7–8.3% more**.
+On an AMD EPYC 7763, progressive encoding averaged **11.1–11.8% less
+time** than native; sequential averaged **6.0–6.1% more**.
 
 ![Percentage encoding-time differences from native Google Jpegli, pairing Kodak photographs and deterministic controls for each encoding mode.](docs/images/performance/wall-time.svg)
 
 ### Allocations per encode
 
-[Allocation measurements](docs/performance-evidence/2026-11-03-ae1bf49-allocations/README.md)
+[Allocation measurements](docs/performance-evidence/2026-11-06-40a3074/README.md)
 compare managed GC allocations with native heap requests per encode, including
 the output JPEG. These do not measure peak memory.
 
