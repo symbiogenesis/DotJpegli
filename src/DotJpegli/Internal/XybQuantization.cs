@@ -1,5 +1,6 @@
 // Copyright (c) the JPEG XL Project Authors.
-// Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
+// Use of this source code is governed by the BSD-3-Clause license in
+// THIRD-PARTY-NOTICES.md.
 // Ported from lib/jpegli/quant.cc, kBaseQuantMatrixXYB and SetQuantMatrices,
 // google/jpegli revision 031a0077f5799a6041004267fc12b956c1f52a20.
 

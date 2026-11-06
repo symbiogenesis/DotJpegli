@@ -33,7 +33,7 @@
     <InternalsVisibleTo Include="DotJpegli.Tests" />
     <InternalsVisibleTo Include="DotJpegli.Performance" />
     <InternalsVisibleTo Include="DotJpegli.Parity" />
-    <None Include="../../LICENSE;../../LICENSE.jpegli;../../THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" Pack="true" PackagePath="" />
+    <None Include="../../LICENSE;../../THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" Pack="true" PackagePath="" />
   </ItemGroup>
 
   <!-- NuGet needs absolute asset/document URLs and does not render the centered wrapper. -->

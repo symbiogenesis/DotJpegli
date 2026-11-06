@@ -1,5 +1,6 @@
 // Copyright (c) the JPEG XL Project Authors.
-// Use of this source code is governed by the BSD-3-Clause license in LICENSE.jpegli.
+// Use of this source code is governed by the BSD-3-Clause license in
+// THIRD-PARTY-NOTICES.md.
 
 namespace DotJpegli.Internal;
 

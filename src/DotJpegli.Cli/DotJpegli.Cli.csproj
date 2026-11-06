@@ -27,7 +27,7 @@
     <Compile Include="../../tools/DotJpegli.Parity/PpmImage.cs" Link="PpmImage.cs" />
     <PackageReference Include="System.CommandLine" />
     <PackageReference Include="StbImageSharp" />
-    <None Include="../../LICENSE;../../LICENSE.jpegli;../../THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../LICENSE;../../THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <Target Name="NamePublicNativeExecutable" AfterTargets="CopyNativeBinary" Condition="'$(PublishAot)' == 'true'">
     <Move SourceFiles="$(PublishDir)$(AssemblyName)$(NativeBinaryExt)" DestinationFiles="$(PublishDir)dotjpegli$(NativeBinaryExt)" />

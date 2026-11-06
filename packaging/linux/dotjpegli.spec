@@ -20,7 +20,6 @@ mkdir -p "%{buildroot}/usr/bin"
 mkdir -p "%{buildroot}/usr/share/doc/dotjpegli"
 install -m 0755 "%{payload_dir}/dotjpegli" "%{buildroot}/usr/bin/dotjpegli"
 install -m 0644 "%{payload_dir}/LICENSE" "%{buildroot}/usr/share/doc/dotjpegli/LICENSE"
-install -m 0644 "%{payload_dir}/LICENSE.jpegli" "%{buildroot}/usr/share/doc/dotjpegli/LICENSE.jpegli"
 install -m 0644 "%{payload_dir}/THIRD-PARTY-NOTICES.md" "%{buildroot}/usr/share/doc/dotjpegli/THIRD-PARTY-NOTICES.md"
 install -m 0644 "%{payload_dir}/LICENSE.dotnet.txt" "%{buildroot}/usr/share/doc/dotjpegli/LICENSE.dotnet.txt"
 install -m 0644 "%{payload_dir}/THIRD-PARTY-NOTICES.dotnet.txt" "%{buildroot}/usr/share/doc/dotjpegli/THIRD-PARTY-NOTICES.dotnet.txt"
@@ -31,7 +30,6 @@ install -m 0644 "%{payload_dir}/README.md" "%{buildroot}/usr/share/doc/dotjpegli
 %attr(0755,root,root) /usr/bin/dotjpegli
 %dir /usr/share/doc/dotjpegli
 %attr(0644,root,root) /usr/share/doc/dotjpegli/LICENSE
-%attr(0644,root,root) /usr/share/doc/dotjpegli/LICENSE.jpegli
 %attr(0644,root,root) /usr/share/doc/dotjpegli/THIRD-PARTY-NOTICES.md
 %attr(0644,root,root) /usr/share/doc/dotjpegli/LICENSE.dotnet.txt
 %attr(0644,root,root) /usr/share/doc/dotjpegli/THIRD-PARTY-NOTICES.dotnet.txt

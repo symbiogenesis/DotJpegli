@@ -24,7 +24,6 @@
                              Name="Installed" Type="integer" Value="1" KeyPath="yes" />
               <File Id="CliExecutable" Source="$(var.PayloadDirectory)/dotjpegli.exe" />
               <File Source="$(var.PayloadDirectory)/LICENSE" />
-              <File Source="$(var.PayloadDirectory)/LICENSE.jpegli" />
               <File Source="$(var.PayloadDirectory)/THIRD-PARTY-NOTICES.md" />
               <File Source="$(var.PayloadDirectory)/LICENSE.dotnet.txt" />
               <File Source="$(var.PayloadDirectory)/THIRD-PARTY-NOTICES.dotnet.txt" />

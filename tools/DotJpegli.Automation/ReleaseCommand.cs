@@ -37,7 +37,7 @@ internal static class ReleaseCommand
         Require(Path.GetFileName(packagePath) == $"DotJpegli.{expectedVersion}.nupkg",
             "Package filename must match the requested DotJpegli version exactly.");
         using ZipArchive package = ZipFile.OpenRead(packagePath);
-        string[] required = ["DotJpegli.nuspec", "README.md", "LICENSE", "LICENSE.jpegli", "THIRD-PARTY-NOTICES.md", .. Frameworks.Select(framework => $"lib/{framework}/DotJpegli.dll")];
+        string[] required = ["DotJpegli.nuspec", "README.md", "LICENSE", "THIRD-PARTY-NOTICES.md", .. Frameworks.Select(framework => $"lib/{framework}/DotJpegli.dll")];
         foreach (string name in required)
         {
             ZipArchiveEntry[] entries = package.Entries.Where(entry => entry.FullName == name).ToArray();

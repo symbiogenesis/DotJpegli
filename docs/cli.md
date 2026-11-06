@@ -87,7 +87,7 @@ release.
   remove the quarantine extended attribute (`xattr -d com.apple.quarantine`) if
   macOS Gatekeeper prompts after browser download.
 
-Keep the included `LICENSE`, `LICENSE.jpegli` and `THIRD-PARTY-NOTICES.md` files
+Keep the included `LICENSE` and `THIRD-PARTY-NOTICES.md` files
 with redistributed binaries. The separate `-symbols.zip` (Windows) and
 `-symbols.tar.gz` (Linux and macOS) downloads contain native debugging symbols
 (`.pdb`, `.dbg` and `.dSYM`) and are not needed to run the program.

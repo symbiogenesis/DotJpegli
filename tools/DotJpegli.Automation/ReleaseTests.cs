@@ -9,7 +9,7 @@ internal static class ReleaseTests
 {
     private const string Version = "1.2.3";
     private const string Revision = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    private static readonly string[] Entries = ["README.md", "LICENSE", "LICENSE.jpegli", "THIRD-PARTY-NOTICES.md", "lib/netstandard2.1/DotJpegli.dll", "lib/net10.0/DotJpegli.dll", "lib/net11.0/DotJpegli.dll"];
+    private static readonly string[] Entries = ["README.md", "LICENSE", "THIRD-PARTY-NOTICES.md", "lib/netstandard2.1/DotJpegli.dll", "lib/net10.0/DotJpegli.dll", "lib/net11.0/DotJpegli.dll"];
 
     internal static void Run()
     {

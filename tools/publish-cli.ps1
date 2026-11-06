@@ -62,7 +62,7 @@ foreach ($directory in @($publish, $portable, $symbols, $release, $toolDirectory
     $null = [IO.Directory]::CreateDirectory($directory)
 }
 $assetName = "DotJpegli.Cli-$Version-$RuntimeIdentifier"
-$portableNotices = @('LICENSE', 'LICENSE.jpegli', 'THIRD-PARTY-NOTICES.md', 'LICENSE.dotnet.txt', 'THIRD-PARTY-NOTICES.dotnet.txt', 'README.md')
+$portableNotices = @('LICENSE', 'THIRD-PARTY-NOTICES.md', 'LICENSE.dotnet.txt', 'THIRD-PARTY-NOTICES.dotnet.txt', 'README.md')
 
 Push-Location -LiteralPath $repository
 try {
@@ -78,7 +78,7 @@ try {
 foreach ($runtimeNotice in @('LICENSE.dotnet.txt', 'THIRD-PARTY-NOTICES.dotnet.txt')) {
     Copy-Item -LiteralPath (Join-Path $publish $runtimeNotice) -Destination $portable
 }
-foreach ($notice in @('LICENSE', 'LICENSE.jpegli', 'THIRD-PARTY-NOTICES.md')) {
+foreach ($notice in @('LICENSE', 'THIRD-PARTY-NOTICES.md')) {
     Copy-Item -LiteralPath (Join-Path $repository $notice) -Destination $portable
 }
 Copy-Item -LiteralPath (Join-Path $repository 'docs/cli.md') -Destination (Join-Path $portable 'README.md')

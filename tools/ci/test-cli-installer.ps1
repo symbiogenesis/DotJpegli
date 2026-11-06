@@ -97,7 +97,7 @@ $expectedNames = @(Get-ExpectedReleaseAssetSet -Version $version -TargetRid $Run
 if (@(Compare-Object -ReferenceObject $expectedNames -DifferenceObject @($assets.Name) -CaseSensitive).Count -ne 0) {
     throw 'CLI release files do not match the expected version, architecture and complete artifact set.'
 }
-$portableNotices = @('LICENSE', 'LICENSE.jpegli', 'THIRD-PARTY-NOTICES.md', 'LICENSE.dotnet.txt', 'THIRD-PARTY-NOTICES.dotnet.txt', 'README.md')
+$portableNotices = @('LICENSE', 'THIRD-PARTY-NOTICES.md', 'LICENSE.dotnet.txt', 'THIRD-PARTY-NOTICES.dotnet.txt', 'README.md')
 $extracted = Join-Path $ArtifactRoot 'extracted'
 $symbols = Join-Path $ArtifactRoot 'extracted-symbols'
 $null = [IO.Directory]::CreateDirectory($extracted)
