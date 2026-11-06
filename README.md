@@ -94,7 +94,7 @@ See the [CLI guide](docs/cli.md) for installation, options and local publishing.
 ### Install the package
 
 ```sh
-dotnet add package DotJpegli --version 2.0.0
+dotnet add package DotJpegli --version 3.0.0
 ```
 
 The package supports .NET Standard 2.1, .NET 10 and .NET 11.
