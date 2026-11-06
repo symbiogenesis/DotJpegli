@@ -22,6 +22,8 @@ internal readonly ref struct PixelSource
     private readonly bool ycbcr;
     private readonly bool xyb;
     private readonly JpegColorSpace colorSpace;
+    private readonly float chromaDownsamplingSharpness;
+    private readonly float tailZeroRunBias;
     private readonly IccColorTransform? colorTransform;
     private readonly ConvertedPlanes? convertedPlanes;
 
@@ -100,10 +102,14 @@ internal readonly ref struct PixelSource
     internal bool IsRgb => this.ColorSpace is JpegColorSpace.Rgb or JpegColorSpace.Xyb;
     internal bool IsXyb => this.ColorSpace == JpegColorSpace.Xyb;
     internal int AnalysisComponent => this.IsRgb ? 1 : 0;
+    internal float ChromaDownsamplingSharpness => this.chromaDownsamplingSharpness;
+    internal float TailZeroRunBias => this.tailZeroRunBias;
+    internal float GetChromaDownsamplingSharpness(int component)
+        => component != 0 && !this.IsRgb ? this.chromaDownsamplingSharpness : 0f;
 
     private PixelSource(PixelSource source, JpegColorSpace colorSpace, ParallelDctRows? parallelRows = null,
         IccColorTransform? colorTransform = null, ConvertedPlanes? convertedPlanes = null,
-        bool discardConvertedPlanes = false)
+        bool discardConvertedPlanes = false, float? chromaDownsamplingSharpness = null, float? tailZeroRunBias = null)
     {
         this.bytes = source.bytes;
         this.words = source.words;
@@ -114,6 +120,8 @@ internal readonly ref struct PixelSource
         this.xyb = source.xyb;
         this.ComponentsPerPixel = source.ComponentsPerPixel;
         this.colorSpace = colorSpace;
+        this.chromaDownsamplingSharpness = chromaDownsamplingSharpness ?? source.chromaDownsamplingSharpness;
+        this.tailZeroRunBias = tailZeroRunBias ?? source.tailZeroRunBias;
         this.ParallelRows = parallelRows;
         this.colorTransform = colorTransform ?? source.colorTransform;
         this.convertedPlanes = discardConvertedPlanes ? null : convertedPlanes ?? source.convertedPlanes;
@@ -278,9 +286,9 @@ internal readonly ref struct PixelSource
                     firstCr.CopyTo(secondCr);
                 }
                 DownsampleConvertedRow(firstCb, secondCb,
-                    planes.GetRow(1, chromaRow));
+                    planes.GetRow(1, chromaRow), this.chromaDownsamplingSharpness);
                 DownsampleConvertedRow(firstCr, secondCr,
-                    planes.GetRow(2, chromaRow));
+                    planes.GetRow(2, chromaRow), this.chromaDownsamplingSharpness);
             }
             if (chromaRow < planes.CachedChromaHeight)
             {
@@ -288,8 +296,8 @@ internal readonly ref struct PixelSource
                 // height the last real average includes two different rows,
                 // whereas every padded row uses the final source row twice.
                 cancellationToken.ThrowIfCancellationRequested();
-                DownsampleConvertedRow(secondCb, secondCb, planes.GetRow(1, chromaRow));
-                DownsampleConvertedRow(secondCr, secondCr, planes.GetRow(2, chromaRow));
+                DownsampleConvertedRow(secondCb, secondCb, planes.GetRow(1, chromaRow), this.chromaDownsamplingSharpness);
+                DownsampleConvertedRow(secondCr, secondCr, planes.GetRow(2, chromaRow), this.chromaDownsamplingSharpness);
                 for (int row = chromaRow + 1; row < planes.CachedChromaHeight; row++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -338,16 +346,16 @@ internal readonly ref struct PixelSource
                 firstCb.CopyTo(secondCb);
                 firstCr.CopyTo(secondCr);
             }
-            DownsampleConvertedRow(firstCb, secondCb, cb.Slice(chromaRow * chromaWidth, chromaWidth));
-            DownsampleConvertedRow(firstCr, secondCr, cr.Slice(chromaRow * chromaWidth, chromaWidth));
+            DownsampleConvertedRow(firstCb, secondCb, cb.Slice(chromaRow * chromaWidth, chromaWidth), this.chromaDownsamplingSharpness);
+            DownsampleConvertedRow(firstCr, secondCr, cr.Slice(chromaRow * chromaWidth, chromaWidth), this.chromaDownsamplingSharpness);
         }
         if (chromaRow < planes.ChromaHeight)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Span<float> finalCb = cb.Slice(chromaRow * chromaWidth, chromaWidth);
             Span<float> finalCr = cr.Slice(chromaRow * chromaWidth, chromaWidth);
-            DownsampleConvertedRow(secondCb, secondCb, finalCb);
-            DownsampleConvertedRow(secondCr, secondCr, finalCr);
+            DownsampleConvertedRow(secondCb, secondCb, finalCb, this.chromaDownsamplingSharpness);
+            DownsampleConvertedRow(secondCr, secondCr, finalCr, this.chromaDownsamplingSharpness);
             for (int row = chromaRow + 1; row < planes.ChromaHeight; row++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -357,34 +365,54 @@ internal readonly ref struct PixelSource
         }
     }
 
-    private static void DownsampleConvertedRow(ReadOnlySpan<float> first, ReadOnlySpan<float> second, Span<float> output)
+    private static void DownsampleConvertedRow(ReadOnlySpan<float> first, ReadOnlySpan<float> second, Span<float> output, float sharpness = 0f)
     {
         int width = first.Length;
         int x = 0;
 #if !NETSTANDARD2_1
         if (Vector256.IsHardwareAccelerated)
         {
-            for (; x * 2 <= width - 16; x += 8)
+            if (sharpness == 0f)
             {
-                ((Downsampling.PairwiseSums256(first.Slice(x * 2, 16))
-                    + Downsampling.PairwiseSums256(second.Slice(x * 2, 16))) * Vector256.Create(0.25f)).CopyTo(output[x..]);
+                for (; x * 2 <= width - 16; x += 8)
+                {
+                    ((Downsampling.PairwiseSums256(first.Slice(x * 2, 16))
+                        + Downsampling.PairwiseSums256(second.Slice(x * 2, 16))) * Vector256.Create(0.25f)).CopyTo(output[x..]);
+                }
+            }
+            else
+            {
+                for (; x * 2 <= width - 16; x += 8)
+                {
+                    Downsampling.Downsample2x2Row256(first.Slice(x * 2, 16), second.Slice(x * 2, 16), sharpness).CopyTo(output[x..]);
+                }
             }
         }
         else if (Vector128.IsHardwareAccelerated)
         {
-            for (; x * 2 <= width - 8; x += 4)
+            if (sharpness == 0f)
             {
-                ((Downsampling.PairwiseSums128(first.Slice(x * 2, 8))
-                    + Downsampling.PairwiseSums128(second.Slice(x * 2, 8))) * Vector128.Create(0.25f)).CopyTo(output[x..]);
+                for (; x * 2 <= width - 8; x += 4)
+                {
+                    ((Downsampling.PairwiseSums128(first.Slice(x * 2, 8))
+                        + Downsampling.PairwiseSums128(second.Slice(x * 2, 8))) * Vector128.Create(0.25f)).CopyTo(output[x..]);
+                }
+            }
+            else
+            {
+                for (; x * 2 <= width - 8; x += 4)
+                {
+                    Downsampling.Downsample2x2Row128(first.Slice(x * 2, 8), second.Slice(x * 2, 8), sharpness).CopyTo(output[x..]);
+                }
             }
         }
 #endif
         for (; x < (width + 1) / 2; x++)
         {
             int left = x * 2, right = Math.Min(left + 1, width - 1);
-            output[x] = (first[left] + first[right] + (second[left] + second[right])) * 0.25f;
+            output[x] = Downsampling.Downsample2x2Quad(first[left], first[right], second[left], second[right], sharpness);
         }
-        float padding = (first[^1] + first[^1] + (second[^1] + second[^1])) * 0.25f;
+        float padding = Downsampling.Downsample2x2Quad(first[^1], first[^1], second[^1], second[^1], sharpness);
         output[x..].Fill(padding);
     }
 
@@ -754,6 +782,8 @@ internal readonly ref struct PixelSource
         private readonly bool ycbcr;
         private readonly bool xyb;
         private readonly JpegColorSpace colorSpace;
+        private readonly float chromaDownsamplingSharpness;
+        private readonly float tailZeroRunBias;
         private readonly int componentsPerPixel;
         private readonly IccColorTransform? colorTransform;
         private readonly ConvertedPlanes? convertedPlanes;
@@ -782,6 +812,8 @@ internal readonly ref struct PixelSource
             this.ycbcr = source.ycbcr;
             this.xyb = source.xyb;
             this.colorSpace = source.colorSpace;
+            this.chromaDownsamplingSharpness = source.chromaDownsamplingSharpness;
+            this.tailZeroRunBias = source.tailZeroRunBias;
             this.componentsPerPixel = source.ComponentsPerPixel;
             this.colorTransform = source.colorTransform;
         }
@@ -800,7 +832,7 @@ internal readonly ref struct PixelSource
                 float[] floats => new PixelSource(floats, this.GetLayout()),
                 null => throw new InvalidOperationException("The snapshot has no sample storage.")
             };
-            pixels = pixels.WithColorSpace(this.colorSpace);
+            pixels = pixels.WithColorSpace(this.colorSpace, this.chromaDownsamplingSharpness, this.tailZeroRunBias);
             if (this.colorTransform is not null)
             {
                 pixels = pixels.WithColorTransform(this.colorTransform);
@@ -835,7 +867,7 @@ internal readonly ref struct PixelSource
 
     [SuppressMessage("Usage", "CA2208:Instantiate argument exceptions correctly",
         Justification = "Validation reports the caller's ColorSpace option rather than this internal adapter parameter.")]
-    internal PixelSource WithColorSpace(JpegColorSpace outputColorSpace)
+    internal PixelSource WithColorSpace(JpegColorSpace outputColorSpace, float chromaDownsamplingSharpness = 0f, float tailZeroRunBias = 0f)
     {
         if (this.xyb && outputColorSpace is not (JpegColorSpace.Automatic or JpegColorSpace.Xyb))
         {
@@ -855,7 +887,8 @@ internal readonly ref struct PixelSource
                 nameof(JpegliEncoderOptions.ColorSpace));
         }
 
-        return new PixelSource(this, outputColorSpace, discardConvertedPlanes: true);
+        return new PixelSource(this, outputColorSpace, discardConvertedPlanes: true,
+            chromaDownsamplingSharpness: chromaDownsamplingSharpness, tailZeroRunBias: tailZeroRunBias);
     }
     internal int Length => this.convertedPlanes?.SourceLength ?? (this.sourceType switch
     {

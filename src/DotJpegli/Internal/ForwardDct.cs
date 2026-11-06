@@ -190,6 +190,11 @@ internal static class ForwardDct
                 r4.AsVector256(), r5.AsVector256(), r6.AsVector256(), r7.AsVector256(), table, transposed, adaptiveStrength,
                 output, out ulong nonzeroAcMask, clearDcOnlyAc))
             {
+                if (table.TailZeroRunBias > 0f && Quantization.HasTailZeroRunCandidate(output, nonzeroAcMask))
+                {
+                    PruneTailZeroRunFromSamples(samples, stride, centerInput, table, adaptiveStrength, output, ref nonzeroAcMask);
+                }
+
                 return nonzeroAcMask;
             }
         }
@@ -197,11 +202,34 @@ internal static class ForwardDct
             && (!table.AdaptiveQuantization || (float.IsFinite(adaptiveStrength) && adaptiveStrength >= 0f))
             && TryTransformQuantizeFourLane(samples, stride, centerInput, table, output, adaptiveStrength))
         {
-            return EntropyEncoder.NonzeroAcMask(output[..64]);
+            ulong nonzeroAcMask = EntropyEncoder.NonzeroAcMask(output[..64]);
+            if (table.TailZeroRunBias > 0f && Quantization.HasTailZeroRunCandidate(output, nonzeroAcMask))
+            {
+                PruneTailZeroRunFromSamples(samples, stride, centerInput, table, adaptiveStrength, output, ref nonzeroAcMask);
+            }
+
+            return nonzeroAcMask;
         }
 #endif
         TransformQuantizeFallback(samples, stride, centerInput, table, output, adaptiveStrength, zigZagOrdered: true);
         return EntropyEncoder.NonzeroAcMask(output[..64]);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void PruneTailZeroRunFromSamples(ReadOnlySpan<float> samples, int stride, bool centerInput,
+        Quantization.PreparedTable table, float adaptiveStrength, Span<short> output, ref ulong nonzeroAcMask)
+    {
+        Span<float> coefficients = stackalloc float[64];
+        if (centerInput)
+        {
+            TransformPlane(samples, stride, 0, 0, coefficients);
+        }
+        else
+        {
+            Transform(samples, coefficients);
+        }
+
+        Quantization.PruneTailZeroRunZigZag(coefficients, table, adaptiveStrength, output, ref nonzeroAcMask);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

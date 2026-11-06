@@ -1,5 +1,6 @@
 namespace DotJpegli.Tests;
 
+using DotJpegli.Internal;
 using StbImageSharp;
 using Xunit;
 using static DotJpegli.Tests.EncoderProgressiveTests;
@@ -111,10 +112,14 @@ public sealed class EncoderProgressionLevelTests
                             options with { ProgressiveLevel = 0, Progressive = progressive }));
                     }
 
-                    byte[] expected = Encode(pixels, width, height, layout, options with { ProgressiveLevel = 2 });
+                    byte[] expectedLevel3 = Encode(pixels, width, height, layout, options with { ProgressiveLevel = 3 });
+                    if (layout == PixelLayout.Gray8)
+                    {
+                        Assert.Equal(Encode(pixels, width, height, layout, options with { ProgressiveLevel = 2 }), expectedLevel3);
+                    }
                     foreach (int level in new[] { 3, 10, int.MaxValue })
                     {
-                        Assert.Equal(expected, Encode(pixels, width, height, layout,
+                        Assert.Equal(expectedLevel3, Encode(pixels, width, height, layout,
                             options with { ProgressiveLevel = level }));
                     }
 
@@ -124,6 +129,14 @@ public sealed class EncoderProgressionLevelTests
                     {
                         byte[] jpeg = Encode(pixels, width, height, layout, options with { ProgressiveLevel = level });
                         AssertParity(baseline, reference, jpeg, ReadPreset(jpeg, level, 2, interleave));
+                    }
+                    if (layout != PixelLayout.Gray8)
+                    {
+                        JpegScan[] expectedAsymmetric = JpegScanConfiguration.FromOptions(options with { ProgressiveLevel = 3 })
+                            .Prepare(JpegSamplingFactors.FromSubsampling(sampling), grayscale: false, preparedScript: null).Script!;
+                        var asymmetricDoc = JpegDocument.Read(expectedLevel3, progressive: true, expectedInterval: 2,
+                            expectedScanScript: expectedAsymmetric);
+                        AssertParity(baseline, reference, expectedLevel3, asymmetricDoc);
                     }
                 }
             }

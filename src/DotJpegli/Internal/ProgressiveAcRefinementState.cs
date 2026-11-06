@@ -9,10 +9,10 @@ namespace DotJpegli.Internal;
 // buffer contains exactly MaximumCorrectionBits bytes, independent of scan size.
 internal sealed class ProgressiveAcRefinementState
 {
-    // Matches the uint8_t refinement token bit count in pinned Jpegli.
-    public const int MaximumCorrectionBits = 255;
+    public const int MaximumCorrectionBits = 2047;
+    private const int InitialCorrectionBits = 255;
 
-    private readonly byte[] corrections = new byte[MaximumCorrectionBits];
+    private byte[] corrections = new byte[InitialCorrectionBits];
 
     public int PendingEobRun { get; private set; }
 
@@ -22,8 +22,15 @@ internal sealed class ProgressiveAcRefinementState
 
     internal void AppendBlock(ReadOnlySpan<byte> blockCorrections)
     {
+        int required = this.CorrectionBitCount + blockCorrections.Length;
+        if (required > this.corrections.Length)
+        {
+            Array.Resize(ref this.corrections, Math.Min(MaximumCorrectionBits,
+                Math.Max(required, this.corrections.Length * 2)));
+        }
+
         blockCorrections.CopyTo(this.corrections.AsSpan(this.CorrectionBitCount));
-        this.CorrectionBitCount += blockCorrections.Length;
+        this.CorrectionBitCount = required;
         this.PendingEobRun++;
     }
 

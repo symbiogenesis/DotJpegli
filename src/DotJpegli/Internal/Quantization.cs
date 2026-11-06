@@ -536,7 +536,7 @@ internal static class Quantization
         private TransposedTable? transposed;
 
         private PreparedTable(float[] divisors, float[] multipliers, float acOffset, bool adaptiveQuantization,
-            KernelPreference narrowZigZagKernel, int imageWidth, int imageHeight)
+            KernelPreference narrowZigZagKernel, int imageWidth, int imageHeight, float tailZeroRunBias)
         {
             this.divisors = divisors;
             this.multipliers = multipliers;
@@ -544,6 +544,7 @@ internal static class Quantization
             this.AdaptiveQuantization = adaptiveQuantization;
             this.NarrowZigZagKernel = narrowZigZagKernel;
             this.UseTiledZigZag = KernelPolicy.UseTiledZigZag(narrowZigZagKernel, imageWidth, imageHeight);
+            this.TailZeroRunBias = tailZeroRunBias;
         }
 
         internal ReadOnlySpan<float> Divisors => this.divisors;
@@ -552,6 +553,7 @@ internal static class Quantization
         internal bool AdaptiveQuantization { get; }
         internal KernelPreference NarrowZigZagKernel { get; }
         internal bool UseTiledZigZag { get; }
+        internal float TailZeroRunBias { get; }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal TransposedTable GetTransposed()
@@ -568,7 +570,7 @@ internal static class Quantization
             bool grayscale = false, bool adaptiveQuantization = false,
             ReadOnlySpan<float> adaptiveMultipliers = default, bool rgb = false,
             KernelPreference narrowZigZagKernel = KernelPreference.Automatic,
-            int imageWidth = 0, int imageHeight = 0)
+            int imageWidth = 0, int imageHeight = 0, float tailZeroRunBias = 0f)
         {
             ValidateComponent(component);
             if (grayscale && component != 0)
@@ -579,6 +581,11 @@ internal static class Quantization
             if (!float.IsFinite(distance) || distance <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(distance));
+            }
+
+            if (!float.IsFinite(tailZeroRunBias) || tailZeroRunBias is < 0f or > 0.5f)
+            {
+                throw new ArgumentOutOfRangeException(nameof(tailZeroRunBias));
             }
 
             if (table.Length < BlockSize)
@@ -619,7 +626,7 @@ internal static class Quantization
                 1 => 0.58146f,
                 _ => 0.57988f,
             };
-            return new(divisors, multipliers, acOffset, adaptiveQuantization, narrowZigZagKernel, imageWidth, imageHeight);
+            return new(divisors, multipliers, acOffset, adaptiveQuantization, narrowZigZagKernel, imageWidth, imageHeight, tailZeroRunBias);
         }
     }
 
@@ -1249,6 +1256,97 @@ internal static class Quantization
         else
         {
             QuantizePreparedScalarCore(coefficients, table, output, adaptiveStrength, previousDc, requireEightBitCoefficients);
+        }
+
+        if (table.TailZeroRunBias > 0f)
+        {
+            PruneTailZeroRunNatural(coefficients, table, adaptiveStrength, output);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static bool HasTailZeroRunCandidate(ReadOnlySpan<short> zigZagOutput, ulong nonzeroAcMask)
+    {
+        if (nonzeroAcMask == 0)
+        {
+            return false;
+        }
+
+        int last = BitOperations.Log2(nonzeroAcMask);
+        ulong previousMask = nonzeroAcMask & ~(1UL << last);
+        int previous = previousMask == 0 ? 0 : BitOperations.Log2(previousMask);
+        return last - previous - 1 >= 16 && (zigZagOutput[last] == 1 || zigZagOutput[last] == -1);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void PruneTailZeroRunZigZag(ReadOnlySpan<float> naturalCoefficients, PreparedTable table,
+        float adaptiveStrength, Span<short> zigZagOutput, ref ulong nonzeroAcMask)
+    {
+        ReadOnlySpan<float> divisors = table.Divisors;
+        ReadOnlySpan<float> multipliers = table.Multipliers;
+        bool adaptive = table.AdaptiveQuantization;
+        float bias = table.TailZeroRunBias;
+        while (nonzeroAcMask != 0)
+        {
+            int last = BitOperations.Log2(nonzeroAcMask);
+            ulong previousMask = nonzeroAcMask & ~(1UL << last);
+            int previous = previousMask == 0 ? 0 : BitOperations.Log2(previousMask);
+            if (last - previous - 1 < 16 || (zigZagOutput[last] != 1 && zigZagOutput[last] != -1))
+            {
+                break;
+            }
+
+            int natural = JpegConstants.ZigZag[last];
+            float quantized = naturalCoefficients[natural] / divisors[natural];
+            float threshold = table.AcOffset + (adaptive ? adaptiveStrength * multipliers[natural] : 0f) + bias;
+            if (MathF.Abs(quantized) >= threshold)
+            {
+                break;
+            }
+
+            zigZagOutput[last] = 0;
+            nonzeroAcMask = previousMask;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void PruneTailZeroRunNatural(ReadOnlySpan<float> naturalCoefficients, PreparedTable table,
+        float adaptiveStrength, Span<short> naturalOutput)
+    {
+        ReadOnlySpan<int> order = JpegConstants.ZigZag;
+        ulong nonzeroAcMask = 0;
+        for (int position = 1; position < BlockSize; position++)
+        {
+            if (naturalOutput[order[position]] != 0)
+            {
+                nonzeroAcMask |= 1UL << position;
+            }
+        }
+
+        ReadOnlySpan<float> divisors = table.Divisors;
+        ReadOnlySpan<float> multipliers = table.Multipliers;
+        bool adaptive = table.AdaptiveQuantization;
+        float bias = table.TailZeroRunBias;
+        while (nonzeroAcMask != 0)
+        {
+            int last = BitOperations.Log2(nonzeroAcMask);
+            ulong previousMask = nonzeroAcMask & ~(1UL << last);
+            int previous = previousMask == 0 ? 0 : BitOperations.Log2(previousMask);
+            int natural = order[last];
+            if (last - previous - 1 < 16 || (naturalOutput[natural] != 1 && naturalOutput[natural] != -1))
+            {
+                break;
+            }
+
+            float quantized = naturalCoefficients[natural] / divisors[natural];
+            float threshold = table.AcOffset + (adaptive ? adaptiveStrength * multipliers[natural] : 0f) + bias;
+            if (MathF.Abs(quantized) >= threshold)
+            {
+                break;
+            }
+
+            naturalOutput[natural] = 0;
+            nonzeroAcMask = previousMask;
         }
     }
 

@@ -9,7 +9,10 @@ public sealed class HuffmanSymbolOrderingTests
     public void OrdersPreserveEveryLengthAndCostWithoutMutatingTheControl()
     {
         long[] frequencies = Enumerable.Range(0, 256).Select(index => (long)((index * 13 % 29) + 1)).ToArray();
-        var control = HuffmanTable.CreateOptimized(frequencies);
+        var control = HuffmanTable.CreateOptimized(frequencies, HuffmanSymbolOrder.Canonical);
+        var defaultOptimized = HuffmanTable.CreateOptimized(frequencies);
+        Assert.Equal(HuffmanSymbolOrdering.Reorder(control, frequencies, HuffmanSymbolOrder.FrequencyDescending).Symbols,
+            defaultOptimized.Symbols);
         byte[] counts = (byte[])control.Counts.Clone(), symbols = (byte[])control.Symbols.Clone();
         ulong[] replay = control.GetPrebiasedCodes(), originalReplay = (ulong[])replay.Clone();
         byte[] lengths = Lengths(control);

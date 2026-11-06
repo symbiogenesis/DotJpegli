@@ -148,7 +148,7 @@ public static class JpegliEncoder
         options ??= new JpegliEncoderOptions();
         options.Validate();
         var cacheBudget = new EncoderCacheBudget(options.MaxCacheBytes, options.CacheDiagnostics);
-        pixels = pixels.WithColorSpace(options.ColorSpace);
+        pixels = pixels.WithColorSpace(options.ColorSpace, options.ChromaDownsamplingSharpness, options.TailZeroRunBias);
         if (pixels.IsXyb && options.IccProfile.IsEmpty && options.SourceIccProfile.IsEmpty)
         {
             throw new ArgumentException("Scaled XYB encoding requires an ICC profile describing the stored channels.",
@@ -472,8 +472,8 @@ public static class JpegliEncoder
             }
             for (int index = 0; index < dcTables.Length; index++)
             {
-                dcTables[index] = HuffmanTable.CreateOptimized(dcFrequencies[index]);
-                acTables[index] = HuffmanTable.CreateOptimized(acFrequencies[index]);
+                dcTables[index] = HuffmanTable.CreateOptimized(dcFrequencies[index], options.HuffmanSymbolOrder);
+                acTables[index] = HuffmanTable.CreateOptimized(acFrequencies[index], options.HuffmanSymbolOrder);
             }
         }
         else
@@ -1047,7 +1047,8 @@ public static class JpegliEncoder
             var quantizer = Quantization.PreparedTable.Create(tables[component], component, distance,
                 adaptiveQuantization: adaptive is not null,
                 adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                narrowZigZagKernel: narrowZigZagKernel, imageWidth: width, imageHeight: height);
+                narrowZigZagKernel: narrowZigZagKernel, imageWidth: width, imageHeight: height,
+                tailZeroRunBias: pixels.TailZeroRunBias);
             int blocksWide = ((width * factor.Horizontal) + mcuWidth - 1) / mcuWidth;
             components[component] = new(factor.Horizontal, factor.Vertical,
                 blocksWide,
@@ -1233,7 +1234,7 @@ public static class JpegliEncoder
                 quantizers[component] = Quantization.PreparedTable.Create(tables[component], component, distance,
                     grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
                     adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                    rgb: pixels.IsRgb);
+                    rgb: pixels.IsRgb, tailZeroRunBias: pixels.TailZeroRunBias);
             }
         }
         Span<short> ordered = quantizedImage?.IsZigZagOrdered == true && !cacheComplete ? stackalloc short[64] : default;
@@ -1420,7 +1421,7 @@ public static class JpegliEncoder
             : Quantization.PreparedTable.Create(tables[component], component, distance,
                 grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
                 adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                rgb: pixels.IsRgb);
+                rgb: pixels.IsRgb, tailZeroRunBias: pixels.TailZeroRunBias);
         Span<short> ordered = quantizedImage?.IsZigZagOrdered == true && !cacheComplete ? stackalloc short[64] : default;
         Span<float> strengths = adaptive is null || cacheComplete
             ? default : adaptive.Strengths;

@@ -23,7 +23,7 @@ public sealed record JpegliEncoderOptions
     // Offline scan search can constrain histogram clustering independently for
     // DC and AC tables. Zero retains the normal cost/slot-redefinition policy.
     internal int HuffmanTableLimit { get; init; }
-    internal HuffmanSymbolOrder HuffmanSymbolOrder { get; init; }
+    internal HuffmanSymbolOrder HuffmanSymbolOrder { get; init; } = HuffmanSymbolOrder.FrequencyDescending;
 
     // Explicit offline baseline experiment only. Zero keeps the default path.
     // The search tool supplies a fresh, exclusively owned sink for each encode.
@@ -348,6 +348,24 @@ public sealed record JpegliEncoderOptions
     public int SmoothingFactor { get; init; }
 
     /// <summary>
+    /// Additional zero-bias threshold, from 0 to 0.5, applied to trailing unit-magnitude
+    /// (+/-1) AC coefficients in JPEG zigzag order when preceded by at least sixteen consecutive
+    /// zeros (a ZRL symbol). Zero (the default) preserves existing quantization.
+    /// Positive values prune borderline trailing coefficients that would otherwise emit one or
+    /// more 11-bit ZRL tokens before the final coefficient and EOB.
+    /// </summary>
+    public float TailZeroRunBias { get; init; }
+
+    /// <summary>
+    /// Optional 2x2 chroma downsampling contrast-preservation weight, from 0 to 0.5.
+    /// Zero (the default) uses the standard box average. Positive values blend each 2x2
+    /// chroma quad's box mean toward its local midpoint 0.5 * (min + max) before the DCT,
+    /// counteracting box-filter desaturation on asymmetric edges in 4:2:0 output.
+    /// Ignored for grayscale and RGB/XYB output.
+    /// </summary>
+    public float ChromaDownsamplingSharpness { get; init; }
+
+    /// <summary>
     /// Use Jpegli's spatial analysis to suppress perceptually masked coefficients.
     /// Uses green for RGB output and scaled Y for XYB output. Automatically disabled when custom sampling subsamples
     /// the analyzed component in either direction.
@@ -424,9 +442,11 @@ public sealed record JpegliEncoderOptions
     /// <summary>
     /// Optional pinned Jpegli scan preset, overriding Progressive. Null (the default)
     /// preserves the existing scan settings. Zero selects sequential output; one sends DC
-    /// at full precision and all AC coefficients with one refinement bit; two or
-    /// greater sends AC positions 1..2 at full precision and 3..63 with two refinement
-    /// bits. Positions use JPEG zigzag order. Negative values are invalid.
+    /// at full precision and all AC coefficients with one refinement bit; two sends AC
+    /// positions 1..2 at full precision and 3..63 with two refinement bits; three or
+    /// greater keeps luma's two refinement bits on 3..63 while sending chroma AC positions
+    /// 1..5 at full precision and 6..63 with one refinement bit for color output.
+    /// Positions use JPEG zigzag order. Negative values are invalid.
     /// Progressive presets interleave DC only when both maximum output sampling
     /// factors are one; otherwise they send separate component DC scans.
     /// Cannot be combined with explicit ProgressiveAcScanEnds or
@@ -773,6 +793,16 @@ public sealed record JpegliEncoderOptions
         if (this.SmoothingFactor is < 0 or > 100)
         {
             throw new ArgumentOutOfRangeException(nameof(this.SmoothingFactor), "Smoothing factor must be between 0 and 100.");
+        }
+
+        if (!float.IsFinite(this.TailZeroRunBias) || this.TailZeroRunBias is < 0f or > 0.5f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.TailZeroRunBias), "The tail zero-run bias must be finite and between 0 and 0.5.");
+        }
+
+        if (!float.IsFinite(this.ChromaDownsamplingSharpness) || this.ChromaDownsamplingSharpness is < 0f or > 0.5f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(this.ChromaDownsamplingSharpness), "The chroma downsampling sharpness must be finite and between 0 and 0.5.");
         }
 
         if (this.MaxDegreeOfParallelism is 0 or < -1)

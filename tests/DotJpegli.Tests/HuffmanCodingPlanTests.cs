@@ -111,6 +111,34 @@ public sealed class HuffmanCodingPlanTests
     }
 
     [Fact]
+    public void FutureAwareEvictionRetainsActiveSlotNeededByUpcomingScan()
+    {
+        // Scans 1..4 fill AC slots 0..3 with distinct histograms for symbols 0..3.
+        // Scan 5 introduces a new histogram (symbol 4), while Scan 6 reuses symbol 0's histogram!
+        // Blind round-robin eviction would evict slot 0 at Scan 5 and force another redefinition at Scan 6;
+        // future-aware eviction preserves slot 0 and evicts slot 1 instead.
+        JpegScan[] scans =
+        [
+            new([0], 0, 0), new([0], 1, 2), new([0], 3, 4),
+            new([0], 5, 6), new([0], 7, 8), new([0], 9, 10), new([0], 11, 63)
+        ];
+        long[][][] ac =
+        [
+            [new long[256]],
+            [Histogram(0, 10000)],
+            [Histogram(1, 10000)],
+            [Histogram(2, 10000)],
+            [Histogram(3, 10000)],
+            [Histogram(4, 10000)],
+            [Histogram(0, 10000)]
+        ];
+        var plan = HuffmanCodingPlan.Create(scans, [Histogram(0, 10000)], ac, true, true);
+        Assert.Equal(new byte[] { 0, 0, 1, 2, 3, 1, 0 }, plan.Scans.Select(scan => scan.Selectors[0]));
+        _ = Assert.Single(plan.Scans[5].Definitions);
+        Assert.Empty(plan.Scans[6].Definitions);
+    }
+
+    [Fact]
     public void ExtraSequentialHuffmanSlotsRequireSof1EvenWhenEveryQuantizerFitsEightBits()
     {
         const int width = 256, height = 256;

@@ -150,7 +150,7 @@ internal sealed class QuantizedImage : IDisposable
                     grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
                     adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
                     rgb: pixels.IsRgb, narrowZigZagKernel: narrowZigZagKernel,
-                    imageWidth: width, imageHeight: height);
+                    imageWidth: width, imageHeight: height, tailZeroRunBias: pixels.TailZeroRunBias);
             }
             Span<float> samples = stackalloc float[64];
             Span<short> naturalOrder = stackalloc short[64];

@@ -66,10 +66,39 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
             return new(false, grayscale || preset.InterleaveSequentialComponents, 0, [63], [0], null);
         }
 
+        bool interleaveInitialScan = grayscale || (sampling.MaxHorizontal == 1 && sampling.MaxVertical == 1);
+        if (preset.Level >= 3 && !grayscale)
+        {
+            return new(true, interleaveInitialScan, 0, [2, 63], [0, 2],
+                CreateAsymmetricColorScript(interleaveInitialScan));
+        }
+
         // SetDefaultScanScript, lib/jpegli/encode.cc, pinned revision
-        // 031a0077f5799a6041004267fc12b956c1f52a20. All levels >= 2 share a script.
-        return new(true, grayscale || (sampling.MaxHorizontal == 1 && sampling.MaxVertical == 1), 0,
+        // 031a0077f5799a6041004267fc12b956c1f52a20, for levels 1 and 2.
+        return new(true, interleaveInitialScan, 0,
             preset.Level == 1 ? [63] : [2, 63], preset.Level == 1 ? [1] : [0, 2], null);
+    }
+
+    private static JpegScan[] CreateAsymmetricColorScript(bool interleaveInitialScan)
+    {
+        int[] all = [0, 1, 2], y = [0], cb = [1], cr = [2];
+        JpegScan[] dc = interleaveInitialScan
+            ? [new(all, 0, 0, 0, 0)]
+            : [new(y, 0, 0, 0, 0), new(cb, 0, 0, 0, 0), new(cr, 0, 0, 0, 0)];
+        return
+        [
+            .. dc,
+            new(y, 1, 2, 0, 0),
+            new(cb, 1, 2, 0, 0),
+            new(cr, 1, 2, 0, 0),
+            new(y, 3, 63, 0, 2),
+            new(y, 3, 63, 2, 1),
+            new(cb, 3, 63, 0, 1),
+            new(cr, 3, 63, 0, 1),
+            new(y, 3, 63, 1, 0),
+            new(cb, 3, 63, 1, 0),
+            new(cr, 3, 63, 1, 0)
+        ];
     }
 
     private static Prepared PrepareProgressive(Progressive progressive, bool grayscale)

@@ -111,6 +111,15 @@ internal static class SelfTest
         failures.Clear();
         Check(!Evidence.Evaluate([cases[0] with { StructureDifference = "test mismatch" }], matches, new(), failures).Single().Passed,
             "JPEG configuration mismatch must fail the evidence gate.");
+        IReadOnlyList<FastCompressionSearch.Candidate> fastCandidates420P2 = FastCompressionSearch.GenerateCandidates(1f, ChromaSubsampling.Quarter, 2);
+        Check(fastCandidates420P2[0].Id == "control" && fastCandidates420P2.Any(item => item.ProgressiveLevel == 3)
+            && fastCandidates420P2.Any(item => item.TailZeroRunBias > 0f && item.ChromaDownsamplingSharpness > 0f),
+            "Fast compression search must include control, progressive level 3, and combined ZRL/chroma candidates.");
+        FastCompressionSearch.SearchResult fastSearch = FastCompressionSearch.Search(
+            fixture, 1f, ChromaSubsampling.Quarter, 0, _ => fixture);
+        Check(fastSearch.Trials.Count == FastCompressionSearch.GenerateCandidates(1f, ChromaSubsampling.Quarter, 0).Count
+            && fastSearch.Jpeg.Length > 0,
+            "Fast compression search must evaluate all candidates and return a non-empty winner.");
     }
 
     private static void Near(double actual, double expected) => Check(double.IsFinite(actual) && Math.Abs(actual - expected) <= 1e-9 * Math.Max(1, Math.Abs(expected)), $"Expected {expected:R}, got {actual:R}.");

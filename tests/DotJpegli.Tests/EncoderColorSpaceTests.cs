@@ -42,7 +42,7 @@ public sealed class EncoderColorSpaceTests
             AdaptiveQuantization = false,
             OptimizeHuffmanTables = true
         }, cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal("145458B6A9AAF6FD5EBF4A4AACF66C7EC8F9E528E2E2A8B97D733E715DE4812F",
+        Assert.Equal("A4A881EB060514CB6492988751A770413AEE49464913DA89FE84EA079FFA5CC1",
             Convert.ToHexString(SHA256.HashData(jpeg)));
     }
 

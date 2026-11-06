@@ -40,26 +40,36 @@ internal static class SmoothedDownsampling
             next = recycled;
         }
         bool quarter = sampleWidth == 2 && sampleHeight == 2;
+        float sharpness = quarter ? pixels.GetChromaDownsamplingSharpness(component) : 0f;
         for (int row = 0; row < 8; row++)
         {
             for (int column = 0; column < 8; column++)
             {
                 int offset = (row * sampleHeight * columns) + (column * sampleWidth);
-                float first = AverageRow(tile, offset, sampleWidth, quarter);
-                float sample = first;
-                if (sampleHeight != 1)
+                float sample;
+                if (quarter && sharpness > 0f)
                 {
-                    float second = AverageRow(tile, offset + columns, sampleWidth, quarter);
-                    if (sampleHeight == 2)
+                    sample = Downsampling.Downsample2x2Quad(tile[offset], tile[offset + 1],
+                        tile[offset + columns], tile[offset + columns + 1], sharpness);
+                }
+                else
+                {
+                    float first = AverageRow(tile, offset, sampleWidth, quarter);
+                    sample = first;
+                    if (sampleHeight != 1)
                     {
-                        sample = (first + second) * (quarter ? 0.25f : 0.5f);
-                    }
-                    else
-                    {
-                        float third = AverageRow(tile, offset + (2 * columns), sampleWidth, quarter);
-                        sample = sampleHeight == 3
-                            ? (first + second + third) * (1f / 3f)
-                            : (first + second + (third + AverageRow(tile, offset + (3 * columns), sampleWidth, quarter))) * 0.25f;
+                        float second = AverageRow(tile, offset + columns, sampleWidth, quarter);
+                        if (sampleHeight == 2)
+                        {
+                            sample = (first + second) * (quarter ? 0.25f : 0.5f);
+                        }
+                        else
+                        {
+                            float third = AverageRow(tile, offset + (2 * columns), sampleWidth, quarter);
+                            sample = sampleHeight == 3
+                                ? (first + second + third) * (1f / 3f)
+                                : (first + second + (third + AverageRow(tile, offset + (3 * columns), sampleWidth, quarter))) * 0.25f;
+                        }
                     }
                 }
                 samples[(row * 8) + column] = sample - 128f;

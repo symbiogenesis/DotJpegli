@@ -268,37 +268,37 @@ public sealed class ProgressiveRefinementEntropyTests
     [Fact]
     public void AggregateRefinementSplitsOnlyWhenTheNextBlockExceedsCorrectionCapacity()
     {
-        Assert.Equal(255, ProgressiveAcRefinementState.MaximumCorrectionBits);
+        Assert.Equal(2047, ProgressiveAcRefinementState.MaximumCorrectionBits);
         short[] full = new short[64];
         Array.Fill(full, (short)3);
-        short[] three = new short[64];
-        for (int position = 1; position <= 3; position++)
+        short[] thirtyOne = new short[64];
+        for (int position = 1; position <= 31; position++)
         {
-            three[JpegConstants.ZigZag[position]] = 2;
+            thirtyOne[JpegConstants.ZigZag[position]] = 2;
         }
         short[] empty = new short[64];
         short[] one = new short[64];
         one[JpegConstants.ZigZag[63]] = -3;
-        short[][] blocks = [full, full, full, full, three, empty, one];
+        short[][] blocks = [.. Enumerable.Repeat(full, 32), thirtyOne, empty, one];
         long[] frequencies = new long[256];
         var state = new ProgressiveAcRefinementState();
-        foreach (short[] block in blocks[..6])
+        foreach (short[] block in blocks[..34])
         {
             ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(block, frequencies, state, 0);
         }
-        Assert.Equal(6, state.PendingEobRun);
-        Assert.Equal(255, state.CorrectionBitCount);
+        Assert.Equal(34, state.PendingEobRun);
+        Assert.Equal(2047, state.CorrectionBitCount);
         Assert.Equal(0, frequencies.Sum());
 
         ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(one, frequencies, state, 0);
         Assert.Equal(1, state.PendingEobRun);
         Assert.Equal(1, state.CorrectionBitCount);
-        Assert.Equal(1, frequencies[0x20]);
+        Assert.Equal(1, frequencies[0x50]);
 
-        // Run six extends by binary 10, then exactly 255 correction bits. A zero
-        // correction block joins the full buffer before the next old bit splits it.
+        // Run 34 (32 + 2) extends by 5-bit binary 00010, then 2047 correction bits.
+        // A zero-correction block joins the full buffer before the next old bit splits it.
         CheckAcRefinementSequence(blocks, 0, null,
-            (0x20, "10" + new string('1', 252) + "000"), (0x00, "1"));
+            (0x50, "00010" + new string('1', 2016) + new string('0', 31)), (0x00, "1"));
     }
 
     [Fact]

@@ -30,7 +30,8 @@ internal static class ParallelSequentialEncoder
             quantizers[component] = Quantization.PreparedTable.Create(tables[component], component, distance,
                 adaptiveQuantization: adaptive is not null,
                 adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                narrowZigZagKernel: narrowZigZagKernel, imageWidth: width, imageHeight: height);
+                narrowZigZagKernel: narrowZigZagKernel, imageWidth: width, imageHeight: height,
+                tailZeroRunBias: pixels.TailZeroRunBias);
         }
         Span<float> strengths = adaptive is null ? default : adaptive.Strengths;
         Span<int> previousDc = stackalloc int[3];

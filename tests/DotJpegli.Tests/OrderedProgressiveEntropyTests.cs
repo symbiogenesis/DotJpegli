@@ -73,7 +73,13 @@ public sealed class OrderedProgressiveEntropyTests
     public void RefinementReservationPreservesScalarOverflowCorrectionsPendingRunAndRecordedPrefix(int failure)
     {
         int pending = failure == 4 ? 32766 : 1;
-        int corrections = failure switch { 0 or 3 => 255, 1 => 253, 4 => 3, _ => 17 };
+        int corrections = failure switch
+        {
+            0 or 3 => ProgressiveAcRefinementState.MaximumCorrectionBits,
+            1 => ProgressiveAcRefinementState.MaximumCorrectionBits - 2,
+            4 => 3,
+            _ => 17
+        };
         int failingSymbol = failure switch { 0 or 3 => 0, 1 => 0xf0, 4 => 0xe0, _ => 0x11 };
         short[] ordered = new short[64];
         switch (failure)
@@ -124,8 +130,8 @@ public sealed class OrderedProgressiveEntropyTests
     public void ReservedRefinementAndCapacityFallbackPreserveEveryBudgetAndCorrectionPartition(int budget)
     {
         long[] expected = new long[256], actual = new long[256];
-        ProgressiveAcRefinementState expectedState = RefinementState(1, 255);
-        ProgressiveAcRefinementState actualState = RefinementState(1, 255);
+        ProgressiveAcRefinementState expectedState = RefinementState(1, ProgressiveAcRefinementState.MaximumCorrectionBits);
+        ProgressiveAcRefinementState actualState = RefinementState(1, ProgressiveAcRefinementState.MaximumCorrectionBits);
         using var expectedTokens = new EntropyTokens(budget);
         using var actualTokens = new EntropyTokens(budget);
         expectedTokens.AddBits(0, 0);
@@ -161,7 +167,8 @@ public sealed class OrderedProgressiveEntropyTests
     [Fact]
     public void RefinementMaximumEobFlushPreservesAllPendingCorrectionWidths()
     {
-        foreach (int corrections in new[] { 0, 1, 7, 8, 24, 31, 32, 33, 254, 255 })
+        foreach (int corrections in new[] { 0, 1, 7, 8, 24, 31, 32, 33, 254, 255,
+            ProgressiveAcRefinementState.MaximumCorrectionBits - 1, ProgressiveAcRefinementState.MaximumCorrectionBits })
         {
             long[] expected = new long[256], actual = new long[256];
             ProgressiveAcRefinementState expectedState = RefinementState(32766, corrections);

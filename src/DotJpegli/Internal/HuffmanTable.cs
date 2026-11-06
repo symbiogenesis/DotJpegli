@@ -141,11 +141,20 @@ internal sealed class HuffmanTable
     }
 
     public static HuffmanTable CreateOptimized(ReadOnlySpan<long> frequencies)
+        => CreateOptimized(frequencies, HuffmanSymbolOrder.FrequencyDescending);
+
+    internal static HuffmanTable CreateOptimized(ReadOnlySpan<long> frequencies, HuffmanSymbolOrder symbolOrder)
     {
+        if (symbolOrder is not (HuffmanSymbolOrder.Canonical or HuffmanSymbolOrder.FrequencyDescending
+            or HuffmanSymbolOrder.FrequencyAscending or HuffmanSymbolOrder.ReverseWithinLength))
+        {
+            throw new ArgumentOutOfRangeException(nameof(symbolOrder));
+        }
+
         if (!TryReadSparseHistogram(frequencies, out int firstSymbol, out long first,
                 out int secondSymbol, out long second))
         {
-            return CreateOptimizedTree(frequencies);
+            return CreateOptimizedTree(frequencies, symbolOrder);
         }
 
         byte[] histogram = new byte[16];
@@ -166,7 +175,7 @@ internal sealed class HuffmanTable
         return new HuffmanTable(histogram, [(byte)firstSymbol, (byte)secondSymbol]);
     }
 
-    private static HuffmanTable CreateOptimizedTree(ReadOnlySpan<long> frequencies)
+    private static HuffmanTable CreateOptimizedTree(ReadOnlySpan<long> frequencies, HuffmanSymbolOrder symbolOrder)
     {
         Span<int> depth = stackalloc int[257];
         _ = BuildCodeLengths(frequencies, depth);
@@ -200,6 +209,11 @@ internal sealed class HuffmanTable
             {
                 symbols[offsets[length - 1]++] = (byte)symbol;
             }
+        }
+
+        if (symbolOrder != HuffmanSymbolOrder.Canonical)
+        {
+            HuffmanSymbolOrdering.OrderByLengthGroups(symbols, histogram, frequencies, symbolOrder);
         }
 
         return new HuffmanTable(histogram, symbols);
@@ -500,13 +514,12 @@ internal sealed class HuffmanTable
         int leaves = Math.Max(1, symbols) + 1;
         if (narrow)
         {
-            // At the uint bound, every retry reaches uniform weights by the
-            // time minimumCount reaches uint.MaxValue. All 257 leaf weights
-            // and their merged sum remain below 2^41; a 16-bit code cost is
-            // below 2^45. Neither can collide with the ulong sentinel.
+            // All 257 uint-bounded leaf weights and their 16-level package-merge
+            // combinations remain below 2^57, so neither unconstrained merges nor
+            // length-limited package weights can collide with the ulong sentinel.
             // Positive long and ulong weights have identical representations;
             // read the validated histogram directly instead of copying it.
-            Span<Node<ulong>> narrowTree = stackalloc Node<ulong>[(2 * leaves) + 1];
+            Span<Node<ulong>> narrowTree = stackalloc Node<ulong>[(3 * leaves) + 1];
             BuildCodeLengths<ulong, NarrowArithmetic>(MemoryMarshal.Cast<long, ulong>(frequencies), depth, narrowTree);
             return true;
         }
@@ -524,9 +537,9 @@ internal sealed class HuffmanTable
 
         Span<Node<UInt128>> tree =
 #if NETSTANDARD2_1
-            new Node<UInt128>[(2 * leaves) + 1];
+            new Node<UInt128>[(3 * leaves) + 1];
 #else
-            stackalloc Node<UInt128>[(2 * leaves) + 1];
+            stackalloc Node<UInt128>[(3 * leaves) + 1];
 #endif
         BuildCodeLengths<UInt128, WideArithmetic>(counts, depth, tree);
         return false;
@@ -537,82 +550,148 @@ internal sealed class HuffmanTable
         where T : struct, IComparable<T>
         where TArithmetic : struct, ITreeArithmetic<T>
     {
-        // Every retry has at most one leaf per frequency, one internal node per
-        // merge, and two sentinels. Reuse this bounded storage across retries.
+        // Unconstrained Huffman merging runs first; only trees deeper than 16
+        // invoke exact length-limited package-merge in the trailing workspace.
         // Value-type arithmetic lets the JIT specialize this one algorithm for
         // bounded ulong counts and for the exact UInt128/BigInteger fallback.
         TArithmetic arithmetic = default;
-        T minimumCount = default;
-        Span<byte> nodeDepth = stackalloc byte[tree.Length];
-        // Every retry writes the same active symbols. Inactive depths need
-        // clearing only once, rather than zeroing the full array per retry.
         depth.Clear();
-        while (true)
+        int leafCount = 0;
+        for (int symbol = frequencies.Length - 1; symbol >= 0; symbol--)
         {
-            int leafCount = 0;
-            for (int symbol = frequencies.Length - 1; symbol >= 0; symbol--)
+            T count = frequencies[symbol];
+            if (count.CompareTo(default) != 0)
             {
-                T count = frequencies[symbol];
-                if (count.CompareTo(default) != 0)
-                {
-                    tree[leafCount++] = new Node<T>(count.CompareTo(minimumCount) >= 0 ? count : minimumCount, -1, symbol);
-                }
+                tree[leafCount++] = new Node<T>(count, -1, symbol);
             }
-            T pseudoCount = arithmetic.One.CompareTo(minimumCount) >= 0 ? arithmetic.One : minimumCount;
-            if (leafCount == 0)
-            {
-                tree[leafCount++] = new Node<T>(pseudoCount, -1, 0);
-            }
-            // Removing this padding symbol leaves unused code space, keeping
-            // all-ones codes unavailable to real symbols, as in the wide tree.
-            tree[leafCount++] = new Node<T>(pseudoCount, -1, frequencies.Length);
-
-            arithmetic.SortLeaves(tree[..leafCount]);
-            Node<T> sentinel = new(arithmetic.Sentinel, -1, -1);
-            tree[leafCount] = sentinel;
-            tree[leafCount + 1] = sentinel;
-            int leafIndex = 0;
-            int parentIndex = leafCount + 1;
-            for (int merge = 1; merge < leafCount; merge++)
-            {
-                int left = tree[leafIndex].Count.CompareTo(tree[parentIndex].Count) <= 0 ? leafIndex++ : parentIndex++;
-                int right = tree[leafIndex].Count.CompareTo(tree[parentIndex].Count) <= 0 ? leafIndex++ : parentIndex++;
-                // UInt128 keeps even 256 long.MaxValue frequencies exact;
-                // no saturated internal node can collide with the sentinel.
-                tree[leafCount + merge] = new Node<T>(arithmetic.Add(tree[left].Count, tree[right].Count), left, right);
-                tree[leafCount + merge + 1] = sentinel;
-            }
-
-            bool exceedsLimit = false;
-            nodeDepth[(2 * leafCount) - 1] = 0;
-            for (int nodeIndex = (2 * leafCount) - 1; nodeIndex > leafCount; nodeIndex--)
-            {
-                int childDepth = nodeDepth[nodeIndex] + 1;
-                if (childDepth > 16)
-                {
-                    exceedsLimit = true;
-                    break;
-                }
-
-                Node<T> node = tree[nodeIndex];
-                nodeDepth[node.Left] = (byte)childDepth;
-                nodeDepth[node.RightOrSymbol] = (byte)childDepth;
-            }
-
-            if (!exceedsLimit)
-            {
-                for (int index = 0; index < leafCount; index++)
-                {
-                    depth[tree[index].RightOrSymbol] = nodeDepth[index];
-                }
-
-                return;
-            }
-
-            // CreateHuffmanTree uses limits 1, 2, 4... and clamps at limit-1.
-            // This retry eventually makes leaf weights nearly uniform.
-            minimumCount = arithmetic.NextMinimum(minimumCount);
         }
+        if (leafCount == 0)
+        {
+            tree[leafCount++] = new Node<T>(arithmetic.One, -1, 0);
+        }
+        // Removing this padding symbol leaves unused code space, keeping
+        // all-ones codes unavailable to real symbols, as in the wide tree.
+        tree[leafCount++] = new Node<T>(arithmetic.One, -1, frequencies.Length);
+
+        arithmetic.SortLeaves(tree[..leafCount]);
+        Node<T> sentinel = new(arithmetic.Sentinel, -1, -1);
+        tree[leafCount] = sentinel;
+        tree[leafCount + 1] = sentinel;
+        int leafIndex = 0;
+        int parentIndex = leafCount + 1;
+        for (int merge = 1; merge < leafCount; merge++)
+        {
+            int left = tree[leafIndex].Count.CompareTo(tree[parentIndex].Count) <= 0 ? leafIndex++ : parentIndex++;
+            int right = tree[leafIndex].Count.CompareTo(tree[parentIndex].Count) <= 0 ? leafIndex++ : parentIndex++;
+            // UInt128 keeps even 256 long.MaxValue frequencies exact;
+            // no saturated internal node can collide with the sentinel.
+            tree[leafCount + merge] = new Node<T>(arithmetic.Add(tree[left].Count, tree[right].Count), left, right);
+            tree[leafCount + merge + 1] = sentinel;
+        }
+
+        Span<byte> nodeDepth = stackalloc byte[2 * leafCount];
+        bool exceedsLimit = false;
+        nodeDepth[(2 * leafCount) - 1] = 0;
+        for (int nodeIndex = (2 * leafCount) - 1; nodeIndex > leafCount; nodeIndex--)
+        {
+            int childDepth = nodeDepth[nodeIndex] + 1;
+            if (childDepth > 16)
+            {
+                exceedsLimit = true;
+                break;
+            }
+
+            Node<T> node = tree[nodeIndex];
+            nodeDepth[node.Left] = (byte)childDepth;
+            nodeDepth[node.RightOrSymbol] = (byte)childDepth;
+        }
+
+        if (!exceedsLimit)
+        {
+            for (int index = 0; index < leafCount; index++)
+            {
+                depth[tree[index].RightOrSymbol] = nodeDepth[index];
+            }
+
+            return;
+        }
+
+        BuildLengthLimitedCodeLengths<T, TArithmetic>(tree, leafCount, depth);
+    }
+
+    private static void BuildLengthLimitedCodeLengths<T, TArithmetic>(Span<Node<T>> tree, int leafCount, Span<int> depth)
+        where T : struct, IComparable<T>
+        where TArithmetic : struct, ITreeArithmetic<T>
+    {
+        // Exact 16-bit Larmore-Hirschberg package-merge. At each level d, at
+        // most leafCount - 1 packages are formed from the sorted leaves and
+        // the previous level's packages. Recording how many leaves precede each
+        // package boundary reconstructs optimal lengths in a single pass.
+        TArithmetic arithmetic = default;
+        ReadOnlySpan<Node<T>> leaves = tree[..leafCount];
+        Span<Node<T>> currentPackages = tree.Slice(leafCount, leafCount);
+        Span<Node<T>> nextPackages = tree.Slice(2 * leafCount, leafCount);
+        Span<ushort> packageLeafCounts = stackalloc ushort[16 * leafCount];
+        int packageCount = 0;
+        for (int level = 16; level >= 1; level--)
+        {
+            int mergedPairs = (leafCount + packageCount) / 2;
+            Span<ushort> levelCounts = packageLeafCounts.Slice((level - 1) * leafCount, mergedPairs);
+            int leafIndex = 0;
+            int packageIndex = 0;
+            for (int pair = 0; pair < mergedPairs; pair++)
+            {
+                T first = TakeNextPackageItem(leaves, ref leafIndex, currentPackages, packageCount, ref packageIndex);
+                T second = TakeNextPackageItem(leaves, ref leafIndex, currentPackages, packageCount, ref packageIndex);
+                if (level > 1)
+                {
+                    nextPackages[pair] = new Node<T>(arithmetic.Add(first, second), -1, -1);
+                }
+
+                levelCounts[pair] = (ushort)leafIndex;
+            }
+
+            Span<Node<T>> swap = currentPackages;
+            currentPackages = nextPackages;
+            nextPackages = swap;
+            packageCount = mergedPairs;
+        }
+
+        Span<int> lengthCounts = stackalloc int[leafCount + 1];
+        lengthCounts.Clear();
+        int take = (2 * leafCount) - 2;
+        for (int level = 1; level <= 16 && take > 0; level++)
+        {
+            int selectedLeaves = packageLeafCounts[((level - 1) * leafCount) + (take / 2) - 1];
+            lengthCounts[selectedLeaves]++;
+            take = 2 * (take - selectedLeaves);
+        }
+
+        int currentLength = 0;
+        for (int index = leafCount; index >= 1; index--)
+        {
+            currentLength += lengthCounts[index];
+            depth[leaves[index - 1].RightOrSymbol] = currentLength;
+        }
+    }
+
+    private static T TakeNextPackageItem<T>(ReadOnlySpan<Node<T>> leaves, ref int leafIndex,
+        ReadOnlySpan<Node<T>> packages, int packageCount, ref int packageIndex)
+        where T : struct, IComparable<T>
+    {
+        if (leafIndex < leaves.Length)
+        {
+            // The padding pseudo-symbol at index 0 is never emitted; zero weight
+            // keeps it at depth 16 without penalizing its paired real symbol.
+            T leafWeight = leafIndex == 0 ? default : leaves[leafIndex].Count;
+            if (packageIndex >= packageCount || leafWeight.CompareTo(packages[packageIndex].Count) <= 0)
+            {
+                leafIndex++;
+                return leafWeight;
+            }
+        }
+
+        return packages[packageIndex++].Count;
     }
 
     private interface ITreeArithmetic<T>
@@ -620,7 +699,6 @@ internal sealed class HuffmanTable
         public T One { get; }
         public T Sentinel { get; }
         public T Add(T left, T right);
-        public T NextMinimum(T minimum);
         public void SortLeaves(Span<Node<T>> leaves);
     }
 
@@ -629,7 +707,6 @@ internal sealed class HuffmanTable
         public ulong One => 1;
         public ulong Sentinel => ulong.MaxValue;
         public ulong Add(ulong left, ulong right) => left + right;
-        public ulong NextMinimum(ulong minimum) => minimum == 0 ? 1 : (minimum * 2) + 1;
 
         public void SortLeaves(Span<Node<ulong>> leaves)
         {
@@ -663,7 +740,6 @@ internal sealed class HuffmanTable
             UInt128.MaxValue;
 #endif
         public UInt128 Add(UInt128 left, UInt128 right) => left + right;
-        public UInt128 NextMinimum(UInt128 minimum) => minimum == 0 ? 1 : (minimum * 2) + 1;
 
         public void SortLeaves(Span<Node<UInt128>> leaves)
             => leaves.Sort(static (left, right) =>

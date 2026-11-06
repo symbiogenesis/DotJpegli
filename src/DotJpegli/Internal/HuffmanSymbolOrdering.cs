@@ -31,21 +31,20 @@ internal static class HuffmanSymbolOrdering
         {
             throw new ArgumentOutOfRangeException(nameof(order));
         }
-        if (order == HuffmanSymbolOrder.Canonical)
-        {
-            return table;
-        }
         Span<byte> symbols = stackalloc byte[table.Symbols.Length];
         table.Symbols.AsSpan().CopyTo(symbols);
+        OrderByLengthGroups(symbols, table.Counts, frequencies, order);
+        return table.ReorderWithinLengths(symbols);
+    }
+
+    internal static void OrderByLengthGroups(Span<byte> symbols, ReadOnlySpan<byte> counts,
+        ReadOnlySpan<long> frequencies, HuffmanSymbolOrder order)
+    {
         int start = 0;
-        foreach (byte count in table.Counts)
+        foreach (byte count in counts)
         {
             Span<byte> group = symbols.Slice(start, count);
-            if (order == HuffmanSymbolOrder.ReverseWithinLength)
-            {
-                group.Reverse();
-            }
-            else
+            if (group.Length > 1)
             {
                 // A bounded alphabet makes allocation-free insertion practical;
                 // numeric ties keep results reproducible across runtimes.
@@ -63,11 +62,18 @@ internal static class HuffmanSymbolOrdering
             }
             start += count;
         }
-        return table.ReorderWithinLengths(symbols);
     }
 
     private static bool ComesBefore(byte left, byte right, ReadOnlySpan<long> frequencies, HuffmanSymbolOrder order)
     {
+        if (order == HuffmanSymbolOrder.Canonical)
+        {
+            return left < right;
+        }
+        if (order == HuffmanSymbolOrder.ReverseWithinLength)
+        {
+            return left > right;
+        }
         int comparison = frequencies[left].CompareTo(frequencies[right]);
         return comparison == 0 ? left < right
             : order == HuffmanSymbolOrder.FrequencyDescending ? comparison > 0 : comparison < 0;

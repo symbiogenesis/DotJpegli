@@ -211,12 +211,14 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 | --- | --- | --- |
 | `0` | Sequential scan with AC | All coefficients at full precision |
 | `1` | Full precision | Positions 1..63, then one refinement round |
-| `2` or greater | Full precision | Positions 1..2 at full precision; 3..63, then two refinement rounds |
+| `2` | Full precision | Positions 1..2 at full precision; 3..63, then two refinement rounds |
+| `3` or greater | Full precision | Luma: 1..2 at full precision, 3..63 with two refinement rounds; Chroma: 1..5 at full precision, 6..63 with one refinement round (color YCbCr/RGB/XYB) |
 
 The level overrides `Progressive`, so setting it alone selects the corresponding
 encoding mode. Null, the default, uses the other progressive controls.
-Negative levels are rejected; all values at least two use the same
-script, as in upstream's setter.
+Negative levels are rejected; level `2` matches upstream's progressive preset,
+while levels `3` and above use an asymmetric luma/chroma progressive script for
+three-component output (falling back to level `2` for grayscale).
 
 Progressive presets interleave DC only when both maximum **output** sampling
 factors are one. Otherwise they send separate component DC scans in raster order,
@@ -336,9 +338,15 @@ stream, cancellation, smoothing and adaptive-quantization behavior applies.
 
 ## Huffman optimization
 
-Grayscale and YCbCr output use the pinned upstream's greedy histogram clustering:
+Grayscale and YCbCr output use greedy histogram clustering with future-aware
+AC slot eviction and post-pass consolidation:
 component DC histograms and per-scan/component AC histograms merge when combined
-entropy and table-definition cost is lower. Baseline output uses at most two
+entropy and table-definition cost is lower. When unconstrained Huffman tree depth
+exceeds 16 bits, exact 16-bit Larmore-Hirschberg Package-Merge length-limited
+construction selects the minimum-redundancy code lengths, and symbols within
+equal-length code groups are ordered by descending frequency to assign lower
+canonical codes (With more zeros) to higher-frequency symbols and reduce
+`0xFF00` byte stuffing. Baseline output uses at most two
 tables of each class; progressive coding can replace four AC slots between scans.
 Definitions share DHT markers, and each scan selects its actual active tables.
 Table choices affect entropy bytes while preserving quantized coefficients and
@@ -352,8 +360,8 @@ coefficients; refinement scans finish them before newly significant coefficients
 Both finish runs at restart markers and scan boundaries. With optimization disabled,
 the standard Huffman tables use only single-block EOB symbols. Aggregation changes
 the entropy coding, preserving the quantized coefficients and decoded pixels. AC refinement scans
-buffer up to 255 correction bits in fixed storage, matching the pinned upstream
-token limit and flushing a run before another block would exceed that limit.
+buffer up to 2,047 correction bits (growing lazily from a 255-byte initial buffer),
+flushing a run before another block would exceed that limit.
 Buffered correction bits follow the run symbol and its length bits in block order.
 DC refinement uses raw bits.
 
@@ -380,6 +388,15 @@ weight on the center sample. Original image edges are replicated before
 filtering, including partially filled blocks. Adaptive quantization analyzes
 the original, unsmoothed luma, matching upstream. Both baseline and progressive
 encoding recompute filtered samples on demand with fixed block storage.
+
+Set `TailZeroRunBias` to a finite value in `0..0.5` (default `0`) to raise the
+dead-zone threshold for trailing `±1` AC coefficients in zigzag order that are
+preceded by a run of at least 16 zeros (`ZRL`), pruning borderline high-frequency
+isolated coefficients that require a `ZRL` plus a nonzero symbol. Set
+`ChromaDownsamplingSharpness` to a finite value in `0..0.5` (default `0`) to
+blend the `2×2` chroma box-filter average toward the local quad extremum midpoint
+(`mean + sharpness * (0.5 * (min + max) - mean)`) during `4:2:0` (`Quarter`)
+chroma downsampling, preserving saturated color edges in a single SIMD/scalar pass.
 
 ## Parallel execution
 

@@ -4,8 +4,8 @@
 namespace DotJpegli.Internal;
 
 using System.Numerics;
-#if !NETSTANDARD2_1
 using System.Runtime.CompilerServices;
+#if !NETSTANDARD2_1
 using System.Runtime.Intrinsics;
 #endif
 
@@ -104,8 +104,9 @@ internal static class Downsampling
         }
 
         bool direct = sampleWidth == 1 && sampleHeight == 1;
-        bool directQuarter = sampleWidth == 2 && sampleHeight == 2
-            && CanUseQuarterVector;
+        bool quarter = sampleWidth == 2 && sampleHeight == 2;
+        float sharpness = quarter ? pixels.GetChromaDownsamplingSharpness(component) : 0f;
+        bool directQuarter = quarter && CanUseQuarterVector;
         if ((direct || directQuarter) && left >= 0 && top >= 0
             && left <= width - (8 * sampleWidth) && top <= height - (8 * sampleHeight))
         {
@@ -118,7 +119,7 @@ internal static class Downsampling
                 }
                 else
                 {
-                    FillConvertedQuarterBlock(plane, width, left, top, samples);
+                    FillConvertedQuarterBlock(plane, width, left, top, samples, sharpness);
                 }
 
                 return;
@@ -130,7 +131,6 @@ internal static class Downsampling
         // for all output columns. At most four terms in each of four rows.
         Span<float> terms = stackalloc float[128];
         int lanes = Vector<float>.Count;
-        bool quarter = sampleWidth == 2 && sampleHeight == 2;
         var center = new Vector<float>(128f);
         if (sampleWidth == 1 && sampleHeight == 1)
         {
@@ -162,22 +162,34 @@ internal static class Downsampling
 
             for (int column = 0; column < 8; column += lanes)
             {
-                Vector<float> first = AverageRowVector(terms, 0, column, sampleWidth, quarter);
-                Vector<float> sample = first;
-                if (sampleHeight != 1)
+                Vector<float> sample;
+                if (quarter && sharpness > 0f)
                 {
-                    Vector<float> second = AverageRowVector(terms, 1, column, sampleWidth, quarter);
-                    if (sampleHeight == 2)
+                    Vector<float> topLeft = PortableVector.Load(terms.Slice(column, lanes));
+                    Vector<float> topRight = PortableVector.Load(terms.Slice(8 + column, lanes));
+                    Vector<float> bottomLeft = PortableVector.Load(terms.Slice(16 + column, lanes));
+                    Vector<float> bottomRight = PortableVector.Load(terms.Slice(24 + column, lanes));
+                    sample = Downsample2x2Quad(topLeft, topRight, bottomLeft, bottomRight, sharpness);
+                }
+                else
+                {
+                    Vector<float> first = AverageRowVector(terms, 0, column, sampleWidth, quarter);
+                    sample = first;
+                    if (sampleHeight != 1)
                     {
-                        sample = (first + second) * new Vector<float>(quarter ? 0.25f : 0.5f);
-                    }
-                    else
-                    {
-                        Vector<float> third = AverageRowVector(terms, 2, column, sampleWidth, quarter);
-                        sample = sampleHeight == 3
-                            ? (first + second + third) * new Vector<float>(1f / 3f)
-                            : (first + second + (third + AverageRowVector(terms, 3, column, sampleWidth, quarter)))
-                                * new Vector<float>(0.25f);
+                        Vector<float> second = AverageRowVector(terms, 1, column, sampleWidth, quarter);
+                        if (sampleHeight == 2)
+                        {
+                            sample = (first + second) * new Vector<float>(quarter ? 0.25f : 0.5f);
+                        }
+                        else
+                        {
+                            Vector<float> third = AverageRowVector(terms, 2, column, sampleWidth, quarter);
+                            sample = sampleHeight == 3
+                                ? (first + second + third) * new Vector<float>(1f / 3f)
+                                : (first + second + (third + AverageRowVector(terms, 3, column, sampleWidth, quarter)))
+                                    * new Vector<float>(0.25f);
+                        }
                     }
                 }
                 (sample - center).CopyTo(samples.Slice((row * 8) + column, lanes));
@@ -210,36 +222,129 @@ internal static class Downsampling
 
 #if !NETSTANDARD2_1
     private static void FillConvertedQuarterBlock(ReadOnlySpan<float> plane, int width, int left, int top,
-        Span<float> samples)
+        Span<float> samples, float sharpness = 0f)
     {
         if (Vector256.IsHardwareAccelerated)
         {
-            var scale = Vector256.Create(0.25f);
             var center = Vector256.Create(128f);
-            for (int row = 0; row < 8; row++)
+            if (sharpness == 0f)
             {
-                int source = ((top + (row * 2)) * width) + left;
-                Vector256<float> first = PairwiseSums256(plane.Slice(source, 16));
-                Vector256<float> second = PairwiseSums256(plane.Slice(source + width, 16));
-                // Downsample2x2 adds each row's pairs before the single scale.
-                (((first + second) * scale) - center).CopyTo(samples.Slice(row * 8, 8));
+                var scale = Vector256.Create(0.25f);
+                for (int row = 0; row < 8; row++)
+                {
+                    int source = ((top + (row * 2)) * width) + left;
+                    Vector256<float> first = PairwiseSums256(plane.Slice(source, 16));
+                    Vector256<float> second = PairwiseSums256(plane.Slice(source + width, 16));
+                    // Downsample2x2 adds each row's pairs before the single scale.
+                    (((first + second) * scale) - center).CopyTo(samples.Slice(row * 8, 8));
+                }
+            }
+            else
+            {
+                for (int row = 0; row < 8; row++)
+                {
+                    int source = ((top + (row * 2)) * width) + left;
+                    (Downsample2x2Row256(plane.Slice(source, 16), plane.Slice(source + width, 16), sharpness) - center)
+                        .CopyTo(samples.Slice(row * 8, 8));
+                }
             }
         }
         else
         {
-            var scale = Vector128.Create(0.25f);
             var center = Vector128.Create(128f);
-            for (int row = 0; row < 8; row++)
+            if (sharpness == 0f)
             {
-                for (int column = 0; column < 8; column += 4)
+                var scale = Vector128.Create(0.25f);
+                for (int row = 0; row < 8; row++)
                 {
-                    int source = ((top + (row * 2)) * width) + left + (column * 2);
-                    Vector128<float> first = PairwiseSums128(plane.Slice(source, 8));
-                    Vector128<float> second = PairwiseSums128(plane.Slice(source + width, 8));
-                    (((first + second) * scale) - center).CopyTo(samples.Slice((row * 8) + column, 4));
+                    for (int column = 0; column < 8; column += 4)
+                    {
+                        int source = ((top + (row * 2)) * width) + left + (column * 2);
+                        Vector128<float> first = PairwiseSums128(plane.Slice(source, 8));
+                        Vector128<float> second = PairwiseSums128(plane.Slice(source + width, 8));
+                        (((first + second) * scale) - center).CopyTo(samples.Slice((row * 8) + column, 4));
+                    }
+                }
+            }
+            else
+            {
+                for (int row = 0; row < 8; row++)
+                {
+                    for (int column = 0; column < 8; column += 4)
+                    {
+                        int source = ((top + (row * 2)) * width) + left + (column * 2);
+                        (Downsample2x2Row128(plane.Slice(source, 8), plane.Slice(source + width, 8), sharpness) - center)
+                            .CopyTo(samples.Slice((row * 8) + column, 4));
+                    }
                 }
             }
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Vector256<float> Downsample2x2Row256(ReadOnlySpan<float> first, ReadOnlySpan<float> second, float sharpness)
+    {
+        UnzipPairs256(first, out Vector256<float> topLeft, out Vector256<float> topRight);
+        UnzipPairs256(second, out Vector256<float> bottomLeft, out Vector256<float> bottomRight);
+        Vector256<float> mean = (topLeft + topRight + (bottomLeft + bottomRight)) * Vector256.Create(0.25f);
+        if (sharpness == 0f)
+        {
+            return mean;
+        }
+
+        var min = Vector256.Min(Vector256.Min(topLeft, topRight), Vector256.Min(bottomLeft, bottomRight));
+        var max = Vector256.Max(Vector256.Max(topLeft, topRight), Vector256.Max(bottomLeft, bottomRight));
+        Vector256<float> midpoint = (min + max) * Vector256.Create(0.5f);
+        return mean + (Vector256.Create(sharpness) * (midpoint - mean));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Vector128<float> Downsample2x2Row128(ReadOnlySpan<float> first, ReadOnlySpan<float> second, float sharpness)
+    {
+        UnzipPairs128(first, out Vector128<float> topLeft, out Vector128<float> topRight);
+        UnzipPairs128(second, out Vector128<float> bottomLeft, out Vector128<float> bottomRight);
+        Vector128<float> mean = (topLeft + topRight + (bottomLeft + bottomRight)) * Vector128.Create(0.25f);
+        if (sharpness == 0f)
+        {
+            return mean;
+        }
+
+        var min = Vector128.Min(Vector128.Min(topLeft, topRight), Vector128.Min(bottomLeft, bottomRight));
+        var max = Vector128.Max(Vector128.Max(topLeft, topRight), Vector128.Max(bottomLeft, bottomRight));
+        Vector128<float> midpoint = (min + max) * Vector128.Create(0.5f);
+        return mean + (Vector128.Create(sharpness) * (midpoint - mean));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void UnzipPairs256(ReadOnlySpan<float> samples, out Vector256<float> evenSamples, out Vector256<float> oddSamples)
+    {
+        var first = Vector256.Create(samples[..8]);
+        var second = Vector256.Create(samples[8..]);
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        evenSamples = Vector256.UnzipEven(first, second);
+        oddSamples = Vector256.UnzipOdd(first, second);
+#else
+        var even = Vector256.Create(0, 2, 4, 6, 0, 2, 4, 6);
+        var odd = Vector256.Create(1, 3, 5, 7, 1, 3, 5, 7);
+        evenSamples = Vector256.Create(Vector256.Shuffle(first, even).GetLower(), Vector256.Shuffle(second, even).GetLower());
+        oddSamples = Vector256.Create(Vector256.Shuffle(first, odd).GetLower(), Vector256.Shuffle(second, odd).GetLower());
+#endif
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void UnzipPairs128(ReadOnlySpan<float> samples, out Vector128<float> evenSamples, out Vector128<float> oddSamples)
+    {
+        var first = Vector128.Create(samples[..4]);
+        var second = Vector128.Create(samples[4..]);
+#if NET11_0_OR_GREATER && DOTJPEGLI_NET11_SIMD
+        evenSamples = Vector128.UnzipEven(first, second);
+        oddSamples = Vector128.UnzipOdd(first, second);
+#else
+        var even = Vector128.Create(0, 2, 0, 2);
+        var odd = Vector128.Create(1, 3, 1, 3);
+        evenSamples = Vector128.Create(Vector128.Shuffle(first, even).GetLower(), Vector128.Shuffle(second, even).GetLower());
+        oddSamples = Vector128.Create(Vector128.Shuffle(first, odd).GetLower(), Vector128.Shuffle(second, odd).GetLower());
+#endif
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -299,20 +404,52 @@ internal static class Downsampling
 #endif
 
 #else
-    private static void FillConvertedQuarterBlock(ReadOnlySpan<float> plane, int width, int left, int top, Span<float> samples)
+    private static void FillConvertedQuarterBlock(ReadOnlySpan<float> plane, int width, int left, int top,
+        Span<float> samples, float sharpness = 0f)
     {
         for (int row = 0; row < 8; row++)
         {
             for (int column = 0; column < 8; column++)
             {
                 int source = ((top + (row * 2)) * width) + left + (column * 2);
-                samples[(row * 8) + column] = ((plane[source] + plane[source + 1]
-                    + (plane[source + width] + plane[source + width + 1])) * 0.25f) - 128f;
+                samples[(row * 8) + column] = Downsample2x2Quad(plane[source], plane[source + 1],
+                    plane[source + width], plane[source + width + 1], sharpness) - 128f;
             }
         }
     }
 
 #endif
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static float Downsample2x2Quad(float topLeft, float topRight, float bottomLeft, float bottomRight, float sharpness)
+    {
+        float mean = (topLeft + topRight + (bottomLeft + bottomRight)) * 0.25f;
+        if (sharpness == 0f)
+        {
+            return mean;
+        }
+
+        float min = MathF.Min(MathF.Min(topLeft, topRight), MathF.Min(bottomLeft, bottomRight));
+        float max = MathF.Max(MathF.Max(topLeft, topRight), MathF.Max(bottomLeft, bottomRight));
+        float midpoint = (min + max) * 0.5f;
+        return mean + (sharpness * (midpoint - mean));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Vector<float> Downsample2x2Quad(Vector<float> topLeft, Vector<float> topRight,
+        Vector<float> bottomLeft, Vector<float> bottomRight, float sharpness)
+    {
+        Vector<float> mean = (topLeft + topRight + (bottomLeft + bottomRight)) * new Vector<float>(0.25f);
+        if (sharpness == 0f)
+        {
+            return mean;
+        }
+
+        var min = Vector.Min(Vector.Min(topLeft, topRight), Vector.Min(bottomLeft, bottomRight));
+        var max = Vector.Max(Vector.Max(topLeft, topRight), Vector.Max(bottomLeft, bottomRight));
+        Vector<float> midpoint = (min + max) * new Vector<float>(0.5f);
+        return mean + (new Vector<float>(sharpness) * (midpoint - mean));
+    }
+
     private static Vector<float> AverageRowVector(ReadOnlySpan<float> terms, int row, int column,
         int sampleWidth, bool quarter)
     {
@@ -346,6 +483,7 @@ internal static class Downsampling
     {
         float neighborWeight = smoothingFactor / 1024f;
         float centerWeight = 1f - (8f * neighborWeight);
+        float sharpness = sampleWidth == 2 && sampleHeight == 2 ? pixels.GetChromaDownsamplingSharpness(component) : 0f;
         for (int row = 0; row < 8; row++)
         {
             int y = top + (row * sampleHeight);
@@ -364,7 +502,7 @@ internal static class Downsampling
                     float bottomRight = ReadSample(pixels, width, height, stride, component, x + 1, y + 1,
                         neighborWeight, centerWeight);
                     // Downsample2x2 scales only once, after summing both row pairs.
-                    sample = (first + right + (bottom + bottomRight)) * 0.25f;
+                    sample = Downsample2x2Quad(first, right, bottom, bottomRight, sharpness);
                 }
                 else
                 {

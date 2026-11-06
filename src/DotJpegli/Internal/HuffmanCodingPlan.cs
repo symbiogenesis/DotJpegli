@@ -4,8 +4,6 @@
 
 namespace DotJpegli.Internal;
 
-using System.Runtime.CompilerServices;
-
 // Port of HistogramCost, ClusterJpegHistograms and OptimizeHuffmanCodes in
 // google/jpegli lib/jpegli/entropy_coding.cc at revision
 // 031a0077f5799a6041004267fc12b956c1f52a20. Histograms, rather than image-sized
@@ -35,7 +33,7 @@ internal sealed class HuffmanCodingPlan
 
     internal static HuffmanCodingPlan Create(IReadOnlyList<JpegScan> scans,
         long[][] dcFrequencies, long[][][] acFrequencies, bool progressive, bool forceBaseline,
-        int tableLimit = 0, HuffmanSymbolOrder symbolOrder = HuffmanSymbolOrder.Canonical)
+        int tableLimit = 0, HuffmanSymbolOrder symbolOrder = HuffmanSymbolOrder.FrequencyDescending)
     {
         if (tableLimit is not (0 or 1 or 2 or 4))
         {
@@ -190,7 +188,8 @@ internal sealed class HuffmanCodingPlan
                 }
                 else
                 {
-                    bestSlot = (slots[^1] + 1) % 4;
+                    bestSlot = SelectEvictionSlot(histograms, index, clusters, slotHistograms, slotCosts,
+                        (slots[^1] + 1) % 4, combined);
                 }
 
                 slotHistograms[bestSlot] = histogramIndex;
@@ -205,7 +204,113 @@ internal sealed class HuffmanCodingPlan
                 slotCosts[bestSlot] += bestCost;
             }
         }
+        if (clusters.Count is > 1 and <= 4)
+        {
+            ConsolidateClusters(clusters, indexes, slots, slotCosts[..clusters.Count], combined, bestCombined);
+        }
         return new(clusters, indexes, slots);
+    }
+
+    private static int SelectEvictionSlot(IReadOnlyList<long[]> histograms, int currentIndex,
+        List<long[]> clusters, ReadOnlySpan<int> slotHistograms, ReadOnlySpan<float> slotCosts,
+        int defaultSlot, Span<long> scratch)
+    {
+        int bestSlot = defaultSlot;
+        float lowestFutureSavings = float.MaxValue;
+        for (int offset = 0; offset < 4; offset++)
+        {
+            int slot = (defaultSlot + offset) & 3;
+            long[] cluster = clusters[slotHistograms[slot]];
+            float slotCost = slotCosts[slot];
+            float futureSavings = 0f;
+            for (int futureIndex = currentIndex + 1; futureIndex < histograms.Count; futureIndex++)
+            {
+                long[] future = histograms[futureIndex];
+                if (future.Length != 256 || future.AsSpan().ContainsAnyInRange(long.MinValue, -1L)
+                    || !future.AsSpan().ContainsAnyExcept(0L))
+                {
+                    continue;
+                }
+
+                float standaloneCost = Cost(future);
+                Add(cluster, future, scratch);
+                float mergeDelta = Cost(scratch) - slotCost;
+                if (mergeDelta < standaloneCost)
+                {
+                    futureSavings += standaloneCost - mergeDelta;
+                }
+            }
+            if (futureSavings < lowestFutureSavings)
+            {
+                lowestFutureSavings = futureSavings;
+                bestSlot = slot;
+                if (futureSavings == 0f)
+                {
+                    break;
+                }
+            }
+        }
+        return bestSlot;
+    }
+
+    private static void ConsolidateClusters(List<long[]> clusters, int[] indexes, List<int> slots,
+        Span<float> clusterCosts, Span<long> combined, Span<long> bestCombined)
+    {
+        for (int index = 0; index < clusters.Count; index++)
+        {
+            clusterCosts[index] = Cost(clusters[index]);
+        }
+
+        while (clusters.Count > 1)
+        {
+            int bestFirst = -1, bestSecond = -1;
+            float bestCost = 0f;
+            float bestSavings = 0f;
+            for (int first = 0; first < clusters.Count - 1; first++)
+            {
+                for (int second = first + 1; second < clusters.Count; second++)
+                {
+                    Add(clusters[first], clusters[second], combined);
+                    float mergedCost = Cost(combined);
+                    float savings = clusterCosts[first] + clusterCosts[second] - mergedCost;
+                    if (savings > bestSavings)
+                    {
+                        bestSavings = savings;
+                        bestCost = mergedCost;
+                        bestFirst = first;
+                        bestSecond = second;
+                        Span<long> swap = bestCombined;
+                        bestCombined = combined;
+                        combined = swap;
+                    }
+                }
+            }
+            if (bestFirst < 0)
+            {
+                break;
+            }
+
+            bestCombined.CopyTo(clusters[bestFirst]);
+            clusterCosts[bestFirst] = bestCost;
+            for (int index = bestSecond + 1; index < clusters.Count; index++)
+            {
+                clusterCosts[index - 1] = clusterCosts[index];
+            }
+
+            clusters.RemoveAt(bestSecond);
+            slots.RemoveAt(slots.Count - 1);
+            for (int index = 0; index < indexes.Length; index++)
+            {
+                if (indexes[index] == bestSecond)
+                {
+                    indexes[index] = bestFirst;
+                }
+                else if (indexes[index] > bestSecond)
+                {
+                    indexes[index]--;
+                }
+            }
+        }
     }
 
     private static void Add(ReadOnlySpan<long> left, ReadOnlySpan<long> right, Span<long> sum)
@@ -221,30 +326,12 @@ internal sealed class HuffmanCodingPlan
 
     private static HuffmanTable[] CreateTables(List<long[]> histograms, HuffmanSymbolOrder order)
     {
-        if (order != HuffmanSymbolOrder.Canonical)
-        {
-            return CreateReorderedTables(histograms, order);
-        }
-
         var tables = new HuffmanTable[histograms.Count];
         for (int index = 0; index < tables.Length; index++)
         {
-            tables[index] = HuffmanTable.CreateOptimized(histograms[index]);
+            tables[index] = HuffmanTable.CreateOptimized(histograms[index], order);
         }
 
-        return tables;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static HuffmanTable[] CreateReorderedTables(List<long[]> histograms, HuffmanSymbolOrder order)
-    {
-        var tables = new HuffmanTable[histograms.Count];
-        for (int index = 0; index < tables.Length; index++)
-        {
-            long[] histogram = histograms[index];
-            var table = HuffmanTable.CreateOptimized(histogram);
-            tables[index] = HuffmanSymbolOrdering.Reorder(table, histogram, order);
-        }
         return tables;
     }
 }

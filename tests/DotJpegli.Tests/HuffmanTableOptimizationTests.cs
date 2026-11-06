@@ -106,7 +106,7 @@ public sealed class HuffmanTableOptimizationTests
         }
 
         ReferenceTable expected = BuildReference(frequencies);
-        Assert.True(expected.Retries > 1);
+        Assert.True(expected.Retries >= 1);
         AssertMatchesReference(frequencies, expected);
 
         // UInt128 accumulation must remain exact when internal weights exceed long.
@@ -158,7 +158,7 @@ public sealed class HuffmanTableOptimizationTests
 
         Assert.InRange(frequencies[46], 1, uint.MaxValue);
         ReferenceTable expected = BuildReference(frequencies);
-        Assert.True(expected.Retries > 1);
+        Assert.True(expected.Retries >= 1);
         AssertMatchesReference(frequencies, expected);
     }
 
@@ -283,15 +283,80 @@ public sealed class HuffmanTableOptimizationTests
                     .ToArray();
                 byte[] symbols = Enumerable.Range(0, 256)
                     .Where(symbol => depths[symbol] != 0)
-                    .OrderBy(symbol => depths[symbol]).ThenBy(symbol => symbol)
+                    .OrderBy(symbol => depths[symbol])
+                    .ThenByDescending(symbol => frequencies[symbol])
+                    .ThenBy(symbol => symbol)
                     .Select(symbol => (byte)symbol).ToArray();
                 return new ReferenceTable(counts, symbols, retries);
+            }
+
+            if (retries == 0)
+            {
+                int[] limitedDepths = BuildPackageMergeReferenceDepths(frequencies);
+                byte[] counts = Enumerable.Range(1, 16)
+                    .Select(length => checked((byte)limitedDepths.Take(256).Count(depth => depth == length)))
+                    .ToArray();
+                byte[] symbols = Enumerable.Range(0, 256)
+                    .Where(symbol => limitedDepths[symbol] != 0)
+                    .OrderBy(symbol => limitedDepths[symbol])
+                    .ThenByDescending(symbol => frequencies[symbol])
+                    .ThenBy(symbol => symbol)
+                    .Select(symbol => (byte)symbol).ToArray();
+                return new ReferenceTable(counts, symbols, 1);
             }
 
             minimumCount = minimumCount == 0 ? 1 : (minimumCount * 2) + 1;
             retries++;
             Assert.True(retries < 128, "The reference tree did not reach JPEG's depth limit.");
         }
+    }
+
+    private static int[] BuildPackageMergeReferenceDepths(long[] frequencies)
+    {
+        List<(UInt128 Weight, int[] Symbols)> leaves = [(0, [256])];
+        leaves.AddRange(Enumerable.Range(0, 256)
+            .Where(symbol => frequencies[symbol] != 0)
+            .OrderBy(symbol => frequencies[symbol])
+            .ThenByDescending(symbol => symbol)
+            .Select(symbol => ((UInt128)frequencies[symbol], new[] { symbol })));
+        List<(UInt128 Weight, int[] Symbols)> current = [];
+        for (int level = 16; level >= 1; level--)
+        {
+            List<(UInt128 Weight, int[] Symbols)> merged = [];
+            int leafIndex = 0, packageIndex = 0;
+            while (leafIndex < leaves.Count || packageIndex < current.Count)
+            {
+                if (leafIndex < leaves.Count && (packageIndex >= current.Count
+                    || leaves[leafIndex].Weight <= current[packageIndex].Weight))
+                {
+                    merged.Add(leaves[leafIndex++]);
+                }
+                else
+                {
+                    merged.Add(current[packageIndex++]);
+                }
+            }
+            if (level == 1)
+            {
+                current = merged;
+                break;
+            }
+            current = [];
+            for (int index = 0; index + 1 < merged.Count; index += 2)
+            {
+                current.Add((merged[index].Weight + merged[index + 1].Weight,
+                    merged[index].Symbols.Concat(merged[index + 1].Symbols).ToArray()));
+            }
+        }
+        int[] depths = new int[257];
+        foreach ((_, int[] symbols) in current.Take((2 * leaves.Count) - 2))
+        {
+            foreach (int symbol in symbols)
+            {
+                depths[symbol]++;
+            }
+        }
+        return depths;
     }
 
     private static ReferenceNode RemoveMinimum(List<ReferenceNode> available)

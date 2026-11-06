@@ -61,7 +61,7 @@ internal static class ProgressiveAcCollector
                 : Quantization.PreparedTable.Create(tables[component], component, distance,
                     grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
                     adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                    rgb: pixels.IsRgb);
+                    rgb: pixels.IsRgb, tailZeroRunBias: pixels.TailZeroRunBias);
             int restartInterval = restartIntervals[component];
             int remaining = restartInterval, restartIndex = 0, lastAnalysisTop = -1;
             for (int blockY = 0; blockY < blocksHigh; blockY++)
