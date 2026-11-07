@@ -336,3 +336,12 @@ The legacy floating-point parallel row workspace and its lazy preparation or
 object layout are candidates for investigating the progressive parallel costs.
 Their causal role is unproven. The current evidence does not justify a new
 hardware-specific threshold or a claim that those costs have been removed.
+
+Subsequent commit `f3ffe8f` implemented the Priority 1–3 speed, allocation, and
+compression batch (32-row rolling converted planes, dimension-aware
+`PooledOutputStream` initial capacity, cached quantization configurations and
+scan presets, pooled histograms, per-block `ulong` nonzero AC masks for
+progressive scans, and in-register `PruneTailZeroRunTransposed`). See
+[`PLAN.md`](../PLAN.md) for the complete status table and remaining validation,
+tiny-control, rolling-plane, block-mask segmentation, parallel-progressive, and
+opt-in compression items.
