@@ -28,7 +28,7 @@ conditioning on timing stability does not characterize all attempts' latency.
 The [earlier complete native run at `0104778`](performance-evidence/2026-11-03-0104778/README.md)
 has an invalid timing verdict: one of 256 cases, `kodim13/420/p0/d1`, fails the
 managed relative-MAD guard. Its aggregate timings cannot establish native
-performance parity. The current valid `615b373` reference below includes all
+performance parity. The current valid `be14f89` reference below includes all
 256 cases.
 
 The fixed acceptance matrix is complemented by an opt-in workload diagnostic.

@@ -87,7 +87,7 @@ def main():
                 raise ValueError("Decoded dimensions differ from the common source")
             decodes[label] = image.convert("RGB").copy()
     versions = {
-        "DotJpegli": "4.0.0",
+        "DotJpegli": "5.0.0",
         "Google jpegli": PIN,
         "mozjpeg": "4.1.1",
         "libjpeg-turbo": features.version("libjpeg_turbo"),

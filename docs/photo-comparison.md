@@ -35,7 +35,7 @@ The source TIFF is downloadable upstream; the common input PNG is committed.
 | Encoder | Complete bytes | KiB | SSIMULACRA2 |
 | --- | ---: | ---: | ---: |
 | [Source PNG](images/comparison/source.png) | 4,437,354 | 4333.4 | 100.00 |
-| [DotJpegli 4.0.0](images/comparison/dotjpegli.jpg) | 723,724 | 706.8 | 80.49 |
+| [DotJpegli 5.0.0](images/comparison/dotjpegli.jpg) | 723,724 | 706.8 | 80.49 |
 | [Google jpegli](images/comparison/google-jpegli.jpg) | 723,938 | 707.0 | 80.49 |
 | [mozjpeg 4.1.1](images/comparison/mozjpeg.jpg) | 726,330 | 709.3 | 78.92 |
 | [libjpeg-turbo 3.2.0](images/comparison/libjpeg-turbo.jpg) | 822,647 | 803.4 | 80.41 |
