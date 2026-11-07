@@ -741,17 +741,8 @@ public static class JpegliEncoder
 
         const long contiguousPlaneLimitBytes = (8L * 1024 * 1024) + 65536;
         bool use420 = sampling.Is420 && options.OptimizeHuffmanTables;
-        long fullPlaneLength = (long)width * height;
-        long fullChromaLength = use420 ? (long)((width + 15) / 16 * 8) * ((height + 15) / 16 * 8) : fullPlaneLength;
-        long fullPlaneBytes = ((long)Math.Max(16UL, System.Numerics.BitOperations.RoundUpToPowerOf2(
-            (ulong)(fullPlaneLength + ((componentCount - 1) * fullChromaLength)))) * sizeof(float))
-            + (use420 ? (long)Math.Max(16UL, System.Numerics.BitOperations.RoundUpToPowerOf2((ulong)width * 4)) * sizeof(float) : 0);
-        long rollingPlaneLength = (long)width * 32;
-        long rollingChromaWidth = use420 ? (width + 15) / 16 * 8 : width;
-        long rollingChromaLength = rollingChromaWidth * (use420 ? 16 : 32);
-        long rollingScratchLength = use420 ? (long)width * 4 : 0;
-        long rollingBytes = (long)Math.Max(16UL, System.Numerics.BitOperations.RoundUpToPowerOf2(
-            (ulong)(rollingPlaneLength + ((componentCount - 1) * rollingChromaLength) + rollingScratchLength))) * sizeof(float);
+        long fullPlaneBytes = PixelSource.PlanFullConvertedBytes(width, height, componentCount, use420);
+        long rollingBytes = PixelSource.PlanRollingConvertedBytes(width, componentCount, use420);
         bool streamSequential = !options.Progressive && optimizedScans.Length == 1 && componentCount == 3
             && optimizedScans[0].Components is { Count: 3 };
         if (streamSequential)

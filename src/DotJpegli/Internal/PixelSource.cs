@@ -326,6 +326,23 @@ internal readonly ref struct PixelSource
         }
     }
 
+    internal static long PlanFullConvertedBytes(int width, int height, int components, bool is420)
+    {
+        long planeLength = (long)width * height;
+        long chromaLength = is420 ? (long)((width + 15) / 16 * 8) * ((height + 15) / 16 * 8) : planeLength;
+        return ConvertedPlanes.PooledBytes(planeLength + ((components - 1) * chromaLength))
+            + (is420 ? ConvertedPlanes.PooledBytes((long)width * 4) : 0);
+    }
+
+    internal static long PlanRollingConvertedBytes(int width, int components, bool is420)
+    {
+        long planeLength = (long)width * 32;
+        long chromaWidth = is420 ? (width + 15) / 16 * 8 : width;
+        long chromaLength = chromaWidth * (is420 ? 16 : 32);
+        long scratchLength = is420 ? (long)width * 4 : 0;
+        return ConvertedPlanes.PooledBytes(planeLength + ((components - 1) * chromaLength) + scratchLength);
+    }
+
     internal PixelSource WithRollingConvertedPlanes(int width, int height, int stride, bool is420,
         EncoderCacheBudget? cacheBudget, CancellationToken cancellationToken)
     {
