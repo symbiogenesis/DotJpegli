@@ -304,26 +304,11 @@ internal static class ProgressiveEntropyEncoder
         int successiveLow, int spectralStart, int spectralEnd)
     {
         bandNonzero &= (ulong.MaxValue << spectralStart) & (ulong.MaxValue >> (63 - spectralEnd));
-        if (successiveLow == 0)
+        if (bandNonzero == 0 || successiveLow == 0)
         {
             return bandNonzero;
         }
-        if (BitOperations.PopCount(bandNonzero) <= 8)
-        {
-            ulong nonzero = 0;
-            ulong remaining = bandNonzero;
-            while (remaining != 0)
-            {
-                int position = BitOperations.TrailingZeroCount(remaining);
-                remaining &= remaining - 1;
-                if ((Math.Abs((int)coefficients[position]) >> successiveLow) != 0)
-                {
-                    nonzero |= 1UL << position;
-                }
-            }
-            return nonzero;
-        }
-        return OrderedAcMask(coefficients, successiveLow, spectralStart, spectralEnd);
+        return OrderedAcMask(coefficients, successiveLow, spectralStart, spectralEnd, bandNonzero);
     }
 
     private static void AccumulateOrderedAcFrequenciesCore(ReadOnlySpan<short> coefficients, ulong nonzero,
@@ -466,7 +451,8 @@ internal static class ProgressiveEntropyEncoder
         tokens.CommitBlock(count);
     }
 
-    private static ulong OrderedAcMask(ReadOnlySpan<short> coefficients, int successiveLow, int spectralStart, int spectralEnd)
+    private static ulong OrderedAcMask(ReadOnlySpan<short> coefficients, int successiveLow, int spectralStart, int spectralEnd,
+        ulong bandNonzero = ulong.MaxValue)
     {
         ulong mask = 0;
         // Narrow low-frequency bands are cheaper to inspect directly. Larger
@@ -478,10 +464,12 @@ internal static class ProgressiveEntropyEncoder
         }
         else if (spectralEnd - spectralStart >= 8 && Vector512.IsHardwareAccelerated)
         {
-            for (int offset = 0; offset < 64; offset += Vector512<short>.Count)
+            var lower = Vector512.ShiftRightLogical(Vector512.Abs(Vector512.Create(coefficients[..32])), successiveLow);
+            mask = (~Vector512.Equals(lower, Vector512<short>.Zero)).ExtractMostSignificantBits();
+            if ((bandNonzero >> 32) != 0)
             {
-                var magnitude = Vector512.ShiftRightLogical(Vector512.Abs(Vector512.Create(coefficients[offset..])), successiveLow);
-                mask |= (~Vector512.Equals(magnitude, Vector512<short>.Zero)).ExtractMostSignificantBits() << offset;
+                var upper = Vector512.ShiftRightLogical(Vector512.Abs(Vector512.Create(coefficients.Slice(32, 32))), successiveLow);
+                mask |= (~Vector512.Equals(upper, Vector512<short>.Zero)).ExtractMostSignificantBits() << 32;
             }
         }
         else if (spectralEnd - spectralStart >= 8 && Vector128.IsHardwareAccelerated)
@@ -493,13 +481,20 @@ internal static class ProgressiveEntropyEncoder
             uint z23 = PackMask16(
                 Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(16, 8))), successiveLow), zero),
                 Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(24, 8))), successiveLow), zero));
-            uint z45 = PackMask16(
-                Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(32, 8))), successiveLow), zero),
-                Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(40, 8))), successiveLow), zero));
-            uint z67 = PackMask16(
-                Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(48, 8))), successiveLow), zero),
-                Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(56, 8))), successiveLow), zero));
-            mask = ~(z01 | (z23 << 16) | ((ulong)(z45 | (z67 << 16)) << 32));
+            if ((bandNonzero >> 32) == 0)
+            {
+                mask = ~(z01 | (z23 << 16));
+            }
+            else
+            {
+                uint z45 = PackMask16(
+                    Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(32, 8))), successiveLow), zero),
+                    Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(40, 8))), successiveLow), zero));
+                uint z67 = PackMask16(
+                    Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(48, 8))), successiveLow), zero),
+                    Vector128.Equals(Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(56, 8))), successiveLow), zero));
+                mask = ~(z01 | (z23 << 16) | ((ulong)(z45 | (z67 << 16)) << 32));
+            }
         }
         else
 #endif
@@ -513,7 +508,7 @@ internal static class ProgressiveEntropyEncoder
             }
         }
 
-        return mask & (ulong.MaxValue << spectralStart) & (ulong.MaxValue >> (63 - spectralEnd));
+        return mask & bandNonzero & (ulong.MaxValue << spectralStart) & (ulong.MaxValue >> (63 - spectralEnd));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -739,47 +734,9 @@ internal static class ProgressiveEntropyEncoder
             AccumulateEmptyAcRefinementBlock(state, writer, ac, frequencies, tokens, component);
             return;
         }
-        ulong newlySignificant = 0, previouslySignificant = 0;
-        if (BitOperations.PopCount(bandNonzero) <= 8)
-        {
-            ulong remaining = bandNonzero;
-            if (successiveLow == 0)
-            {
-                while (remaining != 0)
-                {
-                    int position = BitOperations.TrailingZeroCount(remaining);
-                    remaining &= remaining - 1;
-                    if (coefficients[position] is 1 or -1)
-                    {
-                        newlySignificant |= 1UL << position;
-                    }
-                }
-                previouslySignificant = bandNonzero ^ newlySignificant;
-            }
-            else
-            {
-                while (remaining != 0)
-                {
-                    int position = BitOperations.TrailingZeroCount(remaining);
-                    remaining &= remaining - 1;
-                    int magnitude = Math.Abs((int)coefficients[position]) >> successiveLow;
-                    if (magnitude == 1)
-                    {
-                        newlySignificant |= 1UL << position;
-                    }
-                    else if (magnitude > 1)
-                    {
-                        previouslySignificant |= 1UL << position;
-                    }
-                }
-            }
-        }
-        else
-        {
-            ClassifyOrderedCoefficients(coefficients, successiveLow, out newlySignificant, out previouslySignificant);
-            newlySignificant &= bandNonzero;
-            previouslySignificant &= bandNonzero;
-        }
+        ClassifyOrderedCoefficients(coefficients, successiveLow, out ulong newlySignificant, out ulong previouslySignificant, bandNonzero);
+        newlySignificant &= bandNonzero;
+        previouslySignificant &= bandNonzero;
         ProcessOrderedAcRefinementClassified(coefficients, newlySignificant, previouslySignificant, state,
             successiveLow, spectralStart, spectralEnd, writer, ac, frequencies, tokens, component);
     }
@@ -950,7 +907,7 @@ internal static class ProgressiveEntropyEncoder
     }
 
     private static void ClassifyOrderedCoefficients(ReadOnlySpan<short> coefficients, int successiveLow,
-        out ulong newlySignificant, out ulong previouslySignificant)
+        out ulong newlySignificant, out ulong previouslySignificant, ulong bandNonzero = ulong.MaxValue)
     {
         newlySignificant = previouslySignificant = 0;
         // Abs(short.MinValue) retains the unsigned 0x8000 magnitude at low == 0.
@@ -960,11 +917,14 @@ internal static class ProgressiveEntropyEncoder
         if (Vector512.IsHardwareAccelerated)
         {
             var one = Vector512.Create((ushort)1);
-            for (int offset = 0; offset < 64; offset += Vector512<short>.Count)
+            var lower = Vector512.ShiftRightLogical(Vector512.Abs(Vector512.Create(coefficients[..32])).AsUInt16(), successiveLow);
+            newlySignificant = Vector512.Equals(lower, one).ExtractMostSignificantBits();
+            previouslySignificant = Vector512.GreaterThan(lower, one).ExtractMostSignificantBits();
+            if ((bandNonzero >> 32) != 0)
             {
-                var magnitude = Vector512.ShiftRightLogical(Vector512.Abs(Vector512.Create(coefficients[offset..])).AsUInt16(), successiveLow);
-                newlySignificant |= Vector512.Equals(magnitude, one).ExtractMostSignificantBits() << offset;
-                previouslySignificant |= Vector512.GreaterThan(magnitude, one).ExtractMostSignificantBits() << offset;
+                var upper = Vector512.ShiftRightLogical(Vector512.Abs(Vector512.Create(coefficients.Slice(32, 32))).AsUInt16(), successiveLow);
+                newlySignificant |= Vector512.Equals(upper, one).ExtractMostSignificantBits() << 32;
+                previouslySignificant |= Vector512.GreaterThan(upper, one).ExtractMostSignificantBits() << 32;
             }
         }
         else if (Vector128.IsHardwareAccelerated)
@@ -975,21 +935,31 @@ internal static class ProgressiveEntropyEncoder
             var m1 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(8, 8))), successiveLow);
             var m2 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(16, 8))), successiveLow);
             var m3 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(24, 8))), successiveLow);
-            var m4 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(32, 8))), successiveLow);
-            var m5 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(40, 8))), successiveLow);
-            var m6 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(48, 8))), successiveLow);
-            var m7 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(56, 8))), successiveLow);
             uint n01 = PackMask16(Vector128.Equals(m0, one), Vector128.Equals(m1, one));
             uint n23 = PackMask16(Vector128.Equals(m2, one), Vector128.Equals(m3, one));
-            uint n45 = PackMask16(Vector128.Equals(m4, one), Vector128.Equals(m5, one));
-            uint n67 = PackMask16(Vector128.Equals(m6, one), Vector128.Equals(m7, one));
-            newlySignificant = n01 | (n23 << 16) | ((ulong)(n45 | (n67 << 16)) << 32);
             uint z01 = PackMask16(Vector128.Equals(m0, zero), Vector128.Equals(m1, zero));
             uint z23 = PackMask16(Vector128.Equals(m2, zero), Vector128.Equals(m3, zero));
-            uint z45 = PackMask16(Vector128.Equals(m4, zero), Vector128.Equals(m5, zero));
-            uint z67 = PackMask16(Vector128.Equals(m6, zero), Vector128.Equals(m7, zero));
-            ulong zeroMask = z01 | (z23 << 16) | ((ulong)(z45 | (z67 << 16)) << 32);
-            previouslySignificant = ~(zeroMask | newlySignificant);
+            if ((bandNonzero >> 32) == 0)
+            {
+                uint lowerNew = n01 | (n23 << 16);
+                uint lowerZero = z01 | (z23 << 16);
+                newlySignificant = lowerNew;
+                previouslySignificant = ~(lowerZero | lowerNew);
+            }
+            else
+            {
+                var m4 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(32, 8))), successiveLow);
+                var m5 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(40, 8))), successiveLow);
+                var m6 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(48, 8))), successiveLow);
+                var m7 = Vector128.ShiftRightLogical(Vector128.Abs(Vector128.Create(coefficients.Slice(56, 8))), successiveLow);
+                uint n45 = PackMask16(Vector128.Equals(m4, one), Vector128.Equals(m5, one));
+                uint n67 = PackMask16(Vector128.Equals(m6, one), Vector128.Equals(m7, one));
+                newlySignificant = n01 | (n23 << 16) | ((ulong)(n45 | (n67 << 16)) << 32);
+                uint z45 = PackMask16(Vector128.Equals(m4, zero), Vector128.Equals(m5, zero));
+                uint z67 = PackMask16(Vector128.Equals(m6, zero), Vector128.Equals(m7, zero));
+                ulong zeroMask = z01 | (z23 << 16) | ((ulong)(z45 | (z67 << 16)) << 32);
+                previouslySignificant = ~(zeroMask | newlySignificant);
+            }
         }
         else
 #endif

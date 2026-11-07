@@ -272,12 +272,17 @@ internal sealed class ParallelDctRows
                 int planeWidth = this.width, planeHeight = this.height, planeTop = blockY * 8;
                 if (compactChroma)
                 {
-                    plane = pixels.GetConverted420ChromaPlane(component, out planeWidth, out planeHeight);
+                    plane = pixels.GetConverted420ChromaPlane(component, out int chromaWidth, out int chromaHeight);
+                    planeWidth = chromaWidth;
+                    planeHeight = chromaHeight;
                 }
                 if (plane.IsEmpty && (fullResolution || compactChroma))
                 {
                     plane = pixels.GetConvertedPlaneSegment(component, blockY * 8, compactChroma,
-                        out planeWidth, out planeHeight, out planeTop);
+                        out int segWidth, out int segHeight, out int segTop);
+                    planeWidth = segWidth;
+                    planeHeight = segHeight;
+                    planeTop = segTop;
                 }
                 if (!plane.IsEmpty)
                 {
@@ -357,12 +362,17 @@ internal sealed class ParallelDctRows
                 int planeTop = blockY * 8;
                 if (compactChroma)
                 {
-                    plane = pixels.GetConverted420ChromaPlane(component, out planeWidth, out planeHeight);
+                    plane = pixels.GetConverted420ChromaPlane(component, out int chromaWidth, out int chromaHeight);
+                    planeWidth = chromaWidth;
+                    planeHeight = chromaHeight;
                 }
                 if (plane.IsEmpty && (fullResolution || compactChroma))
                 {
                     plane = pixels.GetConvertedPlaneSegment(component, blockY * 8, compactChroma,
-                        out planeWidth, out planeHeight, out planeTop);
+                        out int segWidth, out int segHeight, out int segTop);
+                    planeWidth = segWidth;
+                    planeHeight = segHeight;
+                    planeTop = segTop;
                 }
                 Span<float> destination = this.coefficients.AsSpan(block * 64, 64);
                 if (!plane.IsEmpty)

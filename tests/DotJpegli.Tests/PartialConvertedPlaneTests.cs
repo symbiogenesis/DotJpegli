@@ -183,12 +183,16 @@ public sealed class PartialConvertedPlaneTests
         }
 
         ChromaSubsampling subsampling = compact ? ChromaSubsampling.Quarter : ChromaSubsampling.None;
+        long rollingCacheLimit = progressiveLevel == 0
+            ? (compact ? 600 * 1024 : 640 * 1024)
+            : (compact ? 64 * 1024 : 128 * 1024);
         byte[] rollingEncoded = JpegliEncoder.Encode(rgb, width, height, PixelLayout.Rgb24, new JpegliEncoderOptions
         {
             Distance = 1.0f,
             Subsampling = subsampling,
             ProgressiveLevel = progressiveLevel,
-            MaxDegreeOfParallelism = 1
+            MaxDegreeOfParallelism = 1,
+            MaxCacheBytes = rollingCacheLimit
         }, cancellationToken: TestContext.Current.CancellationToken);
         byte[] fullCachedEncoded = JpegliEncoder.Encode(rgb, width, height, PixelLayout.Rgb24, new JpegliEncoderOptions
         {

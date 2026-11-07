@@ -28,6 +28,10 @@ internal static class Quantization
         float[][]? AdaptiveMultipliers, PreparedTable[] PreparedTables);
 
     private static readonly ConcurrentDictionary<ConfigurationCacheKey, Configuration> ConfigurationCache = new();
+    [ThreadStatic]
+    private static ConfigurationCacheKey lastConfigurationKey;
+    [ThreadStatic]
+    private static Configuration? lastConfiguration;
 
     internal static Configuration GetOrCreateConfiguration(float distance, bool grayscale, bool rgb, bool xyb,
         bool useStandardTables, bool forceBaseline, int quantizationSampling, int transferFunction,
@@ -49,8 +53,14 @@ internal static class Quantization
             (uint)BitConverter.SingleToInt32Bits(distance),
             flags,
             (uint)BitConverter.SingleToInt32Bits(tailZeroRunBias));
+        if (lastConfiguration is { } threadCached && lastConfigurationKey == key)
+        {
+            return threadCached;
+        }
         if (ConfigurationCache.TryGetValue(key, out Configuration? cached))
         {
+            lastConfigurationKey = key;
+            lastConfiguration = cached;
             return cached;
         }
 
@@ -104,6 +114,8 @@ internal static class Quantization
         {
             _ = ConfigurationCache.TryAdd(key, created);
         }
+        lastConfigurationKey = key;
+        lastConfiguration = created;
         return created;
     }
     private const int BlockSize = 64;

@@ -380,16 +380,16 @@ public static class JpegliEncoder
             }
         }
 
-        var dcTables = new HuffmanTable[grayscale || rgb ? 1 : 2];
-        var acTables = new HuffmanTable[dcTables.Length];
         if (hasOutOfRangeFloatSamples)
         {
             // Validate full coefficients with baseline MCU ordering and restart
             // resets, even when the selected progressive preview shifts DC bits.
             // Recompute blocks instead of storing a full-image coefficient buffer.
-            long[][] dcValidation = new long[dcTables.Length][];
-            long[][] acValidation = new long[acTables.Length][];
-            for (int index = 0; index < dcTables.Length; index++)
+            HuffmanTable[] emptyValidationTables = grayscale || rgb ? EmptyTables1 : EmptyTables3;
+            int validationTableCount = grayscale || rgb ? 1 : 2;
+            long[][] dcValidation = new long[validationTableCount][];
+            long[][] acValidation = new long[validationTableCount][];
+            for (int index = 0; index < validationTableCount; index++)
             {
                 dcValidation[index] = RentHistogram();
                 acValidation[index] = RentHistogram();
@@ -398,7 +398,7 @@ public static class JpegliEncoder
             {
                 ProcessBlocks(pixels, width, height, stride, sampling,
                     tables, distance, options.SmoothingFactor, interleavedRestartInterval, adaptive, adaptiveMultipliers,
-                    dcTables, acTables, null, dcValidation, acValidation, cancellationToken,
+                    emptyValidationTables, emptyValidationTables, null, dcValidation, acValidation, cancellationToken,
                     requireEightBitCoefficients: true, preparedTables: preparedTables);
             }
             catch (ArgumentException error) when (error.ParamName is "coefficients" or "adaptiveStrength")
@@ -408,7 +408,7 @@ public static class JpegliEncoder
             }
             finally
             {
-                for (int index = 0; index < dcTables.Length; index++)
+                for (int index = 0; index < validationTableCount; index++)
                 {
                     ReturnHistogram(dcValidation[index]);
                     ReturnHistogram(acValidation[index]);
@@ -455,6 +455,8 @@ public static class JpegliEncoder
                 preparedTables);
             return;
         }
+        var dcTables = new HuffmanTable[grayscale || rgb ? 1 : 2];
+        var acTables = new HuffmanTable[dcTables.Length];
         // RGB/XYB retain their existing shared Huffman definitions and scan
         // headers while reusing the same full coefficients across both passes.
         // Unoptimized progressive output also benefits from this bounded cache.
@@ -737,7 +739,19 @@ public static class JpegliEncoder
             return false;
         }
 
-        long rollingBytes = ((long)width * 136 * sizeof(float)) + 65536;
+        const long contiguousPlaneLimitBytes = (8L * 1024 * 1024) + 65536;
+        bool use420 = sampling.Is420 && options.OptimizeHuffmanTables;
+        long fullPlaneLength = (long)width * height;
+        long fullChromaLength = use420 ? (long)((width + 15) / 16 * 8) * ((height + 15) / 16 * 8) : fullPlaneLength;
+        long fullPlaneBytes = ((long)Math.Max(16UL, System.Numerics.BitOperations.RoundUpToPowerOf2(
+            (ulong)(fullPlaneLength + ((componentCount - 1) * fullChromaLength)))) * sizeof(float))
+            + (use420 ? (long)Math.Max(16UL, System.Numerics.BitOperations.RoundUpToPowerOf2((ulong)width * 4)) * sizeof(float) : 0);
+        long rollingPlaneLength = (long)width * 32;
+        long rollingChromaWidth = use420 ? (width + 15) / 16 * 8 : width;
+        long rollingChromaLength = rollingChromaWidth * (use420 ? 16 : 32);
+        long rollingScratchLength = use420 ? (long)width * 4 : 0;
+        long rollingBytes = (long)Math.Max(16UL, System.Numerics.BitOperations.RoundUpToPowerOf2(
+            (ulong)(rollingPlaneLength + ((componentCount - 1) * rollingChromaLength) + rollingScratchLength))) * sizeof(float);
         bool streamSequential = !options.Progressive && optimizedScans.Length == 1 && componentCount == 3
             && optimizedScans[0].Components is { Count: 3 };
         if (streamSequential)
@@ -750,13 +764,24 @@ public static class JpegliEncoder
                 + (sampling[2].Horizontal * sampling[2].Vertical);
             long worstCaseTokenBytes = (((mcus * blocksPerMcu * 64) + mcus) * sizeof(uint)) + (512 * 1024);
             long tokenLimit = Math.Min(options.EntropyTokenBudgetBytes, EntropyTokenBudget.DefaultMaximumBytes);
+            if (fullPlaneBytes <= contiguousPlaneLimitBytes
+                && worstCaseTokenBytes <= cacheBudget.AvailableBytes - fullPlaneBytes)
+            {
+                return false;
+            }
             return worstCaseTokenBytes <= tokenLimit
-                && worstCaseTokenBytes + rollingBytes <= cacheBudget.AvailableBytes;
+                && worstCaseTokenBytes <= cacheBudget.AvailableBytes - rollingBytes;
         }
 
         long coefficientBytes = QuantizedImage.PlanFullCacheReservation(width, height, sampling,
             componentCount, cacheBudget.AvailableBytes - rollingBytes);
-        return coefficientBytes > 0 && coefficientBytes + rollingBytes <= cacheBudget.AvailableBytes;
+        if (fullPlaneBytes <= contiguousPlaneLimitBytes
+            && coefficientBytes > 0
+            && coefficientBytes <= cacheBudget.AvailableBytes - fullPlaneBytes)
+        {
+            return false;
+        }
+        return coefficientBytes > 0 && coefficientBytes <= cacheBudget.AvailableBytes - rollingBytes;
     }
 
     private static void EncodeOptimizedScans(PixelSource pixels, int width, int height, int stride,
@@ -1068,7 +1093,10 @@ public static class JpegliEncoder
                     bool compactChroma = component != 0
                         && (info.Horizontal != horizontal || info.Vertical != source.Vertical);
                     rowPlane = source.Pixels.GetConvertedPlaneSegment(component, top, compactChroma,
-                        out planeWidth, out planeHeight, out top);
+                        out int segWidth, out int segHeight, out int segTop);
+                    planeWidth = segWidth;
+                    planeHeight = segHeight;
+                    top = segTop;
                 }
                 if (!rowPlane.IsEmpty)
                 {

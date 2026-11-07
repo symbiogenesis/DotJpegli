@@ -218,7 +218,9 @@ internal sealed class QuantizedImage : IDisposable
                     int planeWidth = width, planeHeight = height;
                     if (smoothingFactor == 0 && sampling.Is420 && component != 0)
                     {
-                        plane = pixels.GetConverted420ChromaPlane(component, out planeWidth, out planeHeight);
+                        plane = pixels.GetConverted420ChromaPlane(component, out int chromaWidth, out int chromaHeight);
+                        planeWidth = chromaWidth;
+                        planeHeight = chromaHeight;
                     }
 
                     int firstRow = top / (vertical * 8) * factor.Vertical;
@@ -233,7 +235,10 @@ internal sealed class QuantizedImage : IDisposable
                             && ((factor.Horizontal == horizontal && factor.Vertical == vertical) || compactChroma))
                         {
                             rowPlane = pixels.GetConvertedPlaneSegment(component, y * 8, compactChroma,
-                                out rowPlaneWidth, out rowPlaneHeight, out planeY);
+                                out int segWidth, out int segHeight, out int segY);
+                            rowPlaneWidth = segWidth;
+                            rowPlaneHeight = segHeight;
+                            planeY = segY;
                         }
                         if (pixels.ParallelRows is null && rateDistortionLambda == 0 && !rowPlane.IsEmpty && zigZagOrdered)
                         {
