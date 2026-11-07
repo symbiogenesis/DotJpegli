@@ -1,8 +1,8 @@
-# Complete native measurements at 615b373
+# Complete native measurements at be14f89
 
-Revision `615b373ca0d6104584140a5a0176c029d866f964` was measured in
-[CI run 42196948996](https://github.com/symbiogenesis/DotJpegli/actions/runs/42196948996)
-on November 6, 2026 (America/Chicago and UTC). All 256 performance cases are
+Revision `be14f89161d77736adc09a64536646e16d7bd1c4` was measured in
+[CI run 42376806989](https://github.com/symbiogenesis/DotJpegli/actions/runs/42376806989)
+on November 7, 2026 (America/Chicago and UTC). All 256 performance cases are
 complete, matched and valid under the fixed protocol, but full performance
 parity **fails**. The same run's complete 1,280-pair quality/compression
 comparison and 192-case untimed allocation observation both pass.
@@ -14,19 +14,19 @@ validity, performance acceptance and successful chart generation.
 
 | Corpus | Sampling | Sequential mean / worst | Progressive level 2 mean / worst |
 | --- | --- | ---: | ---: |
-| Kodak photographs | 4:4:4 | 0.843250 / 1.028723 | 0.704447 / 0.757750 |
-| Kodak photographs | 4:2:0 | 0.831886 / 1.072241 | 0.695256 / 0.785251 |
-| Deterministic controls | 4:4:4 | 0.967269 / 1.356492 | 0.908623 / 1.356400 |
-| Deterministic controls | 4:2:0 | 0.904259 / 1.367096 | 0.928958 / 1.345023 |
+| Kodak photographs | 4:4:4 | 0.858049 / 1.042135 | 0.584135 / 0.640687 |
+| Kodak photographs | 4:2:0 | 0.846943 / 1.083286 | 0.628844 / 0.681390 |
+| Deterministic controls | 4:4:4 | 0.932294 / 1.293775 | 0.773207 / 1.146124 |
+| Deterministic controls | 4:2:0 | 0.862773 / 1.208682 | 0.814106 / 1.167850 |
 
 Ratios are managed/native median encoding latency; means are geometric means
 over every case in each group. Lower is better. Photograph sequential groups
-use **15.7–16.8% less time** than native, while progressive groups use
-**29.6–30.5% less**. All four photograph groups pass both the fixed 1.05 group
+use **14.2–15.3% less time** than native, while progressive groups use
+**37.1–41.6% less**. All four photograph groups pass both the fixed 1.05 group
 and 1.10 individual bounds. All four deterministic control groups meet the
-1.05 group bound (using 3.3–9.6% less time on average) but exceed the 1.10
-individual bound. Overall, four of eight groups fail and 25 cases exceed the
-1.10 individual bound; the worst ratio is 1.367096 for `tiny-odd-edges`, 4:2:0,
+1.05 group bound (using 6.8–22.7% less time on average) but exceed the 1.10
+individual bound. Overall, four of eight groups fail and 15 cases exceed the
+1.10 individual bound; the worst ratio is 1.293775 for `smooth-gradient`, 4:4:4,
 sequential, distance 1. No aggregate result overrides an individual failure.
 
 The latency host is AMD EPYC 9V45 x64, running .NET `11.0.0-rc.3.26522.148`,
@@ -40,14 +40,14 @@ are discarded.
 ## Allocations per encode
 
 The same CI run collected all **192 photograph configurations** in the untimed
-allocation job on an AMD EPYC 7763 x64 runner:
+allocation job on an AMD EPYC 9V74 x64 runner:
 
 | Encoding | DotJpegli managed GC bytes, KiB/encode | Google C++ jpegli requested heap bytes, KiB/encode |
 | --- | ---: | ---: |
-| Sequential, 4:4:4 | 110.2 | 1924.8 |
-| Sequential, 4:2:0 | 98.8 | 2190.1 |
-| Progressive level 2, 4:4:4 | 146.3 | 4288.3 |
-| Progressive level 2, 4:2:0 | 134.8 | 3209.3 |
+| Sequential, 4:4:4 | 90.3 | 1924.8 |
+| Sequential, 4:2:0 | 79.2 | 2190.1 |
+| Progressive level 2, 4:4:4 | 109.1 | 4288.3 |
+| Progressive level 2, 4:2:0 | 97.6 | 3209.3 |
 
 Each value is an arithmetic mean across all 24 Kodak photographs and distances
 1/4, with three complete encode samples per case following five warmups.
@@ -75,8 +75,8 @@ Regenerate all charts from the retained evidence without running a benchmark:
 
 ```powershell
 ./tools/update-performance-charts.ps1 `
-  -Performance docs/performance-evidence/2026-11-06-615b373/full `
-  -Quality docs/performance-evidence/2026-11-06-615b373/quality `
-  -Allocations docs/performance-evidence/2026-11-06-615b373/allocations `
+  -Performance docs/performance-evidence/2026-11-07-be14f89/full `
+  -Quality docs/performance-evidence/2026-11-07-be14f89/quality `
+  -Allocations docs/performance-evidence/2026-11-07-be14f89/allocations `
   -Output .artifacts/regenerated-readme-charts
 ```

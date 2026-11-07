@@ -17,12 +17,12 @@ passed on November 3, 2026, testing revision
 `b07eb5d240c2be1f6b9aebac13d081fb50d740cd`, before the later partial converted-plane
 change. This result establishes quality/compression parity for that measured revision.
 
-The complete comparison also passes for revision `615b373` in
-[CI run 42196948996](https://github.com/symbiogenesis/DotJpegli/actions/runs/42196948996),
-measured on November 6, 2026 (America/Chicago and UTC). Its
-[retained summary](performance-evidence/2026-11-06-615b373/quality/summary.json)
-records the latest encoder identity after the Huffman entropy coding and
-progressive refinement updates, with 2,850 matched-rate targets and 4,396
+The complete comparison also passes for revision `be14f89` in
+[CI run 42376806989](https://github.com/symbiogenesis/DotJpegli/actions/runs/42376806989),
+measured on November 7, 2026 (America/Chicago and UTC). Its
+[retained summary](performance-evidence/2026-11-07-be14f89/quality/summary.json)
+records the latest encoder identity after the Huffman entropy coding,
+progressive refinement and rolling/contiguous plane updates, with 2,850 matched-rate targets and 4,396
 matched-quality targets. Every matched-quality group geometric mean is slightly
 smaller than native (up to 0.031342% smaller on photographs), and the worst
 individual matched-quality or same-distance overhead is 0.363636% (all within

@@ -10,9 +10,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      189464,
-      189464,
-      189464
+      164144,
+      164144,
+      164144
     ],
     "nativeAllocatedBytes": [
       2420480,
@@ -35,9 +35,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      96920,
-      96920,
-      96920
+      78600,
+      78600,
+      78600
     ],
     "nativeAllocatedBytes": [
       1994260,
@@ -60,9 +60,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      230488,
-      230488,
-      230488
+      189352,
+      189352,
+      189352
     ],
     "nativeAllocatedBytes": [
       5026756,
@@ -85,9 +85,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      140360,
-      140360,
-      140360
+      102448,
+      102448,
+      102448
     ],
     "nativeAllocatedBytes": [
       4342984,
@@ -110,9 +110,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      171616,
-      171616,
-      171616
+      146616,
+      146616,
+      146616
     ],
     "nativeAllocatedBytes": [
       2495067,
@@ -135,9 +135,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      85560,
-      85560,
-      85560
+      67240,
+      67240,
+      67240
     ],
     "nativeAllocatedBytes": [
       2330993,
@@ -160,9 +160,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      205448,
-      205448,
-      205448
+      166464,
+      166464,
+      166464
     ],
     "nativeAllocatedBytes": [
       3673372,
@@ -185,9 +185,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      127448,
-      127448,
-      127448
+      89448,
+      89448,
+      89448
     ],
     "nativeAllocatedBytes": [
       3285525,
@@ -210,9 +210,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      131184,
-      131184,
-      131184
+      111720,
+      111720,
+      111720
     ],
     "nativeAllocatedBytes": [
       2125362,
@@ -235,9 +235,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      67896,
-      67896,
-      67896
+      49576,
+      49576,
+      49576
     ],
     "nativeAllocatedBytes": [
       1994253,
@@ -260,9 +260,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      188688,
-      188688,
-      188688
+      150520,
+      150520,
+      150520
     ],
     "nativeAllocatedBytes": [
       4613683,
@@ -285,9 +285,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      113456,
-      113456,
-      113456
+      75544,
+      75544,
+      75544
     ],
     "nativeAllocatedBytes": [
       4258691,
@@ -310,9 +310,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      115904,
-      115904,
-      115904
+      92976,
+      92976,
+      92976
     ],
     "nativeAllocatedBytes": [
       2476973,
@@ -335,9 +335,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      57384,
-      57384,
-      57384
+      39080,
+      39080,
+      39080
     ],
     "nativeAllocatedBytes": [
       2321139,
@@ -360,9 +360,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      160080,
-      160080,
-      160080
+      122112,
+      122112,
+      122112
     ],
     "nativeAllocatedBytes": [
       3513820,
@@ -385,9 +385,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      97128,
-      97128,
-      97128
+      59160,
+      59160,
+      59160
     ],
     "nativeAllocatedBytes": [
       3191548,
@@ -410,9 +410,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      104880,
-      104880,
-      104880
+      86560,
+      86560,
+      86560
     ],
     "nativeAllocatedBytes": [
       2125373,
@@ -435,9 +435,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      65344,
-      65344,
-      65344
+      47024,
+      47024,
+      47024
     ],
     "nativeAllocatedBytes": [
       1994259,
@@ -460,9 +460,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      141904,
-      141904,
-      141904
+      103992,
+      103992,
+      103992
     ],
     "nativeAllocatedBytes": [
       4458196,
@@ -485,9 +485,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      98976,
-      98976,
-      98976
+      61208,
+      61208,
+      61208
     ],
     "nativeAllocatedBytes": [
       4201440,
@@ -510,9 +510,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      95192,
-      95192,
-      95192
+      76872,
+      76872,
+      76872
     ],
     "nativeAllocatedBytes": [
       2331028,
@@ -535,9 +535,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      59480,
-      59480,
-      59480
+      41160,
+      41160,
+      41160
     ],
     "nativeAllocatedBytes": [
       2330989,
@@ -560,9 +560,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      133728,
-      133728,
-      133728
+      95744,
+      95744,
+      95744
     ],
     "nativeAllocatedBytes": [
       3291496,
@@ -585,9 +585,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      95120,
-      95120,
-      95120
+      57280,
+      57280,
+      57280
     ],
     "nativeAllocatedBytes": [
       3181509,
@@ -610,9 +610,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      136816,
-      136816,
-      136816
+      112376,
+      112376,
+      112376
     ],
     "nativeAllocatedBytes": [
       1589626,
@@ -635,9 +635,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      71792,
-      71792,
-      71792
+      53472,
+      53472,
+      53472
     ],
     "nativeAllocatedBytes": [
       1425550,
@@ -660,9 +660,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      176664,
-      176664,
-      176664
+      138736,
+      138736,
+      138736
     ],
     "nativeAllocatedBytes": [
       4274121,
@@ -685,9 +685,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      113024,
-      113024,
-      113024
+      75112,
+      75112,
+      75112
     ],
     "nativeAllocatedBytes": [
       3963888,
@@ -710,9 +710,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      120912,
-      120912,
-      120912
+      97824,
+      97824,
+      97824
     ],
     "nativeAllocatedBytes": [
       1818123,
@@ -735,9 +735,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      64664,
-      64664,
-      64664
+      46344,
+      46344,
+      46344
     ],
     "nativeAllocatedBytes": [
       1662298,
@@ -760,9 +760,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      156888,
-      156888,
-      156888
+      118904,
+      118904,
+      118904
     ],
     "nativeAllocatedBytes": [
       3105885,
@@ -785,9 +785,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      104088,
-      104088,
-      104088
+      66104,
+      66104,
+      66104
     ],
     "nativeAllocatedBytes": [
       2820279,
@@ -810,9 +810,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      195064,
-      195064,
-      195064
+      170624,
+      170624,
+      170624
     ],
     "nativeAllocatedBytes": [
       2420470,
@@ -835,9 +835,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      106080,
-      106080,
-      106080
+      87760,
+      87760,
+      87760
     ],
     "nativeAllocatedBytes": [
       2125333,
@@ -860,9 +860,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      232480,
-      232480,
-      232480
+      192696,
+      192696,
+      192696
     ],
     "nativeAllocatedBytes": [
       5035597,
@@ -885,9 +885,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      142360,
-      142360,
-      142360
+      104448,
+      104448,
+      104448
     ],
     "nativeAllocatedBytes": [
       4452253,
@@ -910,9 +910,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      178256,
-      178256,
-      178256
+      153896,
+      153896,
+      153896
     ],
     "nativeAllocatedBytes": [
       2757204,
@@ -935,9 +935,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      95128,
-      95128,
-      95128
+      76808,
+      76808,
+      76808
     ],
     "nativeAllocatedBytes": [
       2330996,
@@ -960,9 +960,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      220680,
-      220680,
-      220680
+      180856,
+      180856,
+      180856
     ],
     "nativeAllocatedBytes": [
       3957049,
@@ -985,9 +985,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      133304,
-      133304,
-      133304
+      95320,
+      95320,
+      95320
     ],
     "nativeAllocatedBytes": [
       3294934,
@@ -1010,9 +1010,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      157304,
-      157304,
-      157304
+      132624,
+      132624,
+      132624
     ],
     "nativeAllocatedBytes": [
       2158320,
@@ -1035,9 +1035,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      84136,
-      84136,
-      84136
+      65816,
+      65816,
+      65816
     ],
     "nativeAllocatedBytes": [
       1994254,
@@ -1060,9 +1060,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      189568,
-      189568,
-      189568
+      151656,
+      151656,
+      151656
     ],
     "nativeAllocatedBytes": [
       4599625,
@@ -1085,9 +1085,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      116360,
-      116360,
-      116360
+      78592,
+      78592,
+      78592
     ],
     "nativeAllocatedBytes": [
       4258805,
@@ -1110,9 +1110,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      142744,
-      142744,
-      142744
+      118544,
+      118544,
+      118544
     ],
     "nativeAllocatedBytes": [
       2495051,
@@ -1135,9 +1135,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      75224,
-      75224,
-      75224
+      56904,
+      56904,
+      56904
     ],
     "nativeAllocatedBytes": [
       2330986,
@@ -1160,9 +1160,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      177304,
-      177304,
-      177304
+      139320,
+      139320,
+      139320
     ],
     "nativeAllocatedBytes": [
       3577718,
@@ -1185,9 +1185,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      109664,
-      109664,
-      109664
+      71824,
+      71824,
+      71824
     ],
     "nativeAllocatedBytes": [
       3232697,
@@ -1210,9 +1210,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      119224,
-      119224,
-      119224
+      98584,
+      98584,
+      98584
     ],
     "nativeAllocatedBytes": [
       2133596,
@@ -1235,9 +1235,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      73384,
-      73384,
-      73384
+      55064,
+      55064,
+      55064
     ],
     "nativeAllocatedBytes": [
       1994251,
@@ -1260,9 +1260,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      164848,
-      164848,
-      164848
+      126920,
+      126920,
+      126920
     ],
     "nativeAllocatedBytes": [
       4517710,
@@ -1285,9 +1285,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      110928,
-      110928,
-      110928
+      73016,
+      73016,
+      73016
     ],
     "nativeAllocatedBytes": [
       4234562,
@@ -1310,9 +1310,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      106472,
-      106472,
-      106472
+      88152,
+      88152,
+      88152
     ],
     "nativeAllocatedBytes": [
       2462092,
@@ -1335,9 +1335,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      67144,
-      67144,
-      67144
+      48824,
+      48824,
+      48824
     ],
     "nativeAllocatedBytes": [
       2330986,
@@ -1360,9 +1360,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      144864,
-      144864,
-      144864
+      106880,
+      106880,
+      106880
     ],
     "nativeAllocatedBytes": [
       3465078,
@@ -1385,9 +1385,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      102744,
-      102744,
-      102744
+      64904,
+      64904,
+      64904
     ],
     "nativeAllocatedBytes": [
       3204396,
@@ -1410,9 +1410,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      199208,
-      199208,
-      199208
+      173808,
+      173808,
+      173808
     ],
     "nativeAllocatedBytes": [
       2420479,
@@ -1435,9 +1435,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      105344,
-      105344,
-      105344
+      87024,
+      87024,
+      87024
     ],
     "nativeAllocatedBytes": [
       2125337,
@@ -1460,9 +1460,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      235496,
-      235496,
-      235496
+      195424,
+      195424,
+      195424
     ],
     "nativeAllocatedBytes": [
       5031663,
@@ -1485,9 +1485,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      141896,
-      141896,
-      141896
+      103984,
+      103984,
+      103984
     ],
     "nativeAllocatedBytes": [
       4448796,
@@ -1510,9 +1510,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      180784,
-      180784,
-      180784
+      155464,
+      155464,
+      155464
     ],
     "nativeAllocatedBytes": [
       2757214,
@@ -1535,9 +1535,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      94296,
-      94296,
-      94296
+      75976,
+      75976,
+      75976
     ],
     "nativeAllocatedBytes": [
       2330999,
@@ -1560,9 +1560,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      216624,
-      216624,
-      216624
+      178640,
+      178640,
+      178640
     ],
     "nativeAllocatedBytes": [
       3930160,
@@ -1585,9 +1585,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      136664,
-      136664,
-      136664
+      98680,
+      98680,
+      98680
     ],
     "nativeAllocatedBytes": [
       3297558,
@@ -1610,9 +1610,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      108832,
-      108832,
-      108832
+      90512,
+      90512,
+      90512
     ],
     "nativeAllocatedBytes": [
       1556654,
@@ -1635,9 +1635,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      66176,
-      66176,
-      66176
+      47856,
+      47856,
+      47856
     ],
     "nativeAllocatedBytes": [
       1425551,
@@ -1660,9 +1660,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      148128,
-      148128,
-      148128
+      110216,
+      110216,
+      110216
     ],
     "nativeAllocatedBytes": [
       4166099,
@@ -1685,9 +1685,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      99424,
-      99424,
-      99424
+      61656,
+      61656,
+      61656
     ],
     "nativeAllocatedBytes": [
       3912078,
@@ -1710,9 +1710,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      96720,
-      96720,
-      96720
+      78400,
+      78400,
+      78400
     ],
     "nativeAllocatedBytes": [
       1662353,
@@ -1735,9 +1735,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      60296,
-      60296,
-      60296
+      41976,
+      41976,
+      41976
     ],
     "nativeAllocatedBytes": [
       1662313,
@@ -1760,9 +1760,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      138520,
-      138520,
-      138520
+      100536,
+      100536,
+      100536
     ],
     "nativeAllocatedBytes": [
       2910327,
@@ -1785,9 +1785,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      92120,
-      92120,
-      92120
+      54296,
+      54296,
+      54296
     ],
     "nativeAllocatedBytes": [
       2736110,
@@ -1810,9 +1810,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      117464,
-      117464,
-      117464
+      99144,
+      99144,
+      99144
     ],
     "nativeAllocatedBytes": [
       1556659,
@@ -1835,9 +1835,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      69368,
-      69368,
-      69368
+      51048,
+      51048,
+      51048
     ],
     "nativeAllocatedBytes": [
       1425553,
@@ -1860,9 +1860,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      157472,
-      157472,
-      157472
+      119560,
+      119560,
+      119560
     ],
     "nativeAllocatedBytes": [
       4189804,
@@ -1885,9 +1885,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      103168,
-      103168,
-      103168
+      65400,
+      65400,
+      65400
     ],
     "nativeAllocatedBytes": [
       3917646,
@@ -1910,9 +1910,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      108408,
-      108408,
-      108408
+      86512,
+      86512,
+      86512
     ],
     "nativeAllocatedBytes": [
       1809900,
@@ -1935,9 +1935,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      63016,
-      63016,
-      63016
+      44696,
+      44696,
+      44696
     ],
     "nativeAllocatedBytes": [
       1662310,
@@ -1960,9 +1960,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      147064,
-      147064,
-      147064
+      109080,
+      109080,
+      109080
     ],
     "nativeAllocatedBytes": [
       3065211,
@@ -1985,9 +1985,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      99008,
-      99008,
-      99008
+      61168,
+      61168,
+      61168
     ],
     "nativeAllocatedBytes": [
       2802442,
@@ -2010,9 +2010,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      151840,
-      151840,
-      151840
+      127480,
+      127480,
+      127480
     ],
     "nativeAllocatedBytes": [
       2158325,
@@ -2035,9 +2035,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      79816,
-      79816,
-      79816
+      61496,
+      61496,
+      61496
     ],
     "nativeAllocatedBytes": [
       1994260,
@@ -2060,9 +2060,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      185208,
-      185208,
-      185208
+      147296,
+      147296,
+      147296
     ],
     "nativeAllocatedBytes": [
       4601965,
@@ -2085,9 +2085,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      116608,
-      116608,
-      116608
+      78696,
+      78696,
+      78696
     ],
     "nativeAllocatedBytes": [
       4256189,
@@ -2110,9 +2110,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      135416,
-      135416,
-      135416
+      113520,
+      113520,
+      113520
     ],
     "nativeAllocatedBytes": [
       2478572,
@@ -2135,9 +2135,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      71640,
-      71640,
-      71640
+      53320,
+      53320,
+      53320
     ],
     "nativeAllocatedBytes": [
       2330988,
@@ -2160,9 +2160,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      172520,
-      172520,
-      172520
+      134536,
+      134536,
+      134536
     ],
     "nativeAllocatedBytes": [
       3561297,
@@ -2185,9 +2185,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      110472,
-      110472,
-      110472
+      72488,
+      72488,
+      72488
     ],
     "nativeAllocatedBytes": [
       3233869,
@@ -2210,9 +2210,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      117328,
-      117328,
-      117328
+      95192,
+      95192,
+      95192
     ],
     "nativeAllocatedBytes": [
       2141842,
@@ -2235,9 +2235,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      65832,
-      65832,
-      65832
+      47512,
+      47512,
+      47512
     ],
     "nativeAllocatedBytes": [
       1994252,
@@ -2260,9 +2260,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      149464,
-      149464,
-      149464
+      111552,
+      111552,
+      111552
     ],
     "nativeAllocatedBytes": [
       4481626,
@@ -2285,9 +2285,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      106680,
-      106680,
-      106680
+      68768,
+      68768,
+      68768
     ],
     "nativeAllocatedBytes": [
       4228000,
@@ -2310,9 +2310,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      104272,
-      104272,
-      104272
+      83568,
+      83568,
+      83568
     ],
     "nativeAllocatedBytes": [
       2470332,
@@ -2335,9 +2335,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      59680,
-      59680,
-      59680
+      41360,
+      41360,
+      41360
     ],
     "nativeAllocatedBytes": [
       2330984,
@@ -2360,9 +2360,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      139752,
-      139752,
-      139752
+      101768,
+      101768,
+      101768
     ],
     "nativeAllocatedBytes": [
       3463260,
@@ -2385,9 +2385,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      94904,
-      94904,
-      94904
+      57064,
+      57064,
+      57064
     ],
     "nativeAllocatedBytes": [
       3188196,
@@ -2410,9 +2410,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      220936,
-      220936,
-      220936
+      196816,
+      196816,
+      196816
     ],
     "nativeAllocatedBytes": [
       2420454,
@@ -2435,9 +2435,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      116544,
-      116544,
-      116544
+      93224,
+      93224,
+      93224
     ],
     "nativeAllocatedBytes": [
       2158281,
@@ -2460,9 +2460,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      256472,
-      256472,
-      256472
+      216088,
+      216088,
+      216088
     ],
     "nativeAllocatedBytes": [
       5268251,
@@ -2485,9 +2485,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      145920,
-      145920,
-      145920
+      108008,
+      108008,
+      108008
     ],
     "nativeAllocatedBytes": [
       4485632,
@@ -2510,9 +2510,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      201512,
-      201512,
-      201512
+      177472,
+      177472,
+      177472
     ],
     "nativeAllocatedBytes": [
       2757191,
@@ -2535,9 +2535,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      97456,
-      97456,
-      97456
+      79136,
+      79136,
+      79136
     ],
     "nativeAllocatedBytes": [
       2330981,
@@ -2560,9 +2560,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      238512,
-      238512,
-      238512
+      198672,
+      198672,
+      198672
     ],
     "nativeAllocatedBytes": [
       4056074,
@@ -2585,9 +2585,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      138528,
-      138528,
-      138528
+      100544,
+      100544,
+      100544
     ],
     "nativeAllocatedBytes": [
       3320290,
@@ -2610,9 +2610,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      179352,
-      179352,
-      179352
+      154992,
+      154992,
+      154992
     ],
     "nativeAllocatedBytes": [
       2420476,
@@ -2635,9 +2635,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      92080,
-      92080,
-      92080
+      73760,
+      73760,
+      73760
     ],
     "nativeAllocatedBytes": [
       1994265,
@@ -2660,9 +2660,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      208288,
-      208288,
-      208288
+      168600,
+      168600,
+      168600
     ],
     "nativeAllocatedBytes": [
       4939688,
@@ -2685,9 +2685,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      131824,
-      131824,
-      131824
+      93912,
+      93912,
+      93912
     ],
     "nativeAllocatedBytes": [
       4293111,
@@ -2710,9 +2710,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      161248,
-      161248,
-      161248
+      136808,
+      136808,
+      136808
     ],
     "nativeAllocatedBytes": [
       2495062,
@@ -2735,9 +2735,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      81864,
-      81864,
-      81864
+      63544,
+      63544,
+      63544
     ],
     "nativeAllocatedBytes": [
       2330993,
@@ -2760,9 +2760,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      190152,
-      190152,
-      190152
+      152168,
+      152168,
+      152168
     ],
     "nativeAllocatedBytes": [
       3612631,
@@ -2785,9 +2785,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      119832,
-      119832,
-      119832
+      81848,
+      81848,
+      81848
     ],
     "nativeAllocatedBytes": [
       3260626,
@@ -2810,9 +2810,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      120816,
-      120816,
-      120816
+      102496,
+      102496,
+      102496
     ],
     "nativeAllocatedBytes": [
       2125376,
@@ -2835,9 +2835,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      69312,
-      69312,
-      69312
+      50992,
+      50992,
+      50992
     ],
     "nativeAllocatedBytes": [
       1994260,
@@ -2860,9 +2860,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      167856,
-      167856,
-      167856
+      129944,
+      129944,
+      129944
     ],
     "nativeAllocatedBytes": [
       4532076,
@@ -2885,9 +2885,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      110592,
-      110592,
-      110592
+      72680,
+      72680,
+      72680
     ],
     "nativeAllocatedBytes": [
       4252020,
@@ -2910,9 +2910,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      107544,
-      107544,
-      107544
+      89224,
+      89224,
+      89224
     ],
     "nativeAllocatedBytes": [
       2462106,
@@ -2935,9 +2935,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      62904,
-      62904,
-      62904
+      44584,
+      44584,
+      44584
     ],
     "nativeAllocatedBytes": [
       2330975,
@@ -2960,9 +2960,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      145352,
-      145352,
-      145352
+      107368,
+      107368,
+      107368
     ],
     "nativeAllocatedBytes": [
       3461602,
@@ -2985,9 +2985,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      98552,
-      98552,
-      98552
+      60712,
+      60712,
+      60712
     ],
     "nativeAllocatedBytes": [
       3192079,
@@ -3010,9 +3010,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      127248,
-      127248,
-      127248
+      105352,
+      105352,
+      105352
     ],
     "nativeAllocatedBytes": [
       2141825,
@@ -3035,9 +3035,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      70872,
-      70872,
-      70872
+      52552,
+      52552,
+      52552
     ],
     "nativeAllocatedBytes": [
       1994239,
@@ -3060,9 +3060,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      163160,
-      163160,
-      163160
+      125232,
+      125232,
+      125232
     ],
     "nativeAllocatedBytes": [
       4530253,
@@ -3085,9 +3085,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      103488,
-      103488,
-      103488
+      65720,
+      65720,
+      65720
     ],
     "nativeAllocatedBytes": [
       4220919,
@@ -3110,9 +3110,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      112760,
-      112760,
-      112760
+      93264,
+      93264,
+      93264
     ],
     "nativeAllocatedBytes": [
       2462080,
@@ -3135,9 +3135,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      63656,
-      63656,
-      63656
+      45336,
+      45336,
+      45336
     ],
     "nativeAllocatedBytes": [
       2330971,
@@ -3160,9 +3160,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      149576,
-      149576,
-      149576
+      111592,
+      111592,
+      111592
     ],
     "nativeAllocatedBytes": [
       3486882,
@@ -3185,9 +3185,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      102280,
-      102280,
-      102280
+      64296,
+      64296,
+      64296
     ],
     "nativeAllocatedBytes": [
       3215841,
@@ -3210,9 +3210,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      125832,
-      125832,
-      125832
+      103984,
+      103984,
+      103984
     ],
     "nativeAllocatedBytes": [
       1573139,
@@ -3235,9 +3235,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      72128,
-      72128,
-      72128
+      53808,
+      53808,
+      53808
     ],
     "nativeAllocatedBytes": [
       1425537,
@@ -3260,9 +3260,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      161088,
-      161088,
-      162120
+      123176,
+      123176,
+      123176
     ],
     "nativeAllocatedBytes": [
       4210986,
@@ -3285,9 +3285,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      105000,
-      105000,
-      105000
+      67232,
+      67232,
+      67232
     ],
     "nativeAllocatedBytes": [
       3925084,
@@ -3310,9 +3310,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      109728,
-      109728,
-      109728
+      91408,
+      91408,
+      91408
     ],
     "nativeAllocatedBytes": [
       1793411,
@@ -3335,9 +3335,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      65128,
-      65128,
-      65128
+      46808,
+      46808,
+      46808
     ],
     "nativeAllocatedBytes": [
       1662303,
@@ -3360,9 +3360,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      151040,
-      151040,
-      151040
+      113056,
+      113056,
+      113056
     ],
     "nativeAllocatedBytes": [
       3082881,
@@ -3385,9 +3385,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      104320,
-      104320,
-      104320
+      66336,
+      66336,
+      66336
     ],
     "nativeAllocatedBytes": [
       2822872,
@@ -3410,9 +3410,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      172904,
-      172904,
-      172904
+      149344,
+      149344,
+      149344
     ],
     "nativeAllocatedBytes": [
       1900911,
@@ -3435,9 +3435,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      89160,
-      89160,
-      89160
+      70840,
+      70840,
+      70840
     ],
     "nativeAllocatedBytes": [
       1425547,
@@ -3460,9 +3460,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      208968,
-      208968,
-      208968
+      171056,
+      171056,
+      171056
     ],
     "nativeAllocatedBytes": [
       4514429,
@@ -3485,9 +3485,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      129776,
-      129776,
-      129776
+      91864,
+      91864,
+      91864
     ],
     "nativeAllocatedBytes": [
       3997483,
@@ -3510,9 +3510,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      155488,
-      155488,
-      155488
+      132168,
+      132168,
+      132168
     ],
     "nativeAllocatedBytes": [
       1826372,
@@ -3535,9 +3535,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      79384,
-      79384,
-      79384
+      61064,
+      61064,
+      61064
     ],
     "nativeAllocatedBytes": [
       1662313,
@@ -3560,9 +3560,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      193464,
-      193464,
-      193464
+      155480,
+      155480,
+      155480
     ],
     "nativeAllocatedBytes": [
       3235440,
@@ -3585,9 +3585,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      114760,
-      114760,
-      114760
+      76920,
+      76920,
+      76920
     ],
     "nativeAllocatedBytes": [
       2849289,
@@ -3610,9 +3610,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      144376,
-      144376,
-      144376
+      119136,
+      119136,
+      119136
     ],
     "nativeAllocatedBytes": [
       1589629,
@@ -3635,9 +3635,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      76224,
-      76224,
-      76224
+      57904,
+      57904,
+      57904
     ],
     "nativeAllocatedBytes": [
       1425564,
@@ -3660,9 +3660,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      176280,
-      176280,
-      176280
+      138368,
+      138368,
+      138368
     ],
     "nativeAllocatedBytes": [
       4274459,
@@ -3685,9 +3685,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      108984,
-      108984,
-      108984
+      71216,
+      71216,
+      71216
     ],
     "nativeAllocatedBytes": [
       3935212,
@@ -3710,9 +3710,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      129640,
-      129640,
-      129640
+      104480,
+      104480,
+      104480
     ],
     "nativeAllocatedBytes": [
       1826394,
@@ -3735,9 +3735,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      68592,
-      68592,
-      68592
+      50272,
+      50272,
+      50272
     ],
     "nativeAllocatedBytes": [
       1662319,
@@ -3760,9 +3760,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      163784,
-      163784,
-      163784
+      125800,
+      125800,
+      125800
     ],
     "nativeAllocatedBytes": [
       3125218,
@@ -3785,9 +3785,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      103600,
-      103600,
-      103600
+      65760,
+      65760,
+      65760
     ],
     "nativeAllocatedBytes": [
       2814627,
@@ -3810,9 +3810,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      107464,
-      107464,
-      107464
+      89144,
+      89144,
+      89144
     ],
     "nativeAllocatedBytes": [
       2125367,
@@ -3835,9 +3835,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      65184,
-      65184,
-      65184
+      46864,
+      47896,
+      46864
     ],
     "nativeAllocatedBytes": [
       1994257,
@@ -3860,9 +3860,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      145984,
-      145984,
-      145984
+      108072,
+      108072,
+      108072
     ],
     "nativeAllocatedBytes": [
       4474924,
@@ -3885,9 +3885,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      97264,
-      97264,
-      97264
+      59496,
+      59496,
+      59496
     ],
     "nativeAllocatedBytes": [
       4207470,
@@ -3910,9 +3910,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      100144,
-      100144,
-      100144
+      79344,
+      79344,
+      79344
     ],
     "nativeAllocatedBytes": [
       2339263,
@@ -3935,9 +3935,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      59352,
-      59352,
-      59352
+      41032,
+      41032,
+      41032
     ],
     "nativeAllocatedBytes": [
       2330983,
@@ -3960,9 +3960,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      137688,
-      137688,
-      137688
+      99704,
+      99704,
+      99704
     ],
     "nativeAllocatedBytes": [
       3315223,
@@ -3985,9 +3985,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      93656,
-      93656,
-      93656
+      55816,
+      55816,
+      55816
     ],
     "nativeAllocatedBytes": [
       3191474,
@@ -4010,9 +4010,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      146200,
-      146200,
-      146200
+      121840,
+      121840,
+      121840
     ],
     "nativeAllocatedBytes": [
       2158320,
@@ -4035,9 +4035,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      78400,
-      78400,
-      78400
+      60080,
+      60080,
+      60080
     ],
     "nativeAllocatedBytes": [
       1994260,
@@ -4060,9 +4060,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      177704,
-      177704,
-      177704
+      139792,
+      139792,
+      139792
     ],
     "nativeAllocatedBytes": [
       4556826,
@@ -4085,9 +4085,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      110584,
-      110584,
-      110584
+      72816,
+      72816,
+      72816
     ],
     "nativeAllocatedBytes": [
       4242600,
@@ -4110,9 +4110,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      131320,
-      131320,
-      131320
+      106800,
+      106800,
+      106800
     ],
     "nativeAllocatedBytes": [
       2495055,
@@ -4135,9 +4135,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      70560,
-      70560,
-      70560
+      52240,
+      52240,
+      52240
     ],
     "nativeAllocatedBytes": [
       2330993,
@@ -4160,9 +4160,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      165080,
-      165080,
-      165080
+      127096,
+      127096,
+      127096
     ],
     "nativeAllocatedBytes": [
       3537027,
@@ -4185,9 +4185,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      104800,
-      104800,
-      104800
+      66960,
+      66960,
+      66960
     ],
     "nativeAllocatedBytes": [
       3220420,
@@ -4210,9 +4210,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      154080,
-      154080,
-      154080
+      129800,
+      129800,
+      129800
     ],
     "nativeAllocatedBytes": [
       2158337,
@@ -4235,9 +4235,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      78456,
-      78456,
-      78456
+      60136,
+      60136,
+      60136
     ],
     "nativeAllocatedBytes": [
       1994269,
@@ -4260,9 +4260,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      186304,
-      186304,
-      186304
+      148376,
+      148376,
+      148376
     ],
     "nativeAllocatedBytes": [
       4588094,
@@ -4285,9 +4285,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      115448,
-      115448,
-      115448
+      77536,
+      77536,
+      77536
     ],
     "nativeAllocatedBytes": [
       4251507,
@@ -4310,9 +4310,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      131728,
-      131728,
-      131728
+      113408,
+      113408,
+      113408
     ],
     "nativeAllocatedBytes": [
       2462096,
@@ -4335,9 +4335,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      70064,
-      70064,
-      70064
+      51744,
+      51744,
+      51744
     ],
     "nativeAllocatedBytes": [
       2330997,
@@ -4360,9 +4360,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      171896,
-      171896,
-      171896
+      133912,
+      133912,
+      133912
     ],
     "nativeAllocatedBytes": [
       3563940,
@@ -4385,9 +4385,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      109088,
-      109088,
-      109088
+      71104,
+      71104,
+      71104
     ],
     "nativeAllocatedBytes": [
       3229728,
@@ -4410,9 +4410,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      102664,
-      102664,
-      102664
+      84344,
+      84344,
+      84344
     ],
     "nativeAllocatedBytes": [
       2125372,
@@ -4435,9 +4435,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      64584,
-      64584,
-      64584
+      46264,
+      46264,
+      46264
     ],
     "nativeAllocatedBytes": [
       1994257,
@@ -4460,9 +4460,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      143064,
-      143064,
-      143064
+      105152,
+      105152,
+      105152
     ],
     "nativeAllocatedBytes": [
       4431631,
@@ -4485,9 +4485,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      102384,
-      102384,
-      102384
+      64472,
+      64472,
+      64472
     ],
     "nativeAllocatedBytes": [
       4205082,
@@ -4510,9 +4510,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      91712,
-      90680,
-      90680
+      72360,
+      72360,
+      72360
     ],
     "nativeAllocatedBytes": [
       2331019,
@@ -4535,9 +4535,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      59040,
-      59040,
-      59040
+      40720,
+      40720,
+      40720
     ],
     "nativeAllocatedBytes": [
       2330980,
@@ -4560,9 +4560,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      121528,
-      121528,
-      121528
+      83704,
+      83704,
+      83704
     ],
     "nativeAllocatedBytes": [
       3197546,
@@ -4585,9 +4585,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      87488,
-      87488,
-      87488
+      49680,
+      49680,
+      49680
     ],
     "nativeAllocatedBytes": [
       3101505,
@@ -4610,9 +4610,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      170880,
-      170880,
-      170880
+      146808,
+      146808,
+      146808
     ],
     "nativeAllocatedBytes": [
       2158333,
@@ -4635,9 +4635,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      90728,
-      90728,
-      90728
+      72408,
+      72408,
+      72408
     ],
     "nativeAllocatedBytes": [
       1994268,
@@ -4660,9 +4660,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      205096,
-      205096,
-      205096
+      165248,
+      165248,
+      165248
     ],
     "nativeAllocatedBytes": [
       4652714,
@@ -4685,9 +4685,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      127160,
-      127160,
-      127160
+      89248,
+      89248,
+      89248
     ],
     "nativeAllocatedBytes": [
       4289087,
@@ -4710,9 +4710,9 @@
     "progressiveLevel": 0,
     "distance": 1,
     "managedAllocatedBytes": [
-      154312,
-      154312,
-      154312
+      130384,
+      130384,
+      130384
     ],
     "nativeAllocatedBytes": [
       2495051,
@@ -4735,9 +4735,9 @@
     "progressiveLevel": 0,
     "distance": 4,
     "managedAllocatedBytes": [
-      80728,
-      80728,
-      80728
+      62408,
+      62408,
+      62408
     ],
     "nativeAllocatedBytes": [
       2330994,
@@ -4760,9 +4760,9 @@
     "progressiveLevel": 2,
     "distance": 1,
     "managedAllocatedBytes": [
-      184920,
-      184920,
-      184920
+      146936,
+      146936,
+      146936
     ],
     "nativeAllocatedBytes": [
       3602059,
@@ -4785,9 +4785,9 @@
     "progressiveLevel": 2,
     "distance": 4,
     "managedAllocatedBytes": [
-      119616,
-      119616,
-      119616
+      81632,
+      81632,
+      81632
     ],
     "nativeAllocatedBytes": [
       3261864,

@@ -1,0 +1,117 @@
+{
+  "testedRevision": "be14f89161d77736adc09a64536646e16d7bd1c4",
+  "runId": "42376806989",
+  "runUrl": "https://github.com/symbiogenesis/DotJpegli/actions/runs/42376806989",
+  "runAttempt": 1,
+  "measurementDate": "2026-11-07",
+  "measurementDateTimeZone": "America/Chicago",
+  "artifacts": [
+    {
+      "id": "13575719040",
+      "name": "allocation-evidence-be14f89161d77736adc09a64536646e16d7bd1c4",
+      "githubReportedArchiveDigest": "sha256:dd7c6e18f4c27cff6f4c0c3fdfbf3c3779555ac2c4d52a990ea1c4199c515b6e"
+    },
+    {
+      "id": "13576281262",
+      "name": "performance-charts-be14f89161d77736adc09a64536646e16d7bd1c4",
+      "githubReportedArchiveDigest": "sha256:137350c535e7b4c45dcae4ad0cd769896bab1c957f44d75931c9043aaea04011"
+    },
+    {
+      "id": "13575779498",
+      "name": "performance-parity-be14f89161d77736adc09a64536646e16d7bd1c4",
+      "githubReportedArchiveDigest": "sha256:03d8cd00d883d05e55b067b85fd945e2de8e9f338d2c32b4752bb763fcfe3f7d"
+    },
+    {
+      "id": "13576460311",
+      "name": "quality-compression-parity-be14f89161d77736adc09a64536646e16d7bd1c4",
+      "githubReportedArchiveDigest": "sha256:50841eebda58042c7cc8897551e17c674fa9c1f9ad2d034280e25820ea28ec86"
+    }
+  ],
+  "archiveDigestSource": "GitHub API; archive digests not independently recomputed",
+  "files": [
+    {
+      "path": "allocations/cases.json",
+      "sha256": "7c5087837f5e8d1448e14326fb0c4156e0ec75cd5c73e2caf6911b77edf3f57c"
+    },
+    {
+      "path": "allocations/corpus.json",
+      "sha256": "6a529b1ae279c7f89998eb1f89f58237a5c1507ef53f502d71ea429d188dd8a5"
+    },
+    {
+      "path": "allocations/native-provenance.json",
+      "sha256": "4343451985e4d190bce5504ddcb842867cdbba7bb3801da96012137dfe0cc50f"
+    },
+    {
+      "path": "allocations/summary.json",
+      "sha256": "5eee3272dde25400561fd6ce30320b4dc16156014a830387b8a74a76bf222ca8"
+    },
+    {
+      "path": "charts/allocations.svg",
+      "sha256": "069c5a11a60429e39a76e2b3621f2ebce63e936552b9371fb32992a61eaa69af"
+    },
+    {
+      "path": "charts/compression.svg",
+      "sha256": "9419ebb4d4e3e538ee63fffad31647fa5136616ce6ad2e707c7c8a9fb12bd112"
+    },
+    {
+      "path": "charts/metrics.json",
+      "sha256": "b0208e4951906a8e05193b557195c041fdbd4074542f7788188e2d6e87bcd169"
+    },
+    {
+      "path": "charts/wall-time.svg",
+      "sha256": "2da0ac65d86ecfd468dadb49f6aab31494c2d951b8a0dbef53c2a822858a3cb9"
+    },
+    {
+      "path": "full/cases.json",
+      "sha256": "fb37792f19fc24d3eb945f708144021fb030089119535f6e464d5f054480edac"
+    },
+    {
+      "path": "full/report.md",
+      "sha256": "cf4796a5d029f19a0706e7047d64344589134788fe7d373bac55f4854972a0f8"
+    },
+    {
+      "path": "full/run.json",
+      "sha256": "dbe41e4252246ad0b2691f0ea10f9814d86e7e3bbddb086d97c0c2665980f8b2"
+    },
+    {
+      "path": "full/sources.json",
+      "sha256": "7268cb35be71aab345dc2cbc0fa2459a533c14a6f5e5cb1559172efc55b987a5"
+    },
+    {
+      "path": "full/summary.json",
+      "sha256": "3356418ab6705e25b008fb580b6811ee642d3ca346f01a01a6890049131415ad"
+    },
+    {
+      "path": "job.json",
+      "sha256": "8afab076267dc2d94fda6d444eefa81d8570e00ee085ece5326563113c2fe6f3"
+    },
+    {
+      "path": "native-provenance.json",
+      "sha256": "4343451985e4d190bce5504ddcb842867cdbba7bb3801da96012137dfe0cc50f"
+    },
+    {
+      "path": "quality/cases.json",
+      "sha256": "2288f327e2e7b840be9bbee2b775fb56fba3c0f4d0d486c0002aa0f648a412d1"
+    },
+    {
+      "path": "quality/matched-quality.json",
+      "sha256": "9d24ddd6007ee771d6efa8999b8c4625da35e57e60b7362ace6ff0028a78d2d7"
+    },
+    {
+      "path": "quality/matched-rates.json",
+      "sha256": "6dd3c45b056e26d17e72a19372bdeea2c8a427927c02514edfaee363147abf2d"
+    },
+    {
+      "path": "quality/report.md",
+      "sha256": "f45b506002f8c6b494179756e159efbd5d04107f80d52d17a43d52f92fedb3bf"
+    },
+    {
+      "path": "quality/sources.json",
+      "sha256": "5529c839442884fa77d559783dc3bc5d60690366acab8cf6ede182bef18a7eab"
+    },
+    {
+      "path": "quality/summary.json",
+      "sha256": "637d399eaa0bde6494a3abd8c3b68e37d53ea60b348346f3b91ca7cab2f6cee5"
+    }
+  ]
+}
