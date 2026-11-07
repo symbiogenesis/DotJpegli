@@ -32,7 +32,8 @@ internal static class ProgressiveAcCollector
         JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor,
         AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, IReadOnlyList<JpegScan> scans,
         long[][][] acFrequencies, EntropyTokenScans tokenScans, int[] restartIntervals,
-        QuantizedImage? quantizedImage, CancellationToken cancellationToken)
+        QuantizedImage? quantizedImage, CancellationToken cancellationToken,
+        Quantization.PreparedTable[]? preparedTables = null)
     {
         // Each scan sees exactly its original raster sequence. Keeping its EOB
         // and correction state separate permits visiting the block only once,
@@ -61,6 +62,7 @@ internal static class ProgressiveAcCollector
                 int blocksWide = ((width * factor.Horizontal) + (8 * horizontal) - 1) / (8 * horizontal);
                 int blocksHigh = ((height * factor.Vertical) + (8 * vertical) - 1) / (8 * vertical);
                 Quantization.PreparedTable? quantizer = complete ? null
+                    : preparedTables is not null ? preparedTables[component]
                     : Quantization.PreparedTable.Create(tables[component], component, distance,
                         grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
                         adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],

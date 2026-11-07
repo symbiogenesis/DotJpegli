@@ -49,11 +49,19 @@ internal sealed class HuffmanCodingPlan
         }
 
         bool limitToBaseline = !progressive && forceBaseline;
-        Clusters dc = Cluster(dcFrequencies, limitToBaseline, tableLimit, reuseHistograms);
         int contextCapacity = scans.Count * componentCount;
-        var acContexts = new List<long[]>(contextCapacity);
+        long[][] scratchHistograms = new long[componentCount + contextCapacity][];
+        Span<long[]> dcHistograms = scratchHistograms.AsSpan(0, componentCount);
+        Span<int> dcIndexes = stackalloc int[componentCount];
+        Span<int> dcSlots = stackalloc int[componentCount];
+        int dcClusterCount = Cluster(dcFrequencies, dcHistograms, dcIndexes, dcSlots,
+            limitToBaseline, tableLimit, reuseHistograms);
+        dcHistograms = dcHistograms[..dcClusterCount];
+
+        Span<long[]> acHistograms = scratchHistograms.AsSpan(componentCount, contextCapacity);
         Span<int> acContextIndexes = contextCapacity <= 64
             ? stackalloc int[contextCapacity] : new int[contextCapacity];
+        int acContextCount = 0;
         for (int scanIndex = 0; scanIndex < scans.Count; scanIndex++)
         {
             if (acFrequencies[scanIndex].Length != componentCount)
@@ -68,25 +76,34 @@ internal sealed class HuffmanCodingPlan
 
             foreach (int component in scans[scanIndex].Components)
             {
-                acContextIndexes[(scanIndex * componentCount) + component] = acContexts.Count;
-                acContexts.Add(acFrequencies[scanIndex][component]);
+                acContextIndexes[(scanIndex * componentCount) + component] = acContextCount;
+                acHistograms[acContextCount++] = acFrequencies[scanIndex][component];
             }
         }
-        Clusters ac = Cluster(acContexts, limitToBaseline, tableLimit, reuseHistograms);
-        HuffmanTable[] dcTables = CreateTables(dc.Histograms, symbolOrder);
-        HuffmanTable[] acTables = CreateTables(ac.Histograms, symbolOrder);
+        acHistograms = acHistograms[..acContextCount];
+        Span<int> acIndexes = acContextCount <= 64
+            ? stackalloc int[acContextCount] : new int[acContextCount];
+        Span<int> acSlots = acContextCount <= 64
+            ? stackalloc int[acContextCount] : new int[acContextCount];
+        int acClusterCount = Cluster(acHistograms, acHistograms, acIndexes, acSlots,
+            limitToBaseline, tableLimit, reuseHistograms);
+        acHistograms = acHistograms[..acClusterCount];
+
+        HuffmanTable[] dcTables = CreateTables(dcHistograms, symbolOrder);
+        HuffmanTable[] acTables = CreateTables(acHistograms, symbolOrder);
         HuffmanTable unused = UnusedTable.Value;
         HuffmanTable[] unusedComponents = componentCount == 1 ? UnusedTable.Single : UnusedTable.Triple;
         int nextAcDefinition = Math.Min(4, acTables.Length);
-        var firstDefinitions = new List<Definition>(dcTables.Length + nextAcDefinition);
+        int firstDefinitionCount = dcTables.Length + nextAcDefinition;
+        Definition[] firstDefinitions = firstDefinitionCount == 0 ? [] : new Definition[firstDefinitionCount];
         for (int index = 0; index < dcTables.Length; index++)
         {
-            firstDefinitions.Add(new(dcTables[index], dc.Slots[index]));
+            firstDefinitions[index] = new(dcTables[index], dcSlots[index]);
         }
 
         for (int index = 0; index < nextAcDefinition; index++)
         {
-            firstDefinitions.Add(new(acTables[index], 0x10 | ac.Slots[index]));
+            firstDefinitions[dcTables.Length + index] = new(acTables[index], 0x10 | acSlots[index]);
         }
 
         bool extendedSequential = false;
@@ -109,48 +126,45 @@ internal sealed class HuffmanCodingPlan
             byte[] selectors = new byte[componentCount];
             // Most progressive scans reuse previously defined tables. Avoid
             // allocating an empty list until a later scan actually evicts one.
-            List<Definition>? definitions = scanIndex == 0 ? firstDefinitions : null;
+            List<Definition>? definitions = null;
             foreach (int component in scan.Components)
             {
                 int dcSlot = 0, acSlot = 0;
                 if (usesDc)
                 {
-                    int cluster = dc.Indexes[component];
+                    int cluster = dcIndexes[component];
                     scanDc[component] = dcTables[cluster];
-                    dcSlot = dc.Slots[cluster];
+                    dcSlot = dcSlots[cluster];
                 }
                 if (usesAc)
                 {
-                    int cluster = ac.Indexes[acContextIndexes[(scanIndex * componentCount) + component]];
+                    int cluster = acIndexes[acContextIndexes[(scanIndex * componentCount) + component]];
                     scanAc[component] = acTables[cluster];
-                    acSlot = ac.Slots[cluster];
+                    acSlot = acSlots[cluster];
                     // First use of a new cluster replaces its assigned AC
                     // slot. Clustering never reuses an evicted histogram.
                     while (nextAcDefinition <= cluster)
                     {
-                        (definitions ??= []).Add(new(acTables[nextAcDefinition], 0x10 | ac.Slots[nextAcDefinition]));
+                        (definitions ??= []).Add(new(acTables[nextAcDefinition], 0x10 | acSlots[nextAcDefinition]));
                         nextAcDefinition++;
                     }
                 }
                 selectors[component] = (byte)((dcSlot << 4) | acSlot);
                 extendedSequential |= !progressive && (dcSlot > 1 || acSlot > 1);
             }
-            coding[scanIndex] = new(scanDc, scanAc, selectors, definitions?.ToArray() ?? []);
+            coding[scanIndex] = new(scanDc, scanAc, selectors,
+                scanIndex == 0 ? firstDefinitions : definitions?.ToArray() ?? []);
         }
         return new(coding, extendedSequential);
     }
 
-    private sealed record Clusters(List<long[]> Histograms, int[] Indexes, List<int> Slots);
-
-    private static Clusters Cluster(IReadOnlyList<long[]> histograms, bool forceBaseline, int tableLimit, bool reuseHistograms)
+    private static int Cluster(ReadOnlySpan<long[]> histograms, Span<long[]> clusters,
+        Span<int> indexes, Span<int> slots, bool forceBaseline, int tableLimit, bool reuseHistograms)
     {
-        var clusters = new List<long[]>();
-        int[] indexes = new int[histograms.Count];
-        var slots = new List<int>();
-        Span<bool> nonEmpty = histograms.Count <= 64 ? stackalloc bool[histograms.Count] : new bool[histograms.Count];
-        Span<float> standaloneCosts = histograms.Count <= 64 ? stackalloc float[histograms.Count] : new float[histograms.Count];
+        Span<bool> nonEmpty = histograms.Length <= 64 ? stackalloc bool[histograms.Length] : new bool[histograms.Length];
+        Span<float> standaloneCosts = histograms.Length <= 64 ? stackalloc float[histograms.Length] : new float[histograms.Length];
         int nonEmptyCount = 0;
-        for (int index = 0; index < histograms.Count; index++)
+        for (int index = 0; index < histograms.Length; index++)
         {
             ReadOnlySpan<long> current = histograms[index];
             if (current.Length != 256)
@@ -175,7 +189,7 @@ internal sealed class HuffmanCodingPlan
         if (nonEmptyCount <= 1 || tableLimit == 1)
         {
             long[]? singleCluster = null;
-            for (int index = 0; index < histograms.Count; index++)
+            for (int index = 0; index < histograms.Length; index++)
             {
                 if (!nonEmpty[index])
                 {
@@ -186,8 +200,8 @@ internal sealed class HuffmanCodingPlan
                 if (singleCluster is null)
                 {
                     singleCluster = reuseHistograms ? current : (long[])current.Clone();
-                    clusters.Add(singleCluster);
-                    slots.Add(0);
+                    clusters[0] = singleCluster;
+                    slots[0] = 0;
                 }
                 else
                 {
@@ -195,7 +209,7 @@ internal sealed class HuffmanCodingPlan
                 }
                 indexes[index] = 0;
             }
-            return new(clusters, indexes, slots);
+            return singleCluster is null ? 0 : 1;
         }
 
         // JPEG has only four table slots, even when later clusters evict them.
@@ -204,9 +218,10 @@ internal sealed class HuffmanCodingPlan
         Span<int> createdStep = stackalloc int[4];
         Span<int> modifiedStep = stackalloc int[4];
         int slotCount = 0;
+        int clusterCount = 0;
         Span<long> combined = stackalloc long[256];
         Span<long> bestCombined = stackalloc long[256];
-        for (int index = 0; index < histograms.Count; index++)
+        for (int index = 0; index < histograms.Length; index++)
         {
             if (!nonEmpty[index])
             {
@@ -247,9 +262,7 @@ internal sealed class HuffmanCodingPlan
             }
             if (bestSlot == slotCount)
             {
-                int histogramIndex = clusters.Count;
-                clusters.Add(reuseHistograms ? current : (long[])current.Clone());
-                indexes[index] = histogramIndex;
+                int histogramIndex = clusterCount;
                 if (bestSlot < slotHistograms.Length)
                 {
                     createdStep[bestSlot] = index;
@@ -259,12 +272,15 @@ internal sealed class HuffmanCodingPlan
                 else
                 {
                     bestSlot = SelectEvictionSlot(histograms, index, nonEmpty, standaloneCosts,
-                        clusters, slotHistograms, slotCosts, (slots[^1] + 1) % 4, combined);
+                        clusters, slotHistograms, slotCosts, (slots[clusterCount - 1] + 1) % 4, combined);
                 }
 
+                clusters[histogramIndex] = reuseHistograms ? current : (long[])current.Clone();
+                indexes[index] = histogramIndex;
                 slotHistograms[bestSlot] = histogramIndex;
                 slotCosts[bestSlot] = bestCost;
-                slots.Add(bestSlot);
+                slots[histogramIndex] = bestSlot;
+                clusterCount++;
             }
             else
             {
@@ -275,17 +291,17 @@ internal sealed class HuffmanCodingPlan
                 modifiedStep[bestSlot] = index;
             }
         }
-        if (clusters.Count is > 1 and <= 4)
+        if (clusterCount is > 1 and <= 4)
         {
-            ConsolidateClusters(clusters, indexes, slots, slotCosts[..clusters.Count],
-                createdStep[..clusters.Count], modifiedStep[..clusters.Count], combined, bestCombined);
+            clusterCount = ConsolidateClusters(clusters[..clusterCount], indexes, slotCosts[..clusterCount],
+                createdStep[..clusterCount], modifiedStep[..clusterCount], combined, bestCombined);
         }
-        return new(clusters, indexes, slots);
+        return clusterCount;
     }
 
-    private static int SelectEvictionSlot(IReadOnlyList<long[]> histograms, int currentIndex,
+    private static int SelectEvictionSlot(ReadOnlySpan<long[]> histograms, int currentIndex,
         ReadOnlySpan<bool> nonEmpty, Span<float> standaloneCosts,
-        List<long[]> clusters, ReadOnlySpan<int> slotHistograms, ReadOnlySpan<float> slotCosts,
+        ReadOnlySpan<long[]> clusters, ReadOnlySpan<int> slotHistograms, ReadOnlySpan<float> slotCosts,
         int defaultSlot, Span<long> scratch)
     {
         int bestSlot = defaultSlot;
@@ -296,7 +312,7 @@ internal sealed class HuffmanCodingPlan
             long[] cluster = clusters[slotHistograms[slot]];
             float slotCost = slotCosts[slot];
             float futureSavings = 0f;
-            for (int futureIndex = currentIndex + 1; futureIndex < histograms.Count; futureIndex++)
+            for (int futureIndex = currentIndex + 1; futureIndex < histograms.Length; futureIndex++)
             {
                 if (!nonEmpty[futureIndex])
                 {
@@ -334,18 +350,19 @@ internal sealed class HuffmanCodingPlan
         return bestSlot;
     }
 
-    private static void ConsolidateClusters(List<long[]> clusters, int[] indexes, List<int> slots,
+    private static int ConsolidateClusters(Span<long[]> clusters, Span<int> indexes,
         Span<float> clusterCosts, Span<int> createdStep, Span<int> modifiedStep,
         Span<long> combined, Span<long> bestCombined)
     {
-        while (clusters.Count > 1)
+        int clusterCount = clusters.Length;
+        while (clusterCount > 1)
         {
             int bestFirst = -1, bestSecond = -1;
             float bestCost = 0f;
             float bestSavings = 0f;
-            for (int first = 0; first < clusters.Count - 1; first++)
+            for (int first = 0; first < clusterCount - 1; first++)
             {
-                for (int second = first + 1; second < clusters.Count; second++)
+                for (int second = first + 1; second < clusterCount; second++)
                 {
                     // When neither cluster changed after the later cluster was
                     // created, the main pass already tested this exact pair and
@@ -379,15 +396,14 @@ internal sealed class HuffmanCodingPlan
             bestCombined.CopyTo(clusters[bestFirst]);
             clusterCosts[bestFirst] = bestCost;
             modifiedStep[bestFirst] = int.MaxValue;
-            for (int index = bestSecond + 1; index < clusters.Count; index++)
+            for (int index = bestSecond + 1; index < clusterCount; index++)
             {
+                clusters[index - 1] = clusters[index];
                 clusterCosts[index - 1] = clusterCosts[index];
                 createdStep[index - 1] = createdStep[index];
                 modifiedStep[index - 1] = modifiedStep[index];
             }
-
-            clusters.RemoveAt(bestSecond);
-            slots.RemoveAt(slots.Count - 1);
+            clusterCount--;
             for (int index = 0; index < indexes.Length; index++)
             {
                 if (indexes[index] == bestSecond)
@@ -400,6 +416,7 @@ internal sealed class HuffmanCodingPlan
                 }
             }
         }
+        return clusterCount;
     }
 
     private static void Add(ReadOnlySpan<long> left, ReadOnlySpan<long> right, Span<long> sum)
@@ -413,9 +430,13 @@ internal sealed class HuffmanCodingPlan
     private static float Cost(ReadOnlySpan<long> frequencies)
         => HuffmanTable.EstimateOptimizedCost(frequencies);
 
-    private static HuffmanTable[] CreateTables(List<long[]> histograms, HuffmanSymbolOrder order)
+    private static HuffmanTable[] CreateTables(ReadOnlySpan<long[]> histograms, HuffmanSymbolOrder order)
     {
-        var tables = new HuffmanTable[histograms.Count];
+        if (histograms.IsEmpty)
+        {
+            return [];
+        }
+        var tables = new HuffmanTable[histograms.Length];
         for (int index = 0; index < tables.Length; index++)
         {
             tables[index] = HuffmanTable.CreateOptimized(histograms[index], order);

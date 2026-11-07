@@ -73,17 +73,14 @@ public sealed class ExifMetadata
     private const ushort InteroperabilityPointer = 0xa005;
     private const ushort ThumbnailOffset = 0x0201;
     private const ushort ThumbnailLength = 0x0202;
-    private readonly Dictionary<ExifDirectory, SortedDictionary<ushort, ExifEntry>> directories = [];
+    private static readonly ExifEntry ZeroLongEntry = LongEntry(0);
+    private readonly SortedDictionary<ushort, ExifEntry>[] directories = [[], [], [], [], []];
     private byte[]? jpegThumbnail;
     private bool littleEndian = true;
 
     /// <summary>Creates empty Exif metadata.</summary>
     public ExifMetadata()
     {
-        foreach (ExifDirectory directory in StandardEnum.GetValues<ExifDirectory>())
-        {
-            this.directories.Add(directory, []);
-        }
     }
 
     /// <summary>Parses a bounded classic TIFF body, copying all retained values.</summary>
@@ -199,7 +196,7 @@ public sealed class ExifMetadata
                     ReverseComponents(copied, fieldType);
                 }
 
-                result.directories[directory].Add(tag, new(fieldType, valueCount, copied));
+                result.directories[(int)directory].Add(tag, new(fieldType, valueCount, copied));
             }
 
             uint next = Read32(tiff.Slice(start + 2 + (12 * count), 4), littleEndian);
@@ -222,7 +219,7 @@ public sealed class ExifMetadata
             }
         }
 
-        SortedDictionary<ushort, ExifEntry> thumbnail = result.directories[ExifDirectory.Thumbnail];
+        SortedDictionary<ushort, ExifEntry> thumbnail = result.directories[(int)ExifDirectory.Thumbnail];
         bool hasOffset = thumbnail.TryGetValue(ThumbnailOffset, out ExifEntry? offsetEntry);
         bool hasLength = thumbnail.TryGetValue(ThumbnailLength, out ExifEntry? lengthEntry);
         if (hasOffset != hasLength)
@@ -380,7 +377,7 @@ public sealed class ExifMetadata
     public void RemoveThumbnail()
     {
         this.jpegThumbnail = null;
-        this.directories[ExifDirectory.Thumbnail].Clear();
+        this.directories[(int)ExifDirectory.Thumbnail].Clear();
     }
 
     /// <summary>Sets JPEG thumbnail bytes, or removes the thumbnail when empty.</summary>
@@ -394,17 +391,19 @@ public sealed class ExifMetadata
 
         this.jpegThumbnail = value.ToArray();
         this.SetUnsignedShort(ExifDirectory.Thumbnail, 0x0103, 6);
-        this.directories[ExifDirectory.Thumbnail][ThumbnailOffset] = LongEntry(0);
-        this.directories[ExifDirectory.Thumbnail][ThumbnailLength] = LongEntry((uint)value.Length);
+        this.directories[(int)ExifDirectory.Thumbnail][ThumbnailOffset] = ZeroLongEntry;
+        this.directories[(int)ExifDirectory.Thumbnail][ThumbnailLength] = LongEntry((uint)value.Length);
     }
 
     /// <summary>Writes classic TIFF in the retained byte order, rebuilding directory links and rebasing a JPEG thumbnail.</summary>
     /// <exception cref="NotSupportedException">A retained entry has known opaque or unsupported embedded offsets.</exception>
     public byte[] ToArray()
     {
-        Dictionary<ExifDirectory, SortedDictionary<ushort, ExifEntry>> directories = [];
-        foreach ((ExifDirectory directory, SortedDictionary<ushort, ExifEntry> entries) in this.directories)
+        var directories = new SortedDictionary<ushort, ExifEntry>?[5];
+        for (int index = 0; index < this.directories.Length; index++)
         {
+            var directory = (ExifDirectory)index;
+            SortedDictionary<ushort, ExifEntry> entries = this.directories[index];
             foreach (ushort tag in entries.Keys)
             {
                 if (IsOffsetSensitive(tag) || (tag is ThumbnailOffset or ThumbnailLength && directory != ExifDirectory.Thumbnail))
@@ -415,61 +414,66 @@ public sealed class ExifMetadata
 
             if (entries.Count != 0 || directory == ExifDirectory.Image)
             {
-                directories.Add(directory, [with(entries)]);
+                directories[index] = [with(entries)];
             }
         }
-        if (directories.ContainsKey(ExifDirectory.Interoperability))
+        if (directories[(int)ExifDirectory.Interoperability] is not null)
         {
-            if (!directories.TryGetValue(ExifDirectory.Photo, out SortedDictionary<ushort, ExifEntry>? photo))
-            {
-                directories.Add(ExifDirectory.Photo, photo = []);
-            }
-
-            photo[InteroperabilityPointer] = LongEntry(0);
+            SortedDictionary<ushort, ExifEntry> photo = directories[(int)ExifDirectory.Photo] ??= [];
+            photo[InteroperabilityPointer] = ZeroLongEntry;
         }
-        SortedDictionary<ushort, ExifEntry> image = directories[ExifDirectory.Image];
-        if (directories.ContainsKey(ExifDirectory.Photo))
+        SortedDictionary<ushort, ExifEntry> image = directories[(int)ExifDirectory.Image]!;
+        if (directories[(int)ExifDirectory.Photo] is not null)
         {
-            image[PhotoPointer] = LongEntry(0);
+            image[PhotoPointer] = ZeroLongEntry;
         }
 
-        if (directories.ContainsKey(ExifDirectory.Gps))
+        if (directories[(int)ExifDirectory.Gps] is not null)
         {
-            image[GpsPointer] = LongEntry(0);
+            image[GpsPointer] = ZeroLongEntry;
         }
 
-        KeyValuePair<ExifDirectory, SortedDictionary<ushort, ExifEntry>>[] orderedDirectories =
-            directories.OrderBy(pair => pair.Key).ToArray();
-        Dictionary<ExifDirectory, int> offsets = [];
+        Span<int> offsets = stackalloc int[5];
+        offsets.Clear();
         long total = 8;
-        foreach ((ExifDirectory directory, SortedDictionary<ushort, ExifEntry> entries) in orderedDirectories)
+        for (int index = 0; index < directories.Length; index++)
         {
+            if (directories[index] is not { } entries)
+            {
+                continue;
+            }
+
             if (entries.Count > ushort.MaxValue)
             {
                 throw new InvalidOperationException("A TIFF directory cannot contain more than 65535 entries.");
             }
 
-            offsets.Add(directory, checked((int)total));
+            offsets[index] = checked((int)total);
             total += 6L + (12L * entries.Count);
         }
-        if (offsets.TryGetValue(ExifDirectory.Photo, out int photoOffset))
+        if (offsets[(int)ExifDirectory.Photo] is > 0 and int photoOffset)
         {
             image[PhotoPointer] = LongEntry((uint)photoOffset);
         }
 
-        if (offsets.TryGetValue(ExifDirectory.Gps, out int gpsOffset))
+        if (offsets[(int)ExifDirectory.Gps] is > 0 and int gpsOffset)
         {
             image[GpsPointer] = LongEntry((uint)gpsOffset);
         }
 
-        if (offsets.TryGetValue(ExifDirectory.Interoperability, out int interoperabilityOffset))
+        if (offsets[(int)ExifDirectory.Interoperability] is > 0 and int interoperabilityOffset)
         {
-            directories[ExifDirectory.Photo][InteroperabilityPointer] = LongEntry((uint)interoperabilityOffset);
+            directories[(int)ExifDirectory.Photo]![InteroperabilityPointer] = LongEntry((uint)interoperabilityOffset);
         }
 
         int dataStart = checked((int)total);
-        foreach ((_, SortedDictionary<ushort, ExifEntry> entries) in orderedDirectories)
+        for (int index = 0; index < directories.Length; index++)
         {
+            if (directories[index] is not { } entries)
+            {
+                continue;
+            }
+
             foreach (ExifEntry entry in entries.Values)
             {
                 if (entry.Value.Length > 4)
@@ -483,17 +487,24 @@ public sealed class ExifMetadata
         if (this.jpegThumbnail is not null)
         {
             total += this.jpegThumbnail.Length;
-            directories[ExifDirectory.Thumbnail][ThumbnailOffset] = LongEntry((uint)jpegOffset);
-            directories[ExifDirectory.Thumbnail][ThumbnailLength] = LongEntry((uint)this.jpegThumbnail.Length);
+            SortedDictionary<ushort, ExifEntry> thumbnail = directories[(int)ExifDirectory.Thumbnail]!;
+            thumbnail[ThumbnailOffset] = LongEntry((uint)jpegOffset);
+            thumbnail[ThumbnailLength] = LongEntry((uint)this.jpegThumbnail.Length);
         }
         byte[] bytes = new byte[checked((int)total)];
         bytes[0] = bytes[1] = this.littleEndian ? (byte)'I' : (byte)'M';
         this.Write16(bytes.AsSpan(2), 42);
-        this.Write32(bytes.AsSpan(4), (uint)offsets[ExifDirectory.Image]);
+        this.Write32(bytes.AsSpan(4), (uint)offsets[(int)ExifDirectory.Image]);
         int dataOffset = dataStart;
-        foreach ((ExifDirectory directory, SortedDictionary<ushort, ExifEntry> entries) in orderedDirectories)
+        for (int index = 0; index < directories.Length; index++)
         {
-            int start = offsets[directory];
+            if (directories[index] is not { } entries)
+            {
+                continue;
+            }
+
+            var directory = (ExifDirectory)index;
+            int start = offsets[index];
             this.Write16(bytes.AsSpan(start), (ushort)entries.Count);
             int entryOffset = start + 2;
             foreach ((ushort tag, ExifEntry entry) in entries)
@@ -523,7 +534,7 @@ public sealed class ExifMetadata
                 }
                 entryOffset += 12;
             }
-            if (directory == ExifDirectory.Image && offsets.TryGetValue(ExifDirectory.Thumbnail, out int thumbnailOffset))
+            if (directory == ExifDirectory.Image && offsets[(int)ExifDirectory.Thumbnail] is > 0 and int thumbnailOffset)
             {
                 this.Write32(bytes.AsSpan(entryOffset), (uint)thumbnailOffset);
             }
@@ -534,12 +545,12 @@ public sealed class ExifMetadata
 
     private SortedDictionary<ushort, ExifEntry> GetDirectory(ExifDirectory directory)
     {
-        if (!this.directories.TryGetValue(directory, out SortedDictionary<ushort, ExifEntry>? entries))
+        if ((uint)directory >= (uint)this.directories.Length)
         {
             throw new ArgumentOutOfRangeException(nameof(directory));
         }
 
-        return entries;
+        return this.directories[(int)directory];
     }
 
     private static ExifEntry LongEntry(uint value)

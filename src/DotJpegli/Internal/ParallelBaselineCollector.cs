@@ -213,8 +213,7 @@ internal static class ParallelBaselineCollector
                     previousDc[component] = this.image.GetBlock(component, x, y)[0];
                 }
             }
-            Span<short> dummy = stackalloc short[64];
-            dummy.Clear();
+            bool hasBlockMasks = this.image.HasBlockMasks;
             for (int mcu = firstMcu; mcu < endMcu; mcu++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -232,18 +231,35 @@ internal static class ParallelBaselineCollector
                         for (int column = 0; column < this.horizontal[component]; column++)
                         {
                             int x = (mcuX * this.horizontal[component]) + column;
-                            scoped ReadOnlySpan<short> block;
                             if (x >= this.widths[component] || y >= this.heights[component])
                             {
-                                dummy[0] = checked((short)previousDc[component]);
-                                block = dummy;
+                                EntropyEncoder.AccumulateDcOnlyBlock(checked((short)previousDc[component]),
+                                    ref previousDc[component], dc[component], ac[component],
+                                    tokens: tokens, component: component);
                             }
                             else
                             {
-                                block = this.image.GetBlock(component, x, y);
+                                ReadOnlySpan<short> block = this.image.GetBlock(component, x, y);
+                                if (hasBlockMasks)
+                                {
+                                    ulong mask = this.image.GetBlockMask(component, x, y);
+                                    if (mask == 0)
+                                    {
+                                        EntropyEncoder.AccumulateDcOnlyBlock(block[0], ref previousDc[component],
+                                            dc[component], ac[component], tokens: tokens, component: component);
+                                    }
+                                    else
+                                    {
+                                        EntropyEncoder.AccumulateOrderedBlockWithMask(block, mask, ref previousDc[component],
+                                            dc[component], ac[component], tokens: tokens, component: component);
+                                    }
+                                }
+                                else
+                                {
+                                    EntropyEncoder.AccumulateFrequencies(block, ref previousDc[component], dc[component], ac[component],
+                                        coefficientsValidated: true, tokens: tokens, component: component, zigZagOrdered: true);
+                                }
                             }
-                            EntropyEncoder.AccumulateFrequencies(block, ref previousDc[component], dc[component], ac[component],
-                                coefficientsValidated: true, tokens: tokens, component: component, zigZagOrdered: true);
                         }
                     }
                 }

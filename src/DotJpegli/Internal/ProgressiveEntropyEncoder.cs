@@ -112,12 +112,19 @@ internal static class ProgressiveEntropyEncoder
         {
             FlushAc(writer, ac, ref pendingEobRun);
         }
+        if (zigZagOrdered)
+        {
+            WriteOrderedAcCore(writer, naturalCoefficients,
+                OrderedAcMask(naturalCoefficients, successiveLow, spectralStart, spectralEnd),
+                ac, ref pendingEobRun, successiveLow, spectralStart, spectralEnd);
+            return;
+        }
 
         int run = 0;
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
         for (int position = spectralStart; position <= spectralEnd; position++)
         {
-            int value = ShiftAc(naturalCoefficients[zigZagOrdered ? position : order[position]], successiveLow);
+            int value = ShiftAc(naturalCoefficients[order[position]], successiveLow);
             if (value == 0)
             {
                 run++;
@@ -190,33 +197,17 @@ internal static class ProgressiveEntropyEncoder
         }
         if (zigZagOrdered)
         {
-            ulong nonzero = OrderedAcMask(naturalCoefficients, successiveLow, spectralStart, spectralEnd);
-            // A fresh all-zero scan has no token segment to reserve. Detect its
-            // empty bands independently of reservation so a long EOB run does
-            // not fall back to inspecting every coefficient of every block.
-            if (nonzero == 0)
-            {
-                pendingEobRun++;
-                if (pendingEobRun == MaximumEobRun)
-                {
-                    FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
-                }
-
-                return;
-            }
-            if (tokens is not null && tokens.TryReserveBlock(out Span<uint> destination))
-            {
-                AccumulateOrderedAcFrequencies(naturalCoefficients, ac, ref pendingEobRun, successiveLow,
-                    spectralStart, spectralEnd, nonzero, tokens, component, destination);
-                return;
-            }
+            AccumulateOrderedAcFrequenciesCore(naturalCoefficients,
+                OrderedAcMask(naturalCoefficients, successiveLow, spectralStart, spectralEnd),
+                ac, ref pendingEobRun, successiveLow, spectralStart, spectralEnd, tokens, component);
+            return;
         }
 
         int run = 0;
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
         for (int position = spectralStart; position <= spectralEnd; position++)
         {
-            int value = ShiftAc(naturalCoefficients[zigZagOrdered ? position : order[position]], successiveLow);
+            int value = ShiftAc(naturalCoefficients[order[position]], successiveLow);
             if (value == 0)
             {
                 run++;
@@ -287,19 +278,39 @@ internal static class ProgressiveEntropyEncoder
         long[] ac, ref int pendingEobRun, int successiveLow, int spectralStart, int spectralEnd,
         EntropyTokens? tokens, int component)
     {
-        bandNonzero &= (ulong.MaxValue << spectralStart) & (ulong.MaxValue >> (63 - spectralEnd));
         if (pendingEobRun == MaximumEobRun)
         {
             FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
         }
-        ulong nonzero;
+        AccumulateOrderedAcFrequenciesCore(coefficients,
+            ResolveBandMask(coefficients, bandNonzero, successiveLow, spectralStart, spectralEnd),
+            ac, ref pendingEobRun, successiveLow, spectralStart, spectralEnd, tokens, component);
+    }
+
+    internal static void WriteOrderedAcWithMask(BitWriter writer, ReadOnlySpan<short> coefficients, ulong bandNonzero,
+        HuffmanTable ac, ref int pendingEobRun, int successiveLow, int spectralStart, int spectralEnd)
+    {
+        if (pendingEobRun == MaximumEobRun)
+        {
+            FlushAc(writer, ac, ref pendingEobRun);
+        }
+        WriteOrderedAcCore(writer, coefficients,
+            ResolveBandMask(coefficients, bandNonzero, successiveLow, spectralStart, spectralEnd),
+            ac, ref pendingEobRun, successiveLow, spectralStart, spectralEnd);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong ResolveBandMask(ReadOnlySpan<short> coefficients, ulong bandNonzero,
+        int successiveLow, int spectralStart, int spectralEnd)
+    {
+        bandNonzero &= (ulong.MaxValue << spectralStart) & (ulong.MaxValue >> (63 - spectralEnd));
         if (successiveLow == 0)
         {
-            nonzero = bandNonzero;
+            return bandNonzero;
         }
-        else if (BitOperations.PopCount(bandNonzero) <= 8)
+        if (BitOperations.PopCount(bandNonzero) <= 8)
         {
-            nonzero = 0;
+            ulong nonzero = 0;
             ulong remaining = bandNonzero;
             while (remaining != 0)
             {
@@ -310,12 +321,18 @@ internal static class ProgressiveEntropyEncoder
                     nonzero |= 1UL << position;
                 }
             }
+            return nonzero;
         }
-        else
-        {
-            nonzero = OrderedAcMask(coefficients, successiveLow, spectralStart, spectralEnd);
-        }
+        return OrderedAcMask(coefficients, successiveLow, spectralStart, spectralEnd);
+    }
 
+    private static void AccumulateOrderedAcFrequenciesCore(ReadOnlySpan<short> coefficients, ulong nonzero,
+        long[] ac, ref int pendingEobRun, int successiveLow, int spectralStart, int spectralEnd,
+        EntropyTokens? tokens, int component)
+    {
+        // A fresh all-zero scan has no token segment to reserve. Detect its
+        // empty bands independently of reservation so a long EOB run does
+        // not fall back to inspecting every coefficient of every block.
         if (nonzero == 0)
         {
             pendingEobRun++;
@@ -366,37 +383,9 @@ internal static class ProgressiveEntropyEncoder
         }
     }
 
-    internal static void WriteOrderedAcWithMask(BitWriter writer, ReadOnlySpan<short> coefficients, ulong bandNonzero,
+    private static void WriteOrderedAcCore(BitWriter writer, ReadOnlySpan<short> coefficients, ulong nonzero,
         HuffmanTable ac, ref int pendingEobRun, int successiveLow, int spectralStart, int spectralEnd)
     {
-        bandNonzero &= (ulong.MaxValue << spectralStart) & (ulong.MaxValue >> (63 - spectralEnd));
-        if (pendingEobRun == MaximumEobRun)
-        {
-            FlushAc(writer, ac, ref pendingEobRun);
-        }
-        ulong nonzero;
-        if (successiveLow == 0)
-        {
-            nonzero = bandNonzero;
-        }
-        else if (BitOperations.PopCount(bandNonzero) <= 8)
-        {
-            nonzero = 0;
-            ulong remaining = bandNonzero;
-            while (remaining != 0)
-            {
-                int position = BitOperations.TrailingZeroCount(remaining);
-                remaining &= remaining - 1;
-                if ((Math.Abs((int)coefficients[position]) >> successiveLow) != 0)
-                {
-                    nonzero |= 1UL << position;
-                }
-            }
-        }
-        else
-        {
-            nonzero = OrderedAcMask(coefficients, successiveLow, spectralStart, spectralEnd);
-        }
         if (nonzero == 0)
         {
             pendingEobRun++;

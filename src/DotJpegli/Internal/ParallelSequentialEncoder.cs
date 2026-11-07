@@ -13,25 +13,29 @@ internal static class ParallelSequentialEncoder
         AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         EntropyTokens? tokens, long[][]? dcFrequencies, long[][]? acFrequencies,
         KernelPreference narrowZigZagKernel, CancellationToken cancellationToken,
-        BitWriter? writer = null, HuffmanCodingPlan.ScanCoding? coding = null)
+        BitWriter? writer = null, HuffmanCodingPlan.ScanCoding? coding = null,
+        Quantization.PreparedTable[]? preparedTables = null)
     {
         ParallelDctRows rows = pixels.ParallelRows!;
         PixelSource analysisSource = rows.SourceForAnalysis;
         int horizontal = sampling.MaxHorizontal, vertical = sampling.MaxVertical;
         int mcuWidth = horizontal * 8, mcuHeight = vertical * 8;
         int mcusWide = (width + mcuWidth - 1) / mcuWidth;
-        var quantizers = new Quantization.PreparedTable[3];
+        Quantization.PreparedTable[] quantizers = preparedTables ?? new Quantization.PreparedTable[3];
         Span<int> widths = stackalloc int[3], heights = stackalloc int[3];
         for (int component = 0; component < 3; component++)
         {
             JpegComponentSampling factor = sampling[component];
             widths[component] = ((width * factor.Horizontal) + mcuWidth - 1) / mcuWidth;
             heights[component] = ((height * factor.Vertical) + mcuHeight - 1) / mcuHeight;
-            quantizers[component] = Quantization.PreparedTable.Create(tables[component], component, distance,
-                adaptiveQuantization: adaptive is not null,
-                adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                narrowZigZagKernel: narrowZigZagKernel, imageWidth: width, imageHeight: height,
-                tailZeroRunBias: pixels.TailZeroRunBias);
+            if (preparedTables is null)
+            {
+                quantizers[component] = Quantization.PreparedTable.Create(tables[component], component, distance,
+                    adaptiveQuantization: adaptive is not null,
+                    adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
+                    narrowZigZagKernel: narrowZigZagKernel, imageWidth: width, imageHeight: height,
+                    tailZeroRunBias: pixels.TailZeroRunBias);
+            }
         }
         Span<float> strengths = adaptive is null ? default : adaptive.Strengths;
         Span<int> previousDc = stackalloc int[3];

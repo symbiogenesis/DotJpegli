@@ -49,24 +49,31 @@ public sealed record JpegSamplingFactors(
         }
     }
 
+    internal static readonly JpegSamplingFactors Xyb = new(new(2, 2), new(2, 2), new(1, 1));
+
+    private static readonly JpegSamplingFactors[] Presets =
+    [
+        new(new(1, 1), new(1, 1), new(1, 1)), // None
+        new(new(2, 1), new(1, 1), new(1, 1)), // HalfHorizontal
+        new(new(2, 2), new(1, 1), new(1, 1)), // Quarter
+        new(new(1, 2), new(1, 1), new(1, 1)), // HalfVertical
+        new(new(4, 1), new(1, 1), new(1, 1)), // QuarterHorizontal
+        new(new(3, 1), new(1, 1), new(1, 1)), // ThirdHorizontal
+        new(new(3, 2), new(1, 1), new(1, 1)), // ThirdHorizontalHalfVertical
+        new(new(1, 4), new(1, 1), new(1, 1)), // QuarterVertical
+        new(new(4, 2), new(1, 1), new(1, 1)), // QuarterHorizontalHalfVertical
+        new(new(2, 4), new(1, 1), new(1, 1)), // HalfHorizontalQuarterVertical
+        new(new(1, 3), new(1, 1), new(1, 1)), // ThirdVertical
+        new(new(2, 3), new(1, 1), new(1, 1)), // HalfHorizontalThirdVertical
+    ];
+
     internal static JpegSamplingFactors FromSubsampling(ChromaSubsampling subsampling)
     {
-        (int horizontal, int vertical) = subsampling switch
+        if ((uint)subsampling >= (uint)Presets.Length)
         {
-            ChromaSubsampling.None => (1, 1),
-            ChromaSubsampling.HalfHorizontal => (2, 1),
-            ChromaSubsampling.Quarter => (2, 2),
-            ChromaSubsampling.HalfVertical => (1, 2),
-            ChromaSubsampling.QuarterHorizontal => (4, 1),
-            ChromaSubsampling.ThirdHorizontal => (3, 1),
-            ChromaSubsampling.ThirdHorizontalHalfVertical => (3, 2),
-            ChromaSubsampling.QuarterVertical => (1, 4),
-            ChromaSubsampling.QuarterHorizontalHalfVertical => (4, 2),
-            ChromaSubsampling.HalfHorizontalQuarterVertical => (2, 4),
-            ChromaSubsampling.ThirdVertical => (1, 3),
-            ChromaSubsampling.HalfHorizontalThirdVertical => (2, 3),
-            _ => throw new ArgumentOutOfRangeException(nameof(subsampling))
-        };
-        return new(new(horizontal, vertical), new(1, 1), new(1, 1));
+            throw new ArgumentOutOfRangeException(nameof(subsampling));
+        }
+
+        return Presets[(int)subsampling];
     }
 }

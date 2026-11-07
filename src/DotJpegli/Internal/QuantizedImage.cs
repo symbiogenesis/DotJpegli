@@ -69,7 +69,7 @@ internal sealed class QuantizedImage : IDisposable
             return CreateHuffmanFeedbackResearch(pixels, width, height, stride, sampling, tables, distance,
                 smoothingFactor, adaptive, adaptiveMultipliers, zigZagOrdered, narrowZigZagKernel,
                 rateDistortionLambda, rateDistortionDiagnostics, maximumBytes, cacheBudget, pool,
-                dcTrellisLambda, dcTrellisDiagnostics, dcRestartIntervals, cancellationToken);
+                dcTrellisLambda, dcTrellisDiagnostics, dcRestartIntervals, cancellationToken, preparedTables);
         }
         if (!double.IsFinite(dcTrellisLambda) || dcTrellisLambda < 0)
         {
@@ -80,7 +80,7 @@ internal sealed class QuantizedImage : IDisposable
             return CreateDcResearch(pixels, width, height, stride, sampling, tables, distance, smoothingFactor,
                 adaptive, adaptiveMultipliers, zigZagOrdered, narrowZigZagKernel,
                 rateDistortionLambda, rateDistortionDiagnostics, maximumBytes, cacheBudget, pool,
-                dcTrellisLambda, dcTrellisDiagnostics, dcRestartIntervals, cancellationToken);
+                dcTrellisLambda, dcTrellisDiagnostics, dcRestartIntervals, cancellationToken, preparedTables);
         }
         if (!double.IsFinite(rateDistortionLambda) || rateDistortionLambda < 0)
         {
@@ -195,11 +195,11 @@ internal sealed class QuantizedImage : IDisposable
                                 : image.blockMasks[component].AsSpan(y * widths[component], widths[component]);
                             for (int x = 0; x < widths[component]; x++)
                             {
-                                ReadOnlySpan<short> block = parallelQuantized.GetQuantizedBlock(component, x, y);
+                                ReadOnlySpan<short> block = parallelQuantized.GetQuantizedBlock(component, x, y, out ulong nonzeroAcMask);
                                 block.CopyTo(image.Block(component, x, y));
                                 if (!rowMasks.IsEmpty)
                                 {
-                                    rowMasks[x] = EntropyEncoder.NonzeroAcMask(block);
+                                    rowMasks[x] = nonzeroAcMask;
                                 }
                             }
                         }
@@ -364,7 +364,8 @@ internal sealed class QuantizedImage : IDisposable
         AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, bool zigZagOrdered,
         KernelPreference narrowZigZagKernel, double lambda, RateDistortionDiagnostics? diagnostics,
         long maximumBytes, EncoderCacheBudget? cacheBudget, ArrayPool<short>? pool, double dcLambda,
-        DcTrellisDiagnostics? dcDiagnostics, int[]? restartIntervals, CancellationToken cancellationToken)
+        DcTrellisDiagnostics? dcDiagnostics, int[]? restartIntervals, CancellationToken cancellationToken,
+        Quantization.PreparedTable[]? preparedTables = null)
     {
         if (!double.IsFinite(lambda) || lambda <= 0)
         {
@@ -378,7 +379,8 @@ internal sealed class QuantizedImage : IDisposable
         QuantizedImage? image = Create(pixels, width, height, stride, sampling, tables, distance, smoothingFactor,
             adaptive, adaptiveMultipliers, cancellationToken, zigZagOrdered, narrowZigZagKernel,
             lambda, diagnostics, maximumBytes, allowPartial: false, cacheBudget: cacheBudget, pool: pool,
-            dcTrellisLambda: dcLambda, dcTrellisDiagnostics: dcDiagnostics, dcRestartIntervals: restartIntervals);
+            dcTrellisLambda: dcLambda, dcTrellisDiagnostics: dcDiagnostics, dcRestartIntervals: restartIntervals,
+            preparedTables: preparedTables);
         if (image is null)
         {
             return null;
@@ -386,12 +388,13 @@ internal sealed class QuantizedImage : IDisposable
         try
         {
             int components = tables.Length;
-            JpegScan[] scans = Enumerable.Range(0, components).Select(component => new JpegScan([component])).ToArray();
+            var scans = new JpegScan[components];
             long[][] dcFrequencies = new long[components][];
             long[][][] acFrequencies = new long[components][][];
             long histogramBlocks = 0;
             for (int component = 0; component < components; component++)
             {
+                scans[component] = new JpegScan([component]);
                 dcFrequencies[component] = new long[256];
                 acFrequencies[component] = new long[components][];
                 for (int context = 0; context < components; context++)
@@ -419,8 +422,11 @@ internal sealed class QuantizedImage : IDisposable
             // changing canonical symbol order cannot alter its per-symbol costs.
             var coding = HuffmanCodingPlan.Create(scans, dcFrequencies, acFrequencies, progressive: false,
                 forceBaseline: true, reuseHistograms: true);
-            byte[][] codeLengths = Enumerable.Range(0, components)
-                .Select(component => RateDistortionQuantization.CodeLengths(coding.Scans[component].AcTables[component])).ToArray();
+            byte[][] codeLengths = new byte[components][];
+            for (int component = 0; component < components; component++)
+            {
+                codeLengths[component] = RateDistortionQuantization.CodeLengths(coding.Scans[component].AcTables[component]);
+            }
             diagnostics?.RecordFeedbackModel(codeLengths, histogramBlocks);
             Span<float> samples = stackalloc float[64];
             for (int component = 0; component < components; component++)
@@ -489,7 +495,7 @@ internal sealed class QuantizedImage : IDisposable
         bool zigZagOrdered, KernelPreference narrowZigZagKernel, double rateDistortionLambda,
         RateDistortionDiagnostics? rateDistortionDiagnostics, long maximumBytes, EncoderCacheBudget? cacheBudget,
         ArrayPool<short>? pool, double lambda, DcTrellisDiagnostics? diagnostics, int[]? restartIntervals,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Quantization.PreparedTable[]? preparedTables = null)
     {
         if (!zigZagOrdered)
         {
@@ -528,7 +534,7 @@ internal sealed class QuantizedImage : IDisposable
             image = Create(pixels, width, height, stride, sampling, tables, distance, smoothingFactor,
                 adaptive, adaptiveMultipliers, cancellationToken, zigZagOrdered, narrowZigZagKernel,
                 rateDistortionLambda, rateDistortionDiagnostics, maximumBytes: available - scratchBytes,
-                allowPartial: false, cacheBudget: cacheBudget, pool: pool);
+                allowPartial: false, cacheBudget: cacheBudget, pool: pool, preparedTables: preparedTables);
             if (image is null)
             {
                 return null;

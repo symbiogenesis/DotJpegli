@@ -31,38 +31,25 @@ internal static class EntropyEncoder
         Guard.ThrowIfNull(dc);
         Guard.ThrowIfNull(ac);
         ValidateBlock(naturalCoefficients, previousDc, coefficientsValidated);
+        if (zigZagOrdered)
+        {
+            ulong nonzero = NonzeroAcMask(naturalCoefficients);
+            if (nonzero == 0)
+            {
+                WriteDcOnlyBlock(writer, naturalCoefficients[0], ref previousDc, dc, ac);
+            }
+            else
+            {
+                WriteOrderedBlockWithMask(writer, naturalCoefficients, nonzero, ref previousDc, dc, ac);
+            }
+
+            return;
+        }
 
         int difference = naturalCoefficients[0] - previousDc;
         int category = Category(difference);
         dc.WriteSymbolWithBits(writer, category, AdditionalBits(difference, category), category);
         previousDc = naturalCoefficients[0];
-
-        if (zigZagOrdered)
-        {
-            ulong nonzero = NonzeroAcMask(naturalCoefficients);
-            int previousPosition = 0;
-            while (nonzero != 0)
-            {
-                int position = BitOperations.TrailingZeroCount(nonzero);
-                int run = position - previousPosition - 1;
-                while (run >= 16)
-                {
-                    ac.WriteSymbol(writer, 0xf0);
-                    run -= 16;
-                }
-                int value = naturalCoefficients[position];
-                category = Category(value);
-                ac.WriteSymbolWithBits(writer, (run << 4) | category, AdditionalBits(value, category), category);
-                previousPosition = position;
-                nonzero &= nonzero - 1;
-            }
-            if (previousPosition != 63)
-            {
-                ac.WriteSymbol(writer, 0);
-            }
-
-            return;
-        }
 
         int nonzeros = CountNonzeroAc(naturalCoefficients);
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
@@ -112,50 +99,27 @@ internal static class EntropyEncoder
         }
 
         ValidateBlock(naturalCoefficients, previousDc, coefficientsValidated);
-        if (zigZagOrdered && tokens is not null && tokens.TryReserveBlock(out Span<uint> destination))
+        if (zigZagOrdered)
         {
-            AccumulateOrderedBlock(naturalCoefficients, ref previousDc, dc, ac, tokens, component, destination);
+            ulong nonzero = NonzeroAcMask(naturalCoefficients);
+            if (nonzero == 0)
+            {
+                AccumulateDcOnlyBlock(naturalCoefficients[0], ref previousDc, dc, ac, tokens, component);
+            }
+            else
+            {
+                AccumulateOrderedBlockWithMask(naturalCoefficients, nonzero, ref previousDc, dc, ac, tokens, component);
+            }
+
             return;
         }
+
         int difference = naturalCoefficients[0] - previousDc;
         int category = Category(difference);
         checked
         { dc[category]++; }
         tokens?.AddHuffman(component, false, category, AdditionalBits(difference, category), category);
         previousDc = naturalCoefficients[0];
-
-        if (zigZagOrdered)
-        {
-            ulong nonzero = NonzeroAcMask(naturalCoefficients);
-            int previousPosition = 0;
-            while (nonzero != 0)
-            {
-                int position = BitOperations.TrailingZeroCount(nonzero);
-                int run = position - previousPosition - 1;
-                while (run >= 16)
-                {
-                    checked
-                    { ac[0xf0]++; }
-                    tokens?.AddHuffman(component, true, 0xf0, 0, 0);
-                    run -= 16;
-                }
-                int value = naturalCoefficients[position];
-                category = Category(value);
-                int symbol = (run << 4) | category;
-                checked
-                { ac[symbol]++; }
-                tokens?.AddHuffman(component, true, symbol, AdditionalBits(value, category), category);
-                previousPosition = position;
-                nonzero &= nonzero - 1;
-            }
-            if (previousPosition != 63)
-            {
-                checked
-                { ac[0]++; }
-                tokens?.AddHuffman(component, true, 0, 0, 0);
-            }
-            return;
-        }
 
         int nonzeros = CountNonzeroAc(naturalCoefficients);
         ReadOnlySpan<int> order = JpegConstants.ZigZag;
@@ -193,11 +157,6 @@ internal static class EntropyEncoder
             tokens?.AddHuffman(component, true, symbol, AdditionalBits(value, category), category);
         }
     }
-
-    private static void AccumulateOrderedBlock(ReadOnlySpan<short> coefficients, ref int previousDc,
-        long[] dc, long[] ac, EntropyTokens tokens, int component, Span<uint> destination)
-        => AccumulateOrderedBlockCore(coefficients, NonzeroAcMask(coefficients),
-            coefficients[0] - previousDc, ref previousDc, dc, ac, tokens, component, destination);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void AccumulateOrderedBlockCore(ReadOnlySpan<short> coefficients, ulong nonzero,
@@ -256,7 +215,6 @@ internal static class EntropyEncoder
             ThrowDcDifferenceOutOfRange();
         }
 
-        previousDc = dcValue;
         if (tokens is not null && tokens.TryReserveDcOnlyBlock(out Span<uint> destination))
         {
             int dcContext = component << 1;
@@ -265,6 +223,7 @@ internal static class EntropyEncoder
             int category = (int)(amplitude >> 27);
             IncrementReservedFrequency(dc, category, tokens, 0);
             destination[0] = amplitude | ((uint)dcContext << 24);
+            previousDc = dcValue;
             IncrementReservedFrequency(ac, 0, tokens, 1);
             destination[1] = EntropyTokens.PackHuffman(acContext, 0, 0, 0);
             tokens.CommitBlock(2);
@@ -275,6 +234,7 @@ internal static class EntropyEncoder
         checked
         { dc[slowCategory]++; }
         tokens?.AddHuffman(component, false, slowCategory, AdditionalBits(difference, slowCategory), slowCategory);
+        previousDc = dcValue;
         checked
         { ac[0]++; }
         tokens?.AddHuffman(component, true, 0, 0, 0);
@@ -562,32 +522,7 @@ internal static class EntropyEncoder
             throw new ArgumentException("A DCT block must contain 64 coefficients.", nameof(coefficients));
         }
 
-        bool invalid = false;
-#if !NETSTANDARD2_1
-        int lanes = Vector<short>.Count;
-        if (Vector.IsHardwareAccelerated && lanes <= 64 && 64 % lanes == 0)
-        {
-            var minimum = new Vector<short>(-1023);
-            var maximum = new Vector<short>(1023);
-            // Load full vectors without a scalar tail. The first lane is DC,
-            // whose wider/difference-dependent range must not affect this test.
-            var values = Vector.WithElement(new Vector<short>(coefficients), 0, (short)0);
-            Vector<short> outside = Vector.LessThan(values, minimum) | Vector.GreaterThan(values, maximum);
-            for (int offset = lanes; offset < 64; offset += lanes)
-            {
-                values = new Vector<short>(coefficients.Slice(offset, lanes));
-                outside |= Vector.LessThan(values, minimum) | Vector.GreaterThan(values, maximum);
-            }
-            invalid = !Vector.EqualsAll(outside, Vector<short>.Zero);
-        }
-        else
-#endif
-        {
-            for (int offset = 1; offset < 64; offset++)
-            {
-                invalid |= coefficients[offset] is < -1023 or > 1023;
-            }
-        }
-        return !invalid;
+        const short minimum = -1023, maximum = 1023;
+        return !coefficients[1..].ContainsAnyExceptInRange(minimum, maximum);
     }
 }

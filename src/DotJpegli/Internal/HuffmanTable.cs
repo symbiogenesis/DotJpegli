@@ -593,11 +593,11 @@ internal sealed class HuffmanTable
             return;
         }
 
-        BuildLengthLimitedCodeLengths<T, TArithmetic>(tree, leafCount, depth);
+        BuildLengthLimitedCodeLengths<T, TArithmetic>(tree[..leafCount], depth);
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    private static void BuildLengthLimitedCodeLengths<T, TArithmetic>(Span<Node<T>> tree, int leafCount, Span<int> depth)
+    private static void BuildLengthLimitedCodeLengths<T, TArithmetic>(ReadOnlySpan<Node<T>> leaves, Span<int> depth)
         where T : struct, IComparable<T>
         where TArithmetic : struct, ITreeArithmetic<T>
     {
@@ -606,9 +606,19 @@ internal sealed class HuffmanTable
         // the previous level's packages. Recording how many leaves precede each
         // package boundary reconstructs optimal lengths in a single pass.
         TArithmetic arithmetic = default;
-        ReadOnlySpan<Node<T>> leaves = tree[..leafCount];
-        Span<Node<T>> currentPackages = tree.Slice(leafCount, leafCount);
-        Span<Node<T>> nextPackages = new Node<T>[leafCount];
+        int leafCount = leaves.Length;
+        Span<T> packages =
+#if NETSTANDARD2_1
+            typeof(T) == typeof(ulong)
+                ? MemoryMarshal.Cast<ulong, T>(stackalloc ulong[2 * leafCount])
+                : new T[2 * leafCount];
+#else
+            typeof(T) == typeof(ulong)
+                ? MemoryMarshal.Cast<ulong, T>(stackalloc ulong[2 * leafCount])
+                : MemoryMarshal.Cast<UInt128, T>(stackalloc UInt128[2 * leafCount]);
+#endif
+        Span<T> currentPackages = packages[..leafCount];
+        Span<T> nextPackages = packages.Slice(leafCount, leafCount);
         Span<ushort> packageLeafCounts = stackalloc ushort[16 * leafCount];
         int packageCount = 0;
         for (int level = 16; level >= 1; level--)
@@ -623,13 +633,13 @@ internal sealed class HuffmanTable
                 T second = TakeNextPackageItem(leaves, ref leafIndex, currentPackages, packageCount, ref packageIndex);
                 if (level > 1)
                 {
-                    nextPackages[pair] = new Node<T>(arithmetic.Add(first, second), -1, -1);
+                    nextPackages[pair] = arithmetic.Add(first, second);
                 }
 
                 levelCounts[pair] = (ushort)leafIndex;
             }
 
-            Span<Node<T>> swap = currentPackages;
+            Span<T> swap = currentPackages;
             currentPackages = nextPackages;
             nextPackages = swap;
             packageCount = mergedPairs;
@@ -654,7 +664,7 @@ internal sealed class HuffmanTable
     }
 
     private static T TakeNextPackageItem<T>(ReadOnlySpan<Node<T>> leaves, ref int leafIndex,
-        ReadOnlySpan<Node<T>> packages, int packageCount, ref int packageIndex)
+        ReadOnlySpan<T> packages, int packageCount, ref int packageIndex)
         where T : struct, IComparable<T>
     {
         if (leafIndex < leaves.Length)
@@ -662,14 +672,14 @@ internal sealed class HuffmanTable
             // The padding pseudo-symbol at index 0 is never emitted; zero weight
             // keeps it at depth 16 without penalizing its paired real symbol.
             T leafWeight = leafIndex == 0 ? default : leaves[leafIndex].Count;
-            if (packageIndex >= packageCount || leafWeight.CompareTo(packages[packageIndex].Count) <= 0)
+            if (packageIndex >= packageCount || leafWeight.CompareTo(packages[packageIndex]) <= 0)
             {
                 leafIndex++;
                 return leafWeight;
             }
         }
 
-        return packages[packageIndex++].Count;
+        return packages[packageIndex++];
     }
 
     private interface ITreeArithmetic<T>

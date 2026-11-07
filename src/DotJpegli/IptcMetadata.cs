@@ -94,9 +94,32 @@ public sealed class IptcMetadata
     }
 
     /// <summary>Gets owned snapshots of all matching dataset payloads in their existing order.</summary>
-    public IReadOnlyList<ReadOnlyMemory<byte>> GetValues(byte record, byte dataset) =>
-        Array.AsReadOnly(this.datasets.Where(entry => entry.Record == record && entry.Number == dataset)
-            .Select(entry => (ReadOnlyMemory<byte>)entry.Value.ToArray()).ToArray());
+    public IReadOnlyList<ReadOnlyMemory<byte>> GetValues(byte record, byte dataset)
+    {
+        int count = 0;
+        foreach (Dataset entry in this.datasets)
+        {
+            if (entry.Record == record && entry.Number == dataset)
+            {
+                count++;
+            }
+        }
+        if (count == 0)
+        {
+            return [];
+        }
+
+        var values = new ReadOnlyMemory<byte>[count];
+        int index = 0;
+        foreach (Dataset entry in this.datasets)
+        {
+            if (entry.Record == record && entry.Number == dataset)
+            {
+                values[index++] = entry.Value.ToArray();
+            }
+        }
+        return Array.AsReadOnly(values);
+    }
 
     /// <summary>Replaces every matching dataset with owned copies of the supplied values. An empty list removes them.</summary>
     /// <remarks>New fields are inserted before higher-numbered records; replacements keep the first old occurrence's position.</remarks>
@@ -127,8 +150,29 @@ public sealed class IptcMetadata
     {
         EnsureTextDataset(dataset);
         bool utf8 = this.GetTextEncoding();
-        return Array.AsReadOnly(this.datasets.Where(entry => entry.Record == 2 && entry.Number == dataset)
-            .Select(entry => DecodeText(entry.Value.Span, utf8)).ToArray());
+        int count = 0;
+        foreach (Dataset entry in this.datasets)
+        {
+            if (entry.Record == 2 && entry.Number == dataset)
+            {
+                count++;
+            }
+        }
+        if (count == 0)
+        {
+            return [];
+        }
+
+        string[] values = new string[count];
+        int index = 0;
+        foreach (Dataset entry in this.datasets)
+        {
+            if (entry.Record == 2 && entry.Number == dataset)
+            {
+                values[index++] = DecodeText(entry.Value.Span, utf8);
+            }
+        }
+        return Array.AsReadOnly(values);
     }
 
     /// <summary>Replaces all text values of an application-record-2 dataset and establishes the strict UTF-8 designation ESC % G.</summary>
