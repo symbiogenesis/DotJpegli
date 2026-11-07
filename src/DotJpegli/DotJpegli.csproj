@@ -12,6 +12,7 @@
     <Copyright>Copyright (c) 2026 Edward Miller. Copyright (c) the JPEG XL Project Authors.</Copyright>
     <PackageLicenseExpression>BSD-3-Clause</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://symbiogenesis.github.io/DotJpegli/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/symbiogenesis/DotJpegli</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <IsPackable>true</IsPackable>

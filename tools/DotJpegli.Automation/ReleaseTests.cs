@@ -35,12 +35,14 @@ internal static class ReleaseTests
             Reject(() => Verify(path), "three managed");
             WritePackage(path, extra: "LICENSE");
             Reject(() => Verify(path), "duplicate package entry");
-            foreach (string field in new[] { "id", "version", "repository", "license", "readme" })
+            foreach (string field in new[] { "id", "version", "projectUrl", "repository", "license", "readme" })
             {
                 WritePackage(path, change: metadata => metadata.Element(metadata.Name.Namespace + field)!.Remove());
-                Reject(() => Verify(path), field is "id" or "version" ? "ID/version" : field == "repository" ? "repository metadata" : "license or readme");
+                Reject(() => Verify(path), field is "id" or "version" ? "ID/version" : field == "projectUrl" ? "project URL" : field == "repository" ? "repository metadata" : "license or readme");
             }
 
+            WritePackage(path, change: metadata => metadata.Element(metadata.Name.Namespace + "projectUrl")!.Value = "https://example.invalid/");
+            Reject(() => Verify(path), "project URL");
             foreach (string attribute in new[] { "type", "url", "branch", "commit" })
             {
                 WritePackage(path, change: metadata => metadata.Element(metadata.Name.Namespace + "repository")!.SetAttributeValue(attribute, "wrong"));
@@ -124,6 +126,7 @@ internal static class ReleaseTests
         XNamespace ns = namespaced ? "http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd" : XNamespace.None;
         var metadata = new XElement(ns + "metadata",
             new XElement(ns + "id", "DotJpegli"), new XElement(ns + "version", Version),
+            new XElement(ns + "projectUrl", "https://symbiogenesis.github.io/DotJpegli/"),
             new XElement(ns + "repository", new XAttribute("type", "git"), new XAttribute("url", "https://github.com/symbiogenesis/DotJpegli"),
                 new XAttribute("branch", "refs/heads/main"), new XAttribute("commit", Revision)),
             new XElement(ns + "license", new XAttribute("type", "expression"), "BSD-3-Clause"), new XElement(ns + "readme", "README.md"));

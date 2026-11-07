@@ -56,6 +56,8 @@ internal static class ReleaseCommand
         Require(metadata is not null, "Package manifest must contain metadata.");
         Require(metadata!.Element(ns + "id")?.Value == "DotJpegli" && metadata.Element(ns + "version")?.Value == expectedVersion,
             "Package ID/version does not match the requested release.");
+        Require(metadata.Element(ns + "projectUrl")?.Value == "https://symbiogenesis.github.io/DotJpegli/",
+            "Package project URL does not match the homepage.");
         XElement? repository = metadata.Element(ns + "repository");
         Require(repository?.Attribute("type")?.Value == "git" &&
             repository?.Attribute("url")?.Value == "https://github.com/symbiogenesis/DotJpegli" &&
