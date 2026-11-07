@@ -135,6 +135,72 @@ public sealed class PartialConvertedPlaneTests
         }
     }
 
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(false, 2)]
+    [InlineData(true, 0)]
+    [InlineData(true, 2)]
+    public void RollingConvertedPlanesProduceBitIdenticalSamplesAndJpegs(bool compact, int progressiveLevel)
+    {
+        const int width = 67, height = 83, stride = width * 3;
+        byte[] rgb = TestImages.Gradient(width, height);
+        PixelSource original = new(rgb, PixelLayout.Rgb24);
+        var budget = new EncoderCacheBudget(4 * 1024 * 1024);
+        PixelSource full = compact
+            ? original.WithConverted420Planes(width, height, stride, TestContext.Current.CancellationToken, budget)
+            : original.WithConvertedPlanes(width, height, stride, TestContext.Current.CancellationToken, budget);
+        PixelSource rolling = original.WithRollingConvertedPlanes(width, height, stride, compact,
+            budget, TestContext.Current.CancellationToken);
+        using IDisposable? fullStorage = full.ConvertedStorage;
+        using IDisposable? rollingStorage = rolling.ConvertedStorage;
+        Assert.NotNull(rollingStorage);
+        Assert.False(rolling.HasCompleteConvertedPlanes);
+
+        int mcuHeight = compact ? 16 : 8;
+        for (int top = 0; top < height; top += mcuHeight)
+        {
+            rolling.AdvanceConvertedWindow(top + mcuHeight + 6, stride, TestContext.Current.CancellationToken);
+            for (int component = 0; component < 3; component++)
+            {
+                bool compactChroma = compact && component != 0;
+                int scale = compactChroma ? 2 : 1;
+                int blockTop = top / scale;
+                ReadOnlySpan<float> rollingSegment = rolling.GetConvertedPlaneSegment(component, blockTop, compactChroma,
+                    out int rWidth, out int rHeight, out int rLocal);
+                Assert.False(rollingSegment.IsEmpty);
+                int fWidth = width, fHeight = height;
+                ReadOnlySpan<float> fullPlane = compactChroma
+                    ? full.GetConverted420ChromaPlane(component, out fWidth, out fHeight)
+                    : full.GetConvertedPlane(component);
+                Assert.Equal(fWidth, rWidth);
+                for (int y = 0; y < 8; y++)
+                {
+                    int fullY = Math.Min(blockTop + y, fHeight - 1);
+                    int rollingY = Math.Min(rLocal + y, rHeight - 1);
+                    AssertBits(fullPlane.Slice(fullY * fWidth, fWidth), rollingSegment.Slice(rollingY * rWidth, rWidth));
+                }
+            }
+        }
+
+        ChromaSubsampling subsampling = compact ? ChromaSubsampling.Quarter : ChromaSubsampling.None;
+        byte[] rollingEncoded = JpegliEncoder.Encode(rgb, width, height, PixelLayout.Rgb24, new JpegliEncoderOptions
+        {
+            Distance = 1.0f,
+            Subsampling = subsampling,
+            ProgressiveLevel = progressiveLevel,
+            MaxDegreeOfParallelism = 1
+        }, cancellationToken: TestContext.Current.CancellationToken);
+        byte[] fullCachedEncoded = JpegliEncoder.Encode(rgb, width, height, PixelLayout.Rgb24, new JpegliEncoderOptions
+        {
+            Distance = 1.0f,
+            Subsampling = subsampling,
+            ProgressiveLevel = progressiveLevel,
+            MaxDegreeOfParallelism = 1,
+            CacheDiagnostics = new EncoderCacheDiagnostics()
+        }, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(fullCachedEncoded, rollingEncoded);
+    }
+
     private static void AssertBits(ReadOnlySpan<float> expected, ReadOnlySpan<float> actual)
     {
         for (int index = 0; index < expected.Length; index++)

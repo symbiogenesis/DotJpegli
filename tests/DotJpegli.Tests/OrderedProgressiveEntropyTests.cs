@@ -546,5 +546,83 @@ public sealed class OrderedProgressiveEntropyTests
         return result;
     }
 
+    [Theory]
+    [InlineData(1, 2, 0)]
+    [InlineData(3, 63, 0)]
+    [InlineData(3, 63, 2)]
+    [InlineData(1, 63, 0)]
+    public void MaskFastPathsMatchUnmaskedOrderedAcAndRefinement(int start, int end, int low)
+    {
+        short[][] naturalBlocks = Blocks(low);
+        short[][] orderedBlocks = naturalBlocks.Select(ToOrdered).ToArray();
+        ulong[] masks = orderedBlocks.Select(block => EntropyEncoder.NonzeroAcMask(block)).ToArray();
+
+        long[] expectedAc = new long[256], actualAc = new long[256];
+        int expectedPending = 0, actualPending = 0;
+        using var expectedTokens = new EntropyTokens();
+        using var actualTokens = new EntropyTokens();
+        for (int index = 0; index < orderedBlocks.Length; index++)
+        {
+            ProgressiveEntropyEncoder.AccumulateAcFrequencies(orderedBlocks[index], expectedAc, ref expectedPending,
+                low, start, end, coefficientsValidated: true, tokens: expectedTokens, component: 0, zigZagOrdered: true);
+            if (masks[index] == 0)
+            {
+                ProgressiveEntropyEncoder.AccumulateEmptyAcBlock(ref actualPending, null, null, actualAc, actualTokens, 0);
+            }
+            else
+            {
+                ProgressiveEntropyEncoder.AccumulateOrderedAcFrequenciesWithMask(orderedBlocks[index], masks[index],
+                    actualAc, ref actualPending, low, start, end, actualTokens, 0);
+            }
+        }
+        ProgressiveEntropyEncoder.FlushAcFrequencies(expectedAc, ref expectedPending, expectedTokens, 0);
+        ProgressiveEntropyEncoder.FlushAcFrequencies(actualAc, ref actualPending, actualTokens, 0);
+        Assert.Equal(expectedAc, actualAc);
+        Assert.Equal(Replay(expectedTokens), Replay(actualTokens));
+
+        var acTable = HuffmanTable.CreateOptimized(expectedAc);
+        using var expectedOut = new MemoryStream();
+        using var actualOut = new MemoryStream();
+        var expectedWriter = new BitWriter(expectedOut);
+        var actualWriter = new BitWriter(actualOut);
+        expectedPending = actualPending = 0;
+        for (int index = 0; index < orderedBlocks.Length; index++)
+        {
+            ProgressiveEntropyEncoder.WriteAc(expectedWriter, orderedBlocks[index], acTable, ref expectedPending,
+                low, start, end, coefficientsValidated: true, zigZagOrdered: true);
+            ProgressiveEntropyEncoder.WriteOrderedAcWithMask(actualWriter, orderedBlocks[index], masks[index],
+                acTable, ref actualPending, low, start, end);
+        }
+        ProgressiveEntropyEncoder.FlushAc(expectedWriter, acTable, ref expectedPending);
+        ProgressiveEntropyEncoder.FlushAc(actualWriter, acTable, ref actualPending);
+        expectedWriter.Flush();
+        actualWriter.Flush();
+        Assert.Equal(expectedOut.ToArray(), actualOut.ToArray());
+
+        long[] expectedRef = new long[256], actualRef = new long[256];
+        var expectedState = new ProgressiveAcRefinementState();
+        var actualState = new ProgressiveAcRefinementState();
+        using var expectedRefTokens = new EntropyTokens();
+        using var actualRefTokens = new EntropyTokens();
+        for (int index = 0; index < orderedBlocks.Length; index++)
+        {
+            ProgressiveEntropyEncoder.AccumulateAcRefinementFrequencies(orderedBlocks[index], expectedRef, expectedState,
+                low, start, end, coefficientsValidated: true, tokens: expectedRefTokens, component: 0, zigZagOrdered: true);
+            if (masks[index] == 0)
+            {
+                ProgressiveEntropyEncoder.AccumulateEmptyAcRefinementBlock(actualState, null, null, actualRef, actualRefTokens, 0);
+            }
+            else
+            {
+                ProgressiveEntropyEncoder.ProcessOrderedAcRefinementWithMask(orderedBlocks[index], masks[index],
+                    actualState, low, start, end, null, null, actualRef, actualRefTokens, 0);
+            }
+        }
+        ProgressiveEntropyEncoder.FlushAcRefinementFrequencies(expectedRef, expectedState, expectedRefTokens, 0);
+        ProgressiveEntropyEncoder.FlushAcRefinementFrequencies(actualRef, actualState, actualRefTokens, 0);
+        Assert.Equal(expectedRef, actualRef);
+        Assert.Equal(Replay(expectedRefTokens), Replay(actualRefTokens));
+    }
+
     private static short[] ToOrdered(short[] natural) => JpegConstants.ZigZag.ToArray().Select(position => natural[position]).ToArray();
 }

@@ -3,11 +3,12 @@ namespace DotJpegli.Internal;
 using System.Buffers;
 
 /// <summary>Reusable staging storage for the byte-array encode API's owned result.</summary>
-internal sealed class PooledOutputStream : Stream
+internal sealed class PooledOutputStream(int initialCapacity = 4096) : Stream
 {
     // Pool the initial buffer. Larger JPEGs append bounded ordinary segments,
     // avoiding repeated copies of all preceding output or giant pool rentals.
     private const int MaximumPooledCapacity = 1024 * 1024;
+    private readonly int initialCapacity = Math.Clamp(initialCapacity, 4096, MaximumPooledCapacity);
     private byte[] buffer = [];
     private int count;
     private int bufferCount;
@@ -101,7 +102,7 @@ internal sealed class PooledOutputStream : Stream
         }
 
         int capacity = (int)Math.Min(MaximumPooledCapacity,
-            Math.Max((long)this.bufferCount + additional, Math.Max(4096L, (long)this.buffer.Length * 2)));
+            Math.Max((long)this.bufferCount + additional, Math.Max(this.initialCapacity, (long)this.buffer.Length * 2)));
         byte[] next = ArrayPool<byte>.Shared.Rent(capacity);
         this.buffer.AsSpan(0, this.bufferCount).CopyTo(next);
         byte[] previous = this.buffer;

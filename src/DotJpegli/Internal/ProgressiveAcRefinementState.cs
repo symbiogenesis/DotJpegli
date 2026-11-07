@@ -23,6 +23,8 @@ internal sealed class ProgressiveAcRefinementState(bool pooled = false) : IDispo
 
     internal ReadOnlySpan<byte> Corrections => this.corrections.AsSpan(0, this.CorrectionBitCount);
 
+    internal void AppendEmptyBlock() => this.PendingEobRun++;
+
     internal void AppendBlock(ReadOnlySpan<byte> blockCorrections)
     {
         int required = this.CorrectionBitCount + blockCorrections.Length;

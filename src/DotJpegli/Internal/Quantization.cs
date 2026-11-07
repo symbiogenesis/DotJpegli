@@ -11,6 +11,7 @@
 
 namespace DotJpegli.Internal;
 
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -21,6 +22,90 @@ using System.Runtime.Intrinsics;
 
 internal static class Quantization
 {
+    private readonly record struct ConfigurationCacheKey(uint DistanceBits, int Flags, uint TailZeroRunBiasBits);
+
+    internal sealed record Configuration(ushort[][] Tables, int[] Selectors,
+        float[][]? AdaptiveMultipliers, PreparedTable[] PreparedTables);
+
+    private static readonly ConcurrentDictionary<ConfigurationCacheKey, Configuration> ConfigurationCache = new();
+
+    internal static Configuration GetOrCreateConfiguration(float distance, bool grayscale, bool rgb, bool xyb,
+        bool useStandardTables, bool forceBaseline, int quantizationSampling, int transferFunction,
+        bool useAdaptiveQuantization, KernelPreference narrowZigZagKernel, int imageWidth, int imageHeight,
+        float tailZeroRunBias)
+    {
+        bool useTiledZigZag = KernelPolicy.UseTiledZigZag(narrowZigZagKernel, imageWidth, imageHeight);
+        int flags = (grayscale ? 1 : 0)
+            | (rgb ? 2 : 0)
+            | (xyb ? 4 : 0)
+            | (useStandardTables ? 8 : 0)
+            | (forceBaseline ? 16 : 0)
+            | ((quantizationSampling & 3) << 5)
+            | ((transferFunction & 0xff) << 7)
+            | (useAdaptiveQuantization ? (1 << 15) : 0)
+            | (((int)narrowZigZagKernel & 3) << 16)
+            | (useTiledZigZag ? (1 << 18) : 0);
+        var key = new ConfigurationCacheKey(
+            (uint)BitConverter.SingleToInt32Bits(distance),
+            flags,
+            (uint)BitConverter.SingleToInt32Bits(tailZeroRunBias));
+        if (ConfigurationCache.TryGetValue(key, out Configuration? cached))
+        {
+            return cached;
+        }
+
+        int componentCount = grayscale ? 1 : 3;
+        ushort[][] tables = new ushort[componentCount][];
+        int[] selectors = new int[componentCount];
+        for (int component = 0; component < componentCount; component++)
+        {
+            int selector = xyb ? component : rgb ? 0
+                : useStandardTables && component > 0 ? 1 : component;
+            selectors[component] = selector;
+            if (xyb)
+            {
+                tables[component] = XybQuantization.CreateTableForDistance(distance, component, forceBaseline);
+            }
+            else if (rgb)
+            {
+                tables[component] = component == 0
+                    ? CreateStandardTableForDistance(distance, 0, forceBaseline) : tables[0];
+            }
+            else if (useStandardTables)
+            {
+                tables[component] = component == 2 ? tables[1]
+                    : CreateStandardTableForDistance(distance, component, forceBaseline);
+            }
+            else
+            {
+                tables[component] = grayscale
+                    ? CreateGrayscaleTableForDistance(distance, transferFunction, forceBaseline)
+                    : CreateTableForDistance(distance, component, quantizationSampling, quantizationSampling,
+                        transferFunction, forceBaseline);
+            }
+        }
+        float[][]? adaptiveMultipliers = useAdaptiveQuantization
+            ? CreateAdaptiveZeroBiasMultipliers(tables, quantizationSampling, quantizationSampling, grayscale,
+                cicpTransferFunction: transferFunction, rgb: rgb, quantizationSelectors: selectors,
+                forceBaseline: forceBaseline) : null;
+        var preparedTables = new PreparedTable[componentCount];
+        for (int component = 0; component < componentCount; component++)
+        {
+            var prepared = PreparedTable.Create(tables[component], component, distance,
+                grayscale: grayscale, adaptiveQuantization: useAdaptiveQuantization,
+                adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
+                rgb: rgb, narrowZigZagKernel: narrowZigZagKernel, imageWidth: imageWidth, imageHeight: imageHeight,
+                tailZeroRunBias: tailZeroRunBias);
+            _ = prepared.GetTransposed();
+            preparedTables[component] = prepared;
+        }
+        var created = new Configuration(tables, selectors, adaptiveMultipliers, preparedTables);
+        if (ConfigurationCache.Count < 256)
+        {
+            _ = ConfigurationCache.TryAdd(key, created);
+        }
+        return created;
+    }
     private const int BlockSize = 64;
     private const float GlobalScale = 1.73966010f;
     private const float GlobalScale420 = 1.22f;
@@ -1312,6 +1397,53 @@ internal static class Quantization
         int previous = previousMask == 0 ? 0 : BitOperations.Log2(previousMask);
         return last - previous - 1 >= 16 && (zigZagOutput[last] == 1 || zigZagOutput[last] == -1);
     }
+
+#if !NETSTANDARD2_1
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void PruneTailZeroRunTransposed(Vector256<float> r0, Vector256<float> r1,
+        Vector256<float> r2, Vector256<float> r3, Vector256<float> r4, Vector256<float> r5,
+        Vector256<float> r6, Vector256<float> r7, PreparedTable table,
+        float adaptiveStrength, Span<short> zigZagOutput, ref ulong nonzeroAcMask)
+    {
+        ReadOnlySpan<float> divisors = table.Divisors;
+        ReadOnlySpan<float> multipliers = table.Multipliers;
+        bool adaptive = table.AdaptiveQuantization;
+        float bias = table.TailZeroRunBias;
+        while (nonzeroAcMask != 0)
+        {
+            int last = BitOperations.Log2(nonzeroAcMask);
+            ulong previousMask = nonzeroAcMask & ~(1UL << last);
+            int previous = previousMask == 0 ? 0 : BitOperations.Log2(previousMask);
+            if (last - previous - 1 < 16 || (zigZagOutput[last] != 1 && zigZagOutput[last] != -1))
+            {
+                break;
+            }
+
+            int natural = JpegConstants.ZigZag[last];
+            int lane = natural >> 3;
+            float coefficient = (natural & 7) switch
+            {
+                0 => r0.GetElement(lane),
+                1 => r1.GetElement(lane),
+                2 => r2.GetElement(lane),
+                3 => r3.GetElement(lane),
+                4 => r4.GetElement(lane),
+                5 => r5.GetElement(lane),
+                6 => r6.GetElement(lane),
+                _ => r7.GetElement(lane),
+            };
+            float quantized = coefficient / divisors[natural];
+            float threshold = table.AcOffset + (adaptive ? adaptiveStrength * multipliers[natural] : 0f) + bias;
+            if (MathF.Abs(quantized) >= threshold)
+            {
+                break;
+            }
+
+            zigZagOutput[last] = 0;
+            nonzeroAcMask = previousMask;
+        }
+    }
+#endif
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void PruneTailZeroRunZigZag(ReadOnlySpan<float> naturalCoefficients, PreparedTable table,

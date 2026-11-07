@@ -15,6 +15,7 @@ internal sealed class QuantizedImage : IDisposable
     private const int SegmentLength = 65536;
     private readonly short[][] components;
     private readonly short[][][]? segments;
+    private readonly ulong[][]? blockMasks;
     private readonly int[] widths;
     private readonly int[] cachedHeights;
     private readonly int cachedMcuRows;
@@ -23,10 +24,12 @@ internal sealed class QuantizedImage : IDisposable
     private readonly EncoderCacheBudget? cacheBudget;
 
     private QuantizedImage(int[] widths, int[] cachedHeights, int cachedMcuRows, int mcuHeight,
-        bool complete, bool segmented, bool zigZagOrdered, ArrayPool<short> pool, EncoderCacheBudget? cacheBudget)
+        bool complete, bool segmented, bool zigZagOrdered, bool trackBlockMasks,
+        ArrayPool<short> pool, EncoderCacheBudget? cacheBudget)
     {
         this.components = new short[widths.Length][];
         this.segments = segmented ? new short[widths.Length][][] : null;
+        this.blockMasks = trackBlockMasks ? new ulong[widths.Length][] : null;
         this.widths = widths;
         this.cachedHeights = cachedHeights;
         this.cachedMcuRows = cachedMcuRows;
@@ -39,10 +42,15 @@ internal sealed class QuantizedImage : IDisposable
 
     internal bool IsZigZagOrdered { get; }
     internal bool IsComplete { get; }
+    internal bool HasBlockMasks => this.blockMasks is not null;
     internal long RentedBytes { get; private set; }
 
     internal bool ContainsRow(int component, int y) => (uint)y < (uint)this.cachedHeights[component];
     internal bool ContainsMcuRow(int top) => top >= 0 && top / this.mcuHeight < this.cachedMcuRows;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal ulong GetBlockMask(int component, int x, int y)
+        => this.blockMasks![component][(y * this.widths[component]) + x];
 
     internal static QuantizedImage? Create(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, ushort[][] tables, float distance, int smoothingFactor,
@@ -52,7 +60,7 @@ internal sealed class QuantizedImage : IDisposable
         long maximumBytes = MaximumBytes, bool allowPartial = false, EncoderCacheBudget? cacheBudget = null,
         ArrayPool<short>? pool = null, double dcTrellisLambda = 0,
         DcTrellisDiagnostics? dcTrellisDiagnostics = null, int[]? dcRestartIntervals = null,
-        bool rateDistortionHuffmanFeedback = false)
+        bool rateDistortionHuffmanFeedback = false, Quantization.PreparedTable[]? preparedTables = null)
     {
         Guard.ThrowIfNegative(maximumBytes);
         cancellationToken.ThrowIfCancellationRequested();
@@ -133,24 +141,31 @@ internal sealed class QuantizedImage : IDisposable
             heights[component] = Math.Min(heights[component], cachedMcuRows * sampling[component].Vertical);
         }
 
+        bool trackBlockMasks = zigZagOrdered && rateDistortionLambda == 0;
         var image = new QuantizedImage(widths, heights, cachedMcuRows, mcuHeight,
-            cachedMcuRows == totalMcuRows, segmented, zigZagOrdered, pool ?? ArrayPool<short>.Shared, cacheBudget);
+            cachedMcuRows == totalMcuRows, segmented, zigZagOrdered, trackBlockMasks,
+            pool ?? ArrayPool<short>.Shared, cacheBudget);
         try
         {
-            var quantizers = new Quantization.PreparedTable[tables.Length];
+            Quantization.PreparedTable[] quantizers = preparedTables ?? new Quantization.PreparedTable[tables.Length];
             for (int component = 0; component < tables.Length; component++)
             {
-                int length = checked(widths[component] * heights[component] * 64);
+                int blockCount = checked(widths[component] * heights[component]);
+                int length = checked(blockCount * 64);
                 if (!image.AllocateComponent(component, length, available, cancellationToken))
                 {
                     image.Dispose();
                     return null;
                 }
-                quantizers[component] = Quantization.PreparedTable.Create(tables[component], component, distance,
-                    grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
-                    adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                    rgb: pixels.IsRgb, narrowZigZagKernel: narrowZigZagKernel,
-                    imageWidth: width, imageHeight: height, tailZeroRunBias: pixels.TailZeroRunBias);
+                image.blockMasks?[component] = ArrayPool<ulong>.Shared.Rent(blockCount);
+                if (preparedTables is null)
+                {
+                    quantizers[component] = Quantization.PreparedTable.Create(tables[component], component, distance,
+                        grayscale: pixels.IsGrayscale, adaptiveQuantization: adaptive is not null,
+                        adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
+                        rgb: pixels.IsRgb, narrowZigZagKernel: narrowZigZagKernel,
+                        imageWidth: width, imageHeight: height, tailZeroRunBias: pixels.TailZeroRunBias);
+                }
             }
             Span<float> samples = stackalloc float[64];
             Span<short> naturalOrder = stackalloc short[64];
@@ -162,6 +177,7 @@ internal sealed class QuantizedImage : IDisposable
             for (int top = 0; top < Math.Min(height, cachedMcuRows * mcuHeight); top += vertical * 8)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                pixels.AdvanceConvertedWindow(top + mcuHeight + 6, stride, cancellationToken);
                 if (parallelQuantized is not null)
                 {
                     adaptive?.ComputeRow(parallelQuantized.SourceForAnalysis, stride, top,
@@ -175,9 +191,16 @@ internal sealed class QuantizedImage : IDisposable
                         for (int row = 0; row < factor.Vertical && firstRow + row < heights[component]; row++)
                         {
                             int y = firstRow + row;
+                            Span<ulong> rowMasks = image.blockMasks is null ? default
+                                : image.blockMasks[component].AsSpan(y * widths[component], widths[component]);
                             for (int x = 0; x < widths[component]; x++)
                             {
-                                parallelQuantized.GetQuantizedBlock(component, x, y).CopyTo(image.Block(component, x, y));
+                                ReadOnlySpan<short> block = parallelQuantized.GetQuantizedBlock(component, x, y);
+                                block.CopyTo(image.Block(component, x, y));
+                                if (!rowMasks.IsEmpty)
+                                {
+                                    rowMasks[x] = EntropyEncoder.NonzeroAcMask(block);
+                                }
                             }
                         }
                     }
@@ -218,6 +241,7 @@ internal sealed class QuantizedImage : IDisposable
                             int strengthStep = horizontal / factor.Horizontal;
                             int interiorBlocks = planeY + 8 <= rowPlaneHeight
                                 ? Math.Min(widths[component], rowPlaneWidth / 8) : 0;
+                            Span<ulong> rowMasks = image.blockMasks![component].AsSpan(y * widths[component], widths[component]);
                             if (image.segments is null)
                             {
                                 Span<short> componentRow = image.components[component].AsSpan(y * widths[component] * 64,
@@ -225,13 +249,13 @@ internal sealed class QuantizedImage : IDisposable
                                 for (int x = 0; x < interiorBlocks; x++)
                                 {
                                     float strength = adaptive is null ? 0f : strengths[rowOffset + (x * strengthStep)];
-                                    ForwardDct.TransformQuantizePlane(rowPlane, rowPlaneWidth, x * 8, planeY,
-                                        quantizers[component], componentRow.Slice(x * 64, 64), strength, zigZagOrdered: true);
+                                    rowMasks[x] = ForwardDct.TransformQuantizePlaneWithMask(rowPlane, rowPlaneWidth, x * 8, planeY,
+                                        quantizers[component], componentRow.Slice(x * 64, 64), strength);
                                 }
                                 for (int x = interiorBlocks; x < widths[component]; x++)
                                 {
                                     float strength = adaptive is null ? 0f : strengths[rowOffset + (x * strengthStep)];
-                                    ForwardDct.TransformQuantizePaddedPlane(rowPlane, rowPlaneWidth, rowPlaneHeight,
+                                    rowMasks[x] = ForwardDct.TransformQuantizePaddedPlaneWithMask(rowPlane, rowPlaneWidth, rowPlaneHeight,
                                         x * 8, planeY, quantizers[component], componentRow.Slice(x * 64, 64), strength);
                                 }
                                 continue;
@@ -239,13 +263,13 @@ internal sealed class QuantizedImage : IDisposable
                             for (int x = 0; x < interiorBlocks; x++)
                             {
                                 float strength = adaptive is null ? 0f : strengths[rowOffset + (x * strengthStep)];
-                                ForwardDct.TransformQuantizePlane(rowPlane, rowPlaneWidth, x * 8, planeY,
-                                    quantizers[component], image.Block(component, x, y), strength, zigZagOrdered: true);
+                                rowMasks[x] = ForwardDct.TransformQuantizePlaneWithMask(rowPlane, rowPlaneWidth, x * 8, planeY,
+                                    quantizers[component], image.Block(component, x, y), strength);
                             }
                             for (int x = interiorBlocks; x < widths[component]; x++)
                             {
                                 float strength = adaptive is null ? 0f : strengths[rowOffset + (x * strengthStep)];
-                                ForwardDct.TransformQuantizePaddedPlane(rowPlane, rowPlaneWidth, rowPlaneHeight,
+                                rowMasks[x] = ForwardDct.TransformQuantizePaddedPlaneWithMask(rowPlane, rowPlaneWidth, rowPlaneHeight,
                                     x * 8, planeY, quantizers[component], image.Block(component, x, y), strength);
                             }
                             continue;
@@ -273,22 +297,41 @@ internal sealed class QuantizedImage : IDisposable
                             }
                             else if (!rowPlane.IsEmpty && (x * 8) + 8 <= rowPlaneWidth && planeY + 8 <= rowPlaneHeight)
                             {
-                                ForwardDct.TransformQuantizePlane(rowPlane, rowPlaneWidth, x * 8, planeY,
-                                    quantizers[component], quantized, strength, zigZagOrdered);
+                                if (zigZagOrdered)
+                                {
+                                    ulong mask = ForwardDct.TransformQuantizePlaneWithMask(rowPlane, rowPlaneWidth, x * 8, planeY,
+                                        quantizers[component], quantized, strength);
+                                    image.blockMasks?[component][(y * widths[component]) + x] = mask;
+                                }
+                                else
+                                {
+                                    ForwardDct.TransformQuantizePlane(rowPlane, rowPlaneWidth, x * 8, planeY,
+                                        quantizers[component], quantized, strength, zigZagOrdered: false);
+                                }
                                 continue;
                             }
                             else if (!rowPlane.IsEmpty && zigZagOrdered)
                             {
-                                ForwardDct.TransformQuantizePaddedPlane(rowPlane, rowPlaneWidth, rowPlaneHeight,
+                                ulong mask = ForwardDct.TransformQuantizePaddedPlaneWithMask(rowPlane, rowPlaneWidth, rowPlaneHeight,
                                     x * 8, planeY, quantizers[component], quantized, strength);
+                                image.blockMasks?[component][(y * widths[component]) + x] = mask;
                                 continue;
                             }
                             else
                             {
                                 Downsampling.FillBlock(pixels, width, height, stride, component, x, y,
                                     horizontal, vertical, factor.Horizontal, factor.Vertical, samples, smoothingFactor);
-                                ForwardDct.TransformQuantizeBlock(samples, quantizers[component], quantized,
-                                    strength, zigZagOrdered);
+                                if (zigZagOrdered)
+                                {
+                                    ulong mask = ForwardDct.TransformQuantizeBlockWithMask(samples, quantizers[component], quantized,
+                                        strength);
+                                    image.blockMasks?[component][(y * widths[component]) + x] = mask;
+                                }
+                                else
+                                {
+                                    ForwardDct.TransformQuantizeBlock(samples, quantizers[component], quantized,
+                                        strength, zigZagOrdered: false);
+                                }
                                 continue;
                             }
                             // Built-in DC zero-bias multipliers are zero, so the full DC
@@ -300,6 +343,7 @@ internal sealed class QuantizedImage : IDisposable
                             if (zigZagOrdered)
                             {
                                 ZigZagOrdering.Reorder(natural, quantized);
+                                image.blockMasks?[component][(y * widths[component]) + x] = EntropyEncoder.NonzeroAcMask(quantized);
                             }
                         }
                     }
@@ -697,6 +741,11 @@ internal sealed class QuantizedImage : IDisposable
                         this.pool.Return(chunk);
                     }
                 }
+            }
+            if (this.blockMasks?[component] is { } masks)
+            {
+                this.blockMasks[component] = null!;
+                ArrayPool<ulong>.Shared.Return(masks);
             }
         }
         this.cacheBudget?.Release(this.RentedBytes, EncoderCacheKind.QuantizedCoefficients);

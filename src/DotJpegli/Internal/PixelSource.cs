@@ -326,6 +326,104 @@ internal readonly ref struct PixelSource
         }
     }
 
+    internal PixelSource WithRollingConvertedPlanes(int width, int height, int stride, bool is420,
+        EncoderCacheBudget? cacheBudget, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (this.convertedPlanes is not null)
+        {
+            return this;
+        }
+        bool use420 = is420 && this.sourceType == SourceType.Byte && !this.IsGrayscaleInput
+            && !this.ycbcr && !this.xyb && this.colorTransform is null && this.ColorSpace == JpegColorSpace.YCbCr;
+        int components = this.IsGrayscale ? 1 : 3;
+        var planes = ConvertedPlanes.TryCreateRolling(width, height, stride, this.Length, components, use420, cacheBudget);
+        if (planes is null)
+        {
+            return use420
+                ? this.WithConverted420Planes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true)
+                : this.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true);
+        }
+        var result = new PixelSource(this, this.colorSpace, convertedPlanes: planes);
+        try
+        {
+            result.AdvanceConvertedWindow(Math.Min(height, 22), stride, cancellationToken);
+            return result;
+        }
+        catch
+        {
+            planes.Dispose();
+            throw;
+        }
+    }
+
+    internal void AdvanceConvertedWindow(int targetRow, int stride, CancellationToken cancellationToken)
+    {
+        if (this.convertedPlanes is not { IsRolling: true } planes)
+        {
+            return;
+        }
+        int height = planes.Height;
+        int width = planes.Width;
+        int clampedTarget = Math.Min(height, (targetRow + 1) & ~1);
+        int startRow = planes.CachedHeight;
+        if (clampedTarget <= startRow)
+        {
+            return;
+        }
+        bool vectorRgb = Vector.IsHardwareAccelerated && BitConverter.IsLittleEndian
+            && Vector<float>.Count is 4 or 8 && this.sourceType == SourceType.Byte
+            && !this.IsGrayscaleInput && !this.ycbcr && !this.xyb && this.colorTransform is null
+            && this.ColorSpace is JpegColorSpace.YCbCr or JpegColorSpace.Grayscale;
+        if (!planes.Is420)
+        {
+            int components = this.IsGrayscale ? 1 : 3;
+            for (int y = startRow; y < clampedTarget; y++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                this.ConvertRow(y * stride, planes.GetRow(0, y),
+                    components == 1 ? default : planes.GetRow(1, y),
+                    components == 1 ? default : planes.GetRow(2, y), vectorRgb);
+            }
+            planes.AdvanceCachedHeight(clampedTarget);
+            return;
+        }
+
+        Span<float> scratch = planes.GetRollingScratch();
+        Span<float> firstCb = scratch[..width], firstCr = scratch.Slice(width, width);
+        Span<float> secondCb = scratch.Slice(2 * width, width), secondCr = scratch.Slice(3 * width, width);
+        int chromaRow = startRow / 2;
+        for (int y = startRow; y < clampedTarget; y += 2, chromaRow++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            this.ConvertRow(y * stride, planes.GetRow(0, y), firstCb, firstCr, vectorRgb);
+            if (y + 1 < height)
+            {
+                this.ConvertRow((y + 1) * stride, planes.GetRow(0, y + 1), secondCb, secondCr, vectorRgb);
+            }
+            else
+            {
+                firstCb.CopyTo(secondCb);
+                firstCr.CopyTo(secondCr);
+            }
+            DownsampleConvertedRow(firstCb, secondCb, planes.GetRow(1, chromaRow), this.chromaDownsamplingSharpness);
+            DownsampleConvertedRow(firstCr, secondCr, planes.GetRow(2, chromaRow), this.chromaDownsamplingSharpness);
+        }
+        planes.AdvanceCachedHeight(clampedTarget);
+        if (clampedTarget == height && chromaRow < planes.ChromaHeight)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            DownsampleConvertedRow(secondCb, secondCb, planes.GetRow(1, chromaRow), this.chromaDownsamplingSharpness);
+            DownsampleConvertedRow(secondCr, secondCr, planes.GetRow(2, chromaRow), this.chromaDownsamplingSharpness);
+            for (int row = chromaRow + 1; row < planes.ChromaHeight; row++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                planes.GetRow(1, chromaRow).CopyTo(planes.GetRow(1, row));
+                planes.GetRow(2, chromaRow).CopyTo(planes.GetRow(2, row));
+            }
+        }
+    }
+
     private void ConvertContiguous420Rows(ConvertedPlanes planes, int width, int height, int stride,
         Span<float> scratch, bool vectorRgb, CancellationToken cancellationToken)
     {
@@ -524,7 +622,8 @@ internal readonly ref struct PixelSource
 
 #endif
     private sealed class ConvertedPlanes(int width, int height, int sourceStride, int sourceLength,
-        bool is420, bool separate, int cachedHeight, int segmentRows, EncoderCacheBudget? cacheBudget) : IDisposable
+        bool is420, bool separate, int cachedHeight, int segmentRows, EncoderCacheBudget? cacheBudget,
+        bool isRolling = false) : IDisposable
     {
         internal const long MaximumBytes = 64L * 1024 * 1024;
         private float[] samples = [];
@@ -532,18 +631,28 @@ internal readonly ref struct PixelSource
         private float[]? cr;
         private float[][][]? segments;
         internal int Width { get; } = width;
+        internal int Height { get; } = height;
         internal int SourceStride { get; } = sourceStride;
         internal int SourceLength { get; } = sourceLength;
-        internal int PlaneLength { get; } = checked(width * cachedHeight);
-        internal int CachedHeight { get; } = cachedHeight;
-        internal bool IsComplete => this.CachedHeight == height;
-        internal bool IsContiguous => segmentRows == 0 && this.IsComplete;
+        internal bool IsRolling { get; } = isRolling;
+        internal int PlaneLength { get; } = checked(width * (isRolling ? 32 : cachedHeight));
+        internal int CachedHeight { get; private set; } = cachedHeight;
+        internal bool IsComplete => !this.IsRolling && this.CachedHeight == this.Height;
+        internal bool IsContiguous => !this.IsRolling && segmentRows == 0 && this.IsComplete;
         internal bool Is420 { get; } = is420;
         internal int ChromaWidth { get; } = is420 ? checked((width + 15) / 16 * 8) : width;
         internal int ChromaHeight { get; } = is420 ? checked((height + 15) / 16 * 8) : height;
-        internal int CachedChromaHeight { get; } = is420 ? cachedHeight == height ? checked((height + 15) / 16 * 8) : cachedHeight / 2 : cachedHeight;
-        internal int ChromaLength => checked(this.ChromaWidth * this.CachedChromaHeight);
+        internal int CachedChromaHeight => this.Is420
+            ? this.CachedHeight == this.Height ? this.ChromaHeight : this.CachedHeight / 2
+            : this.CachedHeight;
+        internal int ChromaLength { get; } = checked((is420 ? checked((width + 15) / 16 * 8) : width)
+            * (isRolling ? (is420 ? 16 : 32) : (is420 ? (cachedHeight == height ? checked((height + 15) / 16 * 8) : cachedHeight / 2) : cachedHeight)));
         internal long RentedBytes { get; private set; }
+
+        internal void AdvanceCachedHeight(int newCachedHeight) => this.CachedHeight = newCachedHeight;
+
+        internal Span<float> GetRollingScratch()
+            => this.samples.AsSpan(this.PlaneLength + (2 * this.ChromaLength), this.Width * 4);
 
         internal Span<float> GetPlane(int component)
             => component == 0 ? this.samples.AsSpan(0, this.PlaneLength)
@@ -553,6 +662,12 @@ internal readonly ref struct PixelSource
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal float GetSample(int component, int index)
         {
+            if (this.IsRolling)
+            {
+                int row = index / this.Width;
+                int column = index - (row * this.Width);
+                return this.GetPlane(component)[((row & 31) * this.Width) + column];
+            }
             if (this.segments is not null)
             {
                 int segmentLength = component == 0 || !this.Is420 ? segmentRows * this.Width : segmentRows / 2 * this.ChromaWidth;
@@ -565,6 +680,12 @@ internal readonly ref struct PixelSource
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal Span<float> GetRow(int component, int row)
         {
+            if (this.IsRolling)
+            {
+                int width = component == 0 ? this.Width : this.ChromaWidth;
+                int local = component != 0 && this.Is420 ? (row & 15) : (row & 31);
+                return this.GetPlane(component).Slice(local * width, width);
+            }
             if (this.segments is null)
             {
                 int width = component == 0 ? this.Width : this.ChromaWidth;
@@ -583,6 +704,13 @@ internal readonly ref struct PixelSource
                 rowCount = localRow = 0;
                 return default;
             }
+            if (this.IsRolling)
+            {
+                localRow = component != 0 && this.Is420 ? (row & 15) : (row & 31);
+                int remaining = cachedRows - row;
+                rowCount = localRow + Math.Min(8, remaining);
+                return this.GetPlane(component)[..(rowCount * rowWidth)];
+            }
             if (this.segments is null)
             {
                 rowCount = cachedRows;
@@ -598,6 +726,24 @@ internal readonly ref struct PixelSource
 
         internal static long PooledBytes(long count)
             => (long)Math.Max(16UL, BitOperations.RoundUpToPowerOf2((ulong)count)) * sizeof(float);
+
+        internal static ConvertedPlanes? TryCreateRolling(int width, int height, int sourceStride, int sourceLength,
+            int components, bool is420, EncoderCacheBudget? cacheBudget)
+        {
+            int planeLength = checked(width * 32);
+            int chromaWidth = is420 ? checked((width + 15) / 16 * 8) : width;
+            int chromaLength = checked(chromaWidth * (is420 ? 16 : 32));
+            int scratchLength = is420 ? checked(width * 4) : 0;
+            int totalLength = checked(planeLength + ((components - 1) * chromaLength) + scratchLength);
+            var planes = new ConvertedPlanes(width, height, sourceStride, sourceLength,
+                is420, separate: false, cachedHeight: 0, segmentRows: 0, cacheBudget, isRolling: true);
+            if (!planes.TryRent(totalLength, transientBytes: 0, out planes.samples))
+            {
+                planes.Dispose();
+                return null;
+            }
+            return planes;
+        }
 
         internal static ConvertedPlanes? TryCreate(int width, int height, int sourceStride, int sourceLength,
             int components, bool is420, long transientBytes, EncoderCacheBudget? cacheBudget,

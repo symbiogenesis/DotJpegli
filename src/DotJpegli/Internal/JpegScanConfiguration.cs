@@ -14,7 +14,13 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
     }
     internal sealed record Progressive(bool InterleaveDc, int RefinementBits,
         IReadOnlyList<int>? AcScanEnds, IReadOnlyList<int>? AcRefinementBits);
-    internal sealed record Preset(int Level, bool InterleaveSequentialComponents);
+    internal sealed record Preset(int Level, bool InterleaveSequentialComponents)
+    {
+        internal static Preset Level0Interleaved { get; } = new(0, true);
+        internal static Preset Level1Interleaved { get; } = new(1, true);
+        internal static Preset Level2Interleaved { get; } = new(2, true);
+        internal static Preset Level3Interleaved { get; } = new(3, true);
+    }
     internal sealed record Scripted(IReadOnlyList<JpegScan> Scans);
 
     internal static JpegScanConfiguration FromOptions(JpegliEncoderOptions options)
@@ -26,7 +32,18 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
 
         if (options.ProgressiveLevel is int level)
         {
-            return new Preset(level, options.SequentialInterleaveComponents);
+            if (options.SequentialInterleaveComponents)
+            {
+                return level switch
+                {
+                    0 => Preset.Level0Interleaved,
+                    1 => Preset.Level1Interleaved,
+                    2 => Preset.Level2Interleaved,
+                    3 => Preset.Level3Interleaved,
+                    _ => new Preset(level, true)
+                };
+            }
+            return new Preset(level, false);
         }
 
         return options.Progressive
@@ -55,6 +72,11 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
     private static readonly int[][] ColorSelectors = [SingleComponents, [1], [2]];
     private static readonly JpegScan[] DefaultGrayscaleSequential = [new(SingleComponents, 0, 63, 0, 0)];
     private static readonly JpegScan[] DefaultColorSequential = [new(ColorComponents, 0, 63, 0, 0)];
+    private static readonly JpegScan[] AsymmetricColorInterleaved = BuildAsymmetricColorScript(true);
+    private static readonly JpegScan[] AsymmetricColorSeparate = BuildAsymmetricColorScript(false);
+    private static readonly JpegScan[] DefaultLevel2Grayscale = new Prepared(true, true, 0, TwoBandScanEnds, TwoBandRefinement, null).BuildDefaultScript(1);
+    private static readonly JpegScan[] DefaultLevel2ColorInterleaved = new Prepared(true, true, 0, TwoBandScanEnds, TwoBandRefinement, null).BuildDefaultScript(3);
+    private static readonly JpegScan[] DefaultLevel2ColorSeparate = new Prepared(true, false, 0, TwoBandScanEnds, TwoBandRefinement, null).BuildDefaultScript(3);
 
     internal Prepared Prepare(JpegSamplingFactors sampling, bool grayscale, Prepared? preparedScript) => this switch
     {
@@ -92,6 +114,9 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
     }
 
     internal static JpegScan[] CreateAsymmetricColorScript(bool interleaveInitialScan)
+        => interleaveInitialScan ? AsymmetricColorInterleaved : AsymmetricColorSeparate;
+
+    private static JpegScan[] BuildAsymmetricColorScript(bool interleaveInitialScan)
     {
         int[] all = ColorComponents, y = SingleComponents, cb = ColorSelectors[1], cr = ColorSelectors[2];
         JpegScan[] dc = interleaveInitialScan
@@ -224,6 +249,27 @@ internal readonly union JpegScanConfiguration(JpegScanConfiguration.Sequential,
                     return DefaultGrayscaleSequential;
                 }
             }
+            if (progressive && this.DcRefinementBits == 0
+                && ReferenceEquals(this.AcScanEnds, TwoBandScanEnds)
+                && ReferenceEquals(this.AcRefinementBits, TwoBandRefinement))
+            {
+                if (componentCount == 3)
+                {
+                    return interleaveInitialScan ? DefaultLevel2ColorInterleaved : DefaultLevel2ColorSeparate;
+                }
+                if (componentCount == 1 && interleaveInitialScan)
+                {
+                    return DefaultLevel2Grayscale;
+                }
+            }
+
+            return this.BuildDefaultScript(componentCount);
+        }
+
+        internal JpegScan[] BuildDefaultScript(int componentCount)
+        {
+            bool interleaveInitialScan = this.InterleaveInitialScan;
+            bool progressive = this.Progressive;
 
             int[] components = componentCount == 3 ? ColorComponents
                 : componentCount == 1 ? SingleComponents

@@ -254,6 +254,188 @@ internal static class ProgressiveEntropyEncoder
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void AccumulateEmptyAcBlock(ref int pendingEobRun, BitWriter? writer, HuffmanTable? ac,
+        long[]? frequencies, EntropyTokens? tokens, int component)
+    {
+        if (pendingEobRun == MaximumEobRun)
+        {
+            if (writer is null)
+            {
+                FlushAcFrequencies(frequencies!, ref pendingEobRun, tokens, component);
+            }
+            else
+            {
+                FlushAc(writer, ac!, ref pendingEobRun);
+            }
+        }
+        pendingEobRun++;
+        if (pendingEobRun == MaximumEobRun)
+        {
+            if (writer is null)
+            {
+                FlushAcFrequencies(frequencies!, ref pendingEobRun, tokens, component);
+            }
+            else
+            {
+                FlushAc(writer, ac!, ref pendingEobRun);
+            }
+        }
+    }
+
+    internal static void AccumulateOrderedAcFrequenciesWithMask(ReadOnlySpan<short> coefficients, ulong bandNonzero,
+        long[] ac, ref int pendingEobRun, int successiveLow, int spectralStart, int spectralEnd,
+        EntropyTokens? tokens, int component)
+    {
+        bandNonzero &= (ulong.MaxValue << spectralStart) & (ulong.MaxValue >> (63 - spectralEnd));
+        if (pendingEobRun == MaximumEobRun)
+        {
+            FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
+        }
+        ulong nonzero;
+        if (successiveLow == 0)
+        {
+            nonzero = bandNonzero;
+        }
+        else if (BitOperations.PopCount(bandNonzero) <= 8)
+        {
+            nonzero = 0;
+            ulong remaining = bandNonzero;
+            while (remaining != 0)
+            {
+                int position = BitOperations.TrailingZeroCount(remaining);
+                remaining &= remaining - 1;
+                if ((Math.Abs((int)coefficients[position]) >> successiveLow) != 0)
+                {
+                    nonzero |= 1UL << position;
+                }
+            }
+        }
+        else
+        {
+            nonzero = OrderedAcMask(coefficients, successiveLow, spectralStart, spectralEnd);
+        }
+
+        if (nonzero == 0)
+        {
+            pendingEobRun++;
+            if (pendingEobRun == MaximumEobRun)
+            {
+                FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
+            }
+            return;
+        }
+        if (tokens is not null && tokens.TryReserveBlock(out Span<uint> destination))
+        {
+            AccumulateOrderedAcFrequencies(coefficients, ac, ref pendingEobRun, successiveLow,
+                spectralStart, spectralEnd, nonzero, tokens, component, destination);
+            return;
+        }
+        if (pendingEobRun != 0)
+        {
+            FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
+        }
+        int previousPosition = spectralStart - 1;
+        while (nonzero != 0)
+        {
+            int position = BitOperations.TrailingZeroCount(nonzero);
+            nonzero &= nonzero - 1;
+            int run = position - previousPosition - 1;
+            while (run >= 16)
+            {
+                checked
+                { ac[0xf0]++; }
+                tokens?.AddHuffman(component, true, 0xf0, 0, 0);
+                run -= 16;
+            }
+            int value = ShiftAc(coefficients[position], successiveLow);
+            int category = Category(value);
+            int symbol = (run << 4) | category;
+            checked
+            { ac[symbol]++; }
+            tokens?.AddHuffman(component, true, symbol, AdditionalBits(value, category), category);
+            previousPosition = position;
+        }
+        if (previousPosition < spectralEnd)
+        {
+            pendingEobRun++;
+            if (pendingEobRun == MaximumEobRun)
+            {
+                FlushAcFrequencies(ac, ref pendingEobRun, tokens, component);
+            }
+        }
+    }
+
+    internal static void WriteOrderedAcWithMask(BitWriter writer, ReadOnlySpan<short> coefficients, ulong bandNonzero,
+        HuffmanTable ac, ref int pendingEobRun, int successiveLow, int spectralStart, int spectralEnd)
+    {
+        bandNonzero &= (ulong.MaxValue << spectralStart) & (ulong.MaxValue >> (63 - spectralEnd));
+        if (pendingEobRun == MaximumEobRun)
+        {
+            FlushAc(writer, ac, ref pendingEobRun);
+        }
+        ulong nonzero;
+        if (successiveLow == 0)
+        {
+            nonzero = bandNonzero;
+        }
+        else if (BitOperations.PopCount(bandNonzero) <= 8)
+        {
+            nonzero = 0;
+            ulong remaining = bandNonzero;
+            while (remaining != 0)
+            {
+                int position = BitOperations.TrailingZeroCount(remaining);
+                remaining &= remaining - 1;
+                if ((Math.Abs((int)coefficients[position]) >> successiveLow) != 0)
+                {
+                    nonzero |= 1UL << position;
+                }
+            }
+        }
+        else
+        {
+            nonzero = OrderedAcMask(coefficients, successiveLow, spectralStart, spectralEnd);
+        }
+        if (nonzero == 0)
+        {
+            pendingEobRun++;
+            if (pendingEobRun == MaximumEobRun)
+            {
+                FlushAc(writer, ac, ref pendingEobRun);
+            }
+            return;
+        }
+        if (pendingEobRun != 0)
+        {
+            FlushAc(writer, ac, ref pendingEobRun);
+        }
+        int previousPosition = spectralStart - 1;
+        while (nonzero != 0)
+        {
+            int position = BitOperations.TrailingZeroCount(nonzero);
+            nonzero &= nonzero - 1;
+            int run = position - previousPosition - 1;
+            while (run >= 16)
+            {
+                ac.WriteSymbol(writer, 0xf0);
+                run -= 16;
+            }
+            int value = ShiftAc(coefficients[position], successiveLow);
+            int category = Category(value);
+            ac.WriteSymbolWithBits(writer, (run << 4) | category, AdditionalBits(value, category), category);
+            previousPosition = position;
+        }
+        if (previousPosition < spectralEnd)
+        {
+            pendingEobRun++;
+            if (pendingEobRun == MaximumEobRun)
+            {
+                FlushAc(writer, ac, ref pendingEobRun);
+            }
+        }
+    }
+
     private static void AccumulateOrderedAcFrequencies(ReadOnlySpan<short> coefficients, long[] frequencies,
         ref int pendingEobRun, int successiveLow, int spectralStart, int spectralEnd,
         ulong nonzero, EntropyTokens tokens, int component, Span<uint> destination)
@@ -545,6 +727,74 @@ internal static class ProgressiveEntropyEncoder
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void AccumulateEmptyAcRefinementBlock(ProgressiveAcRefinementState state,
+        BitWriter? writer, HuffmanTable? ac, long[]? frequencies, EntropyTokens? tokens, int component)
+    {
+        state.AppendEmptyBlock();
+        if (state.PendingEobRun == MaximumEobRun)
+        {
+            FlushAcRefinementCore(state, writer, ac, frequencies, tokens, component);
+        }
+    }
+
+    internal static void ProcessOrderedAcRefinementWithMask(
+        ReadOnlySpan<short> coefficients, ulong bandNonzero, ProgressiveAcRefinementState state,
+        int successiveLow, int spectralStart, int spectralEnd,
+        BitWriter? writer, HuffmanTable? ac, long[]? frequencies,
+        EntropyTokens? tokens, int component)
+    {
+        bandNonzero &= (ulong.MaxValue << spectralStart) & (ulong.MaxValue >> (63 - spectralEnd));
+        if (bandNonzero == 0)
+        {
+            AccumulateEmptyAcRefinementBlock(state, writer, ac, frequencies, tokens, component);
+            return;
+        }
+        ulong newlySignificant = 0, previouslySignificant = 0;
+        if (BitOperations.PopCount(bandNonzero) <= 8)
+        {
+            ulong remaining = bandNonzero;
+            if (successiveLow == 0)
+            {
+                while (remaining != 0)
+                {
+                    int position = BitOperations.TrailingZeroCount(remaining);
+                    remaining &= remaining - 1;
+                    if (coefficients[position] is 1 or -1)
+                    {
+                        newlySignificant |= 1UL << position;
+                    }
+                }
+                previouslySignificant = bandNonzero ^ newlySignificant;
+            }
+            else
+            {
+                while (remaining != 0)
+                {
+                    int position = BitOperations.TrailingZeroCount(remaining);
+                    remaining &= remaining - 1;
+                    int magnitude = Math.Abs((int)coefficients[position]) >> successiveLow;
+                    if (magnitude == 1)
+                    {
+                        newlySignificant |= 1UL << position;
+                    }
+                    else if (magnitude > 1)
+                    {
+                        previouslySignificant |= 1UL << position;
+                    }
+                }
+            }
+        }
+        else
+        {
+            ClassifyOrderedCoefficients(coefficients, successiveLow, out newlySignificant, out previouslySignificant);
+            newlySignificant &= bandNonzero;
+            previouslySignificant &= bandNonzero;
+        }
+        ProcessOrderedAcRefinementClassified(coefficients, newlySignificant, previouslySignificant, state,
+            successiveLow, spectralStart, spectralEnd, writer, ac, frequencies, tokens, component);
+    }
+
     private static void ProcessOrderedAcRefinement(
         ReadOnlySpan<short> coefficients, ProgressiveAcRefinementState state,
         int successiveLow, int spectralStart, int spectralEnd,
@@ -555,6 +805,16 @@ internal static class ProgressiveEntropyEncoder
         ulong band = (ulong.MaxValue << spectralStart) & (ulong.MaxValue >> (63 - spectralEnd));
         newlySignificant &= band;
         previouslySignificant &= band;
+        ProcessOrderedAcRefinementClassified(coefficients, newlySignificant, previouslySignificant, state,
+            successiveLow, spectralStart, spectralEnd, writer, ac, frequencies, tokens, component);
+    }
+
+    private static void ProcessOrderedAcRefinementClassified(
+        ReadOnlySpan<short> coefficients, ulong newlySignificant, ulong previouslySignificant,
+        ProgressiveAcRefinementState state, int successiveLow, int spectralStart, int spectralEnd,
+        BitWriter? writer, HuffmanTable? ac, long[]? frequencies,
+        EntropyTokens? tokens, int component)
+    {
         int lastNew = newlySignificant == 0 ? spectralStart - 1 : BitOperations.Log2(newlySignificant);
         int oldCount = BitOperations.PopCount(previouslySignificant);
         if (lastNew >= spectralStart || state.CorrectionBitCount + oldCount > ProgressiveAcRefinementState.MaximumCorrectionBits)

@@ -7,6 +7,8 @@ using DotJpegli.Internal;
 /// <summary>Reusable settings for the managed JPEG encoder.</summary>
 public sealed record JpegliEncoderOptions
 {
+    internal static readonly JpegliEncoderOptions Default = new();
+
     // Internal per-encode controls let CI compare exact kernels without changing
     // public settings, process globals, or another concurrent encode's choices.
     internal KernelPreference FuzzyErosionKernel { get; init; }

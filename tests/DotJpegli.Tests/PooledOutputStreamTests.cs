@@ -74,5 +74,11 @@ public sealed class PooledOutputStreamTests
         Assert.False(stream.CanWrite);
         _ = Assert.Throws<ObjectDisposedException>(() => stream.WriteByte(1));
         _ = Assert.Throws<ObjectDisposedException>(stream.ToArray);
+
+        using var presized = new PooledOutputStream(initialCapacity: 65536);
+        byte[] payload = new byte[50000];
+        new Random(2026).NextBytes(payload);
+        presized.Write(payload);
+        Assert.Equal(payload, presized.ToArray());
     }
 }

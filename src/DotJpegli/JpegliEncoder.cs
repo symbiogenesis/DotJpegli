@@ -13,6 +13,52 @@ using DotJpegli.Internal;
 /// </summary>
 public static class JpegliEncoder
 {
+    private static readonly int[] ZeroRestartIntervals1 = [0];
+    private static readonly int[] ZeroRestartIntervals3 = [0, 0, 0];
+    private static readonly HuffmanTable[] EmptyTables1 = new HuffmanTable[1];
+    private static readonly HuffmanTable[] EmptyTables3 = new HuffmanTable[3];
+
+    [ThreadStatic]
+    private static long[][]? histogramPool;
+
+    [ThreadStatic]
+    private static int histogramPoolCount;
+
+    private static long[] RentHistogram()
+    {
+        int count = histogramPoolCount;
+        if (count > 0 && histogramPool is { } pool)
+        {
+            int next = count - 1;
+            long[] rented = pool[next]!;
+            pool[next] = null!;
+            histogramPoolCount = next;
+            Array.Clear(rented, 0, 256);
+            return rented;
+        }
+        return new long[256];
+    }
+
+    private static void ReturnHistogram(long[] histogram)
+    {
+        if (histogram.Length != 256)
+        {
+            return;
+        }
+        long[][] pool = histogramPool ??= new long[32][];
+        int count = histogramPoolCount;
+        if (count < pool.Length)
+        {
+            pool[count] = histogram;
+            histogramPoolCount = count + 1;
+        }
+    }
+
+    private static int EstimateInitialOutputCapacity(int width, int height)
+        => width is >= 1 and <= 65535 && height is >= 1 and <= 65535
+            ? Math.Clamp((int)Math.Min((long)width * height / 2, 1024 * 1024), 4096, 1024 * 1024)
+            : 4096;
+
     /// <summary>
     /// Maps Jpegli quality (finite 0..100) to its perceptual quantization distance.
     /// Supports fractional quality using the pinned upstream polynomial; quality 100
@@ -33,7 +79,7 @@ public static class JpegliEncoder
         PixelLayout layout = PixelLayout.Rgb24, JpegliEncoderOptions? options = null,
         int stride = 0, CancellationToken cancellationToken = default)
     {
-        using var output = new PooledOutputStream();
+        using var output = new PooledOutputStream(initialCapacity: EstimateInitialOutputCapacity(width, height));
         Encode(output, pixels, width, height, layout, options, stride, cancellationToken);
         return output.ToArray();
     }
@@ -67,7 +113,7 @@ public static class JpegliEncoder
         PixelComponentLayout layout = PixelComponentLayout.Rgb, JpegliEncoderOptions? options = null,
         int stride = 0, CancellationToken cancellationToken = default)
     {
-        using var output = new PooledOutputStream();
+        using var output = new PooledOutputStream(initialCapacity: EstimateInitialOutputCapacity(width, height));
         Encode(output, pixels, width, height, layout, options, stride, cancellationToken);
         return output.ToArray();
     }
@@ -110,7 +156,7 @@ public static class JpegliEncoder
         PixelComponentLayout layout = PixelComponentLayout.Rgb, JpegliEncoderOptions? options = null,
         int stride = 0, CancellationToken cancellationToken = default)
     {
-        using var output = new PooledOutputStream();
+        using var output = new PooledOutputStream(initialCapacity: EstimateInitialOutputCapacity(width, height));
         Encode(output, pixels, width, height, layout, options, stride, cancellationToken);
         return output.ToArray();
     }
@@ -145,8 +191,14 @@ public static class JpegliEncoder
             throw new ArgumentException("The destination stream must be writable.", nameof(output));
         }
 
-        options ??= new JpegliEncoderOptions();
-        options.Validate();
+        if (options is null)
+        {
+            options = JpegliEncoderOptions.Default;
+        }
+        else
+        {
+            options.Validate();
+        }
         var cacheBudget = new EncoderCacheBudget(options.MaxCacheBytes, options.CacheDiagnostics);
         pixels = pixels.WithColorSpace(options.ColorSpace, options.ChromaDownsamplingSharpness, options.TailZeroRunBias);
         if (pixels.IsXyb && options.IccProfile.IsEmpty && options.SourceIccProfile.IsEmpty)
@@ -258,11 +310,19 @@ public static class JpegliEncoder
         bool interleaveInitialScan = scanSettings.InterleaveInitialScan;
         int mcuWidth = 8 * sampling.MaxHorizontal;
         int interleavedRestartInterval = options.ResolveRestartInterval((width + mcuWidth - 1) / mcuWidth);
-        int[] componentRestartIntervals = new int[componentCount];
-        for (int component = 0; component < componentCount; component++)
+        int[] componentRestartIntervals;
+        if (options.RestartInterval == 0 && options.RestartRows == 0)
         {
-            int blocksWide = ((width * sampling[component].Horizontal) + mcuWidth - 1) / mcuWidth;
-            componentRestartIntervals[component] = options.ResolveRestartInterval(blocksWide);
+            componentRestartIntervals = componentCount == 1 ? ZeroRestartIntervals1 : ZeroRestartIntervals3;
+        }
+        else
+        {
+            componentRestartIntervals = new int[componentCount];
+            for (int component = 0; component < componentCount; component++)
+            {
+                int blocksWide = ((width * sampling[component].Horizontal) + mcuWidth - 1) / mcuWidth;
+                componentRestartIntervals[component] = options.ResolveRestartInterval(blocksWide);
+            }
         }
         int[] acScanEnds = scanSettings.AcScanEnds;
         int[] acRefinementBits = scanSettings.AcRefinementBits;
@@ -272,41 +332,6 @@ public static class JpegliEncoder
         // the luma factors are 2x2.
         int quantizationSampling = !rgb && sampling.Is420 ? 2 : 1;
         float distance = options.Distance ?? QualityToDistance(options.Quality);
-        ushort[][] tables = new ushort[componentCount][];
-        int[] quantizationSelectors = new int[componentCount];
-        for (int component = 0; component < componentCount; component++)
-        {
-            int selector = customTables is not null ? Math.Min(component, customTables.Length - 1)
-                : xyb ? component : rgb ? 0
-                : options.UseStandardQuantizationTables && component > 0 ? 1 : component;
-            quantizationSelectors[component] = selector;
-            if (customTables is not null)
-            {
-                tables[component] = customTables[selector];
-            }
-            else if (xyb)
-            {
-                tables[component] = XybQuantization.CreateTableForDistance(distance, component, options.ForceBaseline);
-            }
-            else if (rgb)
-            {
-                tables[component] = component == 0
-                    ? Quantization.CreateStandardTableForDistance(distance, 0, options.ForceBaseline) : tables[0];
-            }
-            else if (options.UseStandardQuantizationTables)
-            {
-                tables[component] = component == 2 ? tables[1]
-                    : Quantization.CreateStandardTableForDistance(distance, component, options.ForceBaseline);
-            }
-            else
-            {
-                tables[component] = grayscale
-                    ? Quantization.CreateGrayscaleTableForDistance(distance, transferFunction, options.ForceBaseline)
-                    : Quantization.CreateTableForDistance(distance, component, quantizationSampling, quantizationSampling,
-                        transferFunction, options.ForceBaseline);
-            }
-        }
-
         // ProcessCompressionParams uses Y for grayscale/YCbCr and green for RGB.
         // Disable analysis when that component is subsampled in either direction.
         JpegComponentSampling analysisFactor = sampling[pixels.AnalysisComponent];
@@ -315,10 +340,36 @@ public static class JpegliEncoder
         using AdaptiveQuantization? adaptive = useAdaptiveQuantization
             ? new AdaptiveQuantization(width, height, sampling.MaxVertical, ArrayPool<float>.Shared,
                 options.FuzzyErosionKernel, options.AqRationalKernel, options.AqRationalDiagnostics) : null;
-        float[][]? adaptiveMultipliers = useAdaptiveQuantization
-            ? Quantization.CreateAdaptiveZeroBiasMultipliers(tables, quantizationSampling, quantizationSampling, grayscale,
-                cicpTransferFunction: transferFunction, rgb: rgb, quantizationSelectors: quantizationSelectors,
-                forceBaseline: options.ForceBaseline) : null;
+        ushort[][] tables;
+        int[] quantizationSelectors;
+        float[][]? adaptiveMultipliers;
+        Quantization.PreparedTable[]? preparedTables = null;
+        if (customTables is null)
+        {
+            Quantization.Configuration quantConfig = Quantization.GetOrCreateConfiguration(
+                distance, grayscale, rgb, xyb, options.UseStandardQuantizationTables, options.ForceBaseline,
+                quantizationSampling, transferFunction, useAdaptiveQuantization, options.NarrowZigZagKernel,
+                width, height, options.TailZeroRunBias);
+            tables = quantConfig.Tables;
+            quantizationSelectors = quantConfig.Selectors;
+            adaptiveMultipliers = quantConfig.AdaptiveMultipliers;
+            preparedTables = quantConfig.PreparedTables;
+        }
+        else
+        {
+            tables = new ushort[componentCount][];
+            quantizationSelectors = new int[componentCount];
+            for (int component = 0; component < componentCount; component++)
+            {
+                int selector = Math.Min(component, customTables.Length - 1);
+                quantizationSelectors[component] = selector;
+                tables[component] = customTables[selector];
+            }
+            adaptiveMultipliers = useAdaptiveQuantization
+                ? Quantization.CreateAdaptiveZeroBiasMultipliers(tables, quantizationSampling, quantizationSampling, grayscale,
+                    cicpTransferFunction: transferFunction, rgb: rgb, quantizationSelectors: quantizationSelectors,
+                    forceBaseline: options.ForceBaseline) : null;
+        }
 
         var dcTables = new HuffmanTable[grayscale || rgb ? 1 : 2];
         var acTables = new HuffmanTable[dcTables.Length];
@@ -349,18 +400,28 @@ public static class JpegliEncoder
         }
         int workerLimit = options.MaxDegreeOfParallelism == -1
             ? Environment.ProcessorCount : options.MaxDegreeOfParallelism;
-        long coefficientReservation = options.Progressive
-            ? QuantizedImage.PlanFullCacheReservation(width, height, sampling, componentCount, cacheBudget.AvailableBytes) : 0;
-        cacheBudget.Withhold(coefficientReservation);
-        try
+        JpegScan[]? optimizedScans = options.OptimizeHuffmanTables && !rgb
+            ? (scanScript ?? scanSettings.CreateDefaultScript(componentCount)) : null;
+        if (CanUseRollingConvertedPlanes(pixels, width, height, sampling, componentCount, workerLimit,
+            options, optimizedScans, cacheBudget))
         {
-            pixels = sampling.Is420 && options.SmoothingFactor == 0 && options.OptimizeHuffmanTables
-                ? pixels.WithConverted420Planes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true)
-                : pixels.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true);
+            pixels = pixels.WithRollingConvertedPlanes(width, height, stride, sampling.Is420, cacheBudget, cancellationToken);
         }
-        finally
+        else
         {
-            cacheBudget.Withhold(0);
+            long coefficientReservation = options.Progressive
+                ? QuantizedImage.PlanFullCacheReservation(width, height, sampling, componentCount, cacheBudget.AvailableBytes) : 0;
+            cacheBudget.Withhold(coefficientReservation);
+            try
+            {
+                pixels = sampling.Is420 && options.SmoothingFactor == 0 && options.OptimizeHuffmanTables
+                    ? pixels.WithConverted420Planes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true)
+                    : pixels.WithConvertedPlanes(width, height, stride, cancellationToken, cacheBudget, allowPartial: true);
+            }
+            finally
+            {
+                cacheBudget.Withhold(0);
+            }
         }
         using IDisposable? convertedStorage = preflightStorage is null ? pixels.ConvertedStorage : null;
         if (workerLimit > 1 && ParallelDctRows.ShouldCreate(width, height, sampling, grayscale))
@@ -369,12 +430,12 @@ public static class JpegliEncoder
                 sampling, options.SmoothingFactor, workerLimit, cancellationToken));
         }
 
-        if (options.OptimizeHuffmanTables && !rgb)
+        if (optimizedScans is not null)
         {
-            JpegScan[] scans = scanScript ?? scanSettings.CreateDefaultScript(componentCount);
             EncodeOptimizedScans(pixels, width, height, stride, sampling, tables, quantizationSelectors,
-                distance, options, extendedXmp, adaptive, adaptiveMultipliers, scans,
-                interleavedRestartInterval, componentRestartIntervals, output, cacheBudget, cancellationToken);
+                distance, options, extendedXmp, adaptive, adaptiveMultipliers, optimizedScans,
+                interleavedRestartInterval, componentRestartIntervals, output, cacheBudget, cancellationToken,
+                preparedTables);
             return;
         }
         // RGB/XYB retain their existing shared Huffman definitions and scan
@@ -383,7 +444,7 @@ public static class JpegliEncoder
         using QuantizedImage? genericQuantizedImage = options.OptimizeHuffmanTables || options.Progressive
             ? QuantizedImage.Create(pixels, width, height, stride, sampling, tables, distance,
                 options.SmoothingFactor, adaptive, adaptiveMultipliers, cancellationToken,
-                allowPartial: true, cacheBudget: cacheBudget)
+                allowPartial: true, cacheBudget: cacheBudget, preparedTables: preparedTables)
             : null;
         if (options.OptimizeHuffmanTables)
         {
@@ -629,12 +690,49 @@ public static class JpegliEncoder
         output.WriteByte(0xd9);
     }
 
+    private static bool CanUseRollingConvertedPlanes(PixelSource pixels, int width, int height,
+        JpegSamplingFactors sampling, int componentCount, int workerLimit,
+        JpegliEncoderOptions options, JpegScan[]? optimizedScans, EncoderCacheBudget cacheBudget)
+    {
+        bool is444 = sampling.MaxHorizontal == 1 && sampling.MaxVertical == 1;
+        if (height <= 32 || workerLimit != 1 || options.CacheDiagnostics is not null
+            || options.SmoothingFactor != 0 || optimizedScans is null
+            || options.RateDistortionLambda > 0 || options.DcTrellisLambda > 0
+            || pixels.ConvertedStorage is not null
+            || (!is444 && !sampling.Is420 && !pixels.IsGrayscale))
+        {
+            return false;
+        }
+
+        long rollingBytes = ((long)width * 136 * sizeof(float)) + 65536;
+        bool streamSequential = !options.Progressive && optimizedScans.Length == 1 && componentCount == 3
+            && optimizedScans[0].Components is { Count: 3 };
+        if (streamSequential)
+        {
+            long mcusWide = (width + (8 * sampling.MaxHorizontal) - 1) / (8 * sampling.MaxHorizontal);
+            long mcusHigh = (height + (8 * sampling.MaxVertical) - 1) / (8 * sampling.MaxVertical);
+            long mcus = mcusWide * mcusHigh;
+            int blocksPerMcu = (sampling[0].Horizontal * sampling[0].Vertical)
+                + (sampling[1].Horizontal * sampling[1].Vertical)
+                + (sampling[2].Horizontal * sampling[2].Vertical);
+            long worstCaseTokenBytes = (((mcus * blocksPerMcu * 64) + mcus) * sizeof(uint)) + (512 * 1024);
+            long tokenLimit = Math.Min(options.EntropyTokenBudgetBytes, EntropyTokenBudget.DefaultMaximumBytes);
+            return worstCaseTokenBytes <= tokenLimit
+                && worstCaseTokenBytes + rollingBytes <= cacheBudget.AvailableBytes;
+        }
+
+        long coefficientBytes = QuantizedImage.PlanFullCacheReservation(width, height, sampling,
+            componentCount, cacheBudget.AvailableBytes - rollingBytes);
+        return coefficientBytes > 0 && coefficientBytes + rollingBytes <= cacheBudget.AvailableBytes;
+    }
+
     private static void EncodeOptimizedScans(PixelSource pixels, int width, int height, int stride,
         JpegSamplingFactors sampling, ushort[][] tables, int[] quantizationSelectors, float distance,
         JpegliEncoderOptions options, ExtendedXmpMetadata? extendedXmp,
         AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers, JpegScan[] scans,
         int interleavedRestartInterval, int[] componentRestartIntervals, Stream output,
-        EncoderCacheBudget cacheBudget, CancellationToken cancellationToken)
+        EncoderCacheBudget cacheBudget, CancellationToken cancellationToken,
+        Quantization.PreparedTable[]? preparedTables = null)
     {
         int componentCount = tables.Length;
         int workerLimit = options.MaxDegreeOfParallelism == -1
@@ -658,7 +756,8 @@ public static class JpegliEncoder
             allowPartial: options.RateDistortionLambda == 0 && options.DcTrellisLambda == 0, cacheBudget: cacheBudget,
             dcTrellisLambda: options.DcTrellisLambda, dcTrellisDiagnostics: options.DcTrellisDiagnostics,
             dcRestartIntervals: componentRestartIntervals,
-            rateDistortionHuffmanFeedback: options.RateDistortionHuffmanFeedback);
+            rateDistortionHuffmanFeedback: options.RateDistortionHuffmanFeedback,
+            preparedTables: preparedTables);
         if ((options.RateDistortionLambda > 0 || options.DcTrellisLambda > 0) && quantizedImage is null)
         {
             throw new ArgumentException("The offline rate-distortion experiment requires a coefficient cache within its unchanged 64 MiB limit.",
@@ -669,88 +768,115 @@ public static class JpegliEncoder
         long[][] dcFrequencies = new long[componentCount][];
         for (int component = 0; component < componentCount; component++)
         {
-            dcFrequencies[component] = new long[256];
+            dcFrequencies[component] = RentHistogram();
         }
 
         long[][][] acFrequencies = new long[scans.Length][][];
-        bool fuseProgressiveAc = options.Progressive && ProgressiveAcCollector.ShouldFuse(scans, quantizedImage);
-        // These placeholder arrays are not read during frequency collection.
-        var emptyTables = new HuffmanTable[componentCount];
-        for (int scanIndex = 0; scanIndex < scans.Length; scanIndex++)
+        HuffmanCodingPlan plan;
+        HuffmanTable[] emptyTables = componentCount == 1 ? EmptyTables1 : EmptyTables3;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            JpegScan scan = scans[scanIndex];
-            acFrequencies[scanIndex] = new long[componentCount][];
-            for (int component = 0; component < componentCount; component++)
+            bool fuseProgressiveAc = options.Progressive && ProgressiveAcCollector.ShouldFuse(scans, quantizedImage);
+            for (int scanIndex = 0; scanIndex < scans.Length; scanIndex++)
             {
-                acFrequencies[scanIndex][component] = [];
-            }
-            // DC scans emit no AC symbols; other scans collect AC histograms
-            // only for their participating components, including refinement.
-            if (scan.SpectralEnd > 0)
-            {
-                foreach (int component in scan.Components)
+                cancellationToken.ThrowIfCancellationRequested();
+                JpegScan scan = scans[scanIndex];
+                acFrequencies[scanIndex] = new long[componentCount][];
+                for (int component = 0; component < componentCount; component++)
                 {
-                    acFrequencies[scanIndex][component] = new long[256];
+                    acFrequencies[scanIndex][component] = [];
                 }
-            }
-
-            // Uncached progressive AC blocks share one component-raster traversal below.
-            // DC scans keep their own possibly interleaved MCU traversal.
-            if (fuseProgressiveAc && scan.SpectralStart > 0)
-            {
-                continue;
-            }
-
-            EntropyTokens scanTokens = tokenScans[scanIndex];
-            // DC refinement has no histogram, but its raw bits can be replayed.
-            if (scan.SpectralEnd == 0 && scan.SuccessiveHigh != 0 && !scanTokens.TryBeginRecording())
-            {
-                continue;
-            }
-
-            int interval = scan.Components.Count == 1
-                ? componentRestartIntervals[scan.Components[0]] : interleavedRestartInterval;
-            if (!options.Progressive && workerLimit > 1 && quantizedImage is not null
-                && ParallelBaselineCollector.TryCollect(quantizedImage, width, height, sampling, scan,
-                    interval, workerLimit, dcFrequencies, acFrequencies[scanIndex], scanTokens, cancellationToken))
-            {
-                continue;
-            }
-            if (streamSequential)
-            {
-                if (parallelSequential)
+                // DC scans emit no AC symbols; other scans collect AC histograms
+                // only for their participating components, including refinement.
+                if (scan.SpectralEnd > 0)
                 {
-                    ParallelSequentialEncoder.Process(pixels, width, height, stride, sampling, tables, distance,
-                        interval, adaptive, adaptiveMultipliers, scanTokens, dcFrequencies, acFrequencies[scanIndex],
-                        options.NarrowZigZagKernel, cancellationToken);
+                    foreach (int component in scan.Components)
+                    {
+                        acFrequencies[scanIndex][component] = RentHistogram();
+                    }
+                }
+
+                // Uncached progressive AC blocks share one component-raster traversal below.
+                // DC scans keep their own possibly interleaved MCU traversal.
+                if (fuseProgressiveAc && scan.SpectralStart > 0)
+                {
+                    continue;
+                }
+
+                EntropyTokens scanTokens = tokenScans[scanIndex];
+                // DC refinement has no histogram, but its raw bits can be replayed.
+                if (scan.SpectralEnd == 0 && scan.SuccessiveHigh != 0 && !scanTokens.TryBeginRecording())
+                {
+                    continue;
+                }
+
+                int interval = scan.Components.Count == 1
+                    ? componentRestartIntervals[scan.Components[0]] : interleavedRestartInterval;
+                if (!options.Progressive && workerLimit > 1 && quantizedImage is not null
+                    && ParallelBaselineCollector.TryCollect(quantizedImage, width, height, sampling, scan,
+                        interval, workerLimit, dcFrequencies, acFrequencies[scanIndex], scanTokens, cancellationToken))
+                {
+                    continue;
+                }
+                if (streamSequential)
+                {
+                    if (parallelSequential)
+                    {
+                        ParallelSequentialEncoder.Process(pixels, width, height, stride, sampling, tables, distance,
+                            interval, adaptive, adaptiveMultipliers, scanTokens, dcFrequencies, acFrequencies[scanIndex],
+                            options.NarrowZigZagKernel, cancellationToken);
+                    }
+                    else
+                    {
+                        ProcessSequentialInterleaved(pixels, width, height, stride, sampling, tables, distance,
+                            options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
+                            scanTokens, dcFrequencies, acFrequencies[scanIndex], cancellationToken,
+                            narrowZigZagKernel: options.NarrowZigZagKernel, preparedTables: preparedTables);
+                    }
                 }
                 else
                 {
-                    ProcessSequentialInterleaved(pixels, width, height, stride, sampling, tables, distance,
+                    ProcessScan(pixels, width, height, stride, sampling, tables, distance,
                         options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
-                        scanTokens, dcFrequencies, acFrequencies[scanIndex], cancellationToken,
-                        narrowZigZagKernel: options.NarrowZigZagKernel);
+                        emptyTables, emptyTables, null, dcFrequencies, acFrequencies[scanIndex],
+                        scan, options.Progressive, aggregateEobRuns: true, cancellationToken, contextByComponent: true,
+                        quantizedImage: quantizedImage, entropyTokens: scanTokens);
                 }
             }
-            else
+            if (fuseProgressiveAc)
             {
-                ProcessScan(pixels, width, height, stride, sampling, tables, distance,
-                    options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
-                    emptyTables, emptyTables, null, dcFrequencies, acFrequencies[scanIndex],
-                    scan, options.Progressive, aggregateEobRuns: true, cancellationToken, contextByComponent: true,
-                    quantizedImage: quantizedImage, entropyTokens: scanTokens);
+                ProgressiveAcCollector.Collect(pixels, width, height, stride, sampling, tables, distance,
+                    options.SmoothingFactor, adaptive, adaptiveMultipliers, scans, acFrequencies,
+                    tokenScans, componentRestartIntervals, quantizedImage, cancellationToken);
+            }
+            plan = HuffmanCodingPlan.Create(scans, dcFrequencies, acFrequencies,
+                options.Progressive, options.ForceBaseline, options.HuffmanTableLimit, options.HuffmanSymbolOrder,
+                reuseHistograms: true);
+        }
+        finally
+        {
+            for (int component = 0; component < componentCount; component++)
+            {
+                if (dcFrequencies[component] is { Length: 256 } dcHist)
+                {
+                    ReturnHistogram(dcHist);
+                }
+            }
+            for (int scanIndex = 0; scanIndex < acFrequencies.Length; scanIndex++)
+            {
+                if (acFrequencies[scanIndex] is not { } scanHists)
+                {
+                    continue;
+                }
+                for (int component = 0; component < scanHists.Length; component++)
+                {
+                    if (scanHists[component] is { Length: 256 } acHist)
+                    {
+                        ReturnHistogram(acHist);
+                    }
+                }
             }
         }
-        if (fuseProgressiveAc)
-        {
-            ProgressiveAcCollector.Collect(pixels, width, height, stride, sampling, tables, distance,
-                options.SmoothingFactor, adaptive, adaptiveMultipliers, scans, acFrequencies,
-                tokenScans, componentRestartIntervals, quantizedImage, cancellationToken);
-        }
-        var plan = HuffmanCodingPlan.Create(scans, dcFrequencies, acFrequencies,
-            options.Progressive, options.ForceBaseline, options.HuffmanTableLimit, options.HuffmanSymbolOrder,
-            reuseHistograms: true);
         cancellationToken.ThrowIfCancellationRequested();
         JpegMarkerWriter.WriteHeaders(output, width, height, sampling, tables, quantizationSelectors,
             emptyTables, emptyTables, options, extendedXmp, cancellationToken, rgb: pixels.IsRgb,
@@ -792,7 +918,8 @@ public static class JpegliEncoder
                 {
                     ProcessSequentialInterleaved(pixels, width, height, stride, sampling, tables, distance,
                         options.SmoothingFactor, interval, adaptive, adaptiveMultipliers,
-                        null, null, null, cancellationToken, bits, coding, options.NarrowZigZagKernel);
+                        null, null, null, cancellationToken, bits, coding, options.NarrowZigZagKernel,
+                        preparedTables: preparedTables);
                 }
             }
             else
@@ -898,12 +1025,22 @@ public static class JpegliEncoder
 
                 int strengthRow = blockY * strengthStride;
                 int rowBlockBase = componentBlockOffset + (blockY * chunkColumns);
-                if (!contiguousPlane.IsEmpty)
+                ReadOnlySpan<float> rowPlane = contiguousPlane;
+                int planeWidth = info.PlaneWidth;
+                int planeHeight = info.PlaneHeight;
+                int top = componentY * 8;
+                if (rowPlane.IsEmpty && info.UsePlane)
                 {
-                    int top = componentY * 8;
-                    bool interiorY = top + 8 <= info.PlaneHeight;
+                    bool compactChroma = component != 0
+                        && (info.Horizontal != horizontal || info.Vertical != source.Vertical);
+                    rowPlane = source.Pixels.GetConvertedPlaneSegment(component, top, compactChroma,
+                        out planeWidth, out planeHeight, out top);
+                }
+                if (!rowPlane.IsEmpty)
+                {
+                    bool interiorY = top + 8 <= planeHeight;
                     int interiorColumns = interiorY
-                        ? Math.Clamp((info.PlaneWidth / 8) - firstX, 0, realColumns) : 0;
+                        ? Math.Clamp((planeWidth / 8) - firstX, 0, realColumns) : 0;
                     for (int columnOffset = 0; columnOffset < interiorColumns; columnOffset++)
                     {
                         int componentX = firstX + columnOffset;
@@ -918,7 +1055,7 @@ public static class JpegliEncoder
 
                         int blockIndex = rowBlockBase + columnOffset;
                         chunkMasks[blockIndex] = ForwardDct.TransformQuantizePlaneWithMask(
-                            contiguousPlane, info.PlaneWidth, componentX * 8, top,
+                            rowPlane, planeWidth, componentX * 8, top,
                             info.Quantizer, chunkCoefficients.Slice(blockIndex * 64, 64), strength,
                             clearDcOnlyAc: false);
                     }
@@ -937,7 +1074,7 @@ public static class JpegliEncoder
 
                         int blockIndex = rowBlockBase + columnOffset;
                         chunkMasks[blockIndex] = ForwardDct.TransformQuantizePaddedPlaneWithMask(
-                            contiguousPlane, info.PlaneWidth, info.PlaneHeight, componentX * 8, top,
+                            rowPlane, planeWidth, planeHeight, componentX * 8, top,
                             info.Quantizer, chunkCoefficients.Slice(blockIndex * 64, 64), strength,
                             clearDcOnlyAc: false);
                     }
@@ -970,7 +1107,8 @@ public static class JpegliEncoder
         AdaptiveQuantization? adaptive, float[][]? adaptiveMultipliers,
         EntropyTokens? tokens, long[][]? dcFrequencies, long[][]? acFrequencies, CancellationToken cancellationToken,
         BitWriter? writer = null, HuffmanCodingPlan.ScanCoding? coding = null,
-        KernelPreference narrowZigZagKernel = KernelPreference.Automatic)
+        KernelPreference narrowZigZagKernel = KernelPreference.Automatic,
+        Quantization.PreparedTable[]? preparedTables = null)
     {
         // This path is entered only for a validated full three-component scan,
         // whose component order is 0,1,2. Hoist immutable component state out of
@@ -994,11 +1132,12 @@ public static class JpegliEncoder
         for (int component = 0; component < components.Length; component++)
         {
             JpegComponentSampling factor = sampling[component];
-            var quantizer = Quantization.PreparedTable.Create(tables[component], component, distance,
-                adaptiveQuantization: adaptive is not null,
-                adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
-                narrowZigZagKernel: narrowZigZagKernel, imageWidth: width, imageHeight: height,
-                tailZeroRunBias: pixels.TailZeroRunBias);
+            Quantization.PreparedTable quantizer = preparedTables is not null ? preparedTables[component]
+                : Quantization.PreparedTable.Create(tables[component], component, distance,
+                    adaptiveQuantization: adaptive is not null,
+                    adaptiveMultipliers: adaptiveMultipliers is null ? default : adaptiveMultipliers[component],
+                    narrowZigZagKernel: narrowZigZagKernel, imageWidth: width, imageHeight: height,
+                    tailZeroRunBias: pixels.TailZeroRunBias);
             int blocksWide = ((width * factor.Horizontal) + mcuWidth - 1) / mcuWidth;
             components[component] = new(factor.Horizontal, factor.Vertical,
                 blocksWide,
@@ -1024,6 +1163,7 @@ public static class JpegliEncoder
         for (int mcuY = 0; mcuY < mcusHigh; mcuY++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            pixels.AdvanceConvertedWindow((mcuY * mcuHeight) + mcuHeight + 6, stride, cancellationToken);
             adaptive?.ComputeRow(pixels, stride, mcuY * mcuHeight,
                 tables[pixels.AnalysisComponent][1], strengths!, cancellationToken);
             for (int chunkStartMcuX = 0; chunkStartMcuX < mcusWide; chunkStartMcuX += maxChunkMcus)
@@ -1418,6 +1558,9 @@ public static class JpegliEncoder
             }
         }
 
+        bool hasBlockMasks = quantizedImage?.HasBlockMasks == true;
+        ulong bandMask = !dcOnly && !sequential
+            ? (ulong.MaxValue << spectralStart) & (ulong.MaxValue >> (63 - spectralEnd)) : 0;
         for (int blockY = 0; blockY < blocksHigh; blockY++)
         {
             int analysisTop = blockY / factor.Vertical * 8 * vertical;
@@ -1450,6 +1593,54 @@ public static class JpegliEncoder
                     previousScanDc = 0;
                     restartIndex = (restartIndex + 1) & 7;
                     mcusRemaining = restartInterval;
+                }
+                if (cachedRow && hasBlockMasks && !dcOnly && !sequential && aggregateEobRuns)
+                {
+                    ulong bandNonzero = quantizedImage!.GetBlockMask(component, blockX, blockY) & bandMask;
+                    if (bandNonzero == 0)
+                    {
+                        if (refine)
+                        {
+                            ProgressiveEntropyEncoder.AccumulateEmptyAcRefinementBlock(refinementState!, writer,
+                                writer is null ? null : acTables[tableIndex],
+                                writer is null ? acFrequencies![tableIndex] : null, entropyTokens, component);
+                        }
+                        else
+                        {
+                            ProgressiveEntropyEncoder.AccumulateEmptyAcBlock(ref pendingEobRun, writer,
+                                writer is null ? null : acTables[tableIndex],
+                                writer is null ? acFrequencies![tableIndex] : null, entropyTokens, component);
+                        }
+                        if (restartInterval != 0)
+                        {
+                            mcusRemaining--;
+                        }
+                        continue;
+                    }
+                    ReadOnlySpan<short> maskEncoded = quantizedImage.GetBlock(component, blockX, blockY);
+                    if (refine)
+                    {
+                        ProgressiveEntropyEncoder.ProcessOrderedAcRefinementWithMask(maskEncoded, bandNonzero,
+                            refinementState!, successiveLow, spectralStart, spectralEnd, writer,
+                            writer is null ? null : acTables[tableIndex],
+                            writer is null ? acFrequencies![tableIndex] : null, entropyTokens, component);
+                    }
+                    else if (writer is null)
+                    {
+                        ProgressiveEntropyEncoder.AccumulateOrderedAcFrequenciesWithMask(maskEncoded, bandNonzero,
+                            acFrequencies![tableIndex], ref pendingEobRun, successiveLow, spectralStart, spectralEnd,
+                            entropyTokens, component);
+                    }
+                    else
+                    {
+                        ProgressiveEntropyEncoder.WriteOrderedAcWithMask(writer, maskEncoded, bandNonzero,
+                            acTables[tableIndex], ref pendingEobRun, successiveLow, spectralStart, spectralEnd);
+                    }
+                    if (restartInterval != 0)
+                    {
+                        mcusRemaining--;
+                    }
+                    continue;
                 }
                 scoped ReadOnlySpan<short> encoded;
                 if (cachedRow)
@@ -1493,7 +1684,36 @@ public static class JpegliEncoder
                 }
                 if (sequential)
                 {
-                    if (writer is null)
+                    if (cachedRow && hasBlockMasks)
+                    {
+                        ulong mask = quantizedImage!.GetBlockMask(component, blockX, blockY);
+                        if (writer is null)
+                        {
+                            if (mask == 0)
+                            {
+                                EntropyEncoder.AccumulateDcOnlyBlock(encoded[0], ref previousScanDc,
+                                    dcFrequencies![tableIndex], acFrequencies![tableIndex],
+                                    tokens: entropyTokens, component: component);
+                            }
+                            else
+                            {
+                                EntropyEncoder.AccumulateOrderedBlockWithMask(encoded, mask, ref previousScanDc,
+                                    dcFrequencies![tableIndex], acFrequencies![tableIndex],
+                                    tokens: entropyTokens, component: component);
+                            }
+                        }
+                        else if (mask == 0)
+                        {
+                            EntropyEncoder.WriteDcOnlyBlock(writer, encoded[0], ref previousScanDc,
+                                dcTables![tableIndex], acTables[tableIndex]);
+                        }
+                        else
+                        {
+                            EntropyEncoder.WriteOrderedBlockWithMask(writer, encoded, mask, ref previousScanDc,
+                                dcTables![tableIndex], acTables[tableIndex]);
+                        }
+                    }
+                    else if (writer is null)
                     {
                         EntropyEncoder.AccumulateFrequencies(encoded, ref previousScanDc,
                             dcFrequencies![tableIndex], acFrequencies![tableIndex],

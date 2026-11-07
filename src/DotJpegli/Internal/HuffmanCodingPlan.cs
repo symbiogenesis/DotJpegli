@@ -50,8 +50,10 @@ internal sealed class HuffmanCodingPlan
 
         bool limitToBaseline = !progressive && forceBaseline;
         Clusters dc = Cluster(dcFrequencies, limitToBaseline, tableLimit, reuseHistograms);
-        var acContexts = new List<long[]>();
-        int[,] acContextIndexes = new int[scans.Count, componentCount];
+        int contextCapacity = scans.Count * componentCount;
+        var acContexts = new List<long[]>(contextCapacity);
+        Span<int> acContextIndexes = contextCapacity <= 64
+            ? stackalloc int[contextCapacity] : new int[contextCapacity];
         for (int scanIndex = 0; scanIndex < scans.Count; scanIndex++)
         {
             if (acFrequencies[scanIndex].Length != componentCount)
@@ -66,7 +68,7 @@ internal sealed class HuffmanCodingPlan
 
             foreach (int component in scans[scanIndex].Components)
             {
-                acContextIndexes[scanIndex, component] = acContexts.Count;
+                acContextIndexes[(scanIndex * componentCount) + component] = acContexts.Count;
                 acContexts.Add(acFrequencies[scanIndex][component]);
             }
         }
@@ -119,7 +121,7 @@ internal sealed class HuffmanCodingPlan
                 }
                 if (usesAc)
                 {
-                    int cluster = ac.Indexes[acContextIndexes[scanIndex, component]];
+                    int cluster = ac.Indexes[acContextIndexes[(scanIndex * componentCount) + component]];
                     scanAc[component] = acTables[cluster];
                     acSlot = ac.Slots[cluster];
                     // First use of a new cluster replaces its assigned AC
@@ -147,6 +149,7 @@ internal sealed class HuffmanCodingPlan
         var slots = new List<int>();
         Span<bool> nonEmpty = histograms.Count <= 64 ? stackalloc bool[histograms.Count] : new bool[histograms.Count];
         Span<float> standaloneCosts = histograms.Count <= 64 ? stackalloc float[histograms.Count] : new float[histograms.Count];
+        int nonEmptyCount = 0;
         for (int index = 0; index < histograms.Count; index++)
         {
             ReadOnlySpan<long> current = histograms[index];
@@ -162,7 +165,37 @@ internal sealed class HuffmanCodingPlan
             }
 
             nonEmpty[index] = hasNonZero;
+            if (hasNonZero)
+            {
+                nonEmptyCount++;
+            }
             standaloneCosts[index] = -1f;
+        }
+
+        if (nonEmptyCount <= 1 || tableLimit == 1)
+        {
+            long[]? singleCluster = null;
+            for (int index = 0; index < histograms.Count; index++)
+            {
+                if (!nonEmpty[index])
+                {
+                    continue;
+                }
+
+                long[] current = histograms[index];
+                if (singleCluster is null)
+                {
+                    singleCluster = reuseHistograms ? current : (long[])current.Clone();
+                    clusters.Add(singleCluster);
+                    slots.Add(0);
+                }
+                else
+                {
+                    Add(singleCluster, current, singleCluster);
+                }
+                indexes[index] = 0;
+            }
+            return new(clusters, indexes, slots);
         }
 
         // JPEG has only four table slots, even when later clusters evict them.

@@ -222,5 +222,18 @@ public sealed class FastCompressionOptionsTests
         ZigZagOrdering.Reorder(naturalOrder, reorderedZigZag);
 
         Assert.Equal(reorderedZigZag, fusedZigZag);
+
+        short[] fusedWithMask = new short[64];
+        ulong mask = ForwardDct.TransformQuantizeBlockWithMask(samples, prepared, fusedWithMask, adaptiveStrength: 0f);
+        Assert.Equal(reorderedZigZag, fusedWithMask);
+        Assert.Equal(EntropyEncoder.NonzeroAcMask(reorderedZigZag), mask);
+
+        var tiledPrepared = Quantization.PreparedTable.Create(rawTable, component: 0, distance: 1.5f,
+            adaptiveQuantization: false, narrowZigZagKernel: KernelPreference.Optimized,
+            imageWidth: 64, imageHeight: 64, tailZeroRunBias: 0.2f);
+        short[] tiledWithMask = new short[64];
+        ulong tiledMask = ForwardDct.TransformQuantizeBlockWithMask(samples, tiledPrepared, tiledWithMask, adaptiveStrength: 0f);
+        Assert.Equal(reorderedZigZag, tiledWithMask);
+        Assert.Equal(mask, tiledMask);
     }
 }
