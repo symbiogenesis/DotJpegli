@@ -2,207 +2,135 @@
 
 [Documentation](README.md)
 
-Performance parity requires a passing hosted comparison against unchanged Google
-Jpegli at `031a0077f5799a6041004267fc12b956c1f52a20`. The presence of the runner
-does not establish parity. Results must name the tested revision, hosted run,
-machine and measured bounds. The timing method and acceptance bounds were fixed
-before the first measurement.
+This guide documents the performance comparison between DotJpegli and unchanged
+native Google Jpegli (`031a0077f5799a6041004267fc12b956c1f52a20`), the fixed
+acceptance bounds, the measurement methodology, and the CI diagnostic modes.
 
-## Released-version regression checks
+## Current native comparison (`be14f89`)
 
-The latest retained comparison at `0104778`, after the segmented/partial
-converted-plane changes, **fails two of six release regression gates**. All
-1,536 selected comparisons against published 1.0.0 source pass the timing guards
-and produce matching JPEG hashes. Of these, 1,310 consistently favor the current
-encoder, 116 are inconclusive and 110 consistently favor 1.0.0: 99 on .NET 10 x64
-default (EPYC 9V74, Vector512 true) and 11 on .NET 11 x64 default (EPYC 7763,
-Vector512 false). The other four lanes pass. The largest selected median ratio
-is 1.146380, or 14.64% more time. The
-[complete release snapshot](performance-evidence/2026-11-03-0104778/release/README.md)
-retains all selected cases and 130 earlier invalid trials. For each case, the
-first valid complete trial is final, including regressions and inconclusive results;
-conditioning on timing stability does not characterize all attempts' latency.
-
-## Native comparison reference
-
-The [earlier complete native run at `0104778`](performance-evidence/2026-11-03-0104778/README.md)
-has an invalid timing verdict: one of 256 cases, `kodim13/420/p0/d1`, fails the
-managed relative-MAD guard. Its aggregate timings cannot establish native
-performance parity. The current valid `be14f89` reference below includes all
-256 cases.
-
-The fixed acceptance matrix is complemented by an opt-in workload diagnostic.
-Include `[performance-workloads]` alongside `[full-parity]` in the settled main
-commit to collect both in its single automatic workflow. The workload jobs run
-on x64 and ARM64, each with a ten-minute measurement deadline. They cover actual
-large encodes around converted-plane and coefficient-cache boundaries, whole
-photograph enlargements to 9.8 megapixels, bounded
-cache settings, RGB/XYB/source-ICC conversion, stream and array output, one/two/four
-workers, and two/four concurrent calls with separate caller input buffers.
-Their fresh-process first encode and subsequent warmed measurements include
-separate default-tiering cases with three and 256 fixed warmup batches. These
-counts do not prove mature tiered execution. No local benchmark or additional
-workflow is needed.
-
-These observations preserve the fixed native corpus, settings and acceptance
-bounds. They retain raw per-encode samples, throughput, allocation counts, actual
-accepted cache capacities, cold/warm memory snapshots and sampled process RSS.
-Process memory includes runtime and caller data; allocation traffic is not peak
-memory or retained pool capacity. Results remain observations, including noisy
-rows, rather than a regression or service-tail-latency verdict. See the
-[workload method](../tools/DotJpegli.Performance/README.md#bounded-workload-diagnostics)
-for input generation, output checks, runtime settings and measurement limits.
-
-The [later workload snapshot at `0104778`](performance-evidence/2026-11-03-0104778-workloads/README.md)
-retains all 26 scenarios on x64 and ARM64 after the segmented/partial
-converted-plane changes. Within that run, converted-plane boundary
-above-to-below median ratios are 1.098/1.068 for 4:4:4 and 1.021/1.027 for
-4:2:0 (x64/ARM64). Both sides pass the workload dispersion checks. These
-observations cover the later policy, but the separate hosts and runs do not
-establish a before/after speedup. The snapshot preserves noisy rows, memory
-observations and the added 256-warmup tiering scenario; it does not establish
-native parity or a release regression verdict.
-
-The latest complete 256-case comparison of revision
+The latest complete 256-case comparison ran on revision
 `be14f89161d77736adc09a64536646e16d7bd1c4` in
-[hosted run 42376806989](https://github.com/symbiogenesis/DotJpegli/actions/runs/42376806989)
-has valid measurements under the fixed protocol and matched settings, but **fails full performance
-parity**. Measurements were collected on November 7, 2026 (America/Chicago and
-UTC). The same run passes the complete quality/compression matrix, collects
-untimed allocation observations and generates the README charts.
+[CI run 42376806989](https://github.com/symbiogenesis/DotJpegli/actions/runs/42376806989)
+on November 7, 2026 ([retained evidence](performance-evidence/2026-11-07-be14f89/README.md)):
 
-| Corpus | Sampling | Sequential mean / worst | Progressive level 2 mean / worst |
-| --- | --- | ---: | ---: |
-| Kodak photographs | 4:4:4 | 0.858 / 1.042 | 0.584 / 0.641 |
-| Kodak photographs | 4:2:0 | 0.847 / 1.083 | 0.629 / 0.681 |
-| Deterministic controls | 4:4:4 | 0.932 / 1.294 | 0.773 / 1.146 |
-| Deterministic controls | 4:2:0 | 0.863 / 1.209 | 0.814 / 1.168 |
+| Corpus | Sampling | Sequential (`p0`) mean / worst | Progressive (`p2`) mean / worst | Verdict |
+| --- | --- | ---: | ---: | --- |
+| Kodak photographs (24 images) | 4:4:4 | 0.858 / 1.042 | 0.584 / 0.641 | **PASS** |
+| Kodak photographs (24 images) | 4:2:0 | 0.847 / 1.083 | 0.629 / 0.681 | **PASS** |
+| Deterministic controls (8 scenes) | 4:4:4 | 0.932 / 1.294 | 0.773 / 1.146 | FAIL (per-case `> 1.10`) |
+| Deterministic controls (8 scenes) | 4:2:0 | 0.863 / 1.209 | 0.814 / 1.168 | FAIL (per-case `> 1.10`) |
 
-Each mean is the geometric mean of managed/native median latency ratios across
-the group's images and both distances; worst is the largest case ratio.
-Lower is better. Photograph groups use 14.2–15.3% less time for sequential
-encoding and 37.1–41.6% less for progressive encoding. All four photograph
-groups pass both the group and individual bounds. All four deterministic
-control groups pass the group bound (using 6.8–22.7% less time on average)
-but fail the individual bound. Overall, four of eight groups fail, and 15
-cases exceed the individual bound. The worst individual case is a 1.293775
-ratio for sequential 4:4:4 `smooth-gradient` at distance 1. Group averages
-cannot override individual failures.
+- **Ratios** are `managed median latency / native median latency` across
+  distances `1` and `4` (lower is faster).
+- **Kodak photographs:** All four photograph groups pass both the `<= 1.05`
+  group-mean bound and the `<= 1.10` per-case bound, using **14.2–15.3% less
+  time** than native for sequential encoding and **37.1–41.6% less time** for
+  progressive encoding.
+- **Deterministic controls:** All four control groups pass the `<= 1.05`
+  group-mean bound (using 6.8–22.7% less time on average), but 15 individual
+  control cases exceed the `1.10` per-case limit (worst case: `1.294` on
+  sequential 4:4:4 `smooth-gradient` at distance 1). Because every individual
+  case must be `<= 1.10`, the overall 256-case parity verdict remains **FAILED**.
+- **Host environment:** AMD EPYC 9V45 x64, .NET `11.0.0-rc.3.26522.148`,
+  8 float SIMD lanes (`Vector512` enabled), 1 worker pinned to 1 CPU, tiered
+  compilation disabled.
 
-This RGB8 to YCbCr comparison uses distances 1/4, adaptive quantization, optimized
-Huffman coding and one worker, on AMD EPYC 9V45 x64 with .NET
-`11.0.0-rc.3.26522.148`, accelerated Vector512 and tiered compilation disabled.
-The [complete reference evidence](performance-evidence/2026-11-07-be14f89/README.md)
-retains every case, failure, raw sample, host identity, setting, hash and native
-provenance. These measurements support lower group mean
-photograph latency within this scope; full parity remains
-unestablished. Separate workflow runs do not isolate the effect of source changes.
+### Allocations per encode (`be14f89`)
 
-## Untimed compact coefficient storage study
+The same CI run measured untimed per-encode allocations across all 192 Kodak
+photograph configurations (`24` images × distances `1, 4` × `4:4:4, 4:2:0` ×
+levels `0, 2`), including the returned JPEG output buffer:
 
-The [completed bounded representation study](performance-evidence/2026-11-03-compact-coefficients/README.md)
-compares dense storage, bitmap/packed-short tiles and per-band bit-packed tiles,
-including dense fallback and actual pooled payload/index capacity. Its 360
-real-coefficient comparisons cover 24 AQ configurations from a photograph and
-five sparse, noisy and odd-edge controls at distances 1/4 and 444/420. Another
-75 adversarial layout comparisons check signed extremes and partial tiles;
-30 capacity attempts test shared component budgets around the then-current 64 MiB
-dense admission boundary. Full-block, direct-DC and individual coefficient
-values are checked exactly, and retained operation counts have a defined scope.
+| Encoding mode | DotJpegli managed GC (`KiB/encode`) | Google C++ jpegli heap requests (`KiB/encode`) |
+| --- | ---: | ---: |
+| Sequential, 4:4:4 | 90.3 | 1,924.8 |
+| Sequential, 4:2:0 | 79.2 | 2,190.1 |
+| Progressive level 2, 4:4:4 | 109.1 | 4,288.3 |
+| Progressive level 2, 4:2:0 | 97.6 | 3,209.3 |
 
-Compact layouts admit additional replicated coefficients for some source sets;
-pooling and index overhead prevent uniform savings. These are synthetic capacity
-trials, without large-image encoding or speed evidence. The work counters
-compare offline prototypes; production dense storage writes DCT output directly
-and returns spans. The study left production unchanged and makes no
-latency, allocation, peak-memory or native-acceptance claim. Its local untimed
-command is described in the [runner guide](../tools/DotJpegli.Performance/README.md).
-The later segmented dense cache and partial-row reuse are separate from this
-historical compact-layout study and require their own workload measurements.
+---
 
-## Targeted development comparisons
+## Acceptance scope and bounds
 
-For a version regression investigation, `[compare-release]` requests a separate
-complete 256-case comparison against the source actually published as 1.0.0,
-`a40868bfdace7d737413085522a88d351aa16782`. Both versions are rebuilt with the
-current SDK and interleaved on the same CPU/runtime, on .NET 10/11 and
-x64/ARM64, including forced narrow x64 SIMD. The fixed comparison rejects
-invalid evidence and consistently slower cases; inconclusive rows remain
-explicit. Timing-instability failures may retry the entire case, at most eight
-attempts, with every trial retained. The first valid trial is final regardless
-of speed; valid regressions and inconclusive results are never retried. Hard
-identity, JPEG, structural, nonfinite and too-short failures cannot retry.
-Reports expose initial-invalid and retry counts and every prior invalid trial.
-This selection conditions on stability and may favor quieter intervals; it
-does not characterize the full latency distribution across all attempts.
-See the [release comparison protocol](../tools/DotJpegli.Performance/README.md#regression-comparison-against-released-100).
-It can accompany `[full-parity]` in one automatic run. Historical README
-native-relative charts from different CPUs cannot establish version regressions.
+The full comparison covers **256 matched cases**:
 
-A normal push to `main` runs four cases directly: `kodim01` at distance 1,
-444/420 and progression 0/2 on .NET 11. Select `framework=net10.0` in a targeted
-dispatch to inspect the compatible .NET 10 build. It does not wait for the full quality/compression
-matrix. The default measurement counts remain seven blocks, five warmups and
-native-calibrated shared iteration counts. The native executable and corpus are
-cached by their source/toolchain and manifest identities; native provenance,
-executable identity and input hashes are checked when reused.
+- **Inputs:** 24 hash-pinned Kodak photographs plus 8 deterministic synthetic
+  controls (`smooth-gradient`, `low-contrast`, `color-edges`, `line-art`,
+  `structured-texture`, `low-noise`, `full-noise`, `tiny-odd-edges`).
+- **Settings:** RGB8 input to YCbCr output, distances `1` and `4`, chroma
+  sampling `4:4:4` and `4:2:0`, progression levels `0` (sequential) and `2`
+  (progressive), adaptive quantization enabled, optimized Huffman tables,
+  baseline quantizers (`1..255`), JFIF 1.01 (`1×1` aspect ratio), 1 worker.
 
-Include `[full-parity]` in the final commit message of a push to `main` to run
-the complete quality/compression and performance acceptance protocols in that
-automatic CI run. This replaces the targeted comparison for that revision,
-including its optional baseline comparison. Reuse the automatic run instead of
-dispatching another workflow for the same revision.
+A passing verdict requires all 256 cases to complete with valid timing samples,
+matching JPEG structure, and both latency bounds satisfied:
 
-Include `[compare-baseline]` instead for the current optimization batch's
-same-host development comparison against `2ef3d5f`. That automatic run selects
-32 cases: `kodim01`, low noise, low contrast and tiny odd edges, both distances,
-sampling modes and progressions. After the current managed/native diagnostic,
-the same performance job interleaves six balanced ABBA/BAAB quartets per case in
-two persistent workers. The worker runner binaries, inputs, policies, iteration
-counts, runtime and CPU affinity match; JPEG hashes must agree. MAD, minority
-timing states, within-quartet drift and order bias invalidate affected rows,
-which remain in the report alongside inconclusive results. A second sequential
-selection interleaves both revisions with managed AVX-512 disabled to exercise
-narrow coefficient ordering. These are selected-case diagnostics. The
-[runner guide](../tools/DotJpegli.Performance/README.md) describes their method
-and retained evidence. Ordinary pushes without either marker retain four cases.
+| Bound | Limit |
+| --- | ---: |
+| Group geometric mean of `managed / native` median latency ratios (per corpus category, sampling, and progression) | `<= 1.05` |
+| Every individual case `managed / native` median latency ratio | `<= 1.10` |
+| Minimum total timed duration per block | `>= 1 ms` |
+| Maximum relative median absolute deviation (MAD) per encoder in every case | `<= 10%` |
 
-For the ICC and SIMD batch, `[compare-encoder]` adds same-host comparisons
-against fixed pre-batch source `4dd88ecb53c92b6f1087c0238cc8a50cbd1de166` on
-.NET 10/11 and x64/ARM64. It retains 64 ordinary configurations and four
-Display-P3 source-ICC configurations per lane, using unchanged balanced-quartet
-timing guards and exact JPEG hashes. x64 disables AVX-512 to exercise eight-lane
-AQ; ARM64 exercises the four-lane fused DCT. Focused kernel tests precede timing.
-These selected diagnostics do not replace native or released-version acceptance.
-The [runner guide](../tools/DotJpegli.Performance/README.md#encoder-optimization-batch-comparisons)
-records the full selection and limits. This marker can accompany `[full-parity]`
-and `[performance-workloads]` in the same automatic workflow.
+All 256 cases are measured even when an earlier case exceeds `1.10`, so a single
+run captures all remaining optimization targets.
 
-Include `[compare-kernels]` to collect interleaved forced-kernel and combined
-Automatic-policy comparisons on x64 and ARM64, for both .NET 10 and .NET 11, in
-the same automatic run. The selected photographs and controls include matching
-255-by-128, 256-by-128 and 257-by-128 textures around the 32,768-pixel guard, plus
-an 8-by-4,096 tall texture. A second sequential selection in the same job adds
-256-by-256 and 512-by-256 intermediate textures on the same CPU. Separate evidence
-directories retain both verdicts while preserving the 64-case limit per command.
-These six inputs are exclusive to kernel diagnostics; the native acceptance
-corpus and bounds remain fixed. The comparison retains
-JPEG hashes, allocations, balanced ABBA/BAAB quartets, drift and order-bias
-checks, including invalid and inconclusive results. The
-[retained assessment of run 41592528894](performance-evidence/2026-11-03-kernel-guard-692a052/README.md)
-covers both selections on all four lanes. All 112 valid reachable Automatic
-rows on x64 favor the deployed policy by median; 83 also meet the stronger
-all-quartets preference rule. Sixteen reachable rows are invalid and 29 valid
-rows remain inconclusive under that rule. Every complete selection has invalid
-rows, so none establishes a stable aggregate timing verdict. The decision is
-to retain the conservative 32,768-pixel floor and existing fallbacks, without
-claiming a crossover or a benefit on every input. ARM64's Automatic rows select
-the same kernels and its forced narrow pairs are explicitly skipped.
+---
 
-For a smaller development question, workflow dispatch accepts comma-separated
-`images`, `distances`, `samplings` and `progressions`, plus bounded `blocks`,
-`warmups` and optional fixed `iterations`. For example, this selects one image
-and configuration with three blocks of three encodes:
+## Timing and allocation measurement methods
+
+### Encoding latency
+
+1. Input images are loaded into memory before timing.
+2. A 3-iteration native calibration encode selects a shared iteration count
+   targeting `50 ms` per block (clamped to `3..100` encodes).
+3. Seven paired blocks alternate which encoder runs first (`native/managed` vs.
+   `managed/native`). Before each block, both encoders run 5 untimed warmup
+   encodes.
+4. Each individual encode is timed (`Stopwatch` for managed, `steady_clock` for
+   native) from encoder creation through final JPEG output in newly allocated
+   memory. Managed GC during encoding is included; file I/O, process startup,
+   output verification, and freeing the native output buffer happen outside
+   timed intervals.
+5. Each case compares the median of the 7 block samples for each encoder without
+   discarding outliers.
+
+### Allocations per encode
+
+The untimed allocation job (`--allocation-evidence`) runs 5 warmups followed by
+3 observed complete encodes for each of the 192 Kodak photograph cases:
+
+- **DotJpegli:** Reports exact `GC.GetTotalAllocatedBytes` deltas (including
+  object headers, alignment, and the returned `byte[]` JPEG).
+- **Native Google Jpegli:** Uses `jpegli-allocation-native`, which wraps
+  `malloc`, `calloc`, `realloc`, `aligned_alloc`, `posix_memalign`, `memalign`,
+  and C++ `operator new` via GNU linker `--wrap` flags to sum requested heap
+  bytes (including output buffer growth, excluding allocator metadata and
+  internal `libc` allocations). See the
+  [allocation protocol](../tools/DotJpegli.Performance/README.md#untimed-managednative-allocation-observations).
+
+---
+
+## CI workflow markers and targeted runs
+
+All benchmarks run on CI ([`AGENTS.md`](../AGENTS.md)). An ordinary push to
+`main` runs 4 targeted Ubuntu `.NET 11` benchmark cases (`kodim01` at distance
+`1`, `4:4:4`/`4:2:0`, levels `0`/`2`). Include markers in the commit message on
+`main` to run additional suites in the same automatic workflow:
+
+| Commit marker | CI suite |
+| --- | --- |
+| `[full-parity]` | Runs the full 1,280-pair [quality/compression parity](quality-compression-parity.md) matrix, the full 256-case native latency matrix, and the 192-case allocation job. |
+| `[performance-workloads]` | Runs the 26 bounded large-image, cache-boundary, memory/RSS, and parallel/concurrent workload scenarios on x64 and ARM64 ([workload method](../tools/DotJpegli.Performance/README.md#bounded-workload-diagnostics)). |
+| `[compare-release]` | Runs the 256-case paired ABBA/BAAB regression comparison against NuGet `1.0.0` (`a40868b`) across 6 lanes (`.NET 10`/`.NET 11` on x64 default, x64 narrow AVX2, and ARM64), plus `algorithm-scenarios-*` A/B checks ([release comparison protocol](../tools/DotJpegli.Performance/README.md#regression-comparison-against-released-100)). |
+| `[compare-release-wide]` | Runs only the x64 `.NET 11` default lane of `[compare-release]` with `DOTJPEGLI_REQUIRE_WIDE_SIMD=1` requiring hardware `Vector512`. |
+| `[compare-baseline]` | Interleaves 32 cases against baseline `2ef3d5f` (with and without AVX-512) using 6 balanced ABBA/BAAB quartets. |
+| `[compare-encoder]` | Interleaves 64 ordinary cases plus 4 Display-P3 `SourceIccProfile` cases against `4dd88ec` on x64 and ARM64 ([batch comparison guide](../tools/DotJpegli.Performance/README.md#encoder-optimization-batch-comparisons)). |
+| `[compare-kernels]` | Compares `Original`, `Optimized`, and `Automatic` fuzzy-erosion and narrow-zigzag kernels across threshold-bracketing textures on x64 and ARM64. |
+| `[compare-net11]` | Compares `kodim01` 4:2:0 sequential across `.NET 10` and `.NET 11` runtimes and `.NET 11` `Zip`/`Unzip` SIMD vs. `.NET 10` lane assembly. |
+
+To run a custom selection of images or counts via manual workflow dispatch (when
+no automatic run already covers the commit):
 
 ```sh
 gh workflow run ci.yml --ref main -f mode=targeted \
@@ -210,170 +138,38 @@ gh workflow run ci.yml --ref main -f mode=targeted \
   -f blocks=3 -f iterations=3 -f warmups=5
 ```
 
-Reuse the automatic run for the intended revision when it already covers the
-desired comparison; inspect existing runs before dispatching another. See the
-[runner guide](../tools/DotJpegli.Performance/README.md) for selection limits and
-the equivalent CLI options. All measured runs remain CI-only.
+When a targeted or full latency run fails a bound, CI automatically captures
+`dotnet-trace` CPU profiles (`.nettrace` and Speedscope JSON) for the highest-ratio
+cases into `performance-profile-<revision>` (pass `-f profile=false` on manual
+dispatch to skip profiling).
 
-The job summary and `performance-targeted-<revision>` artifact show per-case
-latencies, ratios, noise and retained raw evidence. Exit 1 identifies a stable
-matched selected case above the fixed 1.10 latency bound; exit 2 identifies
-invalid evidence. Exit 0 means only that the selected cases were valid and within
-their individual bounds. The diagnostic records `passed: null` and
-`parityVerdict: not-evaluated`; it cannot establish the full protocol's group
-bounds or a passing performance parity verdict.
+Local validation is limited to building the runner and running its synthetic
+self-test (no encoding or timing):
 
-When a targeted comparison fails, the same CI job collects one bounded CPU
-profile of the selected case with the highest managed/native ratio using pinned
-`dotnet-trace 10.0.750501`. Its trace, Speedscope file, logs and marked
-instrumented evidence are retained separately as `performance-profile-<revision>`.
-These profiling timings cannot establish latency acceptance; the original
-unprofiled comparison remains the job's result. Manual dispatch can disable this
-follow-up with `profile=false`.
-
-A failed full latency comparison collects separate profiles for the worst case
-from each of the three highest-ratio distinct images, using seven blocks and
-100 iterations to provide more samples for tiny inputs. If the smallest input
-also exceeds the individual limit and is not already selected, its worst case
-is profiled too, giving at most four distinct images. Installation is bounded
-to three minutes and collection to five minutes. These marked instrumented
-diagnostics are retained in `performance-profile-<revision>` and cannot change
-the original unprofiled acceptance verdict. `profile=false` also disables them
-in a manual full run.
-
-## Optional .NET 11 runtime and portable SIMD API comparison
-
-The workflow's `compare_net11=true` input runs one Kodak01 4:2:0 sequential case
-on .NET 10.0.14 and .NET 11.0.0-rc.3.26522.148, serially on the same CPU,
-separately on x64 and ARM64 runners. A main
-commit containing `[compare-net11]` requests the same diagnostic in its automatic
-run. Its first pair uses the identical net10.0 assembly and checks matching JPEG
-hashes to isolate runtime/JIT changes. The library, tests and comparison tools
-target both net10.0 and net11.0, built with the pinned .NET 11 SDK.
-The same optional job also builds two isolated net11.0 variants with SDK
-`11.0.100-rc.3.26522.148`: portable `Shuffle`/`Create` lane assembly and portable
-`Zip`/`Unzip`/`Concat` equivalents in DCT transposes and 2x2 downsampling. Neither
-implementation uses CPU-specific intrinsics. The 4:2:0 case exercises both kernels.
-Both variants run on the identical .NET 11 runtime and CPU, with matching JPEG
-hashes and focused kernel regression tests. This second pair measures the extra
-effect of these API rewrites; it cannot predict gains for other operations or CPUs.
-Normal net11.0 builds use these APIs automatically; net10.0 uses compatible
-portable lane assembly. `DotJpegliNet11Simd=false` disables these APIs for the
-comparison baseline only. The default `true` defines `DOTJPEGLI_NET11_SIMD`.
-Evidence is retained separately as `runtime-comparison-X64-<revision>` and
-`runtime-comparison-ARM64-<revision>`, including exact runtime product builds.
-The reference executable is built natively and cached separately per architecture.
-
-## Full acceptance scope and policy
-
-The comparison covers the 24 hash-pinned Kodak photographs and eight deterministic
-controls used by the [quality/compression comparison](quality-compression-parity.md).
-Distances are **1 and 4**, sampling is **4:4:4 and 4:2:0**, and progression is
-**sequential level 0 and progressive level 2**, giving **256 matched cases**.
-Both encoders use RGB8 input, YCbCr output, adaptive quantization, optimized
-Huffman coding, baseline-range quantizers and equivalent JFIF metadata.
-Smoothing, restart intervals and optional metadata are absent. The primary
-comparison uses one managed worker and the single-threaded native encoder.
-
-Acceptance requires complete coverage, matching JPEG frame/sampling/quantization/
-scan settings, deterministic outputs, valid timing samples and both bounds below.
-The ratio is managed latency divided by native latency; lower is better.
-
-| Bound | Fixed limit |
-| --- | ---: |
-| Geometric mean of case latency ratios, separately for each corpus category, sampling and progression | 1.05 |
-| Every case latency ratio | 1.10 |
-
-These bounds express latency noninferiority within 5% per group and 10% per case.
-They are never relaxed after measurements. An aggregate speedup cannot conceal
-a slower individual case or a failed group. Each image and distance has equal
-weight within its group. A failed or unstable measurement cannot support a parity
-claim. Raw timings expose variation so reviewers can assess the evidence.
-Full runs measure all 256 cases even after a stable matched case exceeds an
-individual bound, retaining the complete set of optimization targets. Such a
-case still fails acceptance; faster later cases cannot reverse that failure.
-A passing verdict always requires complete coverage.
-Every block must contain at least 1 ms of summed timed work. The relative median
-absolute deviation must be at most 10% separately for each encoder in every case;
-exceeding this fixed variability limit makes the evidence invalid.
-
-## Timing method
-
-Inputs are loaded before timing. Each timed operation creates a fresh encoder,
-configures the matched options, encodes all pixels and finishes a complete JPEG
-in newly allocated memory. Managed timing covers the public byte-array encode
-API, including its output copy and allocations. Native timing covers compressor
-creation, configuration, memory destination, scanline submission, finish and
-destruction. Native destination freeing and output checks occur outside timing;
-managed garbage collection during encoding remains included. No forced collections
-are used. These are the normal APIs' allocation and output costs.
-
-Reading input files, process startup, JIT warmup, output hashing, JPEG validation,
-file writes and report generation are excluded. The native wrapper uses a
-monotonic steady clock; the managed runner uses `Stopwatch`. A calibration encode
-chooses a common iteration count targeting a 50 ms native block, bounded to
-3–100 encodes. Calibration never contributes to reported samples. Each encoder
-receives five warmup encodes before every block. Seven paired blocks alternate
-which encoder runs first. Each encode has its own timed interval; the intervals
-are summed and divided by iterations to form a block sample. Output comparisons
-and native buffer release between iterations remain outside these intervals.
-The case ratio compares the two encoders' median block samples, retaining all
-seven samples without discarding outliers.
-
-CI pins the comparison process and its native children to the same available CPU.
-Encoders run serially, with no concurrent benchmark in this runner. The Linux
-host remains shared infrastructure; CPU model, OS, runtime, SIMD width, timer
-frequency and relevant environment settings are retained. Tiered compilation is
-disabled for this comparison so optimized JIT code does not change tiers during
-measurement. This measured runtime configuration must accompany any speed claim.
-
-## Reproduction and retained evidence
-
-All benchmarks run only on CI under [agent instructions](../AGENTS.md). Publishing
-`main` starts the targeted comparison described above; reuse its automatic run.
-The full acceptance protocol is opt-in through `[full-parity]` in the pushed
-final commit message, or workflow dispatch with `mode=full` when no automatic
-run covers the intended comparison. Inspect existing runs before dispatching;
-reuse a queued, running or successful run, and prefer rerunning a failed run.
-It follows the complete quality/compression measurement on the same Ubuntu runner,
-using the shared pinned native build and prepared corpus, and uploads
-`performance-parity-<revision>`, including unsuccessful comparisons. Diagnostic
-selection/count overrides cannot alter this fixed acceptance protocol. Both full
-reports appear in the CI job summary, including failures and incomplete evidence.
-
-Evidence includes a versioned summary, group verdicts and failures, raw repeated
-timings, per-case output and input hashes, native build provenance, runtime and
-machine details and a readable report. Run identity is written before measurement,
-and each completed case is saved with progress; an interrupted run retains an
-explicit incomplete summary and cannot pass. Completed full runs retain every
-case, group bounds and individual failures; a positive result requires the full matrix.
-For the full acceptance protocol, exit 0 means every bound passed; exit 1
-means valid measurements exceeded the latency bounds; exit 2 means invalid
-input, settings, coverage or timing evidence, or a runner error.
-Retain the report and machine-readable evidence durably when recording a
-hosted result.
-
-Local builds and the focused synthetic-statistics check are allowed:
-
-```text
+```powershell
 dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release
 dotnet run --project tools/DotJpegli.Performance -c Release -f net11.0 --no-build -- --self-test
 ```
 
-This scope measures single-image steady-state encoding latency. It excludes
-cold startup, decoding, parallel scaling, batch throughput, allocation/memory
-parity, other architectures and untested encoder options. A successful result
-would establish parity only for the measured corpus, settings, host and bounds.
+---
 
-README allocation bars use a separate untimed CI observation over all 24 Kodak
-photographs, distances 1/4, sampling 444/420 and progression 0/2. Three samples
-follow five warmups; complete encode lifecycles include returned JPEG storage
-and exclude prepared RGB input. DotJpegli reports precise managed GC allocated
-bytes (including object headers/alignment). Official Google C++ jpegli reports
-successful requested heap bytes through a separate GNU linker allocation probe,
-including full realloc requests; native allocator metadata/slack is excluded.
-Private libc internal allocations are outside those wrapped entry points.
-These are allocation traffic observations, with different accounting domains;
-retained pools and peak memory remain separate quantities. Probe output must
-equal ordinary native output, and all source, encoder, runner and probe hashes
-are retained. See the [allocation protocol](../tools/DotJpegli.Performance/README.md#untimed-managednative-allocation-observations).
+## Additional retained snapshots
+
+- **Release regression against 1.0.0 (`0104778`):**
+  The [release regression snapshot at `0104778`](performance-evidence/2026-11-03-0104778/release/README.md)
+  compared 1,536 cases (256 × 6 lanes) against `1.0.0`: 1,310 favored `0104778`,
+  116 were inconclusive, and 110 favored `1.0.0` (99 on `.NET 10` x64 default
+  and 11 on `.NET 11` x64 default; the other 4 lanes passed with 0 regressions).
+- **Large-image, cache, and parallel workloads (`0104778`):**
+  The [workload snapshot at `0104778`](performance-evidence/2026-11-03-0104778-workloads/README.md)
+  retains all 26 scenarios on x64 and ARM64, including 64 MiB converted-plane
+  and coefficient-cache boundaries, 9.8 MP photo enlargements, cold vs. warm
+  default-tiering batches, 1/2/4 workers, and 2/4 concurrent encodes.
+- **Kernel guard assessment (`692a052`):**
+  The [kernel guard study](performance-evidence/2026-11-03-kernel-guard-692a052/README.md)
+  evaluated the `32,768`-pixel floor for tiled narrow zigzag ordering across
+  x64 and ARM64 on `.NET 10` and `.NET 11`.
+- **Compact coefficient storage study (`2026-11-03`):**
+  The [untimed compact coefficient study](performance-evidence/2026-11-03-compact-coefficients/README.md)
+  evaluated 32-block bitmap and bit-packed coefficient tiles across 360 AQ
+  configurations, 75 adversarial inputs, and 30 shared-budget capacity trials.

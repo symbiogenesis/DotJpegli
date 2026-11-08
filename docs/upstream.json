@@ -9,7 +9,7 @@
   "implementation": "development.md#upstream-implementation",
   "managedExtensions": {
     "sampling": "Fractional ratios use rational geometry and area-weighted averaging. Three-row integer kernels include all three rows, unlike the pinned upstream selector.",
-    "execution": "Portable managed SIMD and opt-in MCU-row parallel processing preserve serial arithmetic and JPEG bytes. Caches have independent bounded budgets with streaming fallbacks.",
+    "execution": "Portable managed SIMD and opt-in MCU-row parallel processing preserve serial arithmetic and JPEG bytes. Caches have independent bounded budgets with rolling or streaming fallbacks.",
     "colorManagement": "SourceIccProfile adds managed ICC v2/v4 RGB/grayscale matrix/TRC and LUT conversion through D50 XYZ before sampling and quantization.",
     "metadata": "Structured Exif, XMP and IPTC editing and explicit reconciliation supplement opaque marker embedding.",
     "validation": "Out-of-range floats require finite computations and eight-bit coefficient preflight; unsupported ICC models and offset-sensitive Exif structures fail explicitly."
@@ -18,27 +18,29 @@
     "encoding": "encoding.md",
     "compression": "compression.md",
     "quantization": "quantization.md",
-    "metadata": "metadata.md"
+    "metadata": "metadata.md",
+    "cli": "cli.md"
   },
   "parityEstablished": false,
   "qualityCompressionParityEvidence": {
     "establishedWithinDocumentedScope": true,
-    "testedRevision": "b07eb5d240c2be1f6b9aebac13d081fb50d740cd",
-    "run": "https://github.com/symbiogenesis/DotJpegli/actions/runs/41690962313",
+    "testedRevision": "be14f89161d77736adc09a64536646e16d7bd1c4",
+    "run": "https://github.com/symbiogenesis/DotJpegli/actions/runs/42376806989",
     "cases": 1280,
     "matchedRateAnchors": 640,
     "matchedQualityAnchors": 1280,
     "excludedComparisons": 0,
-    "worstMatchedQualitySizeOverheadPercent": 0.08705105946347214,
-    "worstMatchedRatePsnrLossDb": 0.013824606951523322,
-    "worstMatchedRateSsimLoss": 0.00013633779760857667,
-    "evidence": "parity-evidence/2026-11-03-b07eb5d/summary.json",
-    "scope": "All24 Kodak RGB8 photographs plus8 controls; YCbCr444/420, baseline0/progressive2, AQ and optimized Huffman, force_baseline, direct distances0.25..8, no smoothing/restarts/ICC. Fixed size/PSNR/local-luma-SSIM noninferiority bounds. Full encoder, subjective visual, byteidentity and performance parity remain unclaimed."
+    "worstMatchedQualitySizeOverheadPercent": 0.3636363636363637,
+    "worstMatchedRatePsnrLossDb": 0.008771787007574972,
+    "worstMatchedRateSsimLoss": 0.00010506910324250135,
+    "evidence": "performance-evidence/2026-11-07-be14f89/quality/summary.json",
+    "baselineEvidence": "parity-evidence/2026-11-03-b07eb5d/summary.json",
+    "scope": "All 24 Kodak RGB8 photographs plus 8 controls; YCbCr 4:4:4 and 4:2:0, baseline 0 and progressive 2, AQ and optimized Huffman, force_baseline, direct distances 0.25..8, no smoothing, restarts or ICC. Fixed size, PSNR and local-luma-SSIM noninferiority bounds."
   },
   "performanceValidation": {
     "fullParityEstablished": false,
     "protocol": "performance-parity.md",
-    "referenceEvidence": "performance-evidence/2026-11-03-b07eb5d/full/summary.json",
-    "scope": "The complete 256-case RGB8 YCbCr comparison at b07eb5d has valid timing evidence but fails full performance parity. Both progressive Kodak photograph groups pass the fixed group and individual bounds; sequential photographs and all control groups fail. No cross-runtime, cross-architecture or untested-option parity claim."
+    "referenceEvidence": "performance-evidence/2026-11-07-be14f89/full/summary.json",
+    "scope": "The complete 256-case RGB8 YCbCr comparison at be14f89 has valid timing evidence. All four Kodak photograph groups pass both the 1.05 group-mean and 1.10 individual bounds; all four control groups pass the 1.05 group bound while 15 individual control cases exceed 1.10."
   }
 }
