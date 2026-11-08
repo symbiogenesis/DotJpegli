@@ -1,13 +1,10 @@
 # Pinned native reference
 
-This executable is a validation tool, outside the managed runtime library. It
-links the unchanged encoder and decoder from google/jpegli revision
-`031a0077f5799a6041004267fc12b956c1f52a20` through the upstream `jpegli-static`
-CMake target. Both the build script and CMake reject a different or modified
-tracked source checkout. The script initializes and verifies Highway, skcms and
-libjpeg-turbo at the Git submodule revisions in that upstream commit.
+`jpegli-parity-native` is a CI validation tool that links the unmodified encoder and decoder from `google/jpegli` revision `031a0077f5799a6041004267fc12b956c1f52a20` (`jpegli-static` CMake target, with pinned Highway, skcms, and libjpeg-turbo submodules). It is never packaged with the managed library.
 
-Ubuntu CI requires Git, CMake, Ninja, a C/C++17 toolchain and PowerShell 7.6 or newer:
+## Build and verify
+
+Building requires Git, CMake, Ninja, a C/C++17 compiler, and PowerShell 7.6 or later:
 
 ```powershell
 $build = @{
@@ -18,10 +15,15 @@ $build = @{
 ./tools/parity/build-upstream.ps1 @build
 ```
 
-Verify a cached build's pinned source identity and executable hash with
-`./tools/parity/build-upstream.ps1 -VerifyOnly -BuildDirectory /absolute/temp/path/native-build`.
+To verify a cached build's pinned source identity and executable hash:
 
-The resulting `/absolute/temp/path/native-build/jpegli-parity-native` supports:
+```powershell
+./tools/parity/build-upstream.ps1 -VerifyOnly -BuildDirectory /absolute/temp/path/native-build
+```
+
+`provenance.json` records the upstream and submodule commits, compiler/CMake flags, executable SHA-256, and encode/decode settings.
+
+## Commands
 
 ```text
 jpegli-parity-native version
@@ -30,72 +32,18 @@ jpegli-parity-native decode INPUT.jpg OUTPUT.ppm
 jpegli-parity-native benchmark INPUT.ppm DISTANCE 444|420 LEVEL WARMUPS ITERATIONS REPEATS [OUTPUT.jpg]
 ```
 
-Input and decoded output are binary RGB P6 PPM with maxval 255. Encode uses
-eight-bit RGB input and YCbCr output, explicit distance, baseline quantizer
-limits, explicit sampling factors, upstream progression level and the requested
-Huffman/adaptive settings. Smoothing and restart intervals are zero. JFIF 1.01
-with aspect densities 1×1 matches the managed encoder's mandatory marker, so
-full JPEG sizes include equivalent metadata. No ICC or other optional metadata
-is added.
-
-Decode always uses the same pinned decoder for both encoders, full-size RGB
-eight-bit output, `JDCT_ISLOW` and fancy upsampling. It performs no ICC conversion.
-Warnings or suspended decoding fail the tool. These explicit decoder settings
-are recorded for reproducibility; they do not assert parity with another reader.
-
-`provenance.json` records source and dependency revisions, compiler/CMake
-settings, executable SHA-256 and the encode/decode contract. Full matched-corpus
-quality/compression runs belong on CI; this build script runs no corpus,
-performance test or benchmark.
-
-The `benchmark` command is a CI-only, single-threaded in-process measurement.
-It uses the same encoder configuration as `encode`, with optimized Huffman
-coding and adaptive quantization enabled. It reads RGB input before timing and
-uses `jpegli_mem_dest`, so process startup, input/file/console I/O and output
-validation are excluded. Each timed interval covers a fresh encoder's complete
-create/configure/encode/finish/destroy lifecycle, including destination
-allocation and growth. The returned JPEG buffer is compared byte for byte with
-the first warmup and freed after the interval. Timer call overhead is included;
-one reported sample is the sum of per-encode `steady_clock` intervals divided
-by `ITERATIONS`, rather than wall time around validation between iterations.
-
-At least five warmups and positive iteration/repeat counts are required. The
-matched performance runner calibrates a common iteration count from the native
-encoder, then collects seven independent blocks in alternating encoder order.
-The command prints one JSON object with the upstream pin, settings, dimensions,
-counts, JPEG size, compiler/platform description and `samplesNsPerEncode`.
-`deterministic` is emitted only after every warmup and timed output matches.
-Optional `OUTPUT.jpg` retains the validated stream for structure/size checks;
-writing it happens after all timing. Any encoder warning, suspended scanline,
-changed output or output write failure makes the command fail. No benchmark
-should be executed locally, including calibration or a smoke invocation.
+- **`encode`**: Reads binary P6 RGB8 (`maxval 255`) and encodes YCbCr JPEG with the specified Butteraugli distance, sampling (`444` or `420`), progression level (`0` or `2`), Huffman optimization (`0` or `1`), and adaptive quantization (`0` or `1`), using baseline quantizer bounds, no smoothing or restarts, and a standard JFIF 1.01 (`1x1` density) header.
+- **`decode`**: Decodes any JPEG to binary P6 RGB8 using `JDCT_ISLOW` and fancy upsampling with no ICC conversion. Any warning or suspended decode fails the command.
+- **`benchmark` (CI-only)**: Measures single-threaded in-memory encoding (`jpegli_mem_dest`) with AQ and optimized Huffman enabled. Requires `WARMUPS >= 5`. Each timed sample averages `ITERATIONS` individual `steady_clock` encode lifecycles (create, configure, encode, finish, destroy), excluding file I/O and byte-for-byte output verification. Emits a single JSON summary line with `samplesNsPerEncode`.
 
 ## Untimed native allocations
 
-On Linux, the same build also produces `jpegli-allocation-native`. This separate
-executable links the unmodified pinned `jpegli-static` library, GNU linker
-wrappers for `malloc`, `calloc`, `realloc`, `aligned_alloc`, `posix_memalign` and
-`memalign`, and replacement C++ `new` entry points. The ordinary timing
-executable contains none of these wrappers.
+On Linux, `build-upstream.ps1` also builds `jpegli-allocation-native`, a separate executable that wraps `malloc`, `calloc`, `realloc`, `aligned_alloc`, `posix_memalign`, `memalign`, and C++ `new` via GNU linker `--wrap` flags (leaving `jpegli-parity-native` uninstrumented):
 
 ```text
 jpegli-allocation-native allocation-self-test
 jpegli-allocation-native allocations INPUT.ppm DISTANCE 444|420 LEVEL OUTPUT.jpg
 ```
 
-The self-test makes synthetic requests through actual allocator symbols in a
-separate translation unit, checking routing, sizes and disabled observation
-scope. It performs no encodes or timing and may run locally. The `allocations`
-command is used only by CI: five warmups precede three untimed complete
-`EncodeMemory` calls. Counting starts before create/configure and ends after
-finish/destroy. Input loading, reference copies, verification, output-buffer
-free and file I/O happen outside observation. Every result must match the
-warmup; the managed observer additionally checks the probe JPEG byte for byte
-against output from the ordinary native executable.
-
-Reported bytes are successful requested heap bytes, including the complete
-size of each `realloc` request and returned JPEG storage. They exclude native
-allocator metadata/slack and private allocations inside dynamically linked
-libc. Encoder and dependency static-object allocation calls and C++ containers
-are observed. The result is allocation traffic, not retained or peak memory.
-The executable hash is recorded and verified alongside native provenance.
+- **`allocation-self-test`**: Verifies allocator wrapper routing on synthetic allocations without encoding or timing (safe to run locally).
+- **`allocations` (CI-only)**: Runs 5 untimed warmups followed by 3 observed in-memory encodes, reporting total requested heap bytes per encode (including `realloc` requests and output buffer growth, excluding allocator metadata/slack).

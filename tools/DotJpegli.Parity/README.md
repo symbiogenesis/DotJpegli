@@ -1,312 +1,75 @@
 # Quality and compression evidence runner
 
-Run corpus comparisons only in CI, following the repository's validation rules.
-The executable has no runtime package dependencies beyond the managed encoder.
-It accepts the pinned native wrapper from `tools/parity/native`:
+`DotJpegli.Parity` validates quality and compression parity against the pinned native Google Jpegli wrapper (`tools/parity/native`) and provides offline compression-research commands. Full corpus runs execute only on CI.
 
 ```text
 dotnet DotJpegli.Parity.dll --native /absolute/path/jpegli-parity-native --corpus /absolute/path/corpus --output /absolute/path/empty-evidence-directory
 ```
 
-The corpus must contain all 24 `kodim01.ppm` through `kodim24.ppm` Kodak photographs,
-losslessly converted to binary P6 RGB8. The CI corpus preparation script validates
-their pinned source hashes. The runner adds eight deterministic controlled scenes.
-It compares both 4:4:4 and 4:2:0, sequential level 0 and progressive level 2,
-with AQ and optimized Huffman coding, at distances
-0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6 and 8. Both encoders receive identical RGB
-bytes, JFIF metadata and baseline-range quantizer settings. A structural gate
-checks frame/component/sampling/quantizer/scan settings before drawing conclusions.
-The same pinned Jpegli RGB8 decoder decodes both JPEGs.
+## Corpus comparison protocol
 
-The fixed noninferiority bounds apply separately to each corpus category, sampling
-mode and progression mode. Same-distance sizes and inverse PSNR/SSIM curves at
-matched quality require a managed/native geometric mean rate ratio <=1.02 and
-every case or target <=1.05. At matched rates, PSNR loss is at most 0.10 dB mean
-and 0.25 dB each target; SSIM loss is at most 0.001 mean and 0.003 each target.
-Each image must supply five matched-rate targets and five matched-quality targets
-for each metric. A constant curve or absent shared interval is reported and fails
-the coverage gate. Bounds are never relaxed after results are observed.
+- **Inputs**: 24 Kodak photographs (`kodim01.ppm`..`kodim24.ppm` in binary P6 RGB8, verified against `tools/parity/corpus.json`) plus 8 generated deterministic control scenes.
+- **Settings**: 4:4:4 and 4:2:0 sampling, sequential (level 0) and progressive (level 2), adaptive quantization, optimized Huffman coding, baseline quantizer bounds (`1..255`), JFIF 1.01 (`1x1` density), and distances `0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8` (1,280 pairs total). Both JPEGs are decoded to RGB8 with the same pinned native decoder.
+- **Acceptance bounds** (applied separately per corpus category, sampling mode, and progression mode):
+  - Same-distance and matched-quality file-size ratio (managed / native): geometric mean `<= 1.02`, individual `<= 1.05`.
+  - Matched-rate PSNR loss: mean `<= 0.10 dB`, individual `<= 0.25 dB` (equal-weight RGB MSE, peak 255, capped at 120 dB for exact matches).
+  - Matched-rate SSIM loss: mean `<= 0.001`, individual `<= 0.003` (BT.601 luma, disjoint 8x8 windows clipped at edges, population moments, `C1 = (0.01 * 255)^2`, `C2 = (0.03 * 255)^2`, pixel-weighted mean).
+- **Frontier interpolation**: Nondominated rate-distortion points per metric are interpolated linearly in quality and logarithmically in complete file bytes. Five interior anchors (`0.1, 0.3, 0.5, 0.7, 0.9` of the shared interval) determine aggregate means, while all shared-range endpoints and frontier knots are checked against the individual bounds.
+- **Outputs**: `summary.json` (schema 1), `sources.json`, `cases.json`, `matched-rates.json`, `matched-quality.json`, `report.md`, native logs, and all paired JPEGs. Exit codes: `0` (passed), `1` (bound or coverage failure), `2` (invalid input or tool error).
 
-RGB PSNR uses mean squared sample error with range 255. SSIM uses BT.601 luma,
-disjoint 8x8 windows (clipped at edges), population moments, C1=(0.01*255)^2,
-C2=(0.03*255)^2, and a pixel-weighted mean. These metrics do not establish a human
-visual-quality judgment, Butteraugli/MS-SSIM parity, or a universal compression
-ranking. Exact identity PSNR is capped at 120 dB for finite interpolation.
+### Local self-test
 
-Rate-distortion interpolation keeps metric-specific nondominated samples, chooses
-maximum quality at duplicate sizes, and interpolates quality linearly in log size.
-The inverse uses the same curve. Five anchors lie at 0.1, 0.3, 0.5, 0.7 and 0.9 of
-the common log-rate or quality interval, and determine aggregate means. Worst
-individual bounds additionally check overlap endpoints and all frontier knots
-from both encoders. These points bound the full common piecewise-linear
-interpolated range; real encoder behavior between measured distance settings is
-not inferred. Extrapolation is prohibited. Original
-samples remain in `cases.json`, so curve inversions and discarded dominated points
-can be audited.
-
-`summary.json` has versioned schema 1, fixed settings and bounds, executable hashes,
-tested revision, group verdicts, coverage and all failures. `sources.json` records
-exact input dimensions and hashes; `matched-rates.json` and `matched-quality.json`
-contain interpolated evidence. `report.md`, native logs, canonical PPM inputs and
-all paired JPEGs are retained. Decoded PPM scratch is discarded after its RGB hash
-and quality metrics are recorded. Exit codes are 0 for all gates passed, 1 for
-measured or coverage failures, and 2 for invalid input or runner/native errors.
-
-The focused local check is allowed; it does not run the comparison corpus:
+Run the fast synthetic self-test locally (verifies metrics, PPM parsing, frontier interpolation, and marker validation without running the corpus):
 
 ```text
 dotnet DotJpegli.Parity.dll --self-test
 ```
 
-It verifies metric identities and analytic distortion, strict PPM parsing,
-frontiers/interpolation/inverse interpolation, missing coverage and failure bounds,
-and JPEG marker validation using four small encoding fixtures.
-
 ## Reusable offline quality objectives
 
-The quantization-table and rate-distortion searches reuse immutable source
-features for the existing RGB PSNR/local luma SSIM checks and a separate
-multiscale structural objective, `dotjpegli-ms-ssim-v1`. Each decoded trial must
-reach all three control scores to be eligible. This extra floor can change the
-selected offline JPEG; the candidate grids, original quality floors and
-complete-byte tie rules are retained.
+Offline quantization and rate-distortion searches evaluate decoded candidates against three quality floors—RGB PSNR, local luma SSIM, and a 5-scale multiscale structural objective (`dotjpegli-ms-ssim-v1`)—caching immutable source features so repeated candidate evaluations avoid redundant source work:
 
-The multiscale formulation and exponents follow
-[Wang, Simoncelli and Bovik (2003)](https://ece.uwaterloo.ca/~z70wang/publications/msssim.pdf).
-This specified variant uses double BT.601 luma, a normalized 11x11 Gaussian
-(sigma 1.5) at every pixel, replicated edges and weighted population moments.
-Variances clamp to zero. With C1=(.01*255)^2 and C2=(.03*255)^2,
-CS=(2cov+C2)/(varX+varY+C2) and L=(2meanX*meanY+C1)/(meanX^2+meanY^2+C1).
-Spatial means of CS at the first four scales and L*CS at the fifth clamp to
-[0,1] before exponentiation. Their powered product uses exponents
-.0448, .2856, .3001, .2363 and .1333 without renormalization. Successive scales
-use row-major 2x2 averages with replicated odd edges and ceil dimensions;
-tiny images continue through five scales, repeating 1x1. These explicit choices
-do not establish score parity with other MS-SSIM implementations or human
-visual-quality equivalence.
-
-PSNR/local SSIM preparation snapshots source RGB and caches exact luma and
-clipped-window moments. Multiscale preparation caches source luma, local means
-and variances at every scale. Prepared comparison preserves the reference
-accumulation order. The control and every provisional winner also run both
-independent unprepared reference scorers before acceptance. Disagreement aborts
-before output creation. No additional encode, decode or retained decoded RGB
-image is needed. Rejected-trial parity is covered by focused regressions.
-
-Schema 2 search reports retain the objective ID/definition and every trial's
-three scores. They charge two feature preparations, one prepared score set per
-trial and one reference validation set per provisional winner, including the
-control; explicit scorer-call counts are twice the set counts. Local metrics
-retain 11 bytes per pixel plus two doubles and a count per clipped window.
-Multiscale features retain 24*S bytes, where S sums the pixel counts at all five
-ceil-halved scales; each comparison also creates an 8*S-byte decoded luma
-pyramid. Unprepared validation creates both luma pyramids. Array/record overhead
-and the shared 121-double Gaussian are additional. Storage lives only in the
-offline search, outside the encoder's workspace policy.
-
-`PreparedQualityMetricsTests` and `MultiScaleSsimTests` compare exact score bits
-against the independent scorers across tiny, clipped-edge, flat, extreme and
-noisy inputs, plus analytic constants, ownership and concurrent reuse. Complete
-search fixtures reproduce all scores, eligibility and winner bytes; a dedicated
-fixture checks that multiscale rejection applies even when PSNR/local SSIM pass.
-Reduced repeated arithmetic is not a measured latency, allocation or peak-memory
-benefit. Benchmarks remain CI-only. The fixed native acceptance runner retains
-its original scorer and bounds; encoder defaults and public APIs are unchanged.
+- **Multiscale SSIM (`dotjpegli-ms-ssim-v1`)**: Follows [Wang, Simoncelli, and Bovik (2003)](https://ece.uwaterloo.ca/~z70wang/publications/msssim.pdf) using double-precision BT.601 luma, a normalized `11x11` Gaussian window (`sigma = 1.5`) with replicated edges, `C1 = (0.01 * 255)^2`, `C2 = (0.03 * 255)^2`, scale weights `0.0448, 0.2856, 0.3001, 0.2363, 0.1333`, and `2x2` box downsampling across five scales.
+- **Verification**: Both the control and every provisional winning candidate are re-verified with independent unprepared reference scorers before acceptance (`PreparedQualityMetricsTests`, `MultiScaleSsimTests`).
 
 ## Bounded progressive scan search
 
-Use the opt-in offline search for a single binary P6 RGB8 image:
+Searches a 181-candidate family of progressive scan scripts and Huffman table limits for a single binary P6 RGB8 image:
 
 ```text
 dotnet DotJpegli.Parity.dll --search-progressive-scans --input /absolute/image.ppm --output /absolute/new-search-directory --distance 1 --sampling 420
 ```
 
-Input distance must be greater than zero through 25; sampling is 444 or 420.
-The output directory must not exist. The command searches serially with AQ,
-baseline-range quantizers, YCbCr output and one encoder worker. The encoder's
-normal entry points retain their existing behavior; search is confined to this
-explicit tool command. Run corpus compression or performance experiments on CI.
-
-The finite family has 181 candidates, with the existing optimized level-2
-progressive encoding first as the control. The other 180 combine:
-
-- AC band ends `[63]`, `[2,63]`, `[5,63]` or `[15,63]`;
-- uniform AC refinement depth zero, one or two, with full-precision interleaved DC;
-- component AC orders Y/Cb/Cr, Cb/Cr/Y or Cr/Cb/Y within each band and refinement;
-- standard Huffman tables, the existing automatic optimized assignment, or
-  optimized histogram clustering constrained to one, two or four tables per class.
-
-Constrained clustering merges into its existing slots once the limit is reached,
-with the existing coding-plus-definition cost estimate choosing the merge.
-Each candidate builds its own histograms and assignments. Candidate order also
-affects automatic clustering and table redefinitions. Standard versus optimized
-coding changes EOB aggregation as well as table construction; it is a complete
-coding-policy comparison. The final choice uses the complete encoded byte length,
-including DHT/SOS headers, padding, EOB aggregation and stuffing. The first
-minimum wins ties, so the selected output is never larger than the included
-level-2 control. This is a bounded search, without a global optimum claim.
-
-All candidates keep source pixels, distance, sampling, AQ and quantizers fixed.
-Focused regressions independently decode every real quantized coefficient and
-pixel across the entire family, distances 1/4 and sampling 444/420 on an odd-edge
-fixture. The search does not change the quantization or distortion objective.
-The internal table limit is an offline experimental control and adds no public
-encoder API.
-
-`winner.jpg` contains the selected output. `search.json` (schema 1) retains the
-input, pixel, encoder and candidate JPEG SHA256 hashes; fixed settings; every
-script and table limit; actual per-scan Huffman selectors; complete candidate
-sizes, scan counts and DHT definition counts/bytes. DHT bytes include marker and
-length framing as well as each table's descriptor, counts and symbols. The
-human-readable `report.md` lists every size and DHT cost. Repeat the same command
-with matching source and encoder hashes to reproduce the result.
-
-Reports charge all 181 complete encodes, output scans and optimized histogram
-scans, including rejected candidates. Collection and emission/replay count as
-separate logical entropy passes; they are not counts of coefficient transforms,
-source traversals or measured CPU time. Pool-bucket capacity and peak working
-memory are not inferred from these counts. The search keeps candidate JPEGs
-serially, retaining only the winner and current output plus bounded trial metadata.
-
-Focused local validation is available through the `ProgressiveScanSearchTests`,
-`ProgressiveScanSearchCommandTests` and `HuffmanTableLimitTests` test classes.
-These use small correctness fixtures without timing measurements; full suites
-and corpus measurements remain CI-only.
+- **Candidates**: The default level-2 progressive preset (control) plus 180 combinations of AC band splits (`[63]`, `[2,63]`, `[5,63]`, `[15,63]`), uniform AC refinement depths (`0, 1, 2` with full-precision interleaved DC), component AC orders (`Y/Cb/Cr`, `Cb/Cr/Y`, `Cr/Cb/Y`), and Huffman table policies (standard tables, automatic clustering, or clustering capped at `1, 2, 4` tables per class).
+- **Selection**: All candidates share identical quantized coefficients; the candidate with the smallest complete JPEG byte length wins (ties keep the earliest candidate, so the winner never exceeds the control size).
+- **Outputs**: `winner.jpg`, `search.json` (schema 1), and `report.md`. Focused tests: `ProgressiveScanSearchTests`, `ProgressiveScanSearchCommandTests`, `HuffmanTableLimitTests`.
 
 ## Bounded quantization-table search
 
-Use the opt-in offline search with the pinned native wrapper as the common RGB8
-decoder:
+Screens 729 AC quantization band-scaling configurations and encodes/decodes up to 17 finalists for a single P6 RGB8 image:
 
 ```text
 dotnet DotJpegli.Parity.dll --search-quantization-tables --input /absolute/image.ppm --output /absolute/new-search-directory --native /absolute/jpegli-parity-native --distance 1 --sampling 420
 ```
 
-The input is binary P6 RGB8, distance is finite and greater than zero through 25,
-sampling is 444 or 420, and the output directory must not exist. This command
-searches baseline sequential YCbCr with AQ, optimized Huffman coding, baseline
-quantizers and one encoder worker. It adds no public encoder API. Run corpus
-compression and performance experiments only on CI.
-
-The family starts from the existing distance-derived Y, Cb and Cr tables. DC
-entries stay fixed. Three AC bands, in JPEG zigzag order, cover positions 1..5,
-6..20 and 21..63. Each band independently scales by 0.8, 1 or 1.25 for luma and
-for chroma together, rounding and clamping entries to 1..255. Cb and Cr retain
-their distinct starting tables. The six choices give 729 joint configurations.
-
-A single traversal of real component blocks computes DCT coefficients and caches
-18 group/band/scale costs. Screening uses squared coefficient reconstruction
-error and an estimated magnitude/nonzero bit cost. These are surrogates: they
-omit AQ thresholds, run lengths, optimized Huffman assignments, stuffing and
-headers. Candidate costs combine cached band costs; the search does not encode
-729 images or retain an image-sized coefficient workspace.
-
-The shortlist includes the unchanged default encoding first, followed by up to
-four best candidates for each of four normalized distortion/rate weights
-(0.25, 0.5, 1 and 2), with duplicates removed. At most 17 complete JPEGs are encoded
-and decoded serially. For distortion cost D, rate cost R and weight lambda,
-the screening score is D/max(Dcontrol,1) + lambda*R/max(Rcontrol,1). Stable
-candidate enumeration resolves equal scores. Every finalist runs the real
-encoder, including AQ and its table-derived thresholds, Huffman optimization,
-entropy coding and headers.
-Ranking uses actual complete JPEG bytes. A finalist is eligible only if its
-decoded RGB PSNR, local luma SSIM and the multiscale structural objective meet
-the default control's scores. The first minimum wins ties. The selected JPEG
-therefore never exceeds the control's size and meets all three measured quality
-floors with this decoder; these checks do not establish perceptual equivalence,
-a global optimum or a corpus-wide gain.
-
-`winner.jpg` contains the selected output. `search.json` (schema 2) retains the
-source/pixel, encoder and decoder identities, base tables, cached costs, every
-joint configuration's tables and screening scores, all exact trials including
-quality rejections, JPEG/decoded hashes and the winner. `report.md` gives the
-exact finalists and selection rule. Source DCT block counts, cached costs,
-screened combinations, complete encodes/decodes and logical entropy passes
-include discarded work. They are operation counts, not latency, allocation,
-rental-capacity or peak-memory measurements. Only the current and winning JPEG
-are retained during the serial search, alongside bounded candidate metadata and
-the [prepared quality reference](#reusable-offline-quality-objectives).
-
-Reproduce a finalist using its three natural-order tables with
-`JpegliEncoderOptions.QuantizationTables` and the report's fixed settings. The
-control uses the default distance-derived tables. There is no target-byte API
-or promised output size; every reported finalist size comes from a real encode.
-Focused local checks use `QuantizationTableSearchTests` and
-`QuantizationTableSearchCommandTests`, with small correctness fixtures and an
-independent managed decoder in tests. Native-decoder corpus results remain
-CI-only.
+- **Candidates**: Starting from the distance-derived Y, Cb, and Cr tables (with DC fixed), three zigzag AC bands (`1..5`, `6..20`, `21..63`) are scaled by `0.8, 1.0, 1.25` independently for luma and chroma (`3^6 = 729` combinations).
+- **Screening and selection**: A single DCT pass caches band distortion and bit-cost surrogates to shortlist up to 16 candidates across weights `0.25, 0.5, 1, 2` plus the unchanged control. Finalists are encoded and decoded through the native wrapper; the smallest JPEG meeting all three control quality floors (`PSNR`, `SSIM`, `dotjpegli-ms-ssim-v1`) wins.
+- **Outputs**: `winner.jpg`, `search.json` (schema 2), and `report.md`. Focused tests: `QuantizationTableSearchTests`, `QuantizationTableSearchCommandTests`.
 
 ## Bounded rate-distortion quantization search
 
-Use the opt-in offline experiment with the pinned native wrapper as the common
-RGB8 decoder:
+Evaluates per-block dynamic-programming AC quantization across 25 distance/weight pairs (`distances 0.5, 1, 2, 4, 8` x `weights 0, 1, 16, 256, 4096`):
 
 ```text
 dotnet DotJpegli.Parity.dll --search-rate-distortion --input /absolute/image.ppm --output /absolute/new-search-directory --native /absolute/jpegli-parity-native --sampling 420
 ```
 
-Input is binary P6 RGB8, sampling is 444 or 420, and the output directory must
-not exist. The command compares 25 complete baseline sequential YCbCr JPEGs:
-distances 0.5, 1, 2, 4 and 8 crossed with weights 0, 1, 16, 256 and 4096. AQ,
-optimized Huffman coding, baseline quantizers and one encoder worker are fixed.
-Weight zero uses the original encoder path, with the distance-1 control first.
-This adds no public API; corpus and performance experiments run only on CI.
-
-Each positive-weight trial starts with the encoder's normal AQ coefficients.
-For each real block, a dynamic program chooses each original AC value, one step
-toward zero or zero, removing duplicate choices and keeping DC fixed. Its
-objective is unweighted squared DCT reconstruction error plus weight times
-estimated AC entropy bits. The estimate uses fixed standard luma/chroma Huffman
-lengths, signed-amplitude categories, zero runs, ZRL and EOB. It excludes DC,
-stuffing, padding and headers; complete output rebuilds optimized Huffman tables.
-The model therefore guides the search without predicting complete JPEG size.
-Ties prefer fewer changed coefficients, then deterministic traversal order.
-There are at most 6,048 candidate/state evaluations per block and fixed stack
-scratch. The existing 64 MiB coefficient-cache cap remains fixed; the experiment
-rejects images that cannot fit instead of silently skipping coefficient search.
-
-Every candidate is encoded completely, independently decoded and measured against
-the source. For each positive weight and each metric (RGB PSNR and local luma
-SSIM), the report compares its five-distance nondominated curve with the
-unchanged five-distance control curve. Five common interior byte targets give
-matched-size quality deltas; five common interior quality targets give
-matched-quality size ratios. Interpolation is linear in quality and logarithmic
-in bytes. There is no extrapolation; constant, insufficient or disjoint ranges
-are retained as unsupported, with their reasons. These sampled comparisons do
-not establish a corpus-wide compression gain or perceptual equivalence.
-
-The winner is the smallest actual complete JPEG meeting all three decoded scores
-of the distance-1 unchanged control. Equal sizes keep the earlier trial; the control
-is always eligible. `winner.jpg` stores that output. `search.json` (schema 2)
-retains all candidate distances and weights, trial sizes, JPEG and decoded hashes,
-quality scores, eligibility, curve points, matched comparisons, unsupported
-ranges and source/encoder/runner/decoder identities. `report.md` lists every trial
-and comparison. Reproduce a trial using the recorded sampling, distance and
-internal weight with the same encoder revision; the weight is deliberately not
-a public encoder setting.
-
-Reports charge all 25 complete encodes and decodes, 25 logical histogram passes
-and 25 emission/replay passes. Positive weights add one bounded search per real
-block; exact candidate/state evaluations and changed AC coefficients are retained
-per trial and in aggregate, including discarded work. These are algorithmic work
-counts, not CPU time, allocations, rental capacity or peak-memory measurements.
-The search keeps only the current and winning JPEG plus bounded trial metadata
-and the [prepared quality reference](#reusable-offline-quality-objectives).
-It makes no latency, global optimum or human visual-quality claim.
-
-Focused correctness fixtures use `RateDistortionQuantizationTests`,
-`EncoderRateDistortionTests`, `RateDistortionSearchTests` and
-`RateDistortionSearchCommandTests`. They compare against exhaustive block choices,
-independent entropy histograms, parsed JPEG coefficients and a managed decoder.
-Full suites and native-decoder corpus measurements remain CI-only.
+- **Algorithm**: Starting from normal AQ-quantized coefficients, each block evaluates keeping each AC value, stepping one quantization unit toward zero, or zeroing it (keeping DC fixed), minimizing squared DCT error plus `weight * estimated_AC_bits` before rebuilding optimized Huffman tables.
+- **Selection**: Compares the 5-distance rate-distortion curves against the weight-0 control curve and writes the smallest JPEG that meets all three distance-1 control quality scores to `winner.jpg` (`search.json` schema 2, `report.md`). Focused tests: `RateDistortionQuantizationTests`, `EncoderRateDistortionTests`, `RateDistortionSearchTests`, `RateDistortionSearchCommandTests`.
 
 ## Follow-up compression experiments
 
-Four additional commands expose bounded research without changing normal public
-encoder defaults. All use RGB8 P6 input of at most 1024x1024 pixels, a new output
-directory, and the pinned native wrapper as the common decoder. Corpus runs and
-all performance measurements remain CI-only. These commands report algorithmic
-work and quality decisions; they do not time encoding.
+Four additional offline research commands evaluate candidate compression techniques on P6 RGB8 images up to `1024x1024` without altering public encoder defaults:
 
 ```text
 dotnet DotJpegli.Parity.dll --search-huffman-orderings --input IMAGE.ppm --output NEW_DIRECTORY --native PINNED_DECODER --distance 1 --sampling 420 --progression 2
@@ -315,40 +78,11 @@ dotnet DotJpegli.Parity.dll --search-huffman-feedback --input IMAGE.ppm --output
 dotnet DotJpegli.Parity.dll --search-color-preprocessing --input IMAGE.ppm --output NEW_DIRECTORY --native PINNED_DECODER --distance 1 --sampling 420
 ```
 
-Sampling is 444 or 420. Huffman ordering also accepts progression 0 or 2 and
-compares canonical, descending-frequency, ascending-frequency and reversed
-symbol orders within each code length. Every symbol retains its original length
-and coefficients remain unchanged. The command checks identical decoded RGB;
-focused tests also parse coefficients independently. Complete JPEG bytes,
-including stuffing and padding, decide the winner; the control wins size ties.
+| Command | Description |
+| --- | --- |
+| `--search-huffman-orderings` | Compares canonical, descending-frequency, ascending-frequency, and reversed symbol orders within each Huffman code length (lossless to quantized coefficients; reduces `0xFF00` byte stuffing). |
+| `--search-dc-trellis` | Evaluates restart-aware dynamic programming across adjacent DC values at distance 1 (`weights 0, 1, 16, 256, 4096`, up to 65,536 blocks/component). |
+| `--search-huffman-feedback` | Compares two-pass AC quantization using the image's clustered Huffman code lengths against single-pass standard-table estimates (`weights 16, 256, 4096`). |
+| `--search-color-preprocessing` | Evaluates up to 15 candidates combining damped 4:2:0 chroma reconstruction corrections and saturated-edge overshoot around the target distance. |
 
-DC trellis compares five noninterleaved baseline candidates at distance 1:
-weights 0, 1, 16, 256 and 4096. Each block's DC choices are its original value
-and adjacent representable values; restart-aware dynamic programming chooses
-the complete chain. AC remains fixed. At most 65,536 blocks per component are
-accepted, with temporary element storage charged within the unchanged 64 MiB
-coefficient cap. Reports include the additional transform pass and modeled cost.
-
-Huffman feedback compares seven noninterleaved baseline candidates: the unchanged
-control and paired standard/feedback AC searches at weights 16, 256 and 4096.
-Feedback builds the actual clustered image Huffman model and performs one extra
-coefficient pass. Missing symbols are unavailable choices. The second pass can
-move a coefficient another step toward zero; final encoding relearns tables.
-DC remains fixed. All model lengths and extra passes are retained.
-
-Color preprocessing compares at most fifteen candidates around the requested
-distance. Its optional chroma model keeps original Y and makes at most four
-damped reconstruction corrections for centered bilinear 4:2:0 upsampling.
-Its saturated-run candidate adds bounded component overshoot at 0/255 edges.
-Neither model replaces real decoded validation. Inapplicable or coefficient-limit
-candidates are rejected and retained in the report. A separate exact-bound
-chroma-edge advisor reports its own uncalibrated heuristic and never overrides
-explicit sampling. This is a research implementation, not an exact libsharpyuv
-port or a reproduction of Google's risk classifier.
-
-DC, feedback and color winners must meet the control's decoded RGB PSNR, local
-luma SSIM and multiscale structural scores, and reduce complete JPEG size. Equal
-sizes retain the earlier candidate. Outputs are `winner.jpg`, `search.json` and
-`report.md`; reports retain trials, hashes, quality rejections and operation
-counts. These finite metric floors do not establish human perceptual equivalence
-or a global compression optimum.
+Each command writes `winner.jpg`, `search.json`, and `report.md`, requiring any winning candidate to match or beat the control's `PSNR`, `SSIM`, and `dotjpegli-ms-ssim-v1` scores while reducing complete JPEG byte size.
