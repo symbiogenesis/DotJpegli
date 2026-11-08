@@ -1,144 +1,103 @@
-# Algorithm, speed, memory, and compression plan
+# Todo Plan
 
-## Scope and constraints
+Completed optimizations, architectural notes, and benchmark results live in
+[`docs/development.md`](docs/development.md),
+[`docs/optimization-followup.md`](docs/optimization-followup.md), and
+[`docs/performance-parity.md`](docs/performance-parity.md).
 
-Improve encoding speed, allocations, peak working memory, and compression
-efficiency while preserving the safe, managed-only, portable, dependency-free
-runtime contract. Default encoding changes must preserve deterministic JPEG
-bytes, scalar/vector evaluation order, threshold comparisons, rounding, error
-handling, cancellation, and destination-output prefixes. Output-changing
-compression improvements must remain explicit opt-ins (`JpegliEncoderOptions`
-or offline search tools) until validated against quality floors.
+All changes must preserve the safe, managed-only, dependency-free runtime
+contract. Default encoding changes must keep JPEG output deterministic;
+output-changing compression ideas must stay opt-in until validated against
+quality floors.
 
-This document tracks the current implementation state after `f3ffe8f` and all
-remaining validation, architectural, and compression work. Detailed
-implementation notes live in [development documentation](docs/development.md),
-follow-up batch measurements live in
-[optimization follow-up](docs/optimization-followup.md), and native parity
-protocols live in [performance parity](docs/performance-parity.md).
+## 1. Control-case encoding speed (`> 1.10x` native limit)
 
-## Completed in `f3ffe8f` (Priority 1–3 batch)
+In the latest full 256-case native comparison (`be14f89`), all four Kodak
+photograph groups pass both the `1.05` group-mean limit and the `1.10`
+per-case limit. All four deterministic control groups pass the `1.05` group
+limit (`0.773–0.932`), but 15 individual control cases still exceed `1.10`:
 
-| Priority | Item | Implementation summary | Status |
-| --- | --- | --- | --- |
-| 1 (Speed & Memory) | 32-row rolling MCU-row converted planes | `PixelSource.WithRollingConvertedPlanes` and `AdvanceConvertedWindow` replace upfront full-image float plane allocation with a 32-row luma (`row & 31`) and 16-row 4:2:0 chroma (`row & 15`) circular window on eligible single-worker, single-pass 4:4:4, 4:2:0, and grayscale encodes (`height > 32`) | Implemented (`f3ffe8f`) |
-| 1 (Speed & Allocations) | Dimension-aware `PooledOutputStream` initial capacity | `PooledOutputStream(int initialCapacity)` pre-sizes the first `ArrayPool<byte>` rental via `JpegliEncoder.EstimateInitialOutputCapacity(width, height)` (`clamp(width * height / 2, 4096, 1048576)`), eliminating repeated `4K -> 256K` growth copies | Implemented (`f3ffe8f`) |
-| 1 (Speed & Allocations) | Cached quantization configuration & scan presets | `Quantization.GetOrCreateConfiguration` caches built-in `ushort[][]` tables, selectors, adaptive multipliers, and pre-transposed `PreparedTable[]` (up to 256 entries); `JpegScanConfiguration` caches static presets and level-2 scripts; `JpegliEncoder` pools `long[256]` histograms in `[ThreadStatic]` storage; `HuffmanCodingPlan` uses `stackalloc` for `acContextIndexes` and fast-paths single-active-histogram clustering | Implemented (`f3ffe8f`) |
-| 1 (Speed) | Sequential converted-segment row hoisting | `JpegliEncoder.PrepareSequentialChunk` hoists `GetConvertedPlaneSegment` from the inner `blockX` loop to the `blockY` loop | Implemented (`f3ffe8f`) |
-| 2 (Progressive Speed) | Per-block nonzero AC bitmasks (`ulong[][]`) | `QuantizedImage` stores the 64-bit nonzero AC mask already computed in registers during `ForwardDct.TransformQuantize*WithMask`; `ProgressiveEntropyEncoder` (`AccumulateEmptyAcBlock`, `AccumulateOrderedAcFrequenciesWithMask`, `WriteOrderedAcWithMask`, `AccumulateEmptyAcRefinementBlock`, `ProcessOrderedAcRefinementWithMask`) skips 128-byte coefficient block loads when `bandNonzero == 0` and fast-paths sparse blocks (`PopCount <= 8`) | Implemented (`f3ffe8f`) |
-| 3 (Compression + Speed) | In-register tail-zero-run pruning | `ForwardDct.TransformQuantizeBiasedWithMask` (`NoInlining`) and `Quantization.PruneTailZeroRunTransposed` prune borderline trailing unit coefficients directly from in-register transposed float DCT vectors `r0..r7`, eliminating the second 2D DCT pass when `TailZeroRunBias > 0` without increasing register pressure on the default `TailZeroRunBias == 0` path | Implemented (`f3ffe8f`) |
+- [ ] **Speed up sparse and smooth sequential (`p0`) controls:**
+  Reduce per-block overhead on `smooth-gradient` (`1.177–1.294`),
+  `low-contrast` (`1.137–1.272`), `low-noise` (`1.203–1.248`), `line-art`
+  (`1.155–1.162`), and `color-edges` (`1.101–1.118`), where most AC
+  coefficients quantize to zero and fixed AQ, DCT, and token-emission costs
+  dominate.
+- [ ] **Reduce fixed per-encode progressive setup on tiny images:**
+  `tiny-odd-edges` (`17×19`) now passes sequential bounds (`0.816–1.090`) but
+  exceeds `1.10` on progressive `p2/d1` (`1.146` for 4:4:4, `1.168` for 4:2:0).
+  Pool or `stackalloc` small-image `AdaptiveQuantizationWorkspace` and
+  `HuffmanTable.BuildOptimal` scratch arrays, and fast-path single-MCU-row
+  conversion without intermediate plane rental.
 
-Targeted CI validation on `f3ffe8f` ([run 42360668980](https://github.com/symbiogenesis/DotJpegli/actions/runs/42360668980))
-passed all build, test, formatting, NativeAOT/trimming, allocation, and package
-gates, with `kodim01` at distance 1 reaching `managed/native` ratios of
-`0.703` (`444/p0`), `0.600` (`444/p2`), `0.654` (`420/p0`), and `0.645` (`420/p2`).
+## 2. CI validation suites
 
-## Remaining work
+- [ ] **Run `[performance-workloads]` on CI:**
+  Refresh the 26 x64 and ARM64 large-image, cache-boundary, memory, and
+  parallel/concurrent workload diagnostics (last captured at `0104778`).
+- [ ] **Run `[compare-release]` on CI and fix remaining 1.0.0 regressions:**
+  Re-test all six lanes against the 1.0.0 baseline (last captured at `0104778`,
+  where x64 default lanes on .NET 10 and .NET 11 had regressions) after the
+  recent rolling-plane, contiguous hot-path, and entropy-coding improvements.
 
-### 1. Immediate CI validation and evidence refresh
+## 3. Rolling converted-plane extensions
 
-- **Full 256-case native parity, workload, and release-regression run:**
-  Run the complete 256-case quality/compression and latency comparison
-  (`[full-parity]`), bounded large-image/memory/parallel workloads
-  (`[performance-workloads]`), and 1.0.0 release regression comparison
-  (`[compare-release]`) on CI.
-- **Assess deterministic control bounds:**
-  In the previous full reference (`615b373`, run `42196948996`), all four Kodak
-  photograph groups passed both group (`<= 1.05`) and individual (`<= 1.10`)
-  bounds, while deterministic controls failed individual bounds on small inputs
-  (worst case `tiny-odd-edges` 4:2:0 sequential at `1.367`). Verify how much of
-  the control gap is closed by cached quantization configurations, cached scan
-  presets, pooled histograms, and pre-sized output buffers, and identify any
-  remaining cases above `1.10`.
-- **Refresh retained evidence and charts:**
-  Once a complete valid `[full-parity]` and allocation run is collected, update
-  `docs/performance-evidence/`, `docs/performance-parity.md`, and the README SVG
-  charts via `./tools/update-performance-charts.ps1`.
-
-### 2. Tiny-image and fixed per-encode overhead (if control cases still exceed `1.10`)
-
-- **Tiny-image setup audit (`<= 64x64`, `tiny-odd-edges`):**
-  `CanUseRollingConvertedPlanes` currently requires `height > 32`, which is
-  appropriate because tiny images already fit in L1 cache. However, on tiny
-  controls (such as `17x19`), fixed per-encode setup dominates wall time:
-  - `AdaptiveQuantizationWorkspace` array rentals and row clearing for small
-    padded dimensions.
-  - `BitWriter` 4 KiB buffer rental/return and marker writer allocations.
-  - `HuffmanTable.BuildOptimal` workspace arrays when building 4–10 tables for
-    a handful of blocks.
-- **Action:** If any tiny control case remains above the `1.10` individual bound
-  in `[full-parity]` profiles, pool or `stackalloc` small-image AQ/Huffman
-  scratch buffers and fast-path single-MCU-row conversion without intermediate
-  plane rental.
-
-### 3. Rolling converted planes extensions
-
-- **`CacheDiagnostics` compatibility:**
-  `CanUseRollingConvertedPlanes` currently disables rolling planes when
-  `options.CacheDiagnostics is not null` so existing tests asserting full-image
-  `ConvertedSampleCachedRows == height` keep their exact numbers. Add explicit
-  rolling-window diagnostic fields (or distinguish rolling vs. prefix-cached
-  plane modes) so diagnostic callers can observe rolling cache behavior without
-  forcing full-image plane allocation.
-- **4:2:2 (`ChromaSubsampling.HalfHorizontal`) and arbitrary sampling factors:**
+- [ ] **Support `CacheDiagnostics` with rolling planes:**
+  `CanUseRollingConvertedPlanes` currently disables the 32-row rolling window
+  when `options.CacheDiagnostics` is set so existing full-plane diagnostic
+  assertions keep their row counts. Add explicit rolling-window diagnostic
+  fields so callers can inspect rolling cache usage without forcing full-image
+  plane allocation.
+- [ ] **Support 4:2:2 and custom vertical sampling factors:**
   Extend `ConvertedPlanes.TryCreateRolling` and `AdvanceConvertedWindow` beyond
-  4:4:4, 4:2:0, and grayscale to support 4:2:2 (`2x1`) and custom vertical
-  sampling factors (`mcuHeight + 6` halo rounded up to a power-of-two ring
-  height).
-- **Streaming sequential single-component and custom-scan eligibility:**
-  Currently `CanUseRollingConvertedPlanes` admits streaming sequential encodes
-  for 3-component interleaved scans (`componentCount == 3`) and full-coefficient-cache
-  encodes for grayscale/progressive. Extend the streaming sequential token-budget
-  check to single-component grayscale sequential encodes (`componentCount == 1`)
-  when coefficients are not cached.
+  4:4:4, 4:2:0, and grayscale to support `ChromaSubsampling.HalfHorizontal`
+  (`2×1`) and arbitrary vertical sampling factors (`mcuHeight + 6` halo rounded
+  up to a power-of-two ring height).
+- [ ] **Enable rolling planes for streaming grayscale sequential encodes:**
+  Extend the streaming sequential token-budget check in
+  `CanUseRollingConvertedPlanes` from 3-component interleaved scans to
+  1-component grayscale sequential scans when coefficients are not cached.
 
-### 4. Block-mask lifecycle and large-image segmentation
+## 4. Large-image block masks and progressive caches
 
-- **Segmented `blockMasks` for high-megapixel images:**
+- [ ] **Segment `QuantizedImage.blockMasks` for high-megapixel images:**
   `QuantizedImage.blockMasks` currently rents one `ulong[blockCount]` array per
-  component from `ArrayPool<ulong>.Shared`. For a 12 MP 4:4:4 image
-  (`187,500` blocks per component), each `ulong[]` is `1.5 MB` (allocated on the
-  Large Object Heap if it exceeds `ArrayPool<ulong>.Shared` bucket limits).
-  Store `blockMasks` in segments matching `QuantizedImage.segments` (or bounded
-  power-of-two chunks) when `segmented` is true, and account large mask rentals
-  under `EncoderCacheBudget`.
-- **Single-pass multi-scan progressive AC collection on L3-exceeding caches:**
+  component from `ArrayPool<ulong>.Shared` (~1.5 MB per component on a 12 MP
+  4:4:4 image). Segment `blockMasks` alongside `QuantizedImage.segments` when
+  segmented storage is used, and charge large mask rentals to
+  `EncoderCacheBudget`.
+- [ ] **Evaluate single-pass progressive AC collection above L3 cache size:**
   When `QuantizedImage.IsComplete` is true on very large progressive images
-  whose `short` coefficient cache exceeds L3 cache (`> 16–32 MiB`), scan-major
-  traversal still loads non-empty `short[64]` blocks from DRAM across multiple
-  AC scans (`1..2`, `3..63 al=2`, `3..63 ah=2..1`, `3..63 ah=1..0`). Evaluate a
-  block-mask-assisted single-pass collector for large complete caches that
-  exceed L3 size while keeping small/medium images on scan-major traversal.
+  whose coefficient cache exceeds L3 (`> 16–32 MiB`), scan-major traversal
+  reloads non-empty `short[64]` blocks from main memory across multiple AC
+  scans. Test a block-mask-assisted single-pass collector for caches that
+  exceed L3 while keeping small and medium images on scan-major traversal.
 
-### 5. Parallel progressive row pipeline (`docs/optimization-followup.md` carryover)
+## 5. Parallel progressive and grayscale row pipeline
 
-- **Quantized + block-mask parallel rows for progressive and grayscale:**
-  `ParallelDctRows` currently produces quantized `short` rows directly only for
+- [ ] **Produce quantized blocks and AC masks directly in parallel workers:**
+  `ParallelDctRows` currently outputs quantized `short` rows only for
   3-component baseline 4:4:4 and 4:2:0 encodes; parallel progressive and
-  grayscale encodes still use the legacy floating-point parallel row workspace,
-  which showed `1.012–1.025x` ARM64 regressions in paired run `41772797925`.
-- **Action:** Extend `ParallelDctRows.CanPrepareQuantizedRows` to progressive
-  and grayscale configurations, computing both quantized `short` blocks and
-  their `ulong` nonzero AC masks in worker threads so `QuantizedImage.Create`
-  copies pre-quantized rows and masks without allocating float row buffers or
-  recomputing `EntropyEncoder.NonzeroAcMask` on the coordinator thread.
+  grayscale encodes still use the legacy float row buffer (`1.012–1.025x`
+  slower on ARM64 in run `41772797925`). Extend
+  `ParallelDctRows.CanPrepareQuantizedRows` to progressive and grayscale modes
+  so worker threads compute both quantized `short` blocks and `ulong` nonzero
+  AC masks directly.
 
-### 6. Win-win compression + speed research (opt-in and offline)
+## 6. Opt-in compression research
 
-- **Corpus-wide Pareto curve for `TailZeroRunBias` and `ChromaDownsamplingSharpness`:**
-  With `PruneTailZeroRunTransposed` now fused in-register at zero extra DCT pass
-  cost, measure BD-rate (bits per pixel vs. Butteraugli, SSIMULACRA2, MS-SSIM,
-  and RGB PSNR) and encoding latency across all 24 Kodak photographs and 8
-  controls to identify optimal recommended presets (e.g., `TailZeroRunBias = 0.12f`,
-  `ChromaDownsamplingSharpness = 0.15f`).
-- **Adaptive progressive scan-script pruning (opt-in):**
-  Investigate an opt-in progressive optimization that inspects the precomputed
-  `blockMasks` / coefficient magnitude distribution before entropy coding to
-  coalesce `1..2` + `3..63` or reduce successive-approximation depth (`al = 2 -> 1`)
-  when high-frequency bands are sparse (such as `Distance >= 2.5` or smooth
-  regions), saving both scan-header/EOB overhead and entropy pass time.
-- **Broader corpus validation for offline searches:**
-  Evaluate equal-length Huffman symbol ordering, saturated-edge color overshoot,
-  image-specific RDOQ feedback, and cross-block DC trellis across a broader
-  photographic, line-art, and chroma-edge corpus before promoting any
-  output-changing search to a public preset.
+- [ ] **Find recommended presets for `TailZeroRunBias` and `ChromaDownsamplingSharpness`:**
+  Measure rate-distortion curves (Butteraugli, SSIMULACRA2, MS-SSIM, RGB PSNR)
+  and encoding latency across all 24 Kodak photographs and 8 controls to
+  identify default or preset recommendations (such as `TailZeroRunBias = 0.12f`
+  and `ChromaDownsamplingSharpness = 0.15f`).
+- [ ] **Prototype adaptive progressive scan-script pruning (opt-in):**
+  Inspect precomputed `blockMasks` before entropy coding to merge AC bands
+  (`1..2` + `3..63`) or reduce successive-approximation depth (`al = 2 -> 1`)
+  when high-frequency bands are sparse (e.g., `Distance >= 2.5` or smooth
+  regions), cutting scan-header, EOB, and entropy-pass overhead.
+- [ ] **Validate offline compression searches on a broader corpus:**
+  Test equal-length Huffman symbol ordering, saturated-edge color overshoot,
+  image-specific RDOQ feedback, and cross-block DC trellis across a larger
+  photographic, line-art, and chroma-edge corpus before exposing any as public
+  presets.
