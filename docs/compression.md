@@ -4,11 +4,12 @@
 
 ## Quality and distance
 
-`Quality` accepts finite values from 0 to 100, including fractional values, and
-defaults to 85. Set `Distance` to a finite value greater than zero to control
-Jpegli's perceptual quantization distance directly, following upstream's
-[`jpegli_set_distance`](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/encode.cc).
-Lower distances request finer quantization:
+- **`Quality`** accepts finite values from `0` to `100` (including fractional
+  values) and defaults to `85`.
+- **`Distance`** accepts any finite value greater than `0` to set Jpegli's
+  perceptual quantization distance directly (matching upstream
+  [`jpegli_set_distance`](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/encode.cc)).
+  Lower distances use finer quantization.
 
 ```csharp
 byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
@@ -17,42 +18,29 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
     Subsampling = ChromaSubsampling.Quarter
 });
 
-float distance = JpegliEncoder.QualityToDistance(85); // 1.45f.
+float distance = JpegliEncoder.QualityToDistance(85); // 1.45f
 ```
 
-Null `Distance`, the default, uses the quality mapping.
-A supplied distance overrides `Quality`, which must still be valid.
-Using `Distance = JpegliEncoder.QualityToDistance(quality)` produces the same
-JPEG as that quality setting, including with adaptive quantization and
-progressive scans. The helper applies the pinned upstream polynomial to
-fractional quality as well as integers: quality 0 maps to 25, 30 to 6.4,
-and 100 to 0.01. The special value at 100 is distinct from the approximately
-0.1 distance approached by qualities just below 100.
+When `Distance` is `null` (the default), the encoder maps `Quality` using
+`JpegliEncoder.QualityToDistance(quality)`: quality `0` maps to `25.0`, `30` to
+`6.4`, and `100` to `0.01` (a special step down from the `~0.1` approached just
+below 100). When `Distance` is set, it overrides `Quality` (`Quality` must still
+be in `0..100`).
 
-Direct distance also accepts values outside that quality range, such as 0.001
-or 30. Tables are clamped to 1..255 by default, or 1..32767 with `ForceBaseline = false`; tiny distances
-can share all-one tables and large distances can share saturated tables.
-Distance is a quantization setting, not a measured or guaranteed perceptual
-error. Very small distances and quality 100 remain lossy. This option applies
-to every input precision and layout, with the same sampling, smoothing, metadata,
-scan, stream and cancellation behavior as quality-based encoding.
+Direct `Distance` also accepts values outside the `0..100` quality range (such
+as `0.001` or `30`). Quantization table entries are clamped to `1..255` by
+default, or `1..32767` when `ForceBaseline = false`. Even very small distances
+and quality 100 remain lossy 8-bit JPEG.
 
 ## Restart markers
 
-Set `RestartInterval` to 1..65535 to insert restart markers after that many
-minimum coded units (MCUs); zero, the default, disables them. MCUs span 8x8 pixels
-for grayscale and 4:4:4; for other color modes, multiply each chroma sample area
-dimension in the [sampling table](encoding.md#pixel-layouts-and-sampling) by eight. For example, 4:1:0 uses 32x16 pixels.
-With custom factors, MCUs span `8 * maxHorizontal` by `8 * maxVertical` pixels,
-using the largest corresponding factors across all three components.
-Partial edge MCUs
-count toward the interval, which can cross row boundaries. Restart markers
-reset DC prediction and align the entropy stream between intervals, adding a
-small amount of output overhead without changing the decoded image. For example,
-`new JpegliEncoderOptions { RestartInterval = 64 }` restarts every 64 MCUs.
-
-Set `RestartRows` to a positive number to restart after that many MCU rows in
-each scan, following the pinned upstream's `restart_in_rows` setting:
+- **`RestartInterval`** (`0..65535`, default `0`): Inserts a restart marker
+  (`RST0`..`RST7`) after every `RestartInterval` minimum coded units (MCUs).
+  Zero disables restart markers.
+- **`RestartRows`** (`>= 0`, default `0`): When positive, overrides
+  `RestartInterval` (`RestartInterval` must still be valid) and inserts a
+  restart marker after that many MCU rows in the current scan, capped at
+  `65,535` MCUs (`min(RestartRows * mcuColumnsInScan, 65535)`).
 
 ```csharp
 byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
@@ -62,24 +50,34 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 });
 ```
 
-Zero, the default, uses `RestartInterval`. Positive
-values override that fixed interval, which must still be valid; negative row
-counts are rejected. The effective interval is the scan's MCU columns multiplied
-by `RestartRows`, capped at 65,535 with overflow-safe arithmetic. Rows refer to
-the current scan rather than source pixel rows: interleaved scans use frame MCUs,
-while single-component sequential, DC and AC scans use the component's real block columns
-and rows. For a 33-pixel-wide 4:2:0 image with `RestartRows = 1`, interleaved DC
-restarts every three MCUs, luma AC every five blocks, and chroma AC every three
-blocks. Separate luma DC scans also use five blocks per row. DRI markers update
-the interval only when it changes, and RST numbering starts at RST0 in each scan.
-Intervals that reach the cap can cease to align with complete rows. The option
-applies to all output color spaces, sampling factors, input precisions and scan
-scripts, retaining final coefficients, decoded samples and stream behavior.
+Restart markers reset DC prediction, terminate progressive EOB runs, pad the
+bitstream to the next byte, and cycle `RST0`..`RST7` from `RST0` at the start of
+each scan, without changing quantized coefficients or decoded pixels.
 
-## Sequential scans
+In **interleaved** scans, an MCU spans `8 * maxHorizontal` by `8 * maxVertical`
+pixels (8×8 for grayscale and 4:4:4; 16×16 for 4:2:0; see the
+[sampling table](encoding.md#pixel-layouts-and-sampling)). In
+**single-component** scans (non-interleaved sequential scans, separate DC scans,
+and progressive AC scans), each real 8×8 component block counts as one MCU, and
+`RestartRows` uses that component's real block columns. DRI markers are emitted
+before a scan whenever the effective restart interval changes.
 
-Set `SequentialInterleaveComponents = false` to write one complete sequential
-scan for each output component, in frame order:
+## Scan modes and scripts
+
+All scan configurations preserve the same quantized coefficients and final
+decoded pixels. Option lists (`ScanScript`, `ProgressiveAcScanEnds`,
+`ProgressiveAcRefinementBits`) are copied and validated before output is
+written.
+
+### Sequential scans
+
+By default (`Progressive = false`, `SequentialInterleaveComponents = true`),
+the encoder writes a single interleaved sequential scan containing all
+components.
+
+Set `SequentialInterleaveComponents = false` to write one sequential scan per
+component in frame order (`Y`, `Cb`, `Cr`), visiting only real component blocks
+in raster order and omitting padded edge MCU blocks:
 
 ```csharp
 byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
@@ -89,53 +87,74 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 });
 ```
 
-This selects a custom sequential scan script supported by the pinned upstream's
-[`ValidateScanScript`](https://github.com/google/jpegli/blob/031a0077f5799a6041004267fc12b956c1f52a20/lib/jpegli/encode.cc).
-Each scan sends DC and all AC coefficients at full precision, visits real
-component blocks in raster order, and omits wholly padded MCU blocks. Each block
-counts as one MCU for restarts; row-based intervals use that component's real
-block columns. DC predictors reset at each scan and restart; RST numbering starts
-at RST0 in each scan and advances modulo eight.
-The output retains its sequential frame (SOF0 by default, SOF1 for wide quantizers or extended Huffman selectors), quantization tables, final
-coefficients and decoded samples. Color encoding needs additional passes but
-retains bounded working storage. JPEG reader support can vary.
+`SequentialInterleaveComponents = false` requires sequential output (`Progressive`
+must be `false` and `ProgressiveLevel` must be `null` or `0`). Grayscale output
+has one component and is unchanged.
 
-The default `true` interleaves color components. Grayscale bytes
-are unchanged with either value. False requires sequential output and rejects
-`Progressive = true` before output, except when `ProgressiveLevel = 0` selects
-sequential encoding. Positive progression levels are also rejected. Sampling,
-source precision, smoothing, adaptive quantization, custom quantization tables,
-metadata and stream behavior retain their usual contracts. This setting selects
-a fixed script; `ScanScript` below provides explicit control. Neither promises
-upstream byte, size or speed parity.
+### Progressive scans and presets
 
-## Custom scan scripts
-
-Set `ScanScript` to supply complete sequential or progressive scans explicitly.
-For example, this sends Y separately, then Cb and Cr together:
+Set `Progressive = true` to write a progressive JPEG (`SOF2`), or set
+`ProgressiveLevel` (`>= 0`) to select one of Jpegli's built-in scan presets
+directly (`ProgressiveLevel` overrides `Progressive`):
 
 ```csharp
 byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 {
-    ScanScript = [new JpegScan([0]), new JpegScan([1, 2])],
-    RestartRows = 1
+    ProgressiveLevel = 2,
+    RestartInterval = 64
 });
 ```
 
-`JpegScan` contains `Components`, `SpectralStart`, `SpectralEnd`,
-`SuccessiveHigh` and `SuccessiveLow`, corresponding to upstream `jpeg_scan_info`.
-Component indices are zero-based in output frame order: Y/Cb/Cr, R/G/B or
-scaled X/Y/B-minus-Y, or just zero for grayscale. Selectors must be strictly
-increasing within a scan; scans may send component groups in any order.
-The defaults `0, 63, 0, 0` send a complete sequential scan. Each component
-must occur exactly once in a sequential script. The first scan's spectral
-range determines sequential SOF0/SOF1 or progressive SOF2 output, overriding
-`Progressive`; the two modes cannot be mixed.
+| `ProgressiveLevel` | DC scan | AC scans (JPEG zigzag positions `1..63`) |
+| --- | --- | --- |
+| `0` | Interleaved with AC (sequential `SOF0`/`SOF1`) | All coefficients (`1..63`) at full precision |
+| `1` | Full precision | `1..63` with 1 bit deferred, then 1 refinement scan |
+| `2` | Full precision | `1..2` at full precision; `3..63` with 2 bits deferred, then 2 refinement scans |
+| `>= 3` | Full precision | Luma: `1..2` full, `3..63` with 2 refinement bits; Chroma: `1..5` full, `6..63` with 1 refinement bit (falls back to level 2 for grayscale) |
 
-Progressive DC scans use spectral range `0..0` and may select several components.
-AC scans select one component and an inclusive range of JPEG zigzag positions
-`1..63`, after that component's initial DC scan. For example, grayscale can
-send two initial AC bands and refine their combined range later:
+When `ProgressiveLevel` is set, DC is interleaved only when both maximum output
+sampling factors are `1` (such as 4:4:4, grayscale, or default RGB); subsampled
+modes (such as 4:2:0 or default XYB) emit separate per-component DC scans.
+`ProgressiveLevel` cannot be combined with `ScanScript`,
+`ProgressiveAcScanEnds`, `ProgressiveAcRefinementBits`, non-zero
+`ProgressiveRefinementBits`, or `ProgressiveInterleaveDc = false`.
+
+### Customizing progressive bands, refinement, and DC ordering
+
+When `Progressive = true` and `ProgressiveLevel` is `null`, you can configure
+the progressive schedule with four options:
+
+- **`ProgressiveRefinementBits`** (`0..10`, default `0`): Number of low-order
+  bits deferred from the initial DC and AC scans and delivered one bit plane at
+  a time in subsequent refinement scans.
+- **`ProgressiveAcScanEnds`** (strictly increasing ends in `1..63` ending at
+  `63`, default `null` meaning `[63]`): Splits AC coefficients into multiple
+  spectral bands (for example, `[2, 63]` sends `1..2` then `3..63`).
+- **`ProgressiveAcRefinementBits`** (one value in `0..10` per AC band, default
+  `null`): Overrides `ProgressiveRefinementBits` for each AC band independently
+  while `ProgressiveRefinementBits` continues to control DC refinement depth.
+- **`ProgressiveInterleaveDc`** (default `true`): Set to `false` to emit
+  separate per-component DC scans in raster order instead of an interleaved DC
+  scan.
+
+For example, this matches the `ProgressiveLevel = 2` schedule on subsampled
+color output using explicit progressive options:
+
+```csharp
+byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
+{
+    Progressive = true,
+    ProgressiveInterleaveDc = false,
+    ProgressiveAcScanEnds = [2, 63],
+    ProgressiveAcRefinementBits = [0, 2]
+});
+```
+
+### Custom scan scripts
+
+Set `ScanScript` (`IReadOnlyList<JpegScan>`) for full manual control over
+sequential or progressive scans (`ScanScript` overrides `Progressive` and cannot
+be combined with other scan-schedule options):
 
 ```csharp
 byte[] jpeg = JpegliEncoder.Encode(grayPixels, width, height, PixelLayout.Gray8,
@@ -151,257 +170,73 @@ byte[] jpeg = JpegliEncoder.Encode(grayPixels, width, height, PixelLayout.Gray8,
     });
 ```
 
-Each coefficient starts with `SuccessiveHigh = 0` and a deferred bit count
-`SuccessiveLow` in `0..10`. Refinement must use the coefficient's previous
-low bit as its high bit and deliver exactly the next bit (`low = high - 1`).
-Every coefficient of every component must finish at low bit zero. Missing
-ranges, repeated initial scans, skipped bits, AC before DC and incomplete
-scripts are rejected with `ArgumentException` for `ScanScript` before output.
-This follows the pinned upstream's `ValidateScanScript` and its limit of 252
-AC component scans. That limit plus at most 33 component DC scans bounds
-color scripts to 285 entries. Existing preset/band controls retain their limits.
-Bands and DC component groups may change between valid refinement scans.
+Each `JpegScan(Components, SpectralStart = 0, SpectralEnd = 63, SuccessiveHigh = 0, SuccessiveLow = 0)`
+follows upstream's `ValidateScanScript` rules:
 
-`ScanScript` cannot be combined with `ProgressiveLevel`, explicit
-`ProgressiveAcScanEnds` or `ProgressiveAcRefinementBits`, nonzero
-`ProgressiveRefinementBits`, `ProgressiveInterleaveDc = false` or
-`SequentialInterleaveComponents = false`. Null uses the other scan controls.
-The encoder copies the script and every component list before output; do not
-modify them while encoding starts. Optimized encoding reuses quantized
-coefficients across scans within a 64 MiB cache ceiling and the shared
-`MaxCacheBytes` budget. Large components use bounded coefficient segments;
-when the whole image cannot fit, complete initial MCU rows remain cached and
-only uncached rows require recomputation. It retains the existing input, quantization,
-metadata and stream contracts. Single-component scans visit real blocks in
-raster order; scans selecting two or three components use frame MCUs with
-dummy blocks. Histograms and output share that traversal and restart interval.
-Predictors, EOB runs and RST numbering reset per scan; DRI changes when the
-interval changes. Final real coefficients are preserved. Extra scans increase
-CPU work and do not guarantee smaller files or upstream byte parity.
-
-## Progressive scans
-
-Set `Progressive = true` to write a progressive JPEG: an initial DC scan provides
-a coarse preview, followed by one full-precision AC scan per component. This
-uses two scans for grayscale and four for color, with the same final quantized
-coefficients as baseline encoding. The default remains baseline sequential JPEG.
-Set `ProgressiveRefinementBits` to 1..10 with `Progressive = true` to deliver
-that many low coefficient bits in later refinement scans. For example,
-`new JpegliEncoderOptions { Progressive = true, ProgressiveRefinementBits = 2 }`
-writes initial scans with two bits deferred, then two rounds of DC and component
-AC refinement. With `N` refinement bits this produces `2 * (N + 1)` grayscale scans
-or `4 * (N + 1)` color scans, preserving the final quantized coefficients and pixels.
-The default, zero, uses full-precision initial scans. More refinement
-rounds require more encoding passes and CPU time. This scan script does not reproduce
-upstream Jpegli's default script or promise smaller files.
-
-### Progression presets
-
-Set `ProgressiveLevel` to select the pinned upstream's scan presets directly:
-
-```csharp
-byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
-{
-    ProgressiveLevel = 2,
-    RestartInterval = 64
-});
-```
-
-| Level | DC | AC in JPEG zigzag order |
-| --- | --- | --- |
-| `0` | Sequential scan with AC | All coefficients at full precision |
-| `1` | Full precision | Positions 1..63, then one refinement round |
-| `2` | Full precision | Positions 1..2 at full precision; 3..63, then two refinement rounds |
-| `3` or greater | Full precision | Luma: 1..2 at full precision, 3..63 with two refinement rounds; Chroma: 1..5 at full precision, 6..63 with one refinement round (color YCbCr/RGB/XYB) |
-
-The level overrides `Progressive`, so setting it alone selects the corresponding
-encoding mode. Null, the default, uses the other progressive controls.
-Negative levels are rejected; level `2` matches upstream's progressive preset,
-while levels `3` and above use an asymmetric luma/chroma progressive script for
-three-component output (falling back to level `2` for grayscale).
-
-Progressive presets interleave DC only when both maximum **output** sampling
-factors are one. Otherwise they send separate component DC scans in raster order,
-with one real block per restart MCU. Grayscale always has 1x1 output factors;
-RGB's default full resolution interleaves DC, while XYB's default 2x2 factors
-select separate DC scans. Explicit `SamplingFactors` determine this choice for
-color output, including schemes where all components have identical factors.
-Every initial spectral range and each refinement round is sent for all components
-in frame order before the next range or round, following the pinned script.
-
-An explicit level cannot be combined with `ProgressiveAcScanEnds`,
-`ProgressiveAcRefinementBits`, nonzero `ProgressiveRefinementBits`, or
-`ProgressiveInterleaveDc = false`. Such combinations are rejected before output.
-Quality, adaptive quantization, smoothing, sampling, metadata and Huffman settings
-retain their usual behavior. The final quantized coefficients are preserved;
-these presets do not establish upstream JPEG byte parity or guarantee smaller files.
-
-### AC spectral bands and refinement
-
-Set `ProgressiveAcScanEnds` to send AC coefficients in several spectral bands:
-
-```csharp
-byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
-{
-    Progressive = true,
-    ProgressiveAcScanEnds = [2, 63],
-    ProgressiveRefinementBits = 2
-});
-```
-
-The inclusive end positions use JPEG zigzag order. This example sends positions
-1..2 for each component before positions 3..63. Ends must be strictly increasing
-in 1..63, and the final end must be 63, so every AC coefficient is delivered.
-An empty list is invalid; null, the default, uses `[63]`.
-A non-null list requires `Progressive = true`. The encoder copies and
-validates the list before writing output; do not modify it while encoding starts.
-
-Each round sends DC first, then every component in the first band, then every
-component in each subsequent band. By default all bands defer the same number of
-bits from `ProgressiveRefinementBits` and recur in each refinement round.
-With `B` bands, `C` components and `N` refinement bits, the JPEG contains
-`(1 + B * C) * (N + 1)` scans. Coefficients, quantization and the final decoded
-pixels are preserved. More bands require more image passes and marker overhead;
-they do not guarantee smaller files or faster decoding.
-
-Set `ProgressiveAcRefinementBits` to defer a different number of bits in each band:
-
-```csharp
-byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
-{
-    Progressive = true,
-    ProgressiveAcScanEnds = [2, 63],
-    ProgressiveAcRefinementBits = [0, 2]
-});
-```
-
-This sends DC and positions 1..2 at full precision, followed by positions 3..63
-with two bits deferred and then two refinement rounds of only that higher band.
-The spectral ranges and bit schedule match the pinned upstream's level 2.
-By default DotJpegli interleaves color DC in subsampled MCUs. Upstream sends
-separate component DC scans when its maximum sampling factors exceed one;
-use `ProgressiveInterleaveDc = false` to select that ordering, as described below.
-These settings do not establish JPEG byte parity.
-
-The list requires `Progressive = true`, exactly one value per resolved AC
-band, and values in 0..10. When `ProgressiveAcScanEnds` is null there is one
-band, so a supplied depth list must have one value. Null depths use
-`ProgressiveRefinementBits` for all bands.
-The scalar setting always controls DC; the list overrides only AC.
-Both lists are copied and validated before output, with the same source-lifetime
-requirements as other progressive settings.
-
-All initial scans are sent first. Refinement rounds descend from the largest
-DC or AC depth minus one to zero; each round sends DC if it has a bit left,
-then each unfinished band for every component. Completed ranges are skipped.
-With DC depth `D` and band depths `A[b]`, the scan count is
-`D + 1 + C * sum(A[b] + 1)` with the default interleaved DC. Every coefficient still reaches full precision,
-including when AC depth exceeds DC depth or all AC bands finish before DC.
-Restart counting and EOB runs reset per scan, and storage remains bounded.
-
-### DC scan ordering
-
-Set `ProgressiveInterleaveDc = false` to send separate component DC scans:
-
-```csharp
-byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
-{
-    Progressive = true,
-    ProgressiveInterleaveDc = false,
-    ProgressiveAcScanEnds = [2, 63],
-    ProgressiveAcRefinementBits = [0, 2]
-});
-```
-
-For subsampled color, this combination follows the pinned upstream level-2
-component, spectral and refinement schedule: three full-precision DC scans,
-three scans for positions 1..2, then three initial scans for positions 3..63
-and two rounds of their refinement. It has fifteen color scans. For full-resolution
-1x1 sampling, upstream interleaves DC; keep the default `true` to follow that rule.
-This option selects DC ordering explicitly and does not change sampling or AC bands.
-
-Separate DC scans visit only real component blocks in raster order, including
-partially filled edge blocks; wholly padded MCU blocks are omitted. Initial
-DC and each later DC refinement round send components in frame order before
-their AC scans. Each real component block counts as one MCU for restarts,
-and DC prediction and RST0..RST7 numbering restart at every scan. Optimized
-Huffman frequency collection uses the same traversal and predictor resets.
-
-False requires `Progressive = true` and is rejected before output otherwise.
-The default `true` interleaves color DC; grayscale bytes are
-unchanged with either setting. For `C` components, DC depth `D` and band
-depths `A[b]`, separate DC produces `C * (D + 1 + sum(A[b] + 1))` scans.
-Final coefficients and decoded pixels are preserved. Color output needs
-additional scans and passes; it does not promise smaller files or encoder-byte
-parity with upstream. Working storage remains bounded, and existing typed-input,
-stream, cancellation, smoothing and adaptive-quantization behavior applies.
+- Component indices (`0..2`, or `0` for grayscale) must be strictly increasing
+  within each scan.
+- The first scan's spectral range selects sequential (`0..63`) or progressive
+  output; sequential and progressive scans cannot be mixed.
+- In a sequential script, every component must appear in exactly one scan with
+  `SpectralStart = 0, SpectralEnd = 63, SuccessiveHigh = 0, SuccessiveLow = 0`.
+- In a progressive script, DC scans use `0..0` (1 to 3 components) and AC scans
+  use a range within `1..63` for a single component after its initial DC scan.
+  Each coefficient must start with `SuccessiveHigh = 0` and `SuccessiveLow` in
+  `0..10`, step down one bit at a time (`SuccessiveLow = SuccessiveHigh - 1`),
+  and finish at `SuccessiveLow = 0`. At most 252 AC component scans are allowed.
 
 ## Huffman optimization
 
-Grayscale and YCbCr output use greedy histogram clustering with future-aware
-AC slot eviction and post-pass consolidation:
-component DC histograms and per-scan/component AC histograms merge when combined
-entropy and table-definition cost is lower. When unconstrained Huffman tree depth
-exceeds 16 bits, exact 16-bit Larmore-Hirschberg Package-Merge length-limited
-construction selects the minimum-redundancy code lengths, and symbols within
-equal-length code groups are ordered by descending frequency to assign lower
-canonical codes (With more zeros) to higher-frequency symbols and reduce
-`0xFF00` byte stuffing. Baseline output uses at most two
-tables of each class; progressive coding can replace four AC slots between scans.
-Definitions share DHT markers, and each scan selects its actual active tables.
-Table choices affect entropy bytes while preserving quantized coefficients and
-decoded pixels. Explicit RGB/XYB output uses shared tables; disabling
-optimization retains the standard tables.
+With `OptimizeHuffmanTables = true` (the default):
 
-With `OptimizeHuffmanTables = true` (the default), progressive initial and refinement
-AC scans combine consecutive block endings into end-of-block (EOB) runs,
-up to 32,767 blocks per run. Initial scans finish runs before nonzero AC
-coefficients; refinement scans finish them before newly significant coefficients.
-Both finish runs at restart markers and scan boundaries. With optimization disabled,
-the standard Huffman tables use only single-block EOB symbols. Aggregation changes
-the entropy coding, preserving the quantized coefficients and decoded pixels. AC refinement scans
-buffer up to 2,047 correction bits (growing lazily from a 255-byte initial buffer),
-flushing a run before another block would exceed that limit.
-Buffered correction bits follow the run symbol and its length bits in block order.
-DC refinement uses raw bits.
+- **Histogram clustering:** Grayscale and YCbCr encodes collect symbol
+  frequencies across scans and greedily merge DC and AC histograms when the
+  combined bit cost (including `DHT` marker overhead) is lower, followed by
+  slot eviction and post-pass consolidation. Baseline output uses at most 2
+  tables per class (`0..1`); extended sequential (`SOF1`) and progressive
+  (`SOF2`) output can use up to 4 slots (`0..3`) and redefine AC slots between
+  scans.
+- **Exact 16-bit code lengths and symbol ordering:** When a Huffman tree exceeds
+  JPEG's 16-bit codeword limit, the Larmore-Hirschberg Package-Merge algorithm
+  computes optimal length-limited code lengths. Within equal-length code groups,
+  symbols are ordered by descending frequency so more frequent symbols receive
+  lower canonical codewords (with more zero bits), reducing `0xFF00` byte
+  stuffing.
+- **Progressive EOB runs:** Progressive initial and refinement AC scans combine
+  consecutive block endings into end-of-block (EOB) runs up to `32,767` blocks
+  (flushing at restart markers, scan ends, or when a refinement scan buffers
+  `2,047` correction bits).
 
-In separate sequential scans, progressive AC scans and separate component DC scans, a single component
-block counts as one MCU, so `RestartInterval` can produce more markers than in
-an interleaved DC scan. Restart counting
-and the RST0..RST7 sequence begin again in each scan.
+Setting `OptimizeHuffmanTables = false` uses standard fixed Huffman tables and
+single-block EOB symbols. Explicit RGB and XYB output spaces use shared Huffman
+tables.
 
 ## Adaptive quantization and smoothing
 
-Spatial adaptive quantization is enabled by default. It analyzes luma texture,
-brightness and neighboring regions to adjust coefficient zeroing thresholds.
-Set `AdaptiveQuantization = false` to use uniform quantization. Subsampled luma
-also disables adaptive analysis automatically, matching upstream. Upstream sampling
-arithmetic and dummy-block coding apply to both modes, including partially filled MCUs.
-
-Set `SmoothingFactor` to 1..100 to apply upstream's optional 3x3 input filter.
-The default, zero, disables smoothing. For example,
-`new JpegliEncoderOptions { SmoothingFactor = 25 }` mildly softens the input;
-higher values suppress more noise and fine detail. The filter operates on
-converted Y/Cb/Cr (or grayscale) samples before chroma subsampling. Each of the
-eight neighbors receives weight `SmoothingFactor / 1024`, with the remaining
-weight on the center sample. Original image edges are replicated before
-filtering, including partially filled blocks. Adaptive quantization analyzes
-the original, unsmoothed luma, matching upstream. Both baseline and progressive
-encoding recompute filtered samples on demand with fixed block storage.
-
-Set `TailZeroRunBias` to a finite value in `0..0.5` (default `0`) to raise the
-dead-zone threshold for trailing `±1` AC coefficients in zigzag order that are
-preceded by a run of at least 16 zeros (`ZRL`), pruning borderline high-frequency
-isolated coefficients that require a `ZRL` plus a nonzero symbol. Set
-`ChromaDownsamplingSharpness` to a finite value in `0..0.5` (default `0`) to
-blend the `2×2` chroma box-filter average toward the local quad extremum midpoint
-(`mean + sharpness * (0.5 * (min + max) - mean)`) during `4:2:0` (`Quarter`)
-chroma downsampling, preserving saturated color edges in a single SIMD/scalar pass.
+- **`AdaptiveQuantization`** (default `true`): Analyzes local spatial texture
+  and brightness to modulate per-block quantization zeroing thresholds (on `Y`
+  for YCbCr/grayscale/XYB and `G` for RGB). Set to `false` for uniform
+  quantization. Automatically disabled if custom sampling subsamples the
+  analyzed component.
+- **`SmoothingFactor`** (`0..100`, default `0`): Applies upstream's optional 3×3
+  box-weighted smoothing filter to converted samples before chroma subsampling
+  (each of the 8 neighbors gets weight `SmoothingFactor / 1024`). Adaptive
+  quantization still analyzes the unsmoothed luma.
+- **`TailZeroRunBias`** (`0..0.5`, default `0`): Raises the dead-zone threshold
+  for trailing `±1` AC coefficients in zigzag order when preceded by a run of at
+  least 16 zeros (`ZRL`), pruning borderline high-frequency isolated
+  coefficients directly in registers during the forward DCT without a second DCT
+  pass.
+- **`ChromaDownsamplingSharpness`** (`0..0.5`, default `0`): Blends the 2×2
+  chroma box average toward the quad's local midpoint
+  `0.5 * (min + max)` during 4:2:0 (`Quarter`) downsampling to preserve
+  saturated color edges.
 
 ## Parallel execution
 
-Set `MaxDegreeOfParallelism` to a positive worker limit, or `-1` to use the
-runtime's processor count:
+Set `MaxDegreeOfParallelism` to a positive worker count, or `-1` to use
+`Environment.ProcessorCount` (default `1` for serial execution; `0` and `< -1`
+are invalid):
 
 ```csharp
 byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
@@ -410,106 +245,68 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width, height, options: new()
 });
 ```
 
-The default, `1`, uses serial execution. Zero and
-values below `-1` are rejected before output. When the effective limit exceeds
-one and enough work is available, workers convert source samples,
-smooth/downsample components and compute the DCT across contiguous ranges in
-each MCU row. Images below 16,384 pixels or fewer than 64 blocks across the MCU
-row retain serial DCT execution. Each worker range requires at least 32 blocks;
-short separate-component rows execute directly. These guards avoid source-copy
-and scheduling costs that cannot be amortized. Adaptive analysis, quantization,
-Huffman frequency collection and entropy output remain ordered, producing the
-same JPEG bytes as serial execution with the same settings. The option applies
-to every source precision, output color space, sampling scheme and scan script.
+Parallel execution produces **exact byte-for-byte identical JPEGs** to serial
+execution:
 
-Parallel execution shares cached converted samples, including compact 4:2:0
-chroma planes for unsmoothed 4:2:0. A complete converted cache avoids a source
-copy; a partial or missing cache copies the consumed source storage once for
-uncached reads, including row padding and ignored
-alpha but excluding trailing storage. It also buffers one MCU row of DCT
-coefficients. Its additional memory is proportional to image width and, when
-needed, the consumed source storage.
-Keep the supplied pixels unchanged until encoding returns; adaptive analysis
-and float preflight still read them. All workers finish synchronously before
-encoding returns or throws. The destination stream is written only by the
-calling thread. Cancellation and I/O failures retain the usual partial-output
-contract. Thread scheduling and the extra copy can outweigh parallel work,
-especially for small images; speed claims require CI performance measurements.
-
-Complete optimized-Huffman token caches can also replay entropy in parallel,
-using requested restart boundaries or merging unpadded bit chunks when no
-restart markers are present. This supports sequential and progressive scans
-without adding restart markers or changing JPEG bytes. Destination writes keep
-their serial order and sizes on the calling thread. Worker staging shares a
-4 MiB cap on accepted pooled capacity, with at most 32 chunks per batch;
-oversized or unsupported chunks use serial replay. Scans without restarts need
-at least 16,384 cached records for chunk replay; smaller and uncached scans
-remain serial. The optional CI workload diagnostic measures requested worker
-limits and concurrent encodes separately; its observations do not promise a
-speedup on every input or host.
+- **Parallel DCT and row conversion:** For images with at least `16,384` pixels
+  and `64` blocks per MCU row (at least `32` blocks per worker), worker threads
+  convert pixels, smooth/downsample components, and compute DCT blocks across
+  each MCU row. Eligible 3-component baseline 4:4:4 and 4:2:0 encodes produce
+  quantized `short` rows directly in workers.
+- **Parallel baseline histogram/token collection:** Complete-cache baseline
+  scans can collect per-worker histograms and tokens in parallel (up to 32 slots
+  and 4 MiB of pooled staging) before deterministic ordered merge.
+- **Parallel entropy replay:** Complete cached-token scans can replay entropy
+  in parallel across restart intervals, or across 8,192-token bit chunks (when a
+  scan without restarts has at least `16,384` tokens), merging unpadded bit
+  streams on the calling thread within a 4 MiB pooled staging cap.
+- **Thread safety and streams:** All workers complete before `Encode` returns,
+  and only the calling thread writes to the destination `Stream`.
 
 ## Memory and source lifetime
 
-Keep the input unchanged until encoding returns. `MaxCacheBytes` controls the
-combined accepted capacity of converted samples, quantized coefficients and
-entropy tokens owned by one encode. It defaults to 192 MiB; each cache kind
-also retains its existing 64 MiB ceiling, and token storage shares that ceiling
-across scans. Zero disables these image caches. A lower value trades reuse for
-recomputation without changing JPEG bytes. For example, `MaxCacheBytes =
-32L * 1024 * 1024` limits combined accepted image caches to 32 MiB.
+Keep input pixel buffers and option memory unchanged until `Encode` returns.
 
-Actual rental capacities count toward the limits, including the compact 4:2:0
-conversion-row scratch. The limit excludes caller pixels, JPEG output,
-metadata, cache bookkeeping and array headers, histograms, adaptive-analysis
-scratch and worker/transform scratch.
-It is not a process-memory ceiling: concurrent calls each own their budget,
-and returned arrays may remain in the shared runtime pool. Adaptive analysis
-owns reusable scratch and one strengths
-row for the duration of the encode. Scratch is rented when its largest requested
-array fits 1 MiB; wider neighborhoods use ordinary arrays. Rentals are returned
-on success, cancellation and failure. Pool retention is separate from accepted
-cache ownership.
+`MaxCacheBytes` (default `192 MiB`; `0` disables image caches) limits the
+combined pooled array capacity owned by a single encode across three internal
+caches, each of which also has its own `64 MiB` ceiling:
 
-A single-worker optimized interleaved sequential YCbCr scan usually records
-entropy tokens while transforming and quantizing blocks, avoiding the image-wide
-coefficient cache. With accelerated 256-bit SIMD and no accelerated 512-bit SIMD,
-it instead prepares component rows separately when the same 64 MiB coefficient
-budget permits, keeping the fused transform separate from MCU traversal.
-Dense storage uses bounded segments when whole-component pool rounding would
-exceed the budget. Beyond total capacity, it retains a complete prefix of MCU
-rows across components; cached rows remain reusable and only the remainder is
-recomputed. With no admitted coefficient rows, it uses the streaming path.
-Streaming emission recomputes blocks with the same prepared quantizers if
-tokens exceed their budget. RGB/XYB histogram and scan passes also reuse these
-bounded coefficients, as does unoptimized progressive output. Optimized progressive output
-collects frequencies from the initial DC and all AC scans before writing them. Histogram
-storage grows with the bounded scan-context count, independently of image area;
-spatial analysis uses bounded neighboring rows.
+1. **Converted sample planes (`<= 64 MiB`):**
+   - **Contiguous planes (`<= 8 MiB`):** Small and medium images rent a single
+     contiguous `ArrayPool<float>` buffer (with half-resolution chroma planes
+     for unsmoothed 4:2:0) for fast direct row indexing.
+   - **32-row rolling window:** Single-worker, unsmoothed 4:4:4, 4:2:0, and
+     grayscale encodes (`height > 32`) automatically use a 32-row luma / 16-row
+     4:2:0 chroma circular buffer when full planes would exceed the `8 MiB`
+     contiguous pool limit or when `MaxCacheBytes` is constrained, avoiding
+     full-image float plane allocations.
+   - **Segmented or prefix caches:** Other multi-pass or parallel encodes use
+     bounded row segments up to `64 MiB`, or cache a 16-row-aligned prefix of
+     the image and recompute remaining rows on demand.
+2. **Quantized coefficients (`<= 64 MiB`):**
+   - Single-worker interleaved baseline YCbCr encodes normally stream blocks
+     directly into entropy tokens without allocating a full-image coefficient
+     cache (except on 256-bit SIMD hosts without 512-bit SIMD when the budget
+     admits separate component rows).
+   - Multi-scan and progressive encodes cache `short[64]` quantized blocks in
+     contiguous or segmented arrays (plus a `ulong` nonzero AC bitmask per block
+     so progressive AC scans skip empty blocks without loading coefficient
+     arrays). If an image exceeds the budget, the planner reserves what fits and
+     recomputes uncached MCU rows on demand.
+3. **Entropy tokens (`<= 64 MiB` shared across scans):**
+   - Optimized Huffman encoding records compact 32-bit entropy tokens (packing
+     up to 24 progressive refinement correction bits per token) so the emission
+     pass can write the bitstream without re-running DCT or quantization. If a
+     scan exhausts the token budget, that scan falls back to on-demand emission
+     and refunds its token rentals for subsequent scans.
 
-Optimized, unsmoothed RGB8-to-YCbCr 4:2:0 encoding without source
-ICC conversion retains full-resolution Y and compact chroma planes. Two rows of
-full-resolution chroma scratch share the converted-sample budget. Source edges
-are replicated before the ordered 2×2 averages. Other input/mode combinations
-use full converted planes when possible. If whole-plane rental buckets exceed
-the limit, bounded row segments preserve converted samples without the bucket
-jump. Above the actual capacity, a complete prefix of source rows remains
-cached across all components, aligned to 16 source rows; analysis and encoding
-recompute only uncached neighborhoods and blocks. Compact 4:2:0 stores the
-matching luma/chroma prefix. A zero or insufficient cache budget retains
-on-demand conversion.
+**Output buffering and per-encode pooling:**
 
-Source-ICC conversion prepares reusable converted planes during input
-validation when the budget admits them, so encoding does not evaluate every
-nonlinear transform again. A partial plane cache still preflights every
-uncached source row before output. Later passes reuse the cached prefix and
-convert the remaining rows as needed; a cache limit does not skip source
-validation.
-
-The byte-array overload stages output in a pooled buffer up to 1 MiB, then
-appends bounded 1 MiB ordinary segments. Large outputs avoid repeatedly copying
-all previous bytes or retaining giant pooled arrays. Creating the returned
-owned `byte[]` still requires one final copy and temporarily coexists with
-staging storage. Use the stream overload to avoid that retained output and
-copy for larger JPEGs. Opt-in parallel execution additionally keeps the
-row of DCT coefficients and, when needed, source copy described above, plus
-the bounded entropy staging and worker scratch when token replay is eligible.
+- The `byte[]` `Encode` overload pre-sizes its initial `ArrayPool<byte>` buffer
+  from the image dimensions (`clamp(width * height / 2, 4 KiB, 1 MiB)`) to avoid
+  repeated growth copies, and chains 1 MiB segments if the JPEG exceeds 1 MiB.
+  Use the `Stream` overload to write output directly without allocating a final
+  returned `byte[]`.
+- Built-in quantization table configurations (up to 256 entries), scan-script
+  presets, and thread-local Huffman frequency histograms are cached and reused
+  across encodes.
