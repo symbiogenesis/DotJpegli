@@ -11,7 +11,8 @@ acceptance bounds, the measurement methodology, and the CI diagnostic modes.
 The latest complete 256-case comparison ran on revision
 `be14f89161d77736adc09a64536646e16d7bd1c4` in
 [CI run 42376806989](https://github.com/symbiogenesis/DotJpegli/actions/runs/42376806989)
-on November 7, 2026 ([retained evidence](performance-evidence/2026-11-07-be14f89/README.md)):
+on November 7, 2026 ([retained evidence](performance-evidence/2026-11-07-be14f89/README.md),
+[README chart data](images/performance/metrics.json)):
 
 | Corpus | Sampling | Sequential (`p0`) mean / worst | Progressive (`p2`) mean / worst | Verdict |
 | --- | --- | ---: | ---: | --- |

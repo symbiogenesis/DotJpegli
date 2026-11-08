@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>DotJpegli — Pure managed JPEG encoding for .NET</title>
-  <meta name="description" content="Safe, portable C# JPEG encoder based on Google Jpegli. Pure managed .NET with zero native dependencies, full NativeAOT and trimming support, and standalone CLI packages." />
-  <meta property="og:title" content="DotJpegli — Pure managed JPEG encoding for .NET" />
-  <meta property="og:description" content="Safe, portable C# JPEG encoder based on Google Jpegli. Encode RGB or grayscale pixels as baseline or progressive JPEG with no native dependencies or unsafe code." />
+  <title>DotJpegli — A C# JPEG encoder for .NET</title>
+  <meta name="description" content="A C# JPEG encoder for .NET based on Google Jpegli. Save color or grayscale images as standard or progressive JPEGs with no native dependencies, plus standalone CLI downloads." />
+  <meta property="og:title" content="DotJpegli — A C# JPEG encoder for .NET" />
+  <meta property="og:description" content="A C# JPEG encoder for .NET based on Google Jpegli. Save color or grayscale images as standard or progressive JPEGs with no native libraries or unsafe code." />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="https://symbiogenesis.github.io/DotJpegli/images/comparison/detail-comparison.png" />
   <link rel="icon" type="image/svg+xml" href="images/logo.svg" />
@@ -46,20 +46,19 @@
             <img class="hero-logo" src="images/logo.svg" width="76" height="76" alt="DotJpegli vector logo" />
             <div>
               <h1 class="hero-title">DotJpegli</h1>
-              <p class="hero-tagline">Pure managed JPEG encoding for .NET.</p>
+              <p class="hero-tagline">A C# JPEG encoder for .NET.</p>
             </div>
           </div>
 
           <p class="hero-lead">
-            DotJpegli is a safe, portable C# JPEG encoder based on
-            <a href="https://github.com/google/jpegli">Google Jpegli</a>. Encode RGB or grayscale pixels
-            as baseline or progressive JPEG, with control over quality, sampling, color
-            profiles and metadata.
+            DotJpegli is a JPEG encoder for .NET based on
+            <a href="https://github.com/google/jpegli">Google Jpegli</a>. It saves color or grayscale
+            images as standard or progressive JPEGs, with options for image quality, color
+            profiles, and metadata.
           </p>
           <p class="hero-sublead">
-            The library is implemented entirely in managed .NET, with no native dependencies,
-            P/Invoke, unsafe code or runtime NuGet dependencies. NativeAOT and trimming are
-            fully supported on .NET 10 and .NET 11.
+            It is written entirely in C# with no native libraries, unsafe code, or extra
+            packages required.
           </p>
 
           <div class="badge-row" aria-label="Project metadata">
@@ -82,7 +81,7 @@
         <!-- Download & Install Panel -->
         <aside class="download-panel" aria-label="Download DotJpegli CLI and NuGet package">
           <div class="download-panel-header">
-            <h2 class="download-panel-title">Self-Contained NativeAOT CLI</h2>
+            <h2 class="download-panel-title">Standalone CLI Download</h2>
             <span class="detected-badge" id="dl-detect-status">Windows · x64</span>
           </div>
 
@@ -229,12 +228,12 @@
     <section class="section" id="photograph-comparison">
       <div class="container">
         <div class="section-header">
-          <p class="section-eyebrow">Visual &amp; Perceptual Evaluation</p>
+          <p class="section-eyebrow">Visual Comparison</p>
           <h2 class="section-title">Photograph comparison</h2>
           <p class="section-desc">
-            Fine clouds of dust, saturated colour and thousands of stars make Webb's
-            <strong>Cosmic Cliffs</strong> a demanding subject. Open the <strong>2400 × 1390</strong> source photograph
-            to inspect its full detail:
+            Fine clouds of dust, rich color, and thousands of stars make the James Webb
+            Space Telescope's <strong>Cosmic Cliffs</strong> a good test for image compression. Click the
+            <strong>2400 × 1390</strong> source photograph to view it at full size:
           </p>
         </div>
 
@@ -252,75 +251,65 @@
           <figcaption class="photo-caption">
             <span>
               <strong>Photograph: NASA, ESA, CSA, and STScI — <a href="https://esawebb.org/images/weic2205a/">ESA/Webb source</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</strong>
-              Resized from the official lossless TIFF; the comparison images are re-encoded and the detail panels are cropped.
+              Resized from the original image; the comparison files are re-encoded and the detail panels are cropped.
             </span>
-            <a href="images/comparison/source.png">Open 2400 × 1390 lossless source PNG ↗</a>
+            <a href="images/comparison/source.png">Open 2400 × 1390 original PNG ↗</a>
           </figcaption>
         </figure>
 
         <p class="comparison-note">
-          Every encoder receives the same RGB pixels. Links open the complete files;
-          sizes include headers and metadata. SSIMULACRA2 measures each decoded image
-          against the source; higher scores indicate closer agreement with that metric.
+          Each encoder compressed the same source image using typical high-quality
+          settings. Higher quality scores mean the result looks closer to the original:
         </p>
 
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Encoder / source</th>
-                <th>Settings</th>
+                <th>Encoder</th>
                 <th class="num-col">File size</th>
-                <th class="num-col">SSIMULACRA2</th>
+                <th class="num-col">Quality score</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td><a href="images/comparison/source.png">Source PNG</a></td>
-                <td>Lossless common input</td>
-                <td class="num-col">4,437,354 bytes · 4333.4 KiB</td>
+                <td><a href="images/comparison/source.png">Original PNG</a></td>
+                <td class="num-col">4,333.4 KiB</td>
                 <td class="num-col">100.00</td>
               </tr>
               <tr class="highlight-row">
                 <td><a href="images/comparison/dotjpegli.jpg">DotJpegli 5.0.0</a></td>
-                <td>Distance 1, 4:2:0, progressive level 2</td>
-                <td class="num-col">723,724 bytes · 706.8 KiB</td>
+                <td class="num-col">706.8 KiB</td>
                 <td class="num-col">80.49</td>
               </tr>
               <tr>
-                <td><a href="images/comparison/google-jpegli.jpg">Google's C++ jpegli</a></td>
-                <td>Distance 1, 4:2:0, progressive level 2</td>
-                <td class="num-col">723,938 bytes · 707.0 KiB</td>
+                <td><a href="images/comparison/google-jpegli.jpg">Google Jpegli (C++)</a></td>
+                <td class="num-col">707.0 KiB</td>
                 <td class="num-col">80.49</td>
               </tr>
               <tr>
                 <td><a href="images/comparison/mozjpeg.jpg">mozjpeg 4.1.1</a></td>
-                <td>Quality 90, 4:2:0, progressive, trellis</td>
-                <td class="num-col">726,330 bytes · 709.3 KiB</td>
+                <td class="num-col">709.3 KiB</td>
                 <td class="num-col">78.92</td>
               </tr>
               <tr>
                 <td><a href="images/comparison/libjpeg-turbo.jpg">libjpeg-turbo 3.2.0</a></td>
-                <td>Quality 90, 4:2:0, progressive</td>
-                <td class="num-col">822,647 bytes · 803.4 KiB</td>
+                <td class="num-col">803.4 KiB</td>
                 <td class="num-col">80.41</td>
               </tr>
               <tr>
                 <td><a href="images/comparison/webp.webp">WebP 1.6.0</a></td>
-                <td>Quality 90, method 6</td>
-                <td class="num-col">640,770 bytes · 625.8 KiB</td>
+                <td class="num-col">625.8 KiB</td>
                 <td class="num-col">82.28</td>
               </tr>
               <tr>
-                <td><a href="images/comparison/avif.avif">AVIF · libavif 1.4.2 / libaom 3.14.1</a></td>
-                <td>Quality 90, speed 6, 8-bit 4:2:0</td>
-                <td class="num-col">837,683 bytes · 818.0 KiB</td>
+                <td><a href="images/comparison/avif.avif">AVIF (libavif 1.4.2)</a></td>
+                <td class="num-col">818.0 KiB</td>
                 <td class="num-col">86.85</td>
               </tr>
               <tr>
-                <td><a href="images/comparison/jpeg-xl.jxl">JPEG XL · libjxl 0.12.0</a></td>
-                <td>Distance 1, effort 7</td>
-                <td class="num-col">759,353 bytes · 741.6 KiB</td>
+                <td><a href="images/comparison/jpeg-xl.jxl">JPEG XL (libjxl 0.12.0)</a></td>
+                <td class="num-col">741.6 KiB</td>
                 <td class="num-col">88.02</td>
               </tr>
             </tbody>
@@ -328,17 +317,10 @@
         </div>
 
         <p class="comparison-note">
-          These are selected high-quality settings for one photograph. Quality scales
-          differ across codecs, and these outputs are <strong>not matched perceptual quality</strong>.
-          JPEG XL and AVIF retain more detail according to this metric at the settings
-          shown. DotJpegli is 214 bytes smaller than Google's jpegli here; their bytes
-          and decoded pixels differ slightly. JPEG XL requires a compatible viewer.
-        </p>
-
-        <p class="comparison-note">
-          The following lossless sheet shows the same <strong>480 × 300</strong> detail from every
-          image, with one source pixel per image pixel. Open it at full size to compare
-          star edges, wispy dust and colour transitions:
+          Because each format uses its own quality scale, these files are not tuned to
+          match exact visual quality or file size. The image below shows the same
+          <strong>480 × 300</strong> section from each version at full size so you can compare stars,
+          dust clouds, and color gradients:
         </p>
 
         <figure class="photo-figure">
@@ -354,8 +336,9 @@
           </a>
           <figcaption class="photo-caption">
             <span>
-              See the <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/photo-comparison.md">source, exact settings, hashes and reproduction instructions</a>.
-              Google also published a separate <a href="https://arxiv.org/abs/2403.18589">human-rater study of jpegli, mozjpeg and libjpeg-turbo</a>; the example above is generated for this repository.
+              See <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/photo-comparison.md">photograph comparison details</a>
+              for the exact settings, byte counts, and steps to reproduce these files.
+              Google also published a <a href="https://arxiv.org/abs/2403.18589">study comparing Jpegli, mozjpeg, and libjpeg-turbo</a>.
             </span>
             <a href="images/comparison/detail-comparison.png">Open full-size detail crop sheet ↗</a>
           </figcaption>
@@ -370,7 +353,7 @@
           <p class="section-eyebrow">Capabilities</p>
           <h2 class="section-title">Features</h2>
           <p class="section-desc">
-            Full-featured JPEG compression implemented in safe, portable managed C# without native binaries or runtime dependencies.
+            Full-featured JPEG compression written in C#, with no native libraries or extra packages required.
           </p>
         </div>
 
@@ -380,9 +363,9 @@
               <span class="feature-icon" aria-hidden="true">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
               </span>
-              <span>Encoding</span>
+              <span>Standard and progressive JPEG</span>
             </h3>
-            <p>Baseline and progressive JPEG, perceptual quality or distance, chroma subsampling and custom scan scripts.</p>
+            <p>Save standard JPEGs or progressive JPEGs that load in stages, with simple quality controls.</p>
           </article>
 
           <article class="feature-card">
@@ -390,9 +373,9 @@
               <span class="feature-icon" aria-hidden="true">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
               </span>
-              <span>Pixel input</span>
+              <span>Flexible pixel input</span>
             </h3>
-            <p>RGB, BGR, grayscale and other layouts; <code>byte</code>, <code>ushort</code> and <code>float</code> sources; configurable row stride.</p>
+            <p>Encode 8-bit, 16-bit, or floating-point pixel data in RGB, BGR, grayscale, and other color formats.</p>
           </article>
 
           <article class="feature-card">
@@ -400,9 +383,9 @@
               <span class="feature-icon" aria-hidden="true">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
               </span>
-              <span>Color and metadata</span>
+              <span>Color profiles and metadata</span>
             </h3>
-            <p>ICC profiles and source color conversion, Exif, XMP, IPTC, comments and raw metadata markers.</p>
+            <p>Embed or convert ICC color profiles, and read, edit, or write Exif, XMP, IPTC, and comment metadata.</p>
           </article>
 
           <article class="feature-card">
@@ -410,9 +393,9 @@
               <span class="feature-icon" aria-hidden="true">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
               </span>
-              <span>Output and execution</span>
+              <span>Streams and multi-threading</span>
             </h3>
-            <p>Byte arrays or streams, cancellation and optional parallel encoding.</p>
+            <p>Write to byte arrays or streams, cancel long operations, and optionally use multiple CPU cores.</p>
           </article>
 
           <article class="feature-card">
@@ -420,9 +403,9 @@
               <span class="feature-icon" aria-hidden="true">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
               </span>
-              <span>Portable acceleration</span>
+              <span>Fast and portable</span>
             </h3>
-            <p>Managed SIMD on .NET 10 and .NET 11, with scalar fallbacks.</p>
+            <p>Runs on .NET Standard 2.1, .NET 10, and .NET 11, using hardware vector acceleration on modern .NET.</p>
           </article>
 
           <article class="feature-card">
@@ -430,25 +413,25 @@
               <span class="feature-icon" aria-hidden="true">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               </span>
-              <span>Pure managed &amp; NativeAOT</span>
+              <span>Self-contained</span>
             </h3>
-            <p>Zero <code>unsafe</code> blocks, zero P/Invoke, zero runtime NuGet dependencies, and full trimming and NativeAOT compatibility.</p>
+            <p>Written entirely in safe C# with no native libraries, unsafe code, or extra packages required.</p>
           </article>
         </div>
       </div>
     </section>
 
-    <!-- Command-line encoder -->
+    <!-- Command-line tool -->
     <section class="section" id="cli">
       <div class="container">
         <div class="section-header">
           <p class="section-eyebrow">Standalone Tooling</p>
-          <h2 class="section-title">Command-line encoder</h2>
+          <h2 class="section-title">Command-line tool</h2>
           <p class="section-desc">
-            Download a self-contained NativeAOT <code>dotjpegli</code> package or portable archive from
-            <a href="https://github.com/symbiogenesis/DotJpegli/releases">Releases</a>. Downloads are
-            available for Windows (x64, ARM64), Linux (x64, ARM64) and macOS (ARM64),
-            and do not require .NET to be installed.
+            To convert images from the terminal without writing code, download <code>dotjpegli</code>
+            from <a href="https://github.com/symbiogenesis/DotJpegli/releases">Releases</a>. Installers
+            and standalone downloads are available for Windows, Linux, and macOS, and do not
+            require .NET to be installed.
           </p>
         </div>
 
@@ -460,10 +443,9 @@
               <button type="button" class="copy-btn" data-copy-target="cli-example-code">Copy</button>
             </div>
           </div>
-          <pre class="code-block"><code id="cli-example-code">dotjpegli encode input.png output.jpg --quality 90 --progressive
-dotjpegli encode input.png output.jpg --distance 1 --subsampling 444 --threads 4</code></pre>
+          <pre class="code-block"><code id="cli-example-code">dotjpegli encode input.png output.jpg --quality 90 --progressive</code></pre>
           <p class="code-card-note">
-            See the <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/cli.md">CLI guide</a> for installation, options and local publishing.
+            See the <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/cli.md">CLI guide</a> for installation and command options.
           </p>
         </div>
 
@@ -474,7 +456,7 @@ dotjpegli encode input.png output.jpg --distance 1 --subsampling 444 --threads 4
               <span class="dl-rid-tag">win-x64 · win-arm64</span>
             </h3>
             <p>
-              Per-user <code>.msi</code> installer (adds <code>dotjpegli</code> to user <code>PATH</code>), portable <code>.zip</code> archive and standalone <code>.exe</code> executable.
+              Per-user <code>.msi</code> installer (adds <code>dotjpegli</code> to user <code>PATH</code>), portable <code>.zip</code> archive, and standalone <code>.exe</code> executable.
             </p>
             <div class="dl-target-links">
               <a data-asset="DotJpegli.Cli-5.0.0-win-x64.msi" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v5.0.0/DotJpegli.Cli-5.0.0-win-x64.msi">x64 .msi</a>
@@ -492,7 +474,7 @@ dotjpegli encode input.png output.jpg --distance 1 --subsampling 444 --threads 4
               <span class="dl-rid-tag">linux-x64 · linux-arm64</span>
             </h3>
             <p>
-              Debian/Ubuntu <code>.deb</code>, Fedora/RHEL/openSUSE <code>.rpm</code>, single-file <code>.AppImage</code>, <code>.flatpak</code> bundle and portable <code>.tar.gz</code>.
+              Debian/Ubuntu <code>.deb</code>, Fedora/RHEL/openSUSE <code>.rpm</code>, single-file <code>.AppImage</code>, <code>.flatpak</code> bundle, and portable <code>.tar.gz</code>.
             </p>
             <div class="dl-target-links">
               <a data-asset="DotJpegli.Cli-5.0.0-linux-x64.deb" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v5.0.0/DotJpegli.Cli-5.0.0-linux-x64.deb">x64 .deb</a>
@@ -511,7 +493,7 @@ dotjpegli encode input.png output.jpg --distance 1 --subsampling 444 --threads 4
               <span class="dl-rid-tag">osx-arm64</span>
             </h3>
             <p>
-              Apple Silicon <code>.pkg</code> installer (installs <code>/usr/local/bin/dotjpegli</code>) and ad-hoc signed portable <code>.tar.gz</code> archive.
+              Apple Silicon <code>.pkg</code> installer (installs <code>/usr/local/bin/dotjpegli</code>) and standalone <code>.tar.gz</code> archive.
             </p>
             <div class="dl-target-links">
               <a data-asset="DotJpegli.Cli-5.0.0-osx-arm64.pkg" href="https://github.com/symbiogenesis/DotJpegli/releases/download/v5.0.0/DotJpegli.Cli-5.0.0-osx-arm64.pkg">ARM64 .pkg</a>
@@ -529,7 +511,7 @@ dotjpegli encode input.png output.jpg --distance 1 --subsampling 444 --threads 4
           <p class="section-eyebrow">Library API</p>
           <h2 class="section-title">Quick start</h2>
           <p class="section-desc">
-            Add the NuGet package to any .NET Standard 2.1, .NET 10 or .NET 11 project and encode pixels to a byte array or stream.
+            Add the NuGet package to your project and encode pixels to a byte array or stream.
           </p>
         </div>
 
@@ -545,13 +527,13 @@ dotjpegli encode input.png output.jpg --distance 1 --subsampling 444 --threads 4
               </div>
               <pre class="code-block"><code id="qs-install">dotnet add package DotJpegli --version 5.0.0</code></pre>
               <p class="code-card-note">
-                Supports .NET Standard 2.1, .NET 10 and .NET 11.
+                Runs on .NET Standard 2.1, .NET 10, and .NET 11.
               </p>
             </div>
 
             <div class="code-card">
               <div class="code-card-header">
-                <span>Build from source</span>
+                <span>Or reference from source</span>
                 <div style="display: flex; align-items: center; gap: 0.6rem;">
                   <span class="code-lang">sh</span>
                   <button type="button" class="copy-btn" data-copy-target="qs-source">Copy</button>
@@ -559,9 +541,8 @@ dotjpegli encode input.png output.jpg --distance 1 --subsampling 444 --threads 4
               </div>
               <pre class="code-block"><code id="qs-source">dotnet add path/to/YourApp.csproj reference src/DotJpegli/DotJpegli.csproj</code></pre>
               <p class="code-card-note">
-                Building from source requires <strong>.NET SDK <code>11.0.100-rc.3.26522.148</code></strong>, pinned in
-                <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/global.json"><code>global.json</code></a>
-                with prerelease SDKs enabled.
+                See the <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/development.md">development guide</a>
+                for SDK requirements and building from source.
               </p>
             </div>
           </div>
@@ -577,7 +558,7 @@ dotjpegli encode input.png output.jpg --distance 1 --subsampling 444 --threads 4
               </div>
               <pre class="code-block"><code id="qs-encode">using DotJpegli;
 
-byte[] rgbPixels = [255, 0, 0]; // One red pixel, in R, G, B order.
+byte[] rgbPixels = [255, 0, 0]; // One red pixel (R, G, B).
 
 byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width: 1, height: 1, options: new()
 {
@@ -586,16 +567,16 @@ byte[] jpeg = JpegliEncoder.Encode(rgbPixels, width: 1, height: 1, options: new(
 
 File.WriteAllBytes("output.jpg", jpeg);</code></pre>
               <p class="code-card-note">
-                For RGB input, the defaults are baseline JPEG, quality 85 and 4:2:0 chroma subsampling.
-                For other pixel layouts, row padding and higher-precision sources, see the
-                <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/encoding.md">encoding guide</a>.
-                Alpha channels are ignored; composite translucent pixels before encoding.
+                By default, <code>Encode</code> writes a standard JPEG at quality 85. Transparency is
+                ignored, so blend transparent images onto a background before encoding. See the
+                <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/encoding.md">encoding guide</a>
+                for other pixel formats and input options.
               </p>
             </div>
 
             <div class="code-card">
               <div class="code-card-header">
-                <span>3. Write progressive JPEG to a stream</span>
+                <span>3. Write a progressive JPEG to a stream</span>
                 <div style="display: flex; align-items: center; gap: 0.6rem;">
                   <span class="code-lang">csharp</span>
                   <button type="button" class="copy-btn" data-copy-target="qs-stream">Copy</button>
@@ -609,9 +590,9 @@ JpegliEncoder.Encode(output, rgbPixels, width: 1, height: 1, options: new()
     Progressive = true
 });</code></pre>
               <p class="code-card-note">
-                The stream overload avoids retaining the complete encoded JPEG in a returned
-                byte array. See <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/compression.md">compression and scan options</a>
-                for quality, sampling and progression controls.
+                Writing to a stream avoids creating a separate byte array in memory for the
+                finished file. See <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/compression.md">compression options</a>
+                for more ways to adjust quality and file size.
               </p>
             </div>
           </div>
@@ -623,19 +604,19 @@ JpegliEncoder.Encode(output, rgbPixels, width: 1, height: 1, options: new()
     <section class="section" id="performance">
       <div class="container">
         <div class="section-header">
-          <p class="section-eyebrow">Benchmarks &amp; Evidence</p>
+          <p class="section-eyebrow">Benchmarks</p>
           <h2 class="section-title">Performance</h2>
           <p class="section-desc">
-            These charts compare DotJpegli with <strong>native Google Jpegli</strong> on 24 Kodak photographs.
+            These charts compare DotJpegli with <strong>Google's C++ Jpegli encoder</strong> across 24 standard test photographs.
           </p>
         </div>
 
         <div class="perf-stack">
           <article class="perf-card">
-            <h3>Encoding wall time</h3>
+            <h3>Encoding speed</h3>
             <p>
-              On an AMD EPYC 9V45, progressive encoding averaged <strong>37.1–41.6% less time</strong>
-              than native; sequential averaged <strong>14.2–15.3% less</strong>.
+              Across the 24 photographs, DotJpegli took <strong>37–42% less time</strong> than Google's C++
+              encoder for progressive JPEGs, and <strong>14–15% less time</strong> for standard JPEGs.
             </p>
             <img
               class="perf-chart"
@@ -643,17 +624,16 @@ JpegliEncoder.Encode(output, rgbPixels, width: 1, height: 1, options: new()
               width="880"
               height="584"
               loading="lazy"
-              alt="Percentage encoding-time differences from native Google Jpegli, pairing Kodak photographs and deterministic controls for each encoding mode."
+              alt="Chart comparing encoding speed between DotJpegli and Google's C++ Jpegli encoder across photographs and test patterns."
             />
           </article>
 
           <article class="perf-card">
-            <h3>Allocations per encode</h3>
+            <h3>Memory allocated per image</h3>
             <p>
-              DotJpegli averaged <strong>79.2–109.1 KiB</strong> of managed GC allocations per encode,
-              compared with <strong>1,924.8–4,288.3 KiB</strong> of native heap requests for Google Jpegli
-              (<a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-evidence/2026-11-07-be14f89/README.md">measurements</a>,
-              including the output JPEG; not peak memory).
+              DotJpegli reuses internal buffers, allocating <strong>79–109 KiB</strong> of memory per image
+              (including the finished JPEG), compared with <strong>1.9–4.3 MiB</strong> requested per image
+              by Google's C++ encoder.
             </p>
             <img
               class="perf-chart"
@@ -661,14 +641,16 @@ JpegliEncoder.Encode(output, rgbPixels, width: 1, height: 1, options: new()
               width="880"
               height="548"
               loading="lazy"
-              alt="DotJpegli managed GC allocation bytes and official Google C++ jpegli requested heap bytes in KiB per encode, grouped by sampling and sequential or progressive encoding."
+              alt="Chart comparing memory allocated per image by DotJpegli and Google's C++ Jpegli encoder."
             />
           </article>
         </div>
 
         <p class="comparison-note" style="margin-bottom: 0;">
-          See <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md">methodology and full results</a> and
-          <a href="images/performance/metrics.json">chart data</a>. All four Kodak photograph groups pass the native latency bounds, while 15 synthetic control cases exceed the per-case limit.
+          On the synthetic test patterns shown alongside the photographs, DotJpegli is
+          also faster on average, though the C++ encoder is still faster on some simple
+          patterns like smooth gradients. See <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md">performance details</a>
+          for the full benchmark results and test setup.
         </p>
       </div>
     </section>
@@ -680,7 +662,7 @@ JpegliEncoder.Encode(output, rgbPixels, width: 1, height: 1, options: new()
           <p class="section-eyebrow">Reference Guides</p>
           <h2 class="section-title">Documentation</h2>
           <p class="section-desc">
-            Detailed guides covering pixel layouts, ICC color profiles, scan scripts, quantization tables, parity evidence and release engineering.
+            Guides covering image formats, color profiles, metadata, compression settings, and benchmarks.
           </p>
         </div>
 
@@ -688,91 +670,91 @@ JpegliEncoder.Encode(output, rgbPixels, width: 1, height: 1, options: new()
           <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/encoding.md">
             <div>
               <h3><span>Encoding</span> <span aria-hidden="true">→</span></h3>
-              <p>Pixel layouts, sampling, streams and color spaces.</p>
+              <p>Pixel formats, color spaces, streams, and input limits.</p>
             </div>
           </a>
 
           <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/metadata.md">
             <div>
               <h3><span>Profiles and metadata</span> <span aria-hidden="true">→</span></h3>
-              <p>ICC profiles, Exif, XMP, IPTC and metadata editing.</p>
+              <p>Color profiles (ICC), Exif, XMP, IPTC, and metadata editing.</p>
             </div>
           </a>
 
           <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/compression.md">
             <div>
               <h3><span>Compression and scans</span> <span aria-hidden="true">→</span></h3>
-              <p>Quality, distance, scan scripts, parallel execution and memory use.</p>
+              <p>Quality settings, progressive JPEGs, multi-threading, and memory limits.</p>
             </div>
           </a>
 
           <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/cli.md">
             <div>
               <h3><span>Command-line encoder</span> <span aria-hidden="true">→</span></h3>
-              <p>NativeAOT CLI usage, portable downloads and Windows, Linux and macOS packages.</p>
+              <p>Command-line options, standalone downloads, and installers.</p>
             </div>
           </a>
 
           <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/quantization.md">
             <div>
               <h3><span>Quantization</span> <span aria-hidden="true">→</span></h3>
-              <p>Standard and custom tables, transfer functions and advanced tuning.</p>
-            </div>
-          </a>
-
-          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/development.md">
-            <div>
-              <h3><span>Development and validation</span> <span aria-hidden="true">→</span></h3>
-              <p>Source builds, focused tests, reproducibility and deployment checks.</p>
-            </div>
-          </a>
-
-          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/publishing.md">
-            <div>
-              <h3><span>Publishing to NuGet</span> <span aria-hidden="true">→</span></h3>
-              <p>Trusted publishing setup and publishing a tested package from CI.</p>
-            </div>
-          </a>
-
-          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/quality-compression-parity.md">
-            <div>
-              <h3><span>Quality and compression parity</span> <span aria-hidden="true">→</span></h3>
-              <p>Comparison scope, acceptance bounds and hosted evidence.</p>
-            </div>
-          </a>
-
-          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md">
-            <div>
-              <h3><span>Performance parity</span> <span aria-hidden="true">→</span></h3>
-              <p>Measurement scope, encoding latency and CI diagnostics.</p>
+              <p>Custom compression tables and HDR tuning.</p>
             </div>
           </a>
 
           <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/photo-comparison.md">
             <div>
               <h3><span>Photograph comparison</span> <span aria-hidden="true">→</span></h3>
-              <p>Licensed high-resolution source, seven encoder outputs, file sizes and reproduction instructions.</p>
+              <p>Source photograph, encoder settings, file sizes, and reproduction steps.</p>
+            </div>
+          </a>
+
+          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/development.md">
+            <div>
+              <h3><span>Development and validation</span> <span aria-hidden="true">→</span></h3>
+              <p>Building from source, project design, and running tests.</p>
+            </div>
+          </a>
+
+          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/publishing.md">
+            <div>
+              <h3><span>Publishing releases</span> <span aria-hidden="true">→</span></h3>
+              <p>How NuGet packages and GitHub releases are published.</p>
+            </div>
+          </a>
+
+          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/quality-compression-parity.md">
+            <div>
+              <h3><span>Quality and compression parity</span> <span aria-hidden="true">→</span></h3>
+              <p>How image quality and file sizes compare with Google's C++ Jpegli.</p>
+            </div>
+          </a>
+
+          <a class="doc-card" href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md">
+            <div>
+              <h3><span>Performance parity</span> <span aria-hidden="true">→</span></h3>
+              <p>How encoding speed and memory use are measured.</p>
             </div>
           </a>
         </div>
 
         <div class="scope-grid">
           <div class="scope-box">
-            <h3>Scope</h3>
+            <h3>Good to know</h3>
             <p>
-              DotJpegli produces <strong>lossy, eight-bit JPEG</strong>, including from higher-precision
-              sources and even at quality 100. Jpegli's quality scale is not interchangeable with
-              libjpeg's. Decoding is outside the project's scope.
+              DotJpegli creates JPEG files; it does not decode (read) existing JPEGs.
+              Like all standard JPEGs, the output is 8-bit and uses lossy compression—even
+              at quality 100 or when starting from 16-bit or floating-point pixels.
             </p>
           </div>
           <div class="scope-box">
-            <h3>Validation</h3>
+            <h3>Quality and compatibility</h3>
             <p>
-              Quality and compression parity with upstream is established within a
-              <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/quality-compression-parity.md">documented RGB8 YCbCr scope</a>.
-              Byte-identical upstream output is not claimed.
-              <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/performance-parity.md">Performance results and acceptance bounds</a>
-              are documented separately.
+              Jpegli's quality numbers do not match <code>libjpeg</code> one-for-one, so the
+              same number may produce a different file size or look than other JPEG encoders.
+              DotJpegli is tested to match Google's C++ Jpegli closely in
+              <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/quality-compression-parity.md">image quality and file size</a>,
+              though the two encoders do not always produce identical files byte-for-byte.
             </p>
           </div>
         </div>
@@ -784,20 +766,20 @@ JpegliEncoder.Encode(output, rgbPixels, width: 1, height: 1, options: new()
     <div class="container footer-inner">
       <div>
         <p style="margin: 0 0 0.45rem;">
-          Copyright &copy; 2026 Edward Miller. Licensed under
-          <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE">BSD-3-Clause</a>, with the
-          upstream copyright notice retained for adapted portions.
+          Copyright &copy; 2026 Edward Miller. Licensed under the
+          <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE">BSD 3-Clause License</a>.
+          See <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/THIRD-PARTY-NOTICES.md">Third-Party Notices</a>
+          for Google Jpegli license and attribution details.
         </p>
         <p style="margin: 0;">
-          The photograph and its derivatives are separately licensed under
-          <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, with the full credit
-          and source given in the comparison above.
+          The Cosmic Cliffs photograph and comparison crops are licensed separately under
+          <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, with full credit
+          and source links in the comparison above.
         </p>
       </div>
       <div class="footer-links">
         <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/LICENSE">License</a>
         <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/THIRD-PARTY-NOTICES.md">Third-party notices</a>
-        <a href="https://github.com/symbiogenesis/DotJpegli/blob/main/docs/upstream.json">Upstream manifest</a>
         <a href="https://github.com/symbiogenesis/DotJpegli">GitHub repository</a>
       </div>
     </div>

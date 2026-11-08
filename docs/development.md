@@ -143,7 +143,12 @@ dotnet restore DotJpegli.slnx --locked-mode
 dotnet build src/DotJpegli/DotJpegli.csproj -c Release --no-restore
 ```
 
-Pass `-f netstandard2.1` to build only the portable target.
+Pass `-f netstandard2.1` to build only the portable target. To reference the
+library from source in another application:
+
+```sh
+dotnet add path/to/YourApp.csproj reference src/DotJpegli/DotJpegli.csproj
+```
 
 ### Analyzers and code style
 

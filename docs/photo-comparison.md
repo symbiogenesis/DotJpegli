@@ -30,7 +30,8 @@ ESA/Webb distributes this image under [CC BY 4.0](https://creativecommons.org/li
 ### Interpretation notes
 
 - **File sizes**: Complete file lengths in bytes (`1 KiB = 1024 bytes`).
-- **Quality scales**: Nominal settings (`Quality 90` vs `Distance 1`) are not matched for equal distortion across codecs. SSIMULACRA2 scores are computed on the full `2400 x 1390` decoded images using libjxl 0.12.0's [`ssimulacra2`](https://github.com/libjxl/libjxl/blob/v0.12.0/tools/ssimulacra2.cc) tool (higher is closer to the source).
+- **Quality scales**: Nominal settings (`Quality 90` vs `Distance 1`) are not matched for equal distortion across codecs. SSIMULACRA2 scores are computed on the full `2400 x 1390` decoded images using libjxl 0.12.0's [`ssimulacra2`](https://github.com/libjxl/libjxl/blob/v0.12.0/tools/ssimulacra2.cc) tool (higher is closer to the source). At the settings shown, JPEG XL and AVIF retain more detail according to SSIMULACRA2; viewing `.jxl` requires a JPEG XL-compatible viewer.
+- **DotJpegli vs. Google jpegli**: On this photograph, DotJpegli is 214 bytes smaller than Google's C++ jpegli (`723,724` vs. `723,938` bytes) with the same rounded SSIMULACRA2 score (`80.49`); their compressed bitstreams and decoded pixels differ slightly.
 - **Detail crop sheet**: [`detail-comparison.png`](images/comparison/detail-comparison.png) shows the exact `480 x 300` pixel crop `(850, 420)..(1330, 720)` from each decoded image at 1:1 pixel scale.
 - **External study**: For a multi-image perceptual study of Jpegli, see Google's [2024 human-rater paper](https://arxiv.org/abs/2403.18589) across 49 CID22 images.
 
