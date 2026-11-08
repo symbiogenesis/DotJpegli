@@ -3,12 +3,6 @@
 <#
 .SYNOPSIS
 Checks repository PowerShell files and GitHub Actions commands with PSScriptAnalyzer.
-.DESCRIPTION
-Uses every default analyzer rule at every severity. Includes tracked files and
-unignored new files, while excluding build artifacts through Git's ignore rules.
-GitHub expressions are replaced with inert text for static analysis of run blocks.
-.EXAMPLE
-./tools/ci/analyze-powershell.ps1
 #>
 [CmdletBinding()]
 param()
@@ -16,23 +10,20 @@ param()
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
-$repository = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+$repository = (Resolve-Path -LiteralPath "$PSScriptRoot/../..").ProviderPath
 $settings = @{ IncludeDefaultRules = $true; Severity = @('Error', 'Warning', 'Information') }
 
-function Get-DefaultShell([System.Collections.IDictionary] $Definition) {
-    $defaults = $Definition['defaults']
-    if ($null -eq $defaults -or $null -eq $defaults['run']) { return $null }
-    return $defaults['run']['shell']
+function Get-DefaultShell([Collections.IDictionary] $Map) {
+    return $Map['defaults'] -and $Map['defaults']['run'] ? $Map['defaults']['run']['shell'] : $null
 }
 
-function Get-RepositoryPath([string[]] $Pattern) {
-    $paths = git -C $repository ls-files -z --cached --others --exclude-standard -- @Pattern
-    # Rejoin native output lines before splitting records, preserving newlines in filenames.
-    return ($paths -join "`n").Split([char]0, [System.StringSplitOptions]::RemoveEmptyEntries)
+function Get-RepoPath([string[]] $Pattern) {
+    return (@(git -C $repository ls-files -z --cached --others --exclude-standard -- @Pattern) -join "`n").
+        Split([char]0, [StringSplitOptions]::RemoveEmptyEntries)
 }
 
-$scriptPaths = @(Get-RepositoryPath -Pattern ':(icase)*.ps1', ':(icase)*.psm1', ':(icase)*.psd1')
-$workflowPaths = @(Get-RepositoryPath -Pattern '.github/workflows/*.yml', '.github/workflows/*.yaml')
+$scriptPaths = @(Get-RepoPath ':(icase)*.ps1', ':(icase)*.psm1', ':(icase)*.psd1')
+$workflowPaths = @(Get-RepoPath '.github/workflows/*.yml', '.github/workflows/*.yaml')
 $commandCount = 0
 $diagnostics = @(
     foreach ($path in $scriptPaths) {
@@ -43,19 +34,15 @@ $diagnostics = @(
         $workflow = Get-Content -LiteralPath (Join-Path $repository $path) -Raw | ConvertFrom-Yaml
         foreach ($jobName in $workflow['jobs'].Keys) {
             $job = $workflow['jobs'][$jobName]
-            # A matrix containing Windows can execute commands with the default pwsh shell.
-            $canRunOnWindows = $job['runs-on'] -match 'windows' -or
-                ($job['strategy'] | ConvertTo-Json -Depth 20 -Compress) -match 'windows'
-            $defaultShell = (Get-DefaultShell -Definition $job) ?? (Get-DefaultShell -Definition $workflow)
+            $canRunOnWindows = $job['runs-on'] -match 'windows' -or ($job['strategy'] | ConvertTo-Json -Depth 20 -Compress) -match 'windows'
+            $defaultShell = (Get-DefaultShell $job) ?? (Get-DefaultShell $workflow)
             foreach ($step in $job['steps']) {
                 if (-not $step.ContainsKey('run')) { continue }
                 $shell = $step['shell'] ?? $defaultShell ?? ($canRunOnWindows ? 'pwsh' : 'bash')
-                if ($shell.Contains('${{', [System.StringComparison]::Ordinal)) {
+                if ($shell.Contains('${{', [StringComparison]::Ordinal)) {
                     throw "$path ($jobName): declare an explicit shell so workflow commands can be analyzed."
                 }
-                if ($shell -match '^powershell(?:\s|$)') {
-                    throw "$path ($jobName): use pwsh instead of Windows PowerShell."
-                }
+                if ($shell -match '^powershell(?:\s|$)') { throw "$path ($jobName): use pwsh instead of Windows PowerShell." }
                 if ($shell -notmatch '^pwsh(?:\s|$)') { continue }
                 $commandCount++
                 $source = "$path ($jobName / $($step['name'] ?? $step['id'] ?? "command $commandCount"))"
