@@ -16,7 +16,10 @@ internal static class CorpusCommand
             return;
         }
 
-        await Prepare(args.Get("output"), args.Optional("source"), args.Get("manifest"));
+        await Prepare(
+            args.Get("output"),
+            args.Optional("source"),
+            args.Optional("manifest") ?? Path.Combine(ReleaseCommand.FindRepositoryRoot(), "tools/parity/corpus.json"));
     }
 
     internal static async Task Prepare(string output, string? source, string manifestPath)

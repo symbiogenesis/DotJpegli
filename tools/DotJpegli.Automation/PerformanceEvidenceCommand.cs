@@ -40,7 +40,10 @@ internal static partial class PerformanceEvidenceCommand
         }
         else if (args.Has("compare-runtimes"))
         {
-            Console.Write(CompareRuntimes(args.Get("directory"), args.Optional("architecture") ?? Environment.GetEnvironmentVariable("RUNNER_ARCH"), args.Optional("summary")));
+            Console.Write(CompareRuntimes(
+                args.Get("directory"),
+                args.Optional("architecture") ?? Environment.GetEnvironmentVariable("RUNNER_ARCH"),
+                args.Optional("summary") ?? Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY")));
         }
         else
         {

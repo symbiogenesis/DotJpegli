@@ -105,6 +105,25 @@ internal static class ReleaseTests
         Reject(() => ReleaseCommand.CompareArtifacts(first, second, hashes), "three target-framework");
         File.Delete(Path.Combine(second, Path.GetFileName(package)));
         Reject(() => ReleaseCommand.CompareArtifacts(first, second, hashes), "one NuGet package");
+
+        string releaseDir = Path.Combine(root, "release-dir"), summaryPath = Path.Combine(root, "summary.md");
+        _ = Directory.CreateDirectory(releaseDir);
+        File.Copy(package, Path.Combine(releaseDir, Path.GetFileName(package)));
+        foreach (string rid in CliReleaseCommand.SupportedRids)
+        {
+            foreach (string asset in CliReleaseCommand.GetExpectedReleaseAssetSet(Version, rid))
+            {
+                File.WriteAllText(Path.Combine(releaseDir, asset), asset);
+            }
+        }
+
+        ReleaseCommand.VerifyReleaseDirectory(releaseDir, Version, Revision, summaryPath);
+        if (!File.Exists(Path.Combine(releaseDir, "SHA256SUMS")) || !File.ReadAllText(summaryPath).Contains(Version, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Release directory verification did not write SHA256SUMS or step summary.");
+        }
+
+        Reject(() => ReleaseCommand.VerifyReleaseDirectory(releaseDir, Version, Revision), "complete artifact set");
     }
 
     private static void Verify(string path) => ReleaseCommand.VerifyPackage(path, Version, Revision);

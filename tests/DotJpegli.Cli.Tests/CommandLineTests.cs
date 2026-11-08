@@ -130,4 +130,8 @@ public sealed class CommandLineTests
             Directory.Delete(directory, recursive: true);
         }
     }
+
+    [Fact]
+    public void ReleaseAssetsBinaryHeadersJpegFramesAndInstallerPathChecksPass() =>
+        Automation.CliReleaseTests.Run();
 }

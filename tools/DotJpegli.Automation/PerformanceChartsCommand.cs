@@ -66,7 +66,7 @@ internal static class PerformanceChartsCommand
         }
         double worstTimeRatio = cases.Max(item => Number(item["medianRatio"]));
         double worstSizeRatio = matches.Max(item => Positive(item["sizeRatio"], "Matched-quality size ratio"));
-        string output = args.Get("output");
+        string output = args.Optional("output") ?? Path.Combine(ReleaseCommand.FindRepositoryRoot(), "docs/assets/performance");
         _ = Directory.CreateDirectory(output);
         File.WriteAllText(Path.Combine(output, "wall-time.svg"), WallTime(timeRows, performanceIdentity, worstTimeRatio, True(performance["passed"])));
         File.WriteAllText(Path.Combine(output, "compression.svg"), Compression(sizeRows, qualityIdentity, worstSizeRatio));
