@@ -45,5 +45,5 @@ To verify package structure and metadata locally without running tests or benchm
 ```powershell
 dotnet restore src/DotJpegli/DotJpegli.csproj --locked-mode
 dotnet pack src/DotJpegli/DotJpegli.csproj -c Release --no-restore --output <ABSOLUTE-TEMP-DIRECTORY> -p:ContinuousIntegrationBuild=true -p:RepositoryBranch=refs/heads/main
-./tools/verify-release.ps1 -PackagePath <ABSOLUTE-PACKAGE-PATH> -ExpectedVersion 5.0.0 -ExpectedRevision <FULL-COMMIT-SHA>
+dotnet run --project tools/DotJpegli.Automation -c Release -- release --package <ABSOLUTE-PACKAGE-PATH> --version 5.0.0 --revision <FULL-COMMIT-SHA>
 ```

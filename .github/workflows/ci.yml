@@ -81,32 +81,27 @@ jobs:
           #requires -Version 7.6
           Set-StrictMode -Version 3.0
           $modules = Join-Path $env:RUNNER_TEMP 'powershell-modules'
-          [void][System.IO.Directory]::CreateDirectory($modules)
+          $null = [IO.Directory]::CreateDirectory($modules)
           Save-PSResource -Name PSScriptAnalyzer -Version 1.25.0 -Path $modules -Repository PSGallery -TrustRepository -Quiet
           Save-PSResource -Name powershell-yaml -Version 0.4.12 -Path $modules -Repository PSGallery -TrustRepository -Quiet
-          "PSModulePath=$modules$([System.IO.Path]::PathSeparator)$env:PSModulePath" |
+          "PSModulePath=$modules$([IO.Path]::PathSeparator)$env:PSModulePath" |
             Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8NoBOM
       - name: Analyze every PowerShell file and workflow command
         run: ./tools/ci/analyze-powershell.ps1
       - name: Check automation using synthetic fixtures (no benchmarks)
         run: |
-          ./tools/parity/prepare-corpus.ps1 -SelfTest
-          ./tools/compare-performance-revisions.ps1 -SelfTest
-          ./tools/ci/performance-evidence.ps1 -SelfTest
-          ./tools/update-performance-charts.ps1 -SelfTest
-          ./tools/assert-infersharp.ps1 -SelfTest
-          ./tools/verify-release.ps1 -SelfTest
-          ./tools/ci/test-cli-installer.ps1 -SelfTest
-          ./tools/Invoke-Automation.ps1 -CommandArguments @('native-reference', '--self-test')
+          dotnet restore tools/DotJpegli.Automation/DotJpegli.Automation.csproj --locked-mode
+          dotnet run --project tools/DotJpegli.Automation/DotJpegli.Automation.csproj -c Release --no-restore -- self-test
       - name: Regenerate README charts from retained CI measurements (no benchmarks)
         if: matrix.os == 'ubuntu-latest'
         run: |
           $chartOutput = Join-Path $env:RUNNER_TEMP 'readme-performance-charts'
-          ./tools/update-performance-charts.ps1 -Performance docs/performance-evidence/2026-11-07-be14f89/full -Quality docs/performance-evidence/2026-11-07-be14f89/quality -Allocations docs/performance-evidence/2026-11-07-be14f89/allocations -Output $chartOutput | Out-Null
-          foreach ($name in @('compression.svg', 'wall-time.svg', 'allocations.svg', 'metrics.json')) {
-            $expectedHash = (Get-FileHash -LiteralPath (Join-Path 'docs/images/performance' $name) -Algorithm SHA256).Hash
-            $actualHash = (Get-FileHash -LiteralPath (Join-Path $chartOutput $name) -Algorithm SHA256).Hash
-            if ($expectedHash -cne $actualHash) { throw "README chart does not match retained evidence: $name" }
+          dotnet run --project tools/DotJpegli.Automation/DotJpegli.Automation.csproj -c Release --no-build -- performance-charts --performance docs/performance-evidence/2026-11-07-be14f89/full --quality docs/performance-evidence/2026-11-07-be14f89/quality --allocations docs/performance-evidence/2026-11-07-be14f89/allocations --output $chartOutput | Out-Null
+          foreach ($name in 'compression.svg', 'wall-time.svg', 'allocations.svg', 'metrics.json') {
+            if ((Get-FileHash -LiteralPath "docs/images/performance/$name" -Algorithm SHA256).Hash -cne
+                (Get-FileHash -LiteralPath (Join-Path $chartOutput $name) -Algorithm SHA256).Hash) {
+              throw "README chart does not match retained evidence: $name"
+            }
           }
 
   test:
@@ -169,8 +164,7 @@ jobs:
         run: dotnet run --project tests/DotJpegli.Tests -c Release -f ${{ matrix.target.framework }} --no-build -p:DotJpegliLibraryTargetFramework=${{ matrix.target.library }} -- -class DotJpegli.Tests.SimdDctTests -class DotJpegli.Tests.PlaneDctTests -class DotJpegli.Tests.Net11DctTransposeTests -class DotJpegli.Tests.Net11DownsamplingTests -class DotJpegli.Tests.AdaptiveQuantizationReuseTests -class DotJpegli.Tests.SimdColorConversionTests -class DotJpegli.Tests.SimdDownsamplingTests -class DotJpegli.Tests.SimdQuantizationTests -class DotJpegli.Tests.PreparedQuantizationTests -class DotJpegli.Tests.OrderedEntropyTests -class DotJpegli.Tests.OrderedProgressiveEntropyTests -class DotJpegli.Tests.SimdAdaptiveQuantizationTests -class DotJpegli.Tests.PlanarPixelSourceTests -class DotJpegli.Tests.EncoderSimdTests -class DotJpegli.Tests.EncoderParallelTests -class DotJpegli.Tests.ParallelEntropyTokenTests -class DotJpegli.Tests.EncoderParallelEntropyTests -class DotJpegli.Tests.SourceIccColorManagementTests -class DotJpegli.Tests.NumericalTests -class DotJpegli.Tests.EncoderSmokeTests -class DotJpegli.Tests.ExifMetadataTests -class DotJpegli.Tests.HuffmanCodingPlanTests -class DotJpegli.Tests.FuzzyErosionSelectionTests -class DotJpegli.Tests.AdaptiveQuantizationWorkspaceTests -class DotJpegli.Tests.FusedPlaneQuantizationTests
       - name: Verify reproducible Release assembly and package
         if: matrix.target.library == 'net11.0'
-        shell: pwsh
-        run: ./tools/verify-release.ps1 -Reproducibility
+        run: dotnet run --project tools/DotJpegli.Automation/DotJpegli.Automation.csproj -c Release --no-restore -- release --reproducibility
 
   deployment:
     name: Deployment (${{ matrix.os }}, ${{ matrix.framework }})
@@ -201,22 +195,14 @@ jobs:
         working-directory: ${{ runner.temp }}
         shell: pwsh
         run: |
-          #requires -Version 7.6
-          Set-StrictMode -Version 3.0
-          $PSNativeCommandUseErrorActionPreference = $true
-          $extension = $IsWindows ? '.exe' : ''
-          & (Join-Path $env:RUNNER_TEMP "trimmed-smoke/DotJpegli.AotSmoke$extension")
+          & (Join-Path $env:RUNNER_TEMP "trimmed-smoke/DotJpegli.AotSmoke$($IsWindows ? '.exe' : '')")
       - name: Publish NativeAOT consumer (all library methods analyzed)
         run: dotnet publish tests/DotJpegli.AotSmoke/DotJpegli.AotSmoke.csproj -c Release -f ${{ matrix.framework }} -r ${{ matrix.rid }} --self-contained true -p:PublishAot=true -o "${{ runner.temp }}/aot-smoke"
       - name: Run NativeAOT consumer
         working-directory: ${{ runner.temp }}
         shell: pwsh
         run: |
-          #requires -Version 7.6
-          Set-StrictMode -Version 3.0
-          $PSNativeCommandUseErrorActionPreference = $true
-          $extension = $IsWindows ? '.exe' : ''
-          & (Join-Path $env:RUNNER_TEMP "aot-smoke/DotJpegli.AotSmoke$extension")
+          & (Join-Path $env:RUNNER_TEMP "aot-smoke/DotJpegli.AotSmoke$($IsWindows ? '.exe' : '')")
 
   cli:
     name: NativeAOT CLI (${{ matrix.rid }})
@@ -285,7 +271,9 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
-      - run: dotnet restore src/DotJpegli/DotJpegli.csproj --locked-mode
+      - run: |
+          dotnet restore src/DotJpegli/DotJpegli.csproj --locked-mode
+          dotnet restore tools/DotJpegli.Automation/DotJpegli.Automation.csproj --locked-mode
       - name: Pack all library targets once
         run: dotnet pack src/DotJpegli/DotJpegli.csproj -c Release --no-restore --output "${{ runner.temp }}/nuget" -p:ContinuousIntegrationBuild=true -p:RepositoryBranch=refs/heads/main
       - name: Verify package contents and provenance
@@ -299,7 +287,7 @@ jobs:
           $packages = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'nuget') -Filter '*.nupkg' -File)
           if ($packages.Count -ne 1) { throw 'Expected exactly one NuGet package.' }
           $version = dotnet msbuild src/DotJpegli/DotJpegli.csproj -nologo -getProperty:PackageVersion
-          ./tools/verify-release.ps1 -PackagePath $packages[0].FullName -ExpectedVersion $version -ExpectedRevision $env:EXPECTED_REVISION
+          dotnet run --project tools/DotJpegli.Automation/DotJpegli.Automation.csproj -c Release --no-restore -- release --package $packages[0].FullName --version $version --revision $env:EXPECTED_REVISION
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nuget-${{ github.sha }}
@@ -350,11 +338,12 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/parity-corpus
-          key: jpegli-corpus-v1-${{ hashFiles('tools/parity/corpus.json', 'tools/parity/prepare-corpus.ps1', 'tools/DotJpegli.Automation/Corpus*.cs') }}
+          key: jpegli-corpus-v1-${{ hashFiles('tools/parity/corpus.json', 'tools/DotJpegli.Automation/Corpus*.cs') }}
       - name: Prepare hash-pinned lossless photographic corpus
         if: steps.corpus-cache.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: ./tools/parity/prepare-corpus.ps1 -Output "${{ runner.temp }}/parity-corpus"
+        run: |
+          dotnet restore tools/DotJpegli.Automation/DotJpegli.Automation.csproj --locked-mode
+          dotnet run --project tools/DotJpegli.Automation/DotJpegli.Automation.csproj -c Release --no-restore -- corpus --output "${{ runner.temp }}/parity-corpus"
       - name: Share reference and corpus with comparison job
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -650,10 +639,11 @@ jobs:
           taskset -c "$cpu" dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ matrix.framework }}/DotJpegli.Performance.dll" --compare-kernels --include-automatic --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/kernel-intermediate-evidence" --images intermediate-64k,intermediate-128k --distances 1,4 --samplings 444,420 --progressions 0,2 --blocks 6 --warmups 5 --iterations 20
       - name: Check actual comparison capabilities
         if: always()
-        shell: pwsh
         env:
           EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
-        run: ./tools/ci/performance-evidence.ps1 -AssertSimd -Evidence "${{ runner.temp }}/kernel-evidence", "${{ runner.temp }}/kernel-intermediate-evidence" -Architecture $env:EXPECTED_ARCHITECTURE
+        run: |
+          dotnet restore tools/DotJpegli.Automation/DotJpegli.Automation.csproj --locked-mode
+          dotnet run --project tools/DotJpegli.Automation/DotJpegli.Automation.csproj -c Release --no-restore -- performance-evidence --assert-simd --evidence "${{ runner.temp }}/kernel-evidence" --evidence "${{ runner.temp }}/kernel-intermediate-evidence" --architecture "$EXPECTED_ARCHITECTURE"
       - name: Retain interleaved kernel evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -703,6 +693,8 @@ jobs:
           chmod +x "${{ runner.temp }}/parity-native/jpegli-parity-native"
           dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
           dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-restore
+          dotnet restore tools/DotJpegli.Automation/DotJpegli.Automation.csproj --locked-mode
+          dotnet build tools/DotJpegli.Automation/DotJpegli.Automation.csproj -c Release --no-restore
       - name: Verify performance evidence policy using synthetic samples
         run: |
           dotnet run --project tools/DotJpegli.Performance -c Release -f ${{ inputs.framework || 'net11.0' }} --no-build -- --self-test
@@ -786,7 +778,7 @@ jobs:
           DOTJPEGLI_PERFORMANCE_INSTRUMENTATION: 'dotnet-trace 10.0.750501; dotnet-sampled-thread-time; profiling timings are not acceptance evidence'
         run: |
           cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
-          read -r image sampling progression distance < <(pwsh -NoProfile -File "${{ github.workspace }}/tools/ci/performance-evidence.ps1" -SelectProfiles -Evidence "${{ runner.temp }}/performance-evidence")
+          read -r image sampling progression distance < <(dotnet "${{ github.workspace }}/tools/DotJpegli.Automation/bin/Release/net10.0/DotJpegli.Automation.dll" performance-evidence --select-profiles --evidence "${{ runner.temp }}/performance-evidence")
           taskset -c "$cpu" "${{ runner.temp }}/diagnostic-tools/dotnet-trace" collect --profile dotnet-sampled-thread-time --format Speedscope --show-child-io --output "${{ runner.temp }}/performance-profile.nettrace" -- dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/${{ inputs.framework || 'net11.0' }}/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/profile-evidence" --diagnostic --images "$image" --distances "$distance" --samplings "$sampling" --progressions "$progression" --blocks 3 --iterations 20 --warmups 5 2>&1 | tee "${{ runner.temp }}/performance-profile.log"
       - name: Retain separate instrumented CPU diagnostics
         if: always() && steps.profiler.outcome != 'skipped'
@@ -1052,8 +1044,9 @@ jobs:
             if [[ "$verdict" -gt 1 ]]; then exit "$verdict"; fi
           done
       - name: Report runtime and explicit SIMD comparisons
-        shell: pwsh
-        run: ./tools/ci/performance-evidence.ps1 -CompareRuntimes -Directory "${{ runner.temp }}"
+        run: |
+          dotnet restore tools/DotJpegli.Automation/DotJpegli.Automation.csproj --locked-mode
+          dotnet run --project tools/DotJpegli.Automation/DotJpegli.Automation.csproj -c Release --no-restore -- performance-evidence --compare-runtimes --directory "${{ runner.temp }}"
       - name: Retain runtime comparison evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1109,6 +1102,8 @@ jobs:
         run: |
           dotnet restore tools/DotJpegli.Performance/DotJpegli.Performance.csproj --locked-mode
           dotnet build tools/DotJpegli.Performance/DotJpegli.Performance.csproj -c Release --no-restore
+          dotnet restore tools/DotJpegli.Automation/DotJpegli.Automation.csproj --locked-mode
+          dotnet build tools/DotJpegli.Automation/DotJpegli.Automation.csproj -c Release --no-restore
       - name: Verify performance statistics and acceptance policy
         run: dotnet run --project tools/DotJpegli.Performance -c Release -f net11.0 --no-build -- --self-test
       - name: Compare steady-state encoding latency (CI only)
@@ -1121,8 +1116,7 @@ jobs:
           taskset -c "$cpu" dotnet run --project tools/DotJpegli.Performance -c Release -f net11.0 --no-build -- --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/performance-evidence"
       - name: Generate README charts from complete measurements
         if: ${{ !cancelled() && steps.performance.outcome != 'skipped' }}
-        shell: pwsh
-        run: ./tools/update-performance-charts.ps1 -Performance "${{ runner.temp }}/performance-evidence" -Quality "${{ runner.temp }}/parity-evidence" -Output "${{ runner.temp }}/performance-charts"
+        run: dotnet tools/DotJpegli.Automation/bin/Release/net10.0/DotJpegli.Automation.dll performance-charts --performance "${{ runner.temp }}/performance-evidence" --quality "${{ runner.temp }}/parity-evidence" --output "${{ runner.temp }}/performance-charts"
       - name: Retain generated performance charts
         if: ${{ !cancelled() && steps.performance.outcome != 'skipped' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1169,7 +1163,7 @@ jobs:
           DOTJPEGLI_PERFORMANCE_INSTRUMENTATION: 'dotnet-trace 10.0.750501; dotnet-sampled-thread-time; profiling timings are not acceptance evidence'
         run: |
           cpu=$(awk '/^Cpus_allowed_list:/ { split($2, cpus, /[,-]/); print cpus[1] }' /proc/self/status)
-          pwsh -NoProfile -File "${{ github.workspace }}/tools/ci/performance-evidence.ps1" -SelectProfiles -Evidence "${{ runner.temp }}/performance-evidence" -Full > "${{ runner.temp }}/full-performance-profile-selection.txt"
+          dotnet "${{ github.workspace }}/tools/DotJpegli.Automation/bin/Release/net10.0/DotJpegli.Automation.dll" performance-evidence --select-profiles --full --evidence "${{ runner.temp }}/performance-evidence" > "${{ runner.temp }}/full-performance-profile-selection.txt"
           while read -r image sampling progression distance; do
             if ! taskset -c "$cpu" "${{ runner.temp }}/diagnostic-tools/dotnet-trace" collect --profile dotnet-sampled-thread-time --format Speedscope --show-child-io --output "${{ runner.temp }}/full-performance-profile-$image.nettrace" -- dotnet "${{ github.workspace }}/tools/DotJpegli.Performance/bin/Release/net11.0/DotJpegli.Performance.dll" --native "${{ runner.temp }}/parity-native/jpegli-parity-native" --corpus "${{ runner.temp }}/parity-corpus" --output "${{ runner.temp }}/full-performance-profile-evidence-$image" --diagnostic --images "$image" --distances "$distance" --samplings "$sampling" --progressions "$progression" --blocks 7 --iterations 100 --warmups 5 2>&1 | tee "${{ runner.temp }}/full-performance-profile-$image.log"; then
               echo "Profiler or instrumented comparison returned nonzero; diagnostic evidence retained."

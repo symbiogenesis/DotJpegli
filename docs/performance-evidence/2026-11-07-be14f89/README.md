@@ -74,9 +74,9 @@ targets, is 0.363636%. The quality comparison retains 1,280 encoding pairs,
 Regenerate all charts from the retained evidence without running a benchmark:
 
 ```powershell
-./tools/update-performance-charts.ps1 `
-  -Performance docs/performance-evidence/2026-11-07-be14f89/full `
-  -Quality docs/performance-evidence/2026-11-07-be14f89/quality `
-  -Allocations docs/performance-evidence/2026-11-07-be14f89/allocations `
-  -Output .artifacts/regenerated-readme-charts
+dotnet run --project tools/DotJpegli.Automation -c Release -- performance-charts `
+  --performance docs/performance-evidence/2026-11-07-be14f89/full `
+  --quality docs/performance-evidence/2026-11-07-be14f89/quality `
+  --allocations docs/performance-evidence/2026-11-07-be14f89/allocations `
+  --output .artifacts/regenerated-readme-charts
 ```

@@ -35,9 +35,11 @@ jobs:
         with:
           global-json-file: global.json
           cache: true
-          cache-dependency-path: src/DotJpegli/packages.lock.json
+          cache-dependency-path: '**/packages.lock.json'
       - name: Restore
-        run: dotnet restore src/DotJpegli/DotJpegli.csproj --locked-mode
+        run: |
+          dotnet restore src/DotJpegli/DotJpegli.csproj --locked-mode
+          dotnet restore tools/DotJpegli.Automation/DotJpegli.Automation.csproj --locked-mode
       # Packaging embeds symbols. Give InferSharp portable PDBs and stage only
       # our library; the normal CI build retains strict Roslyn analysis.
       - name: Build analysis input
@@ -46,7 +48,7 @@ jobs:
           -p:RunAnalyzers=false -p:DebugType=portable -p:DebugSymbols=true
       - name: Test report validation
         shell: pwsh
-        run: ./tools/assert-infersharp.ps1 -SelfTest
+        run: dotnet run --project tools/DotJpegli.Automation/DotJpegli.Automation.csproj -c Release --no-restore -- infer-sharp --self-test
       - name: Stage analysis input
         shell: bash
         env:
@@ -79,4 +81,4 @@ jobs:
         shell: pwsh
         run: |
           Get-Content -LiteralPath .artifacts/infersharp/report.txt
-          ./tools/assert-infersharp.ps1 -ReportPath .artifacts/infersharp/report.sarif -TranslationLogPath .artifacts/infersharp/analysis.log -BaselinePath tools/infersharp-baseline.json -TargetFramework '${{ matrix.tf }}' | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          dotnet run --project tools/DotJpegli.Automation/DotJpegli.Automation.csproj -c Release --no-build -- infer-sharp --report .artifacts/infersharp/report.sarif --translation-log .artifacts/infersharp/analysis.log --baseline tools/infersharp-baseline.json --framework '${{ matrix.tf }}' | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append

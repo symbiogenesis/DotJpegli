@@ -179,12 +179,7 @@ native provenance verification, and release inspection. Run its local self-tests
 (which use synthetic fixtures and do not run benchmarks):
 
 ```powershell
-./tools/parity/prepare-corpus.ps1 -SelfTest
-./tools/compare-performance-revisions.ps1 -SelfTest
-./tools/ci/performance-evidence.ps1 -SelfTest
-./tools/assert-infersharp.ps1 -SelfTest
-./tools/verify-release.ps1 -SelfTest
-./tools/Invoke-Automation.ps1 -CommandArguments @('native-reference', '--self-test')
+dotnet run --project tools/DotJpegli.Automation -c Release -- self-test
 ```
 
 ---
@@ -218,7 +213,7 @@ byte-identical `netstandard2.1`, `net10.0`, and `net11.0` DLLs and `.nupkg`
 archives from `HEAD`:
 
 ```powershell
-./tools/verify-release.ps1 -Reproducibility
+dotnet run --project tools/DotJpegli.Automation -c Release -- release --reproducibility
 ```
 
 When intentionally updating a NuGet dependency in `Directory.Packages.props`,
@@ -291,7 +286,7 @@ workflow runs static resource-leak and null-dereference analysis across the
 `netstandard2.1`, `net10.0`, and `net11.0` builds using a digest-pinned
 InferSharp v1.5 container.
 
-`tools/assert-infersharp.ps1` validates translation coverage and fails on any
+`DotJpegli.Automation infer-sharp` validates translation coverage and fails on any
 unreviewed finding against [`tools/infersharp-baseline.json`](../tools/infersharp-baseline.json)
 (which records one reviewed `netstandard2.1` false positive on
 `EntropyTokenScans`'s `using` disposal in `EncodeOptimizedScans`; the `net10.0`

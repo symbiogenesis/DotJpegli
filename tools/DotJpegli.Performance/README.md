@@ -40,7 +40,7 @@ By default, a routine push to `main` runs 4 targeted cases (`kodim01`, distance 
 - **Offline evidence diff**: Compare two existing evidence directories without running benchmarks:
 
   ```powershell
-  ./tools/compare-performance-revisions.ps1 -Baseline /absolute/baseline-evidence -Current /absolute/current-evidence -BaselineRevision <full-baseline-sha> -CurrentRevision <full-current-sha> -Output /absolute/comparison
+  dotnet run --project tools/DotJpegli.Automation -c Release -- compare-performance --baseline /absolute/baseline-evidence --current /absolute/current-evidence --baseline-revision <full-baseline-sha> --current-revision <full-current-sha> --output /absolute/comparison
   ```
 
 ## Regression comparison against released 1.0.0
@@ -91,4 +91,4 @@ dotnet DotJpegli.Performance.dll --allocation-evidence --native /absolute/jpegli
 
 - **Protocol**: Untimed observation across all 192 Kodak photograph configurations (24 images, distances `1` and `4`, 444/420, sequential/progressive), recording 3 observed encodes after 5 warmups.
 - **Metrics**: Managed values record exact `GC.GetTotalAllocatedBytes` deltas (including the returned `byte[]` JPEG); native values record heap byte requests intercepted by the [GNU linker allocation probe](../parity/native/README.md#untimed-native-allocations).
-- **Chart update**: Pass `-Allocations` to `tools/update-performance-charts.ps1` to regenerate the allocation chart from retained CI evidence.
+- **Chart update**: Pass `--allocations` to `DotJpegli.Automation performance-charts` to regenerate the allocation chart from retained CI evidence.
