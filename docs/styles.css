@@ -62,6 +62,7 @@ html {
   scroll-behavior: smooth;
   font-family: var(--font-sans);
   line-height: 1.6;
+  overflow-wrap: anywhere;
   color: var(--ink);
   background-color: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -70,7 +71,6 @@ html {
 body {
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
 }
 
 a {
@@ -118,6 +118,7 @@ pre {
 
 .nav-inner {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   min-height: 4rem;
@@ -202,9 +203,16 @@ pre {
 
 .hero-grid {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
   gap: 2.5rem;
   align-items: start;
+}
+
+.hero-grid > *,
+.quickstart-grid > *,
+.cli-platforms > *,
+.scope-grid > * {
+  min-width: 0;
 }
 
 .hero-identity {
@@ -296,6 +304,7 @@ pre {
 
 .download-panel-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
@@ -531,6 +540,7 @@ pre {
 
 .dl-target-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
@@ -617,6 +627,8 @@ pre {
 
 .nuget-box-label {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
   justify-content: space-between;
   align-items: center;
   font-size: 0.8rem;
@@ -637,10 +649,12 @@ pre {
   border: 1px solid var(--border);
   font-family: var(--font-mono);
   font-size: 0.82rem;
-  overflow-x: auto;
 }
 
 .cmd-snippet code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
   background: none;
   border: none;
   padding: 0;
@@ -752,6 +766,7 @@ pre {
 table {
   width: 100%;
   border-collapse: collapse;
+  overflow-wrap: normal;
   font-size: 0.93rem;
   font-variant-numeric: tabular-nums;
 }
@@ -798,7 +813,7 @@ tr:last-child td {
 /* Features Grid */
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr));
   gap: 1.25rem;
 }
 
@@ -839,7 +854,7 @@ tr:last-child td {
 /* Quick Start & Code Blocks */
 .quickstart-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.5rem;
   align-items: start;
 }
@@ -859,6 +874,8 @@ tr:last-child td {
 
 .code-card-header {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   align-items: center;
   justify-content: space-between;
   padding: 0.65rem 1rem;
@@ -931,7 +948,7 @@ tr:last-child td {
 /* CLI Platform Cards */
 .cli-platforms {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.25rem;
   margin-top: 1.5rem;
 }
@@ -952,6 +969,8 @@ tr:last-child td {
   margin: 0 0 0.35rem;
   font-size: 1.08rem;
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   align-items: center;
   justify-content: space-between;
 }
@@ -965,7 +984,7 @@ tr:last-child td {
 /* Docs Directory Grid */
 .docs-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
   gap: 1rem;
 }
 
@@ -1006,7 +1025,7 @@ tr:last-child td {
 /* Scope Box */
 .scope-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.25rem;
   margin-top: 2rem;
 }
@@ -1056,7 +1075,7 @@ tr:last-child td {
   .quickstart-grid,
   .cli-platforms,
   .scope-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .hero {
@@ -1065,8 +1084,30 @@ tr:last-child td {
 }
 
 @media (max-width: 600px) {
+  .container {
+    padding-inline: 1rem;
+  }
+
+  .nav-inner {
+    gap: 0.5rem;
+  }
+
+  .brand {
+    gap: 0.5rem;
+    font-size: 1.05rem;
+  }
+
   .site-nav a:not(.nav-gh) {
     display: none;
+  }
+
+  .section {
+    padding: 2.5rem 0;
+  }
+
+  .download-panel,
+  .perf-card {
+    padding: 1rem;
   }
 
   .hero-identity {
